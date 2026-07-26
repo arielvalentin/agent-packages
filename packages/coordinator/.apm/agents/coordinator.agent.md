@@ -1,5 +1,5 @@
 ---
-name: coordinator
+name: "arielvalentin: coordinator"
 description: Multi-agent coordinator — delegates in parallel, runs consensus reviews, and gates progression.
 mode: primary
 user-invocable: true
