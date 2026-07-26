@@ -1,3 +1,4 @@
-name: coordinator-pack
+name: coordinator
 version: 0.1.0
 description: Coordinator workflow agent bundled with its required handoff and panel skills.
+license: Apache-2.0

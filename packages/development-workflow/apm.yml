@@ -1,0 +1,4 @@
+name: development-workflow
+version: 0.1.0
+description: Design and implementation agent pair for coordinated development workflows.
+license: Apache-2.0

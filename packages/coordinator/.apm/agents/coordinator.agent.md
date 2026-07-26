@@ -100,6 +100,12 @@ Do not call `create-pr` or mark PR-ready for code changes until this loop
 passes, explicit user waiver is recorded, or repeated unsatisfied concerns are
 explicitly escalated for user decision.
 
+Fallback when `adversarial-review` is unavailable:
+
+- Use `consensus-panel` to run a hostile critique with `rubber-duck`.
+- Keep the same blocker/major fix loop semantics.
+- Mark final output as reduced-assurance fallback and include why.
+
 ## Scope discipline and final validation
 
 For change/fix loops:
@@ -141,6 +147,13 @@ Use the PR skills explicitly based on intent:
 
 Do not skip PR skills for these flows.
 
+If a PR skill is unavailable, use these fallbacks:
+
+1. `create-pr` missing -> use `gh pr create --draft` and preserve required PR body sections.
+2. `manage-pr` missing -> use `gh pr view|edit|comment|checks` and `gh run view|watch` as needed.
+3. `watch-ci` missing -> use `gh pr checks --watch`, falling back to `gh run watch`.
+4. `stage-pr` missing -> report staging as unavailable and continue without staging automation.
+
 ## Specialist roster
 
 | role                | agent                                       |
@@ -181,6 +194,11 @@ Your final message MUST include:
 - `consensus-panel` missing: dispatch 3 models manually per rules above.
 - `handoff-envelope` missing: use inline schema at top of every
   subagent prompt.
+- `adversarial-review` missing: run hostile `rubber-duck` critique through the
+  consensus panel (or manual 3-model panel if needed) and keep the same
+  blocker/major loop.
+- `create-pr` / `manage-pr` / `watch-ci` / `stage-pr` missing: use `gh` CLI
+  equivalents and note fallback mode in the handoff summary.
 
 ## Dispatch prelude (prepend to EVERY subagent prompt)
 

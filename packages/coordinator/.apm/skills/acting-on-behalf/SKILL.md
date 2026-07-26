@@ -85,3 +85,16 @@ For changes that modify agent policy/config behavior, include a compact
 - preserved guardrail proof
 - extracted section mapping
 - validation/consensus summary
+
+## Skill-availability fallbacks
+
+If companion skills are unavailable, do not block progress. Use:
+
+1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
+   and keep blocker/major fix loops before PR creation.
+2. `create-pr` missing -> use `gh pr create --draft`.
+3. `manage-pr` missing -> use `gh pr view|edit|comment|checks` and
+   `gh run view|watch`.
+4. `watch-ci` missing -> use `gh pr checks --watch` (or `gh run watch`).
+5. `stage-pr` missing -> report staging as unavailable and proceed without
+   staging automation.
