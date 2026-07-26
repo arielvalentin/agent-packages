@@ -1,0 +1,87 @@
+---
+name: acting-on-behalf
+description: Use when posting comments/issues/PRs or other public content on behalf of @arielvalentin.
+---
+
+# Acting on behalf of @arielvalentin
+
+Use this skill whenever you are about to post content to GitHub (or another
+shared/public platform) on behalf of the user.
+
+This skill is mandatory for PR/issue comment posts and replies.
+
+## Always enforce
+
+1. Include an AI-generated disclaimer in posted content.
+2. For PR/issue comment posts and replies, invoke this skill before posting
+   and keep the disclaimer in the final comment body.
+3. For replies to PR feedback comments, include the related commit SHA in the
+   comment text (for example: `Fixed in <sha>`).
+4. Open PRs in draft mode by default (`gh pr create --draft`).
+5. Tie PRs and non-trivial commits to an issue.
+6. Use `gh` CLI for all GitHub operations.
+7. PR descriptions must include intent and decision-making rationale:
+   - why the change exists
+   - key decisions/tradeoffs
+   - direct issue references (`Closes`/`Fixes owner/repo#N`)
+   - optional ADR references when relevant
+8. For PRs containing code/config/script changes, run `adversarial-review`
+   before PR creation and continue fix/re-review cycles until blocker/major
+   feedback is satisfied. If the same blocker/major concern is raised twice and
+   still unsatisfied, escalate to the user before proceeding. Skip only on
+   explicit user request.
+
+## PR/issue comment rule
+
+Before posting or replying to a PR/issue comment:
+
+1. Include the AI disclaimer line in the comment body.
+2. Verify the disclaimer remains in the final text sent to GitHub.
+3. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`).
+
+## If no issue is provided
+
+1. Search for likely existing issues first:
+   - `gh issue list --search "<keywords>"`
+2. Confirm the candidate with the user before assuming.
+3. If nothing matches, ask whether to open a new issue, then draft/create it
+   before opening a PR.
+
+## Posting template (adapt wording by context)
+
+> _🤖 This comment was drafted by an AI agent on behalf of @arielvalentin._
+
+## PR safety gate
+
+Before calling `create-pr`/`gh pr create` for code changes:
+
+1. Run `adversarial-review`.
+2. Address high-confidence blocker/major findings.
+3. Re-run `adversarial-review` after fixes and repeat until blocker/major
+   findings are satisfied.
+4. If the same blocker/major concern is raised twice and still unsatisfied,
+   stop and escalate to the user with unresolved items.
+5. Keep changes scoped to the original request/task list; avoid unrelated edits.
+6. Validate final results against the original request/task list before PR
+   creation.
+7. If the user explicitly says to skip adversarial review, proceed and note the
+   explicit waiver in the PR body or handoff summary.
+
+## PR description content checklist
+
+Before opening a PR, ensure the description includes:
+
+1. Intent: what problem/outcome this PR addresses.
+2. Decision process: key choices and tradeoffs made.
+3. Direct issue references using closing syntax (`Closes`/`Fixes`).
+4. ADR references when an ADR informed the decision (optional).
+
+## PR evidence requirement for policy/config refactors
+
+For changes that modify agent policy/config behavior, include a compact
+"Evidence" section in the PR body with:
+
+- before/after size metrics
+- preserved guardrail proof
+- extracted section mapping
+- validation/consensus summary

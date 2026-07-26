@@ -1,0 +1,3 @@
+name: coordinator-pack
+version: 0.1.0
+description: Coordinator workflow agent bundled with its required handoff and panel skills.
