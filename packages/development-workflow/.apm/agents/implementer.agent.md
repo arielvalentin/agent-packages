@@ -2,7 +2,7 @@
 name: "arielvalentin: implementer"
 description: Writes production code from an approved design or bug report. Single-model, TDD-preferred.
 mode: subagent
-user-invocable: false
+user-invocable: true
 ---
 
 # Implementer

@@ -2,7 +2,7 @@
 name: "arielvalentin: style-reviewer"
 description: Reviews code for language idioms, design patterns, and readability best practices.
 mode: subagent
-user-invocable: false
+user-invocable: true
 ---
 
 # Style, Idioms & Patterns Reviewer

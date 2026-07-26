@@ -2,7 +2,7 @@
 name: "arielvalentin: system-architect"
 description: Designs system and module architecture from requirements — writes 01-design.md for review.
 mode: subagent
-user-invocable: false
+user-invocable: true
 ---
 
 # System Architect

@@ -2,7 +2,7 @@
 name: "arielvalentin: perf-reviewer"
 description: Static-analysis performance reviewer — reads code and flags scaling risks. Never runs live profiles.
 mode: subagent
-user-invocable: false
+user-invocable: true
 ---
 
 # Performance & Scalability Reviewer
