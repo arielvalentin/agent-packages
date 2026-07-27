@@ -106,6 +106,39 @@ Fallback when `adversarial-review` is unavailable:
 - Keep the same blocker/major fix loop semantics.
 - Mark final output as reduced-assurance fallback and include why.
 
+## Observability validation gate (mandatory for code-change PRs)
+
+Before declaring PR-ready, verify that the change is **observable in
+production** — i.e., an operator could confirm correctness or detect
+regression without reading source code. Evaluate:
+
+1. **Metrics** — Does the change emit or alter metrics that reflect its
+   behavior? (e.g., counters, histograms, gauges for new paths/features.)
+2. **Logs** — Are structured log statements present at key decision points
+   with sufficient context (correlation IDs, entity identifiers, status)?
+3. **Traces** — Are new or modified code paths instrumented with spans that
+   carry semantic attributes per OpenTelemetry conventions?
+4. **Alerting / SLO impact** — Could an existing or proposed alert fire if
+   the change regresses? If not, flag the gap.
+
+### Disposition
+
+| Result | Action |
+|--------|--------|
+| All 4 criteria satisfied | Pass — record in final message |
+| Gaps identified but acceptable (e.g., pure refactor with no new behavior) | Pass with justification — record rationale |
+| Gaps identified in new/changed behavior | Dispatch `implementer` with required observability additions, then re-evaluate |
+| Repeated unresolved gaps after 2 attempts | Escalate to user with the gap list |
+
+### Exemptions
+
+- Documentation-only changes.
+- Changes the user explicitly marks as observability-exempt.
+- Pure dependency bumps with no behavioral delta.
+
+Record gate status (passed / passed-with-justification / escalated / exempt)
+in the final message alongside the adversarial-review gate status.
+
 ## Scope discipline and final validation
 
 For change/fix loops:
@@ -184,6 +217,8 @@ Your final message MUST include:
 - If a required artifact is missing → treat as a bug and surface it.
 - Adversarial-review gate status for PR-bound code changes: passed, findings
   addressed, or explicit user waiver.
+- Observability validation gate status: passed, passed-with-justification
+  (include rationale), escalated (include gap list), or exempt (state reason).
 - Final validation against the original request/task list: satisfied items and
   any remaining gaps/blockers.
 - PR description readiness: intent + decision rationale + issue references (and
@@ -228,6 +263,8 @@ surface it in the final message.
   instead.
 - Open/recommend a code-change PR before the PR readiness gate passes
   (or before explicit user waiver/escalation decision).
+- Declare PR-ready for code changes without passing the observability
+  validation gate (or recording an explicit exemption).
 - Post or reply to PR/issue comments without invoking `acting-on-behalf` first.
 - Reply to PR feedback comments without including the related commit SHA.
 - Keep dispatching unrelated implementation changes that are outside the
