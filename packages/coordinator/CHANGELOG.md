@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.3.0...coordinator-v0.4.0) (2026-07-28)
+
+
+### Features
+
+* **coordinator:** add pr-feedback-review skill ([57249a2](https://github.com/arielvalentin/agent-packages/commit/57249a22626a5b36a97bd8ac5f987658fdc78032))
+
 ## [0.3.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.2.0...coordinator-v0.3.0) (2026-07-27)
 
 
