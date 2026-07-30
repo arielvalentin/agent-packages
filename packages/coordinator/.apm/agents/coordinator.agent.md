@@ -46,8 +46,9 @@ For `feature`, `bugfix`, and `refactor` flows targeting a production codebase:
    - Placeholder sections for intent, decisions, and references (to be filled later)
 3. This makes the work visible to the team immediately and enables early CI
    feedback on the branch.
-4. Update the PR title (remove "WIP: " prefix) and fill the body when the
-   implementation is PR-ready and all gates pass.
+4. When implementation is complete and all gates pass, finalize the PR:
+   - Rename the title to Conventional Commits format: `<type>(<scope>): <description>`
+   - Fill the body with intent, decisions, and issue references
 
 Skip this step for `research` flows or when the user explicitly says not to
 open a PR yet.
