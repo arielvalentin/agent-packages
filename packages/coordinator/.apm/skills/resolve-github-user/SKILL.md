@@ -9,9 +9,17 @@ Determines the authenticated GitHub username using the cheapest available
 source. Use this skill before any operation that requires the user's handle
 (disclaimers, attributions, @-mentions, commit trailers).
 
+## Memoization
+
+This skill resolves the username **once per session**. After the first
+successful resolution, store the result in session state (e.g., a
+`github_username` key). On subsequent invocations, return the cached value
+immediately — do not re-run the resolution steps.
+
 ## Resolution strategy (in priority order)
 
-Try each source in order. Stop at the first successful result.
+If no cached value exists, try each source in order. Stop at the first
+successful result.
 
 ### 1. Session context
 
@@ -57,4 +65,5 @@ skill or agent is responsible for formatting (e.g., prepending `@`).
 If all sources fail:
 
 1. Ask the user for their GitHub handle.
-2. Cache the answer in session state for subsequent calls.
+2. Cache the answer in session state for subsequent calls (same memoization
+   key as above).
