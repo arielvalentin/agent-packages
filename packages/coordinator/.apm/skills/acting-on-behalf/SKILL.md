@@ -1,14 +1,19 @@
 ---
 name: acting-on-behalf
-description: Use when posting comments/issues/PRs or other public content on behalf of @arielvalentin.
+description: Use when posting comments/issues/PRs or other public content on behalf of the user.
 ---
 
-# Acting on behalf of @arielvalentin
+# Acting on behalf of the user
 
 Use this skill whenever you are about to post content to GitHub (or another
 shared/public platform) on behalf of the user.
 
 This skill is mandatory for PR/issue comment posts and replies.
+
+## Identifying the user
+
+Determine the current GitHub username via `gh api user --jq '.login'` or from
+session context. Use this handle in disclaimers and attributions.
 
 ## Always enforce
 
@@ -49,7 +54,9 @@ Before posting or replying to a PR/issue comment:
 
 ## Posting template (adapt wording by context)
 
-> _🤖 This comment was drafted by an AI agent on behalf of @arielvalentin._
+> _🤖 This comment was drafted by an AI agent on behalf of @{username}._
+
+Replace `{username}` with the authenticated GitHub handle at runtime.
 
 ## PR safety gate
 
