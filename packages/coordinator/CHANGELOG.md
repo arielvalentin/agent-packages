@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.6.0...coordinator-v0.7.0) (2026-07-30)
+
+
+### Features
+
+* **coordinator,implementer:** open WIP draft PR early for production changes ([46a5312](https://github.com/arielvalentin/agent-packages/commit/46a5312a626b4681d516aea5f27b3b05702ccc5d))
+* **coordinator,system-architect:** incremental task breakdown and dispatch ([9300dda](https://github.com/arielvalentin/agent-packages/commit/9300dda063bdb011fa7f9bb93e2a8260805aa5e0))
+* **coordinator:** use conventional commits for finalized PR titles ([ff2eb61](https://github.com/arielvalentin/agent-packages/commit/ff2eb6155dbfe94e55d34a46ad929834af3aa3d8))
+* **coordinator:** use PR template and reflect final state in body ([8afccb8](https://github.com/arielvalentin/agent-packages/commit/8afccb865c86411704670ed9227ed98dedd7a5fe))
+
 ## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.5.0...coordinator-v0.6.0) (2026-07-30)
 
 
