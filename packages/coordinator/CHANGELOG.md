@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.5.0...coordinator-v0.6.0) (2026-07-30)
+
+
+### Features
+
+* **resolve-github-user:** memoize result for session lifetime ([5f1674e](https://github.com/arielvalentin/agent-packages/commit/5f1674ee8c4b4619c9745130fcfb265380933758))
+
 ## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.4.0...coordinator-v0.5.0) (2026-07-30)
 
 
