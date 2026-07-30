@@ -48,7 +48,13 @@ For `feature`, `bugfix`, and `refactor` flows targeting a production codebase:
    feedback on the branch.
 4. When implementation is complete and all gates pass, finalize the PR:
    - Rename the title to Conventional Commits format: `<type>(<scope>): <description>`
-   - Fill the body with intent, decisions, and issue references
+   - Check for a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or
+     `.github/PULL_REQUEST_TEMPLATE/` directory) and follow its structure
+   - Rewrite the body to reflect the **final state** of the changes — not
+     interim WIP notes or earlier iterations
+   - Include: intent, key decisions/tradeoffs, issue references, and test
+     evidence
+   - Remove any WIP placeholders or draft notes
 
 Skip this step for `research` flows or when the user explicitly says not to
 open a PR yet.
