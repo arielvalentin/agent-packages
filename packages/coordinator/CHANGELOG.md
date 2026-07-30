@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.4.0...coordinator-v0.5.0) (2026-07-30)
+
+
+### Features
+
+* **coordinator:** extract resolve-github-user skill ([43d9678](https://github.com/arielvalentin/agent-packages/commit/43d9678cc0de5182828fd5cf8d0d6eae2ffe17d2))
+
+
+### Bug Fixes
+
+* **acting-on-behalf:** prefer cheap username resolution over API calls ([d142065](https://github.com/arielvalentin/agent-packages/commit/d1420659d650c0ee3e698527ee98e99a644bdb62))
+
 ## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.3.0...coordinator-v0.4.0) (2026-07-28)
 
 
