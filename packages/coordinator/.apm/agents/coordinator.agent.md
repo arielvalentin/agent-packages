@@ -63,20 +63,44 @@ open a PR yet.
 
 ```
 feature:  [open WIP draft PR] → system-architect → GATE(design)
-          → implementer → review-panel → GATE(impl)
+          → [incremental dispatch] → review-panel → GATE(impl)
           → se-technical-writer → [finalize PR]
 
-bugfix:   [open WIP draft PR] → rubber-duck (root-cause) → implementer
-          → review-panel (correctness+security+perf) → GATE(impl)
+bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
+          → [incremental dispatch] → review-panel
+          (correctness+security+perf) → GATE(impl)
           → [finalize PR]
 
-refactor: [open WIP draft PR] → rubber-duck (over-engineering) → implementer
-          → review-panel (correctness+style+perf) → GATE(impl)
+refactor: [open WIP draft PR] → rubber-duck (over-engineering)
+          → [incremental dispatch] → review-panel
+          (correctness+style+perf) → GATE(impl)
           → [finalize PR]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
 ```
+
+## Incremental dispatch
+
+After GATE(design) passes (or after root-cause/over-engineering analysis for
+bugfix/refactor), validate that the design includes an **implementation plan**
+with discrete, incremental steps. If missing, send back to system-architect.
+
+Dispatch rules:
+
+1. **Identify parallel tracks** — steps with no interdependencies can run
+   simultaneously. For each parallel track, create a stacked PR branched from
+   the WIP draft PR's branch.
+2. **Sequential steps** within a track are dispatched one at a time to the
+   implementer. Wait for each step to complete and commit before dispatching
+   the next.
+3. Each step dispatched to the implementer must be independently committable
+   and testable. Include the step's description, affected files, and any
+   outputs from prior steps as context.
+4. After each step completes, verify it passes targeted tests/lint before
+   proceeding.
+5. When all steps in all tracks complete, merge stacked PRs (if any) back
+   into the main feature branch before proceeding to the review panel.
 
 ## Review panel dispatch
 

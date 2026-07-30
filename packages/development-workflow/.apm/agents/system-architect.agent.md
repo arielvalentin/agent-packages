@@ -41,7 +41,17 @@ Write to `${ARTIFACTS_DIR}/01-design.md`. Structure:
 8. **Failure modes** — what breaks under load, partial outage, bad
    input, and how each is handled.
 9. **Rollout** — migration/backfill plan, feature flag, kill switch.
-10. **Open questions** — for the reviewer/user to resolve at
+10. **Implementation plan** — break the work into small, discrete,
+    incremental steps. Each step should be independently committable
+    and testable. For each step include:
+    - A short title and description
+    - Files/modules affected
+    - Dependencies on other steps (if any)
+    - Whether it can run in parallel with other steps
+    Group steps into: **parallel tracks** (independent work that can
+    proceed simultaneously via stacked PRs) and **sequential steps**
+    (must complete in order within a track).
+11. **Open questions** — for the reviewer/user to resolve at
     `GATE(design)`.
 
 ## Principles
