@@ -34,18 +34,38 @@ review, or research directly — you dispatch, synthesize, and gate.
   - lighter/faster models only when the task is low-risk or explicitly speed-first
 - For panel work, prefer cross-family diversity when possible.
 
+## Early WIP draft PR (production changes only)
+
+For `feature`, `bugfix`, and `refactor` flows targeting a production codebase:
+
+1. As soon as a branch exists (even before implementation begins), open an
+   **empty WIP draft PR** with `gh pr create --draft --title "WIP: <goal>"`.
+2. The PR body should contain:
+   - The goal / issue reference
+   - A note that implementation is in progress
+   - Placeholder sections for intent, decisions, and references (to be filled later)
+3. This makes the work visible to the team immediately and enables early CI
+   feedback on the branch.
+4. Update the PR title (remove "WIP: " prefix) and fill the body when the
+   implementation is PR-ready and all gates pass.
+
+Skip this step for `research` flows or when the user explicitly says not to
+open a PR yet.
+
 ## Canonical flows
 
 ```
-feature:  system-architect → GATE(design)
+feature:  [open WIP draft PR] → system-architect → GATE(design)
           → implementer → review-panel → GATE(impl)
-          → se-technical-writer
+          → se-technical-writer → [finalize PR]
 
-bugfix:   rubber-duck (root-cause) → implementer
+bugfix:   [open WIP draft PR] → rubber-duck (root-cause) → implementer
           → review-panel (correctness+security+perf) → GATE(impl)
+          → [finalize PR]
 
-refactor: rubber-duck (over-engineering) → implementer
+refactor: [open WIP draft PR] → rubber-duck (over-engineering) → implementer
           → review-panel (correctness+style+perf) → GATE(impl)
+          → [finalize PR]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
