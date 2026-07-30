@@ -12,15 +12,8 @@ This skill is mandatory for PR/issue comment posts and replies.
 
 ## Identifying the user
 
-Resolve the current GitHub username using the cheapest available source (in
-priority order):
-
-1. Session context or environment (e.g., `GITHUB_USER`, repo ownership)
-2. Local git config: `git config user.name` or `git config user.email`
-3. GitHub CLI cache: `gh auth status` (already authenticated, no API call)
-4. API call (last resort): `gh api user --jq '.login'`
-
-Use this handle in disclaimers and attributions.
+Invoke the `resolve-github-user` skill to determine the current GitHub
+username. Use the returned handle in disclaimers and attributions.
 
 ## Always enforce
 
