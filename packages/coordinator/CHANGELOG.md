@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.7.0...coordinator-v0.8.0) (2026-08-01)
+
+
+### Features
+
+* **coordinator,architect,implementer:** scope discipline with improvement tracking ([456d978](https://github.com/arielvalentin/agent-packages/commit/456d978a821c7f9cb126945480b3caff8d189a0b))
+* **coordinator:** adaptive dispatch mode and task-based model selection ([9f3e861](https://github.com/arielvalentin/agent-packages/commit/9f3e861b46921f6ca1ab6d67a45749be3dac4a08))
+* **coordinator:** add PR lifecycle loop until merge ([7bbd272](https://github.com/arielvalentin/agent-packages/commit/7bbd272a90d0f9fdfc11f68f560b41fac54b3193))
+* **coordinator:** add security-review gate and post-completion cleanup ([5d4bbab](https://github.com/arielvalentin/agent-packages/commit/5d4bbab503cd1d2b79a6ac3606fd99f2f17d89bf))
+* **coordinator:** cap PR lifecycle loop at 10 iterations ([b26fb62](https://github.com/arielvalentin/agent-packages/commit/b26fb6249fc105e6a281eb17e124f7e6d1cd0d2a))
+* **coordinator:** rubber-duck stage reviews + adversarial final review ([b30fd9a](https://github.com/arielvalentin/agent-packages/commit/b30fd9a3c4a08c9f0fe71de8fe0943a59ce5678f))
+* **coordinator:** use code-review for diff stages, rubber-duck for plans ([1953dca](https://github.com/arielvalentin/agent-packages/commit/1953dca01d1e51926e7d8e507c86a6c9d97960ea))
+
 ## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.6.0...coordinator-v0.7.0) (2026-07-30)
 
 
