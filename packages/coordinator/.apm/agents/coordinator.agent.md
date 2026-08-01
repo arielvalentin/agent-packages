@@ -62,19 +62,21 @@ open a PR yet.
 ```
 feature:  [open WIP draft PR] → system-architect → rubber-duck(design)
           → GATE(design) → [incremental dispatch w/ code-review per step]
-          → code-review(pre-commit) → GATE(impl)
+          → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
-          → se-technical-writer
+          → se-technical-writer → [cleanup-worktrees]
 
 bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
           → [incremental dispatch w/ code-review per step]
-          → code-review(pre-commit) → GATE(impl)
+          → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
+          → [cleanup-worktrees]
 
 refactor: [open WIP draft PR] → rubber-duck (over-engineering)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
+          → [cleanup-worktrees]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
@@ -112,7 +114,23 @@ After all implementation steps complete but before presenting GATE(impl):
 - Dispatch `code-review` against the cumulative diff (branch vs base)
 - Focus: do all the pieces fit together? Any integration issues, missing
   error handling, or broken contracts between components?
-- Address findings before proceeding to the user gate
+- Address findings before proceeding to the security review
+
+### Security review (feature and bugfix flows)
+
+After the pre-commit code review passes, dispatch `security-review` against
+the cumulative diff:
+- Reports only exploitable security vulnerabilities with severity and
+  confidence ratings
+- Focused exclusively on security — does not comment on style, performance,
+  or non-security logic
+- If blocker/major findings are confirmed, dispatch `implementer` to fix
+  them and re-run `security-review`
+- Skip for `refactor` flows unless the refactor touches auth, crypto,
+  input validation, or access control
+
+This runs in addition to (not instead of) the `se-security-reviewer` +
+`sast-sca-security-analyzer` that may run as part of the review panel.
 
 ## Final adversarial review (mandatory for code-change PRs)
 
@@ -321,7 +339,8 @@ If a PR skill is unavailable, use these fallbacks:
 | design/plan review  | `rubber-duck`                               |
 | diff review         | `code-review` (read-only, diff-specialized) |
 | correctness         | `rubber-duck`                               |
-| security            | `se-security-reviewer` + `sast-sca-security-analyzer` |
+| security (focused)  | `security-review` (built-in, exploitable-only) |
+| security (broad)    | `se-security-reviewer` + `sast-sca-security-analyzer` |
 | performance (static)| `perf-reviewer` (custom)                    |
 | performance (live)  | `monolith-perf-sre` (custom, single-model)  |
 | style               | `style-reviewer` (custom)                   |
@@ -338,12 +357,14 @@ finding that needs production evidence, the coordinator dispatches
 Your final message MUST include:
 
 - Which canonical flow ran.
-- Stage review summary: rubber-duck findings at each stage (design, per-step,
-  pre-commit) and how they were resolved.
+- Stage review summary: rubber-duck/code-review/security-review findings at
+  each stage and how they were resolved.
 - Panel citations: 3 model responses per review phase, or a note stating
   why single-model was acceptable.
 - Path to `04-review-consensus.md` and any other artifact files.
 - If a required artifact is missing → treat as a bug and surface it.
+- Security-review gate status: passed, findings addressed, or exempt (with
+  reason).
 - Adversarial-review gate status for PR-bound code changes: passed, findings
   addressed, or explicit user waiver.
 - Observability validation gate status: passed, passed-with-justification
@@ -352,6 +373,16 @@ Your final message MUST include:
   any remaining gaps/blockers.
 - PR description readiness: intent + decision rationale + issue references (and
   ADR references when relevant) confirmed.
+
+## Post-completion cleanup
+
+After a PR is finalized and merged (or after the user confirms the flow is
+complete):
+
+1. Run `cleanup-worktrees` to garbage-collect worktrees whose PRs have been
+   merged. This keeps the local workspace tidy.
+2. If the user is working across environments (local ↔ Codespace), offer to
+   run `session-portability` to sync session state.
 
 ## Fallbacks (only when skills fail to load)
 
