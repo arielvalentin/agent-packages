@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.4.0...development-workflow-v0.5.0) (2026-08-01)
+
+
+### Features
+
+* **coordinator,implementer:** wire missing built-in tools ([2dae4a3](https://github.com/arielvalentin/agent-packages/commit/2dae4a31140b6753eccf3b4508aa10bc1f8bc1df))
+
 ## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.3.0...development-workflow-v0.4.0) (2026-08-01)
 
 
