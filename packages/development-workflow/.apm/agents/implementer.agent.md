@@ -46,10 +46,12 @@ Return `{"path": "…/03-impl-summary.md", "summary": "<=200 chars", "verdict": 
 
 ## Rules
 
-- **Stay narrowly focused** — each step you implement must be a small,
-  incremental change. If a step feels too large (touching more than ~5 files
-  or spanning multiple concerns), stop and ask the coordinator to decompose
-  it further. Never bundle unrelated refactoring, cleanup, or "while I'm
+- **Stay narrowly focused** — each step you implement must address a single
+  concern related to the current task. If a step tries to solve multiple
+  problems, fix multiple issues, or mix unrelated improvements with the
+  task at hand, stop and ask the coordinator to decompose it further.
+  A PR that addresses multiple concerns becomes too large to review
+  thoroughly. Never bundle unrelated refactoring, cleanup, or "while I'm
   here" changes into the same step.
 - **Report improvement opportunities** — if you identify refactorings,
   idiomatic improvements, or structural changes that would benefit the
