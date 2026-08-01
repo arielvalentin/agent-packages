@@ -46,6 +46,11 @@ Return `{"path": "…/03-impl-summary.md", "summary": "<=200 chars", "verdict": 
 
 ## Rules
 
+- **Stay narrowly focused** — each step you implement must be a small,
+  incremental change. If a step feels too large (touching more than ~5 files
+  or spanning multiple concerns), stop and ask the coordinator to decompose
+  it further. Never bundle unrelated refactoring, cleanup, or "while I'm
+  here" changes into the same step.
 - Never bypass user gates — the coordinator handles those.
 - Never commit or push. That is the user's call.
 - Never rewrite git history (per repo AGENTS.md).
