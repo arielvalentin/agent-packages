@@ -1,3 +1,10 @@
+---
+name: pr-feedback-review
+description: >
+  Structured protocol for reviewing, researching, and responding to PR review
+  comments — whether implementing fixes or rebutting invalid concerns.
+---
+
 # PR Feedback Review
 
 A structured protocol for reviewing, researching, and responding to PR review

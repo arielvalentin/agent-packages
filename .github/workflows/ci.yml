@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Structural validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install APM
+        run: curl -sSL https://aka.ms/apm-unix | sh
+
+      - name: Validate primitives (frontmatter + structure)
+        run: |
+          for pkg in packages/*/; do
+            echo "=== Validating $pkg ==="
+            (cd "$pkg" && apm compile --validate --local-only) || exit 1
+          done
+
+      - name: Audit (hidden Unicode + drift)
+        run: |
+          for pkg in packages/*/; do
+            echo "=== Auditing $pkg ==="
+            (cd "$pkg" && apm audit) || exit 1
+          done
+
+      - name: Cross-reference checks
+        run: |
+          chmod +x script/check-cross-references.sh
+          ./script/check-cross-references.sh
