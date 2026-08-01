@@ -66,7 +66,7 @@ research: rubber-duck (assumption-challenge)
 
 pr-review: [CI gate] → [deep-context] → code-review(diff)
            → adversarial-review(intent-coverage) → [system-impact]
-           → [tooling-gap check] → [post review]
+           → [docs-impact] → [tooling-gap check] → [post review]
 ```
 
 ## Stage reviews
@@ -211,7 +211,20 @@ Think beyond the diff. Consider and flag:
 If the PR appears trivial but touches high-impact areas, escalate the concern
 explicitly in the review.
 
-### 6. Tooling-gap check
+### 6. Documentation-impact check
+
+Search the repository for documentation (README, docs/, wiki links, diagrams,
+images) that describes behavior affected by the diff:
+
+1. Look for markdown files, diagrams (`.mermaid`, `.svg`, `.png`, `.drawio`),
+   and architecture images referenced in the changed areas.
+2. Check if the PR already updates those docs or includes a follow-up task.
+3. **If impacted docs exist but are not updated and no placeholder task is
+   found** — comment on the PR asking if there are plans to update the
+   affected documentation, and share a link to the specific file(s).
+4. **If no related docs are found** — say nothing about documentation.
+
+### 7. Tooling-gap check
 
 Before posting the review, assess whether you have adequate tools for the
 languages and frameworks in the diff:
@@ -223,17 +236,18 @@ languages and frameworks in the diff:
 - Suggest specific tools or reviewers that would fill the gap if known.
 - Do not claim comprehensive coverage you cannot provide.
 
-### 7. Post review
+### 8. Post review
 
-Compile findings from steps 3–6 into a single review using
+Compile findings from steps 3–7 into a single review using
 `acting-on-behalf`:
 
 1. **Summary** — Your understanding of the intent and whether the change
    achieves it.
 2. **Findings** — Organized by severity (blocking → warning → informational).
 3. **System-impact concerns** — Any blast-radius or cross-cutting issues.
-4. **Tooling gaps** — Honest disclosure of review limitations.
-5. **Verdict** — Approve, request changes, or comment-only (with rationale).
+4. **Documentation gaps** — Only if impacted docs were found but not updated.
+5. **Tooling gaps** — Honest disclosure of review limitations.
+6. **Verdict** — Approve, request changes, or comment-only (with rationale).
 
 Use `gh pr review` with the appropriate flag (`--approve`, `--request-changes`,
 or `--comment`). Include the AI disclaimer via `acting-on-behalf`.
