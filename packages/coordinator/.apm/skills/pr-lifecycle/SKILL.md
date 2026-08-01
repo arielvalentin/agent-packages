@@ -122,4 +122,3 @@ After the PR is **merged** (not just finalized):
    merged.
 2. If the user is working across environments (local ↔ Codespace), offer to
    run `session-portability` to sync session state.
-3. Optionally run `my-prs-status` to show the user their updated PR dashboard.
