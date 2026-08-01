@@ -161,10 +161,13 @@ Build a thorough understanding of intent before reading code:
    (`Closes #N`, `Fixes #N`, or linked in the sidebar), read those issues to
    understand the original problem statement, acceptance criteria, and any
    prior discussion.
-3. **If intent is unclear** — if neither the PR description nor linked issues
+3. **Research unfamiliar areas** — if the PR touches code you lack context on,
+   dispatch a `research` agent to search the repo for related files, prior
+   changes, and architectural patterns before forming opinions.
+4. **If intent is unclear** — if neither the PR description nor linked issues
    explain the purpose, note this as review feedback. The PR should articulate
    its own intent.
-4. **Summarize your understanding** of the intent before proceeding. This
+5. **Summarize your understanding** of the intent before proceeding. This
    summary anchors every subsequent review step.
 
 ### 3. Diff-scoped code review
@@ -415,12 +418,15 @@ Follow the `pr-lifecycle` skill for:
 | correctness         | `rubber-duck`                               |
 | security (focused)  | `security-review` (built-in, exploitable-only) |
 | security (broad)    | `se-security-reviewer` + `sast-sca-security-analyzer` |
+| observability       | `gho11y:telemetry-reviewer` (custom)        |
 | performance (static)| `perf-reviewer` (custom)                    |
 | performance (live)  | `monolith-perf-sre` (custom, single-model)  |
 | style               | `style-reviewer` (custom)                   |
 | architecture review | `system-architect` (second-pass sanity review) |
 | docs                | `se-technical-writer` (single-model)        |
+| codebase research   | `research` (built-in, repo search + verification) |
 | PR review (others)  | `code-review` + `adversarial-review` (combined flow) |
+| commit messages     | `commit-message-storyteller` (built-in skill) |
 
 Implementation, docs, and the live-data SRE are single-model. Every
 other role runs through the panel. When `perf-reviewer` flags a

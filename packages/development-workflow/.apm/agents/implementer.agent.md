@@ -23,16 +23,17 @@ If any of those are missing, return 1–3 clarifying questions and stop.
 ## Workflow
 
 1. Read every artifact in `inputs.artifact_paths` before touching code.
-2. **Early WIP draft PR**: If a draft PR does not already exist for this
-   branch and the work targets a production codebase, open one immediately
-   with `gh pr create --draft --title "WIP: <goal>"` before writing code.
-   Include the goal and issue reference in the body. Skip if the coordinator
-   already opened one or the user said not to.
+2. **Early WIP draft PR**: Follow the `pr-lifecycle` skill — if a draft PR
+   does not already exist for this branch and the work targets a production
+   codebase, open one. Skip if the coordinator already opened one or the user
+   said not to.
 3. Prefer TDD when tests exist or the change is behavior-visible:
    red → green → refactor. Don't force TDD on trivial edits.
 4. Make surgical changes. Don't touch unrelated code.
 5. Run the smallest targeted test/lint/build command that covers the
    change. Escalate to full-suite only if targeted fails.
+6. **Commit messages**: Use `commit-message-storyteller` to generate
+   narrative commit messages that explain WHY the change was made.
 
 ## Output (write to `${ARTIFACTS_DIR}/03-impl-summary.md`)
 
