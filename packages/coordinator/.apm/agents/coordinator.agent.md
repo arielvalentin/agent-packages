@@ -81,6 +81,10 @@ refactor: [open WIP draft PR] → rubber-duck (over-engineering)
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
+
+pr-review: [CI gate] → [deep-context] → code-review(diff)
+           → adversarial-review(intent-coverage) → [system-impact]
+           → [tooling-gap check] → [post review]
 ```
 
 ## Stage reviews
@@ -134,6 +138,106 @@ the cumulative diff:
 
 This runs in addition to (not instead of) the `se-security-reviewer` +
 `sast-sca-security-analyzer` that may run as part of the review panel.
+
+## PR review flow (reviewing others' code)
+
+When the user asks to review a PR authored by someone else, follow this flow.
+The goal is a thorough, context-aware review — not just a diff scan.
+
+### 1. CI gate — do not review until builds pass
+
+Before any review work:
+
+1. Run `gh pr checks <pr-number>` (or `gh pr view <pr-number> --json
+   statusCheckRollup`).
+2. If **any required check is pending or failing**, stop and tell the user:
+   - Which checks failed or are still running
+   - That a review will begin once CI is green
+3. Only proceed when all required status checks pass.
+
+### 2. Deep-context — understand why the change exists
+
+Build a thorough understanding of intent before reading code:
+
+1. **Read the PR description** — look for a clear explanation of *what* problem
+   is being solved and *why* this approach was chosen.
+2. **Follow linked issues** — if the PR description references issues
+   (`Closes #N`, `Fixes #N`, or linked in the sidebar), read those issues to
+   understand the original problem statement, acceptance criteria, and any
+   prior discussion.
+3. **If intent is unclear** — if neither the PR description nor linked issues
+   explain the purpose, note this as review feedback. The PR should articulate
+   its own intent.
+4. **Summarize your understanding** of the intent before proceeding. This
+   summary anchors every subsequent review step.
+
+### 3. Diff-scoped code review
+
+Dispatch `code-review` against the PR diff:
+
+- Focus on high-confidence bugs, security vulnerabilities, and logic errors
+- Flag broken contracts, missing error handling, and edge cases
+- Note any test gaps for changed behavior
+
+### 4. Adversarial intent-coverage review
+
+Dispatch `adversarial-review` with explicit instructions to evaluate:
+
+1. **Does the diff actually fix or implement what the issue/PR describes?**
+   — Flag partial implementations, missed acceptance criteria, or cases where
+   the code solves a different problem than stated.
+2. **Are there scenarios the change claims to handle but doesn't?** — Edge
+   cases, error paths, concurrent access, rollback safety.
+3. **Could the change introduce regressions?** — Side effects in shared code,
+   changed defaults, altered public API contracts.
+
+Provide the adversarial reviewer with: the intent summary (from step 2), the
+linked issue body (if any), and the full diff.
+
+### 5. System-impact analysis
+
+Think beyond the diff. Consider and flag:
+
+- **Blast radius** — Does this touch shared libraries, middleware, or
+  infrastructure code used by other services/consumers?
+- **Performance** — Could a small logic change cause hot-path regressions,
+  N+1 queries, or increased memory pressure at scale?
+- **Observability** — Does the change alter or remove existing metrics, logs,
+  or trace instrumentation?
+- **Data/schema** — Are there migration, backward-compatibility, or data
+  integrity concerns?
+- **Deployment** — Does this need a feature flag, phased rollout, or
+  coordination with other changes?
+
+If the PR appears trivial but touches high-impact areas, escalate the concern
+explicitly in the review.
+
+### 6. Tooling-gap check
+
+Before posting the review, assess whether you have adequate tools for the
+languages and frameworks in the diff:
+
+- If the PR contains languages or frameworks for which no specialized reviewer
+  is available (e.g., no Rust/Go/Java/C++ linter or language-aware agent),
+  **tell the user** that the review may miss language-specific idiom or safety
+  issues.
+- Suggest specific tools or reviewers that would fill the gap if known.
+- Do not claim comprehensive coverage you cannot provide.
+
+### 7. Post review
+
+Compile findings from steps 3–6 into a single review using
+`acting-on-behalf`:
+
+1. **Summary** — Your understanding of the intent and whether the change
+   achieves it.
+2. **Findings** — Organized by severity (blocking → warning → informational).
+3. **System-impact concerns** — Any blast-radius or cross-cutting issues.
+4. **Tooling gaps** — Honest disclosure of review limitations.
+5. **Verdict** — Approve, request changes, or comment-only (with rationale).
+
+Use `gh pr review` with the appropriate flag (`--approve`, `--request-changes`,
+or `--comment`). Include the AI disclaimer via `acting-on-behalf`.
 
 ## Final adversarial review (mandatory for code-change PRs)
 
@@ -369,6 +473,7 @@ If a PR skill is unavailable, use these fallbacks:
 | style               | `style-reviewer` (custom)                   |
 | architecture review | `system-architect` (second-pass sanity review) |
 | docs                | `se-technical-writer` (single-model)        |
+| PR review (others)  | `code-review` + `adversarial-review` (combined flow) |
 
 Implementation, docs, and the live-data SRE are single-model. Every
 other role runs through the panel. When `perf-reviewer` flags a
@@ -396,6 +501,9 @@ Your final message MUST include:
   any remaining gaps/blockers.
 - PR description readiness: intent + decision rationale + issue references (and
   ADR references when relevant) confirmed.
+- For `pr-review` flow: intent summary, intent-coverage verdict, system-impact
+  concerns, tooling gaps disclosed, and review verdict (approve/request-changes/
+  comment).
 
 ## PR lifecycle loop
 
