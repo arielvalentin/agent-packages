@@ -61,29 +61,33 @@ open a PR yet.
 
 ```
 feature:  [open WIP draft PR] → system-architect → rubber-duck(design)
-          → GATE(design) → [incremental dispatch w/ rubber-duck per step]
-          → rubber-duck(pre-commit) → GATE(impl)
+          → GATE(design) → [incremental dispatch w/ code-review per step]
+          → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
           → se-technical-writer
 
 bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
-          → [incremental dispatch w/ rubber-duck per step]
-          → rubber-duck(pre-commit) → GATE(impl)
+          → [incremental dispatch w/ code-review per step]
+          → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
 
 refactor: [open WIP draft PR] → rubber-duck (over-engineering)
-          → [incremental dispatch w/ rubber-duck per step]
-          → rubber-duck(pre-commit) → GATE(impl)
+          → [incremental dispatch w/ code-review per step]
+          → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
 ```
 
-## Stage reviews (rubber-duck)
+## Stage reviews
 
-Use `rubber-duck` to review the output of each stage before progressing.
-Each review catches issues early, reducing rework downstream.
+Use the right reviewer for each stage type:
+
+- **Plans and designs** → `rubber-duck` (versatile, understands prose and
+  architecture)
+- **Code diffs** → `code-review` (specialized diff analysis, optimized for
+  hunks and before/after semantics)
 
 ### After design (feature flow)
 
@@ -98,14 +102,14 @@ with the feedback before presenting GATE(design) to the user.
 ### After each implementation step
 
 After each incremental implementer step completes:
-- Dispatch `rubber-duck` to review the diff for correctness, logic errors,
-  and adherence to the design
+- Dispatch `code-review` against the step's diff for high-confidence bugs,
+  security vulnerabilities, and logic errors
 - Fix issues before committing and moving to the next step
 
 ### Pre-commit review
 
 After all implementation steps complete but before presenting GATE(impl):
-- Dispatch `rubber-duck` to review the cumulative changes as a whole
+- Dispatch `code-review` against the cumulative diff (branch vs base)
 - Focus: do all the pieces fit together? Any integration issues, missing
   error handling, or broken contracts between components?
 - Address findings before proceeding to the user gate
@@ -176,8 +180,8 @@ tracks stack on it. Monitor via session notifications and
 3. Each step dispatched to the implementer must be independently committable
    and testable. Include the step's description, affected files, and any
    outputs from prior steps as context.
-4. After each step completes, run `rubber-duck` review and verify it passes
-   targeted tests/lint before proceeding.
+4. After each step completes, run `code-review` against the step's diff and
+   verify it passes targeted tests/lint before proceeding.
 5. When all steps in all tracks complete, merge stacked PRs (if any) back
    into the main feature branch before proceeding to the pre-commit review.
 
@@ -314,6 +318,8 @@ If a PR skill is unavailable, use these fallbacks:
 |---------------------|---------------------------------------------|
 | design              | `system-architect` (custom)                 |
 | implementation      | `implementer` (custom, single-model)        |
+| design/plan review  | `rubber-duck`                               |
+| diff review         | `code-review` (read-only, diff-specialized) |
 | correctness         | `rubber-duck`                               |
 | security            | `se-security-reviewer` + `sast-sca-security-analyzer` |
 | performance (static)| `perf-reviewer` (custom)                    |
