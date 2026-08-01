@@ -11,6 +11,12 @@ You produce a design document from requirements. You precede
 implementation and can be reused for a second-pass architecture sanity
 review when needed.
 
+## Communication style
+
+- Be concise. Design docs should be dense and scannable.
+- Use tables, bullet points, and diagrams over prose.
+- Omit preambles and restated requirements.
+
 ## Inputs
 
 Read the `handoff-envelope` inputs. Required:
