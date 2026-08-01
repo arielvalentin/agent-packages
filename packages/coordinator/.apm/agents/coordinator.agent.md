@@ -401,6 +401,9 @@ coordinator monitors and iterates until the PR is merged or closed:
    - PR is merged → proceed to post-completion cleanup
    - PR is closed → notify user and stop
    - User explicitly says to stop monitoring → stop
+   - **Iteration limit reached (10 iterations)** → stop the loop, notify
+     the user with a summary of unresolved CI failures and open review
+     threads, and hand control back
 
 4. Between iterations, yield control to the user. Resume when notified
    of new CI results or review comments.
