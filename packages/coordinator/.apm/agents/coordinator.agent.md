@@ -25,13 +25,11 @@ review, or research directly — you dispatch, synthesize, and gate.
 ## Model selection policy (dynamic)
 
 - Do not hard-code model IDs in this coordinator flow.
-- Determine available models at runtime from the current session/tooling
-  capabilities before dispatching subagents.
+- Determine available models at runtime before dispatching subagents.
 - If runtime model discovery is unavailable, dispatch without an explicit
   model override (let runtime auto-select) and note that fallback.
-- Choose the best-fit model(s) for each phase:
-  - high-capability models for design, implementation, and critical reviews
-  - lighter/faster models only when the task is low-risk or explicitly speed-first
+- Match model capability to task complexity (see § Incremental dispatch
+  → Model selection for dispatch).
 - For panel work, prefer cross-family diversity when possible.
 
 ## Early WIP draft PR (production changes only)
@@ -147,21 +145,57 @@ After GATE(design) passes (or after root-cause/over-engineering analysis for
 bugfix/refactor), validate that the design includes an **implementation plan**
 with discrete, incremental steps. If missing, send back to system-architect.
 
-Dispatch rules:
+### Dispatch mode selection
 
-1. **Identify parallel tracks** — steps with no interdependencies can run
-   simultaneously. For each parallel track, create a stacked PR branched from
-   the WIP draft PR's branch.
+Evaluate the implementation plan and choose the optimal dispatch mode:
+
+**Use `task` agents (default)** when:
+- Steps are sequential or share files
+- Individual steps are small (< ~3 files each)
+- All work belongs in a single PR
+- Tracks would create merge conflicts
+
+**Use fleet sessions (`create_session`)** when:
+- Parallel tracks are large (multiple files, significant logic each)
+- Tracks are conflict-free (no shared files between tracks)
+- Each track benefits from its own worktree, branch, and CI feedback
+- The design explicitly identifies isolated subsystems
+
+When using fleet sessions, set `base_branch` to the WIP PR's branch so
+tracks stack on it. Monitor via session notifications and
+`send_session_message` for coordination.
+
+### Dispatch rules
+
+1. **Parallel tracks** — dispatch simultaneously using the selected mode
+   (task agents or fleet sessions). Each track gets its own stacked PR
+   when using fleet sessions.
 2. **Sequential steps** within a track are dispatched one at a time to the
    implementer. Wait for each step to complete and commit before dispatching
    the next.
 3. Each step dispatched to the implementer must be independently committable
    and testable. Include the step's description, affected files, and any
    outputs from prior steps as context.
-4. After each step completes, verify it passes targeted tests/lint before
-   proceeding.
+4. After each step completes, run `rubber-duck` review and verify it passes
+   targeted tests/lint before proceeding.
 5. When all steps in all tracks complete, merge stacked PRs (if any) back
-   into the main feature branch before proceeding to the review panel.
+   into the main feature branch before proceeding to the pre-commit review.
+
+### Model selection for dispatch
+
+Choose the model for each dispatch based on task characteristics:
+
+| Task characteristic | Model choice |
+|---------------------|-------------|
+| Complex design, architecture, or critical review | High-capability model (e.g., Opus, GPT-5.5+, Gemini Pro) |
+| Straightforward implementation, small edits | Mid-tier model (e.g., Sonnet, GPT-5.4) |
+| Boilerplate, config changes, simple test additions | Fast/light model (e.g., Haiku, GPT-5-mini, Flash) |
+| Consensus panel members | Cross-family diversity, all high-capability |
+| Rubber-duck stage reviews | Mid-tier (fast feedback over deep analysis) |
+| Final adversarial review | High-capability (thorough, holistic analysis) |
+
+Determine available models at runtime. If runtime model discovery is
+unavailable, omit the model override and let the runtime auto-select.
 
 ## Review panel dispatch
 
