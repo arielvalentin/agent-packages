@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.8.0...coordinator-v0.9.0) (2026-08-01)
+
+
+### Features
+
+* **coordinator,implementer:** wire missing built-in tools ([2dae4a3](https://github.com/arielvalentin/agent-packages/commit/2dae4a31140b6753eccf3b4508aa10bc1f8bc1df))
+* **coordinator:** add adversarial-review skill ([d166572](https://github.com/arielvalentin/agent-packages/commit/d166572bdad99b6e8bf0a20dd4de07089e0c7351))
+* **coordinator:** add create-pr skill ([94d4ad4](https://github.com/arielvalentin/agent-packages/commit/94d4ad4c572d843492ff524db3e43305a583e9f4))
+* **coordinator:** add manage-pr skill ([d7c7304](https://github.com/arielvalentin/agent-packages/commit/d7c7304805e8fcf9e46dbc09e7249119dcdb3c7a))
+* **coordinator:** add pr-review flow for reviewing others' code ([e011113](https://github.com/arielvalentin/agent-packages/commit/e01111312950b99071c97cc5de91b1fc6a1ceaeb))
+* **coordinator:** add stage-pr skill ([081d7b8](https://github.com/arielvalentin/agent-packages/commit/081d7b88c471b0fc6a0de103b8dae477206578b5))
+* **coordinator:** add wait-for-copilot-code-review skill ([265015b](https://github.com/arielvalentin/agent-packages/commit/265015b342a44a80a0b5f5163a4b5100ddeed56d))
+* **coordinator:** add watch-ci skill ([4ed9979](https://github.com/arielvalentin/agent-packages/commit/4ed99796920e42331d723cc66da582a9182f5dac))
+
+
+### Bug Fixes
+
+* **coordinator:** remove my-prs-status from pr-lifecycle ([6fc6d3f](https://github.com/arielvalentin/agent-packages/commit/6fc6d3f43c96ea22de51babdc32e10fd4cad637e))
+
 ## [0.8.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.7.0...coordinator-v0.8.0) (2026-08-01)
 
 
