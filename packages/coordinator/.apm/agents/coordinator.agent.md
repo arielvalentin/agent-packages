@@ -404,7 +404,7 @@ that are outside the current task scope:
 
 Follow the `pr-lifecycle` skill for:
 - PR description requirements (intent, rationale, issue refs, ADR refs)
-- Skill triggers (`create-pr`, `manage-pr`, `watch-ci`, `stage-pr`)
+- Skill triggers (`pr-lifecycle`, `stage-pr`)
 - Skill fallbacks when built-in skills are unavailable
 
 ## Specialist roster
@@ -483,8 +483,7 @@ the PR is merged.
 - `pr-lifecycle` missing: use `gh pr create --draft` for WIP PRs, `gh pr
   checks --watch` for CI monitoring, `gh pr view --json reviews,comments`
   for review polling, and `archive_session` for post-merge cleanup.
-- `create-pr` / `manage-pr` / `watch-ci` / `stage-pr` missing: use `gh` CLI
-  equivalents and note fallback mode in the handoff summary.
+- `stage-pr` missing: report staging unavailable and proceed.
 
 ## Dispatch prelude (prepend to EVERY subagent prompt)
 

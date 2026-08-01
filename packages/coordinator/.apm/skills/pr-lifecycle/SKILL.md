@@ -1,123 +1,147 @@
 ---
 name: pr-lifecycle
 description: >
-  End-to-end PR management: early WIP draft, description requirements,
-  skill triggers, CI/review monitoring loop, and post-merge cleanup.
-  Reusable by any agent that creates or manages pull requests.
+  End-to-end PR management from creation through merge and cleanup.
+  Covers: opening draft PRs, finalizing descriptions, addressing review
+  feedback, monitoring CI, waiting for Copilot code review, and
+  post-merge session cleanup. Use whenever a task ends in a new PR,
+  when iterating on an existing PR, or when monitoring CI/review status.
 ---
 
 # PR Lifecycle
 
-Covers every phase of a pull request from creation through merge and cleanup.
-Any agent that touches PRs should follow these rules.
+Single source of truth for every phase of a pull request.
 
-## Early WIP draft PR
+## Trigger phrases
 
-For `feature`, `bugfix`, and `refactor` flows targeting a production codebase:
+- "create a PR", "open a draft PR", "push this and open a PR"
+- "address PR feedback", "respond to review comments", "iterate on a PR"
+- "watch CI", "monitor checks", "let me know when it's green"
+- "wait for Copilot review", "watch for code review"
 
-1. As soon as a branch exists (even before implementation begins), open an
-   **empty WIP draft PR** with `gh pr create --draft --title "WIP: <goal>"`.
-2. The PR body should contain:
-   - The goal / issue reference
-   - A note that implementation is in progress
-   - Placeholder sections for intent, decisions, and references (to be
-     filled later)
-3. This makes the work visible to the team immediately and enables early CI
-   feedback on the branch.
+---
 
-Skip for `research` flows or when the user explicitly says not to open a PR.
+## Phase 1 — Early WIP draft
 
-## Finalizing the PR
+For `feature`, `bugfix`, and `refactor` flows:
 
-When implementation is complete and all gates pass:
+1. As soon as a branch exists, open a **draft PR**:
+   ```bash
+   gh pr create --draft --title "WIP: <goal>" --body "<issue ref + placeholder>"
+   ```
+2. Skip for `research` flows or when the user explicitly declines.
 
-1. Rename the title to Conventional Commits format:
-   `<type>(<scope>): <description>`
-2. Check for a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or
-   `.github/PULL_REQUEST_TEMPLATE/` directory) and follow its structure.
-3. Rewrite the body to reflect the **final state** of the changes — not
-   interim WIP notes or earlier iterations.
-4. Include: intent, key decisions/tradeoffs, issue references, and test
-   evidence.
-5. Remove any WIP placeholders or draft notes.
+## Phase 2 — Implementation & gates
 
-## PR description requirements
+Work proceeds via `implementer` and review gates (`review-fix-loop`).
+The PR remains in draft until all gates pass.
 
-Every PR description must include:
+## Phase 3 — Finalize PR
 
-1. **Intent** — why the change exists / problem being solved.
-2. **Decision-making rationale** — key choices and tradeoffs.
-3. **Issue references** — direct closing syntax (`Closes`/`Fixes`).
-4. **ADR references** — when decisions were guided by ADRs (optional).
+When implementation is complete and gates pass:
 
-## Skill triggers
+1. Check for a PR template:
+   - `.github/PULL_REQUEST_TEMPLATE.md` (single)
+   - `.github/PULL_REQUEST_TEMPLATE/` (directory)
+   - Follow the template structure; write "N/A" for inapplicable sections.
+2. Rename title to Conventional Commits: `<type>(<scope>): <description>`
+3. Rewrite body to include:
+   - **Intent** — why the change exists
+   - **Changes** — key decisions/tradeoffs
+   - **Testing** — validation performed
+   - **References** — `Closes`/`Fixes #N`, ADR links (optional)
+   - AI disclaimer via `acting-on-behalf`
+4. Mark ready for review:
+   ```bash
+   gh pr ready <number>
+   ```
 
-Use PR skills explicitly based on intent:
+## Phase 4 — Monitor CI
 
-| Scenario | Skills | Sequence |
-|----------|--------|----------|
-| New PR creation | `acting-on-behalf` → `create-pr` → `watch-ci` | After PR readiness gate passes |
-| Existing PR iteration | `acting-on-behalf` → `manage-pr` → `watch-ci` | After updates pushed |
-| PR/issue comment | `acting-on-behalf` | Before drafting/posting; include AI disclaimer |
-| PR feedback reply | `acting-on-behalf` | Include related commit SHA (`Fixed in <sha>`) |
-| Preview/staging | `stage-pr` | On request |
+After every push, watch CI:
 
-Do not skip these skills for these flows.
+```bash
+gh pr checks <number> --watch --fail-fast
+```
 
-### Skill fallbacks
+**On failure:**
+```bash
+gh run view <run-id> --log-failed
+```
+- Categorize: test error, lint, build, timeout, flaky
+- Dispatch `implementer` with failure context
+- Re-run affected gates, push fix, re-watch
 
-| Missing skill | Fallback |
-|--------------|----------|
-| `create-pr` | `gh pr create --draft` with required body sections |
-| `manage-pr` | `gh pr view\|edit\|comment\|checks` and `gh run view\|watch` |
-| `watch-ci` | `gh pr checks --watch`, falling back to `gh run watch` |
-| `stage-pr` | Report staging as unavailable, continue without |
+**On success:** proceed to Phase 5.
 
-## CI/review monitoring loop
+**Fallback:** If `--watch` unavailable, use `gh run watch <run-id>`.
 
-After the PR is finalized, monitor and iterate until merged or closed:
+## Phase 5 — Wait for Copilot code review
 
-### 1. Watch CI
+After CI passes, check for automated Copilot review:
 
-Run `watch-ci` (or `wait-for-copilot-code-review` if Copilot review is
-expected) to monitor checks. If CI fails:
+```bash
+gh pr view <number> --json reviews \
+  --jq '[.reviews[] | select(.author.login | test("copilot"))]'
+```
 
-- Analyze the failure (test errors, lint, build)
-- Dispatch `implementer` with the failure context
-- Re-run affected gates via `review-fix-loop`
-- Push fixes and re-watch CI
+- Poll every 30s, timeout after 10 minutes.
+- If findings: categorize by severity, feed actionable ones into
+  `review-fix-loop`.
+- If no findings or timeout: proceed.
+- If repo doesn't use Copilot review: skip and note.
 
-### 2. Monitor reviews
+## Phase 6 — Address human review feedback
 
-Poll for reviewer feedback via `gh pr view --json reviews,comments`.
-When feedback arrives:
+Poll for reviewer feedback:
+```bash
+gh pr view <number> --json reviews,comments
+```
 
-- Run `pr-feedback-review` skill to analyze each comment
-- For valid concerns: dispatch `implementer`, push fix, reply with
-  `Fixed in <sha>` and resolve the thread
-- For rebuttals: reply with evidence/documentation and leave open for
-  the reviewer
-- Re-run `watch-ci` after any push
+For each comment:
+- **Actionable** → dispatch `implementer`, push fix, reply:
+  `Fixed in <sha>` (via `acting-on-behalf`), resolve thread.
+- **Question** → reply with evidence/rationale, leave thread open.
+- **Disagreement** → reply with rebuttal + evidence, let reviewer decide.
 
-### 3. Loop exit conditions
+After pushing fixes:
+```bash
+gh pr edit <number> --add-reviewer <reviewer>
+```
+
+Re-run Phase 4 after any push.
+
+## Phase 7 — Loop exit conditions
 
 | Condition | Action |
 |-----------|--------|
-| CI green AND all review threads resolved | Notify user PR is ready to merge |
-| PR is merged | Proceed to post-completion cleanup |
-| PR is closed | Notify user and stop |
-| User says to stop monitoring | Stop |
-| **Iteration limit reached (10)** | Stop, notify user with unresolved CI failures and open review threads |
+| CI green AND all threads resolved | Notify user: ready to merge |
+| PR merged | Phase 8 (cleanup) |
+| PR closed | Notify user, stop |
+| User says stop | Stop |
+| 10 iterations reached | Stop, report unresolved items |
 
-### 4. Yield between iterations
+Yield control between iterations.
 
-Between iterations, yield control to the user. Resume when notified of
-new CI results or review comments.
+## Phase 8 — Post-merge cleanup
 
-## Post-completion cleanup
+After the PR is **merged**:
 
-After the PR is **merged** (not just finalized):
+1. `list_sessions_and_chats` → find sessions tied to the merged PR.
+2. `archive_session` on those sessions (preserves history, frees worktrees).
 
-1. Use `list_sessions_and_chats` to find sessions tied to the merged PR.
-2. Call `archive_session` on those sessions to clean up worktrees while
-   preserving session history for future reference.
+---
+
+## Skill fallbacks
+
+| Missing tool | Fallback |
+|-------------|----------|
+| `create_pull_request` (built-in) | `gh pr create --draft` |
+| `gh pr checks --watch` | `gh run watch <run-id>` |
+| `stage-pr` | Report staging unavailable |
+
+## Pre-requisites
+
+- `acting-on-behalf` — required before any PR creation or comment.
+- `review-fix-loop` — for gate iteration.
+- `commit-message-storyteller` — for commit messages during fixes.

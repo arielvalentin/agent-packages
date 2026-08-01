@@ -70,7 +70,7 @@ For each comment thread, choose one:
 After all comments are addressed:
 
 1. Run the relevant test/lint/build commands to verify nothing broke
-2. Load `watch-ci` if changes were pushed
+2. Resume `pr-lifecycle` Phase 4 if changes were pushed
 3. Summarize actions taken:
    - Comments accepted (with commit SHAs)
    - Comments rebutted (with evidence cited)

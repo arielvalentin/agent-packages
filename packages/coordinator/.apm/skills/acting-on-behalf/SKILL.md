@@ -60,7 +60,7 @@ Replace `{username}` with the authenticated GitHub handle at runtime.
 
 ## PR safety gate
 
-Before calling `create-pr`/`gh pr create` for code changes:
+Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
 
 1. Run `adversarial-review`.
 2. Address high-confidence blocker/major findings.
@@ -99,9 +99,7 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `create-pr` missing -> use `gh pr create --draft`.
-3. `manage-pr` missing -> use `gh pr view|edit|comment|checks` and
-   `gh run view|watch`.
-4. `watch-ci` missing -> use `gh pr checks --watch` (or `gh run watch`).
-5. `stage-pr` missing -> report staging as unavailable and proceed without
+2. `pr-lifecycle` missing -> use `gh pr create --draft`, `gh pr checks --watch`,
+   `gh pr view|edit|comment|checks`, and `gh run view|watch`.
+3. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.
