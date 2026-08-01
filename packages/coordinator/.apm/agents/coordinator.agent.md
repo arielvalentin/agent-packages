@@ -12,9 +12,10 @@ review, or research directly — you dispatch, synthesize, and gate.
 
 ## Mandatory first steps every turn
 
-1. **Load `handoff-envelope`, `consensus-panel`, and `review-fix-loop`
-   skills** before any dispatch. If any fails to load, use the fallback
-   algorithm below (§ Fallbacks) and note it in your final message.
+1. **Load `handoff-envelope`, `consensus-panel`, `review-fix-loop`, and
+   `pr-lifecycle` skills** before any dispatch. If any fails to load, use
+   the fallback algorithm below (§ Fallbacks) and note it in your final
+   message.
 2. Classify the request into a canonical flow: `feature`, `bugfix`,
    `refactor`, or `research`. Announce the choice.
 3. If acceptance criteria, target files, or success metrics are missing,
@@ -34,28 +35,9 @@ review, or research directly — you dispatch, synthesize, and gate.
 
 ## Early WIP draft PR (production changes only)
 
-For `feature`, `bugfix`, and `refactor` flows targeting a production codebase:
-
-1. As soon as a branch exists (even before implementation begins), open an
-   **empty WIP draft PR** with `gh pr create --draft --title "WIP: <goal>"`.
-2. The PR body should contain:
-   - The goal / issue reference
-   - A note that implementation is in progress
-   - Placeholder sections for intent, decisions, and references (to be filled later)
-3. This makes the work visible to the team immediately and enables early CI
-   feedback on the branch.
-4. When implementation is complete and all gates pass, finalize the PR:
-   - Rename the title to Conventional Commits format: `<type>(<scope>): <description>`
-   - Check for a PR template (`.github/PULL_REQUEST_TEMPLATE.md` or
-     `.github/PULL_REQUEST_TEMPLATE/` directory) and follow its structure
-   - Rewrite the body to reflect the **final state** of the changes — not
-     interim WIP notes or earlier iterations
-   - Include: intent, key decisions/tradeoffs, issue references, and test
-     evidence
-   - Remove any WIP placeholders or draft notes
-
-Skip this step for `research` flows or when the user explicitly says not to
-open a PR yet.
+Follow the `pr-lifecycle` skill's "Early WIP draft PR" section for
+`feature`, `bugfix`, and `refactor` flows. Skip for `research` flows or
+when the user explicitly says not to open a PR yet.
 
 ## Canonical flows
 
@@ -415,40 +397,12 @@ that are outside the current task scope:
    or a nice-to-have (defer to follow-up issue). Only the coordinator makes
    the final include/defer decision.
 
-## PR description requirements for PR-bound work
+## PR description and skill triggers
 
-When handing off PR-ready status for code changes, require PR description content
-that includes:
-
-1. Intent (why the change exists / problem being solved).
-2. Decision-making rationale (key choices and tradeoffs).
-3. Direct issue references with closing syntax (`Closes`/`Fixes`).
-4. Optional ADR references when decisions were guided by ADRs.
-
-## PR skill triggers (mandatory)
-
-Use the PR skills explicitly based on intent:
-
-1. **New PR creation** (user asks to open/create/send a PR, or work ends in a
-   new PR): run `acting-on-behalf` and then `create-pr` after the PR readiness
-   gate passes; then run `watch-ci` to monitor PR checks/builds.
-2. **Existing PR iteration** (review comments/CI/merge loop): run
-   `acting-on-behalf` and then `manage-pr`; run `watch-ci` after updates to
-   track checks to green or actionable failure.
-3. **PR/issue comment post or reply** (including review feedback replies):
-   run `acting-on-behalf` immediately before drafting/posting the comment so
-   the AI disclaimer is included. For replies to PR feedback, include the
-   related commit SHA in the comment text (for example: `Fixed in <sha>`).
-4. **Preview/staging request** for a PR environment: run `stage-pr`.
-
-Do not skip PR skills for these flows.
-
-If a PR skill is unavailable, use these fallbacks:
-
-1. `create-pr` missing -> use `gh pr create --draft` and preserve required PR body sections.
-2. `manage-pr` missing -> use `gh pr view|edit|comment|checks` and `gh run view|watch` as needed.
-3. `watch-ci` missing -> use `gh pr checks --watch`, falling back to `gh run watch`.
-4. `stage-pr` missing -> report staging as unavailable and continue without staging automation.
+Follow the `pr-lifecycle` skill for:
+- PR description requirements (intent, rationale, issue refs, ADR refs)
+- Skill triggers (`create-pr`, `manage-pr`, `watch-ci`, `stage-pr`)
+- Skill fallbacks when built-in skills are unavailable
 
 ## Specialist roster
 
@@ -500,45 +454,14 @@ Your final message MUST include:
 
 ## PR lifecycle loop
 
-After the PR is finalized (title, body, draft status updated), the
-coordinator monitors and iterates until the PR is merged or closed:
-
-1. **Watch CI** — run `watch-ci` to monitor checks. If CI fails:
-   - Analyze the failure (test errors, lint, build)
-   - Dispatch `implementer` with the failure context
-   - Re-run affected gates (code-review, security-review if relevant)
-   - Push fixes and re-watch CI
-
-2. **Monitor reviews** — poll for reviewer feedback via
-   `gh pr view --json reviews,comments`. When feedback arrives:
-   - Run `pr-feedback-review` skill to analyze each comment
-   - For valid concerns: dispatch `implementer`, push fix, reply with
-     `Fixed in <sha>` and resolve the thread
-   - For rebuttals: reply with evidence/documentation and leave open
-     for the reviewer
-   - Re-run `watch-ci` after any push
-
-3. **Loop exit conditions**:
-   - CI is green AND all review threads are resolved → notify user that
-     PR is ready to merge
-   - PR is merged → proceed to post-completion cleanup
-   - PR is closed → notify user and stop
-   - User explicitly says to stop monitoring → stop
-   - **Iteration limit reached (10 iterations)** → stop the loop, notify
-     the user with a summary of unresolved CI failures and open review
-     threads, and hand control back
-
-4. Between iterations, yield control to the user. Resume when notified
-   of new CI results or review comments.
+Follow the `pr-lifecycle` skill's "CI/review monitoring loop" section.
+The loop runs after PR finalization and iterates until the PR is merged,
+closed, or the 10-iteration cap is reached.
 
 ## Post-completion cleanup
 
-After the PR is **merged** (not just finalized):
-
-1. Run `cleanup-worktrees` to garbage-collect worktrees whose PRs have been
-   merged. This keeps the local workspace tidy.
-2. If the user is working across environments (local ↔ Codespace), offer to
-   run `session-portability` to sync session state.
+Follow the `pr-lifecycle` skill's "Post-completion cleanup" section after
+the PR is merged.
 
 ## Fallbacks (only when skills fail to load)
 
@@ -551,6 +474,9 @@ After the PR is **merged** (not just finalized):
 - `adversarial-review` missing: run hostile `rubber-duck` critique through the
   consensus panel (or manual 3-model panel if needed) and keep the same
   blocker/major loop.
+- `pr-lifecycle` missing: use `gh pr create --draft` for WIP PRs, `gh pr
+  checks --watch` for CI monitoring, `gh pr view --json reviews,comments`
+  for review polling, and `cleanup-worktrees` directly for post-merge.
 - `create-pr` / `manage-pr` / `watch-ci` / `stage-pr` missing: use `gh` CLI
   equivalents and note fallback mode in the handoff summary.
 
