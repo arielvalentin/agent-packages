@@ -47,19 +47,19 @@ feature:  [open WIP draft PR] → system-architect → rubber-duck(design)
           → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
           → se-technical-writer → [PR lifecycle loop]
-          → [cleanup-worktrees]
+          → [archive session]
 
 bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
-          → [PR lifecycle loop] → [cleanup-worktrees]
+          → [PR lifecycle loop] → [archive session]
 
 refactor: [open WIP draft PR] → rubber-duck (over-engineering)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
-          → [PR lifecycle loop] → [cleanup-worktrees]
+          → [PR lifecycle loop] → [archive session]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
@@ -482,7 +482,7 @@ the PR is merged.
   blocker/major loop.
 - `pr-lifecycle` missing: use `gh pr create --draft` for WIP PRs, `gh pr
   checks --watch` for CI monitoring, `gh pr view --json reviews,comments`
-  for review polling, and `cleanup-worktrees` directly for post-merge.
+  for review polling, and `archive_session` for post-merge cleanup.
 - `create-pr` / `manage-pr` / `watch-ci` / `stage-pr` missing: use `gh` CLI
   equivalents and note fallback mode in the handoff summary.
 

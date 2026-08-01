@@ -118,7 +118,6 @@ new CI results or review comments.
 
 After the PR is **merged** (not just finalized):
 
-1. Run `cleanup-worktrees` to garbage-collect worktrees whose PRs have been
-   merged.
-2. If the user is working across environments (local ↔ Codespace), offer to
-   run `session-portability` to sync session state.
+1. Use `list_sessions_and_chats` to find sessions tied to the merged PR.
+2. Call `archive_session` on those sessions to clean up worktrees while
+   preserving session history for future reference.
