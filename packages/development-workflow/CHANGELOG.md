@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.3.0...development-workflow-v0.4.0) (2026-08-01)
+
+
+### Features
+
+* **coordinator,architect,implementer:** scope discipline with improvement tracking ([456d978](https://github.com/arielvalentin/agent-packages/commit/456d978a821c7f9cb126945480b3caff8d189a0b))
+* **implementer:** enforce narrow focus and incremental changes ([e2f5925](https://github.com/arielvalentin/agent-packages/commit/e2f592595c8800a4a8d0dcbb48cf89a5c9f90e8d))
+
+
+### Bug Fixes
+
+* **implementer:** scope by concern relatedness, not file count ([eb7f6df](https://github.com/arielvalentin/agent-packages/commit/eb7f6df5b5f6a0b2735e258439a592d0db99e724))
+
 ## [0.3.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.2.0...development-workflow-v0.3.0) (2026-07-30)
 
 
