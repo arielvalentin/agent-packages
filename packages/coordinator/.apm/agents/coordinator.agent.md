@@ -12,9 +12,9 @@ review, or research directly — you dispatch, synthesize, and gate.
 
 ## Mandatory first steps every turn
 
-1. **Load `handoff-envelope` and `consensus-panel` skills** before any
-   dispatch. If either fails to load, use the fallback algorithm below
-   (§ Fallbacks) and note it in your final message.
+1. **Load `handoff-envelope`, `consensus-panel`, and `review-fix-loop`
+   skills** before any dispatch. If any fails to load, use the fallback
+   algorithm below (§ Fallbacks) and note it in your final message.
 2. Classify the request into a canonical flow: `feature`, `bugfix`,
    `refactor`, or `research`. Announce the choice.
 3. If acceptance criteria, target files, or success metrics are missing,
@@ -110,31 +110,45 @@ with the feedback before presenting GATE(design) to the user.
 
 ### After each implementation step
 
-After each incremental implementer step completes:
-- Dispatch `code-review` against the step's diff for high-confidence bugs,
-  security vulnerabilities, and logic errors
-- Fix issues before committing and moving to the next step
+After each incremental implementer step completes, run `review-fix-loop`:
+
+```
+reviewer: code-review
+scope: step diff
+max_retries: 1
+severity_threshold: blocker
+on_exhaust: warn
+```
+
+Fix issues before committing and moving to the next step.
 
 ### Pre-commit review
 
-After all implementation steps complete but before presenting GATE(impl):
-- Dispatch `code-review` against the cumulative diff (branch vs base)
-- Focus: do all the pieces fit together? Any integration issues, missing
-  error handling, or broken contracts between components?
-- Address findings before proceeding to the security review
+After all implementation steps complete but before presenting GATE(impl),
+run `review-fix-loop`:
+
+```
+reviewer: code-review
+scope: cumulative diff (branch vs base)
+focus: integration issues, missing error handling, broken contracts between components
+max_retries: 2
+severity_threshold: blocker,major
+on_exhaust: escalate
+```
 
 ### Security review (feature and bugfix flows)
 
-After the pre-commit code review passes, dispatch `security-review` against
-the cumulative diff:
-- Reports only exploitable security vulnerabilities with severity and
-  confidence ratings
-- Focused exclusively on security — does not comment on style, performance,
-  or non-security logic
-- If blocker/major findings are confirmed, dispatch `implementer` to fix
-  them and re-run `security-review`
-- Skip for `refactor` flows unless the refactor touches auth, crypto,
-  input validation, or access control
+After the pre-commit code review passes, run `review-fix-loop`:
+
+```
+reviewer: security-review
+scope: cumulative diff (branch vs base)
+focus: exploitable vulnerabilities only, with severity and confidence
+max_retries: 2
+severity_threshold: blocker,major
+on_exhaust: escalate
+skip_condition: refactor flow unless touching auth, crypto, input validation, or access control
+```
 
 This runs in addition to (not instead of) the `se-security-reviewer` +
 `sast-sca-security-analyzer` that may run as part of the review panel.
@@ -242,22 +256,17 @@ or `--comment`). Include the AI disclaimer via `acting-on-behalf`.
 ## Final adversarial review (mandatory for code-change PRs)
 
 After GATE(impl) passes and before finalizing the PR, run
-`adversarial-review` as a **holistic review across all stages**:
+`review-fix-loop` as a **holistic review across all stages**:
 
-1. Provide the full context: design doc, implementation summary, all diffs,
-   and rubber-duck review findings from each stage.
-2. `adversarial-review` evaluates the entire body of work — not just the
-   latest diff — looking for systemic issues, security gaps, performance
-   risks, and design/implementation misalignment.
-3. If blocker/major findings are confirmed, dispatch `implementer` with
-   those findings as required fixes.
-4. Re-run `adversarial-review` on the updated result.
-5. Continue steps 3–4 unless the same unresolved blocker/major concern is
-   raised twice after implementation attempts.
-6. If a concern is raised twice and still unsatisfied, stop the loop and
-   escalate to the user with the unresolved concern list.
-7. Only skip this gate when the user explicitly asks to skip adversarial
-   review.
+```
+reviewer: adversarial-review
+scope: full context (design doc + all diffs + stage review findings)
+context: design doc, implementation summary, rubber-duck findings from each stage
+focus: systemic issues, security gaps, performance risks, design/implementation misalignment
+max_retries: 2
+severity_threshold: blocker,major
+on_exhaust: escalate
+```
 
 Do not finalize the PR until this gate passes, an explicit user waiver is
 recorded, or repeated unsatisfied concerns are escalated for user decision.
@@ -358,35 +367,19 @@ before impl gate.
 
 ## Observability validation gate (mandatory for code-change PRs)
 
-Before declaring PR-ready, verify that the change is **observable in
-production** — i.e., an operator could confirm correctness or detect
-regression without reading source code. Evaluate:
+Before declaring PR-ready, run `review-fix-loop`:
 
-1. **Metrics** — Does the change emit or alter metrics that reflect its
-   behavior? (e.g., counters, histograms, gauges for new paths/features.)
-2. **Logs** — Are structured log statements present at key decision points
-   with sufficient context (correlation IDs, entity identifiers, status)?
-3. **Traces** — Are new or modified code paths instrumented with spans that
-   carry semantic attributes per OpenTelemetry conventions?
-4. **Alerting / SLO impact** — Could an existing or proposed alert fire if
-   the change regresses? If not, flag the gap.
+```
+reviewer: gho11y:telemetry-reviewer
+scope: cumulative diff (branch vs base)
+focus: metrics, logs, traces, alerting/SLO coverage for new or changed behavior
+max_retries: 2
+severity_threshold: blocker,major
+on_exhaust: escalate
+skip_condition: documentation-only, pure dependency bumps, or user-marked observability-exempt
+```
 
-### Disposition
-
-| Result | Action |
-|--------|--------|
-| All 4 criteria satisfied | Pass — record in final message |
-| Gaps identified but acceptable (e.g., pure refactor with no new behavior) | Pass with justification — record rationale |
-| Gaps identified in new/changed behavior | Dispatch `implementer` with required observability additions, then re-evaluate |
-| Repeated unresolved gaps after 2 attempts | Escalate to user with the gap list |
-
-### Exemptions
-
-- Documentation-only changes.
-- Changes the user explicitly marks as observability-exempt.
-- Pure dependency bumps with no behavioral delta.
-
-Record gate status (passed / passed-with-justification / escalated / exempt)
+Record gate status (passed / passed-after-fixes / skipped / escalated)
 in the final message alongside the adversarial-review gate status.
 
 ## Scope discipline and final validation
@@ -549,6 +542,9 @@ After the PR is **merged** (not just finalized):
 
 ## Fallbacks (only when skills fail to load)
 
+- `review-fix-loop` missing: manually apply the gate pattern — dispatch
+  reviewer, evaluate findings, dispatch fixer if needed, re-run reviewer,
+  escalate after 2 retries of the same finding.
 - `consensus-panel` missing: dispatch 3 models manually per rules above.
 - `handoff-envelope` missing: use inline schema at top of every
   subagent prompt.
