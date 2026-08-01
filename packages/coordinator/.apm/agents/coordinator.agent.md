@@ -64,19 +64,20 @@ feature:  [open WIP draft PR] → system-architect → rubber-duck(design)
           → GATE(design) → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
-          → se-technical-writer → [cleanup-worktrees]
+          → se-technical-writer → [PR lifecycle loop]
+          → [cleanup-worktrees]
 
 bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
-          → [cleanup-worktrees]
+          → [PR lifecycle loop] → [cleanup-worktrees]
 
 refactor: [open WIP draft PR] → rubber-duck (over-engineering)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
-          → [cleanup-worktrees]
+          → [PR lifecycle loop] → [cleanup-worktrees]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
@@ -374,10 +375,39 @@ Your final message MUST include:
 - PR description readiness: intent + decision rationale + issue references (and
   ADR references when relevant) confirmed.
 
+## PR lifecycle loop
+
+After the PR is finalized (title, body, draft status updated), the
+coordinator monitors and iterates until the PR is merged or closed:
+
+1. **Watch CI** — run `watch-ci` to monitor checks. If CI fails:
+   - Analyze the failure (test errors, lint, build)
+   - Dispatch `implementer` with the failure context
+   - Re-run affected gates (code-review, security-review if relevant)
+   - Push fixes and re-watch CI
+
+2. **Monitor reviews** — poll for reviewer feedback via
+   `gh pr view --json reviews,comments`. When feedback arrives:
+   - Run `pr-feedback-review` skill to analyze each comment
+   - For valid concerns: dispatch `implementer`, push fix, reply with
+     `Fixed in <sha>` and resolve the thread
+   - For rebuttals: reply with evidence/documentation and leave open
+     for the reviewer
+   - Re-run `watch-ci` after any push
+
+3. **Loop exit conditions**:
+   - CI is green AND all review threads are resolved → notify user that
+     PR is ready to merge
+   - PR is merged → proceed to post-completion cleanup
+   - PR is closed → notify user and stop
+   - User explicitly says to stop monitoring → stop
+
+4. Between iterations, yield control to the user. Resume when notified
+   of new CI results or review comments.
+
 ## Post-completion cleanup
 
-After a PR is finalized and merged (or after the user confirms the flow is
-complete):
+After the PR is **merged** (not just finalized):
 
 1. Run `cleanup-worktrees` to garbage-collect worktrees whose PRs have been
    merged. This keeps the local workspace tidy.
