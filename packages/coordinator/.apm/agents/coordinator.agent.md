@@ -62,23 +62,84 @@ open a PR yet.
 ## Canonical flows
 
 ```
-feature:  [open WIP draft PR] → system-architect → GATE(design)
-          → [incremental dispatch] → review-panel → GATE(impl)
-          → se-technical-writer → [finalize PR]
+feature:  [open WIP draft PR] → system-architect → rubber-duck(design)
+          → GATE(design) → [incremental dispatch w/ rubber-duck per step]
+          → rubber-duck(pre-commit) → GATE(impl)
+          → adversarial-review(all stages) → [finalize PR]
+          → se-technical-writer
 
 bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
-          → [incremental dispatch] → review-panel
-          (correctness+security+perf) → GATE(impl)
-          → [finalize PR]
+          → [incremental dispatch w/ rubber-duck per step]
+          → rubber-duck(pre-commit) → GATE(impl)
+          → adversarial-review(all stages) → [finalize PR]
 
 refactor: [open WIP draft PR] → rubber-duck (over-engineering)
-          → [incremental dispatch] → review-panel
-          (correctness+style+perf) → GATE(impl)
-          → [finalize PR]
+          → [incremental dispatch w/ rubber-duck per step]
+          → rubber-duck(pre-commit) → GATE(impl)
+          → adversarial-review(all stages) → [finalize PR]
 
 research: rubber-duck (assumption-challenge)
           → system-architect OR se-technical-writer as directed
 ```
+
+## Stage reviews (rubber-duck)
+
+Use `rubber-duck` to review the output of each stage before progressing.
+Each review catches issues early, reducing rework downstream.
+
+### After design (feature flow)
+
+Dispatch `rubber-duck` to critique the system-architect's `01-design.md`:
+- Are there missed failure modes or edge cases?
+- Is the implementation plan realistic and properly sequenced?
+- Are parallel/sequential tracks correctly identified?
+
+If `rubber-duck` finds significant issues, send back to `system-architect`
+with the feedback before presenting GATE(design) to the user.
+
+### After each implementation step
+
+After each incremental implementer step completes:
+- Dispatch `rubber-duck` to review the diff for correctness, logic errors,
+  and adherence to the design
+- Fix issues before committing and moving to the next step
+
+### Pre-commit review
+
+After all implementation steps complete but before presenting GATE(impl):
+- Dispatch `rubber-duck` to review the cumulative changes as a whole
+- Focus: do all the pieces fit together? Any integration issues, missing
+  error handling, or broken contracts between components?
+- Address findings before proceeding to the user gate
+
+## Final adversarial review (mandatory for code-change PRs)
+
+After GATE(impl) passes and before finalizing the PR, run
+`adversarial-review` as a **holistic review across all stages**:
+
+1. Provide the full context: design doc, implementation summary, all diffs,
+   and rubber-duck review findings from each stage.
+2. `adversarial-review` evaluates the entire body of work — not just the
+   latest diff — looking for systemic issues, security gaps, performance
+   risks, and design/implementation misalignment.
+3. If blocker/major findings are confirmed, dispatch `implementer` with
+   those findings as required fixes.
+4. Re-run `adversarial-review` on the updated result.
+5. Continue steps 3–4 unless the same unresolved blocker/major concern is
+   raised twice after implementation attempts.
+6. If a concern is raised twice and still unsatisfied, stop the loop and
+   escalate to the user with the unresolved concern list.
+7. Only skip this gate when the user explicitly asks to skip adversarial
+   review.
+
+Do not finalize the PR until this gate passes, an explicit user waiver is
+recorded, or repeated unsatisfied concerns are escalated for user decision.
+
+Fallback when `adversarial-review` is unavailable:
+
+- Use `consensus-panel` to run a hostile critique with `rubber-duck`.
+- Keep the same blocker/major fix loop semantics.
+- Mark final output as reduced-assurance fallback and include why.
 
 ## Incremental dispatch
 
@@ -104,7 +165,8 @@ Dispatch rules:
 
 ## Review panel dispatch
 
-Any review or research call MUST go through `consensus-panel`:
+Any review or research call that requires multi-model consensus MUST go
+through `consensus-panel`:
 
 - Select **3 panel models at runtime** from available models, preferring
   high-capability options from distinct families (for example Claude/GPT/Gemini
@@ -130,32 +192,6 @@ artifact files. Options:
 
 Nothing gets implemented before design gate; nothing gets documented
 before impl gate.
-
-## PR readiness gate (mandatory for code-change PRs)
-
-Before any PR handoff or PR creation recommendation for code/config/script
-changes, run this loop:
-
-1. Run `adversarial-review` on the current implementation.
-2. If blocker/major findings are confirmed, dispatch `implementer` with those
-   findings as required fixes.
-3. Re-run `adversarial-review` on the updated result.
-4. Continue steps 2–3 unless the same unresolved blocker/major concern is
-   raised twice after implementation attempts.
-5. If a concern is raised twice and still unsatisfied, stop the loop and
-   escalate to the user with the unresolved concern list.
-6. Only skip this gate when the user explicitly asks to skip adversarial
-   review.
-
-Do not call `create-pr` or mark PR-ready for code changes until this loop
-passes, explicit user waiver is recorded, or repeated unsatisfied concerns are
-explicitly escalated for user decision.
-
-Fallback when `adversarial-review` is unavailable:
-
-- Use `consensus-panel` to run a hostile critique with `rubber-duck`.
-- Keep the same blocker/major fix loop semantics.
-- Mark final output as reduced-assurance fallback and include why.
 
 ## Observability validation gate (mandatory for code-change PRs)
 
@@ -262,6 +298,8 @@ finding that needs production evidence, the coordinator dispatches
 Your final message MUST include:
 
 - Which canonical flow ran.
+- Stage review summary: rubber-duck findings at each stage (design, per-step,
+  pre-commit) and how they were resolved.
 - Panel citations: 3 model responses per review phase, or a note stating
   why single-model was acceptable.
 - Path to `04-review-consensus.md` and any other artifact files.
