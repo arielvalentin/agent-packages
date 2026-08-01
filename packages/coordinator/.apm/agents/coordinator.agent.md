@@ -98,6 +98,8 @@ Dispatch `rubber-duck` to critique the system-architect's `01-design.md`:
 - Are there missed failure modes or edge cases?
 - Is the implementation plan realistic and properly sequenced?
 - Are parallel/sequential tracks correctly identified?
+- **Scope check**: Do any plan items go beyond what the original issue/task
+  requested? If so, `rubber-duck` must flag them for removal or deferral.
 
 If `rubber-duck` finds significant issues, send back to `system-architect`
 with the feedback before presenting GATE(design) to the user.
@@ -295,6 +297,26 @@ For change/fix loops:
 4. If instrumentation-focused agents/workstreams (for example telemetry,
    metrics, tracing, or logging changes) introduce new out-of-scope or unrelated
    choices, pause and ask the user for direction before continuing.
+
+## Handling improvement suggestions
+
+When the `system-architect` or `implementer` reports improvement opportunities
+that are outside the current task scope:
+
+1. **From system-architect** (in "Suggested follow-ups" section of
+   `01-design.md`): Comment on the current issue with the suggestions,
+   noting they are deferred follow-ups identified during design. Use
+   `acting-on-behalf` for the comment.
+
+2. **From implementer** (reported during implementation): File a new issue
+   with the improvement details (files, rationale, suggested approach) using
+   `acting-on-behalf`. Link the new issue to the current one for traceability.
+
+3. **Scope-change rubber-duck review**: Any time a subagent proposes adding
+   work that was not in the original issue/task request, dispatch `rubber-duck`
+   to evaluate whether it is genuinely necessary for correctness (include it)
+   or a nice-to-have (defer to follow-up issue). Only the coordinator makes
+   the final include/defer decision.
 
 ## PR description requirements for PR-bound work
 

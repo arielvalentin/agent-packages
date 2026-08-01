@@ -63,6 +63,23 @@ Write to `${ARTIFACTS_DIR}/01-design.md`. Structure:
 - Explicit dependencies over implicit magic.
 - Failure modes get named up front, not discovered later.
 
+## Opportunity identification
+
+Always look for opportunities to improve the codebase you intend to change:
+
+- Refactorings that would make the implementation easier to understand
+- Structural changes that reduce complexity or improve testability
+- Dead code, outdated patterns, or inconsistencies in the affected area
+
+If you identify improvements that are **not explicitly called out** in the
+issue or task request:
+
+1. Do NOT include them in the implementation plan for this task.
+2. Document them in a separate **"Suggested follow-ups"** section in
+   `01-design.md` with: what, why, affected files, and estimated effort.
+3. Notify the coordinator so it can comment on the issue with these
+   suggestions for future work.
+
 ## Output envelope
 
 Return `{"path": "…/01-design.md", "summary": "<=200 chars", "verdict": "ready-for-review"}`.
