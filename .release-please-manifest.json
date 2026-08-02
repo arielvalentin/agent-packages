@@ -1,5 +1,5 @@
 {
-  "packages/coordinator": "0.9.0",
-  "packages/development-workflow": "0.5.0",
-  "packages/code-reviewers": "0.2.0"
+  "packages/coordinator": "0.10.0",
+  "packages/development-workflow": "0.6.0",
+  "packages/code-reviewers": "0.2.1"
 }
