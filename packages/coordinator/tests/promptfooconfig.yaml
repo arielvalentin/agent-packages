@@ -2,6 +2,8 @@ description: "Coordinator package behavioral tests"
 
 providers:
   - id: ollama:llama3.2:3b
+    config:
+      temperature: 0
     label: skill-under-test
 
 prompts:

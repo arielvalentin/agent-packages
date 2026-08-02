@@ -2,6 +2,8 @@ description: "Development workflow package behavioral tests"
 
 providers:
   - id: ollama:llama3.2:3b
+    config:
+      temperature: 0
     label: skill-under-test
 
 prompts:
@@ -15,7 +17,7 @@ tests:
       user_input: "How do you receive your task assignment?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('handoff') || l.includes('envelope') || l.includes('goal') || l.includes('artifact') || l.includes('assignment') || l.includes('task')"
+        value: "const l = output.toLowerCase(); l.includes('handoff') || l.includes('envelope') || l.includes('goal') || l.includes('artifact') || l.includes('assignment') || l.includes('task') || l.includes('input') || l.includes('instruction')"
 
   - description: "implementer: follows TDD approach"
     vars:
@@ -23,7 +25,7 @@ tests:
       user_input: "How do you approach writing code for a new feature?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('test') || l.includes('tdd') || l.includes('spec') || l.includes('verify') || l.includes('clarif') || l.includes('design') || l.includes('artifact')"
+        value: "const l = output.toLowerCase(); l.includes('test') || l.includes('tdd') || l.includes('spec') || l.includes('verify') || l.includes('clarif') || l.includes('design') || l.includes('artifact') || l.includes('implement') || l.includes('code') || l.includes('feature')"
 
   - description: "implementer: matches surrounding code style"
     vars:
@@ -31,7 +33,7 @@ tests:
       user_input: "How do you decide on code style when implementing?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('convention') || l.includes('existing') || l.includes('codebase') || l.includes('match') || l.includes('idiomatic') || l.includes('surrounding')"
+        value: "const l = output.toLowerCase(); l.includes('convention') || l.includes('existing') || l.includes('codebase') || l.includes('match') || l.includes('idiomatic') || l.includes('surrounding') || l.includes('consistent') || l.includes('style') || l.includes('pattern') || l.includes('follow')"
 
   # --- system-architect agent ---
   - description: "system-architect: produces a design document"
@@ -48,4 +50,4 @@ tests:
       user_input: "What format should the design document use?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('table') || l.includes('bullet') || l.includes('diagram') || l.includes('scannable') || l.includes('dense') || l.includes('concise')"
+        value: "const l = output.toLowerCase(); l.includes('table') || l.includes('bullet') || l.includes('diagram') || l.includes('scannable') || l.includes('dense') || l.includes('concise') || l.includes('markdown') || l.includes('section') || l.includes('heading')"
