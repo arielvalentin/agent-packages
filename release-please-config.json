@@ -3,17 +3,23 @@
     "packages/coordinator": {
       "release-type": "simple",
       "component": "coordinator",
-      "extra-files": ["apm.yml"]
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
     },
     "packages/development-workflow": {
       "release-type": "simple",
       "component": "development-workflow",
-      "extra-files": ["apm.yml"]
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
     },
     "packages/code-reviewers": {
       "release-type": "simple",
       "component": "code-reviewers",
-      "extra-files": ["apm.yml"]
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
     }
   },
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"

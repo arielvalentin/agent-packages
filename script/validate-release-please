@@ -4,7 +4,7 @@ set -euo pipefail
 # Validate release-please-config.json:
 # 1. Valid JSON
 # 2. Referenced files exist
-# 3. YAML extra-files have x-release-please-version annotation
+# 3. YAML extra-files have a parseable version field
 
 CONFIG="release-please-config.json"
 ERRORS=0
@@ -48,31 +48,37 @@ for f in pkg.get('extra-files', []):
 done
 echo "  Files exist ✓"
 
-# 3. Check x-release-please-version annotation in YAML extra-files
-echo "→ Checking version annotations..."
-for pkg_path in $(python3 -c "
-import json
+# 3. Check YAML extra-files have a version field at the expected jsonpath
+echo "→ Checking version fields in YAML extra-files..."
+python3 -c "
+import json, yaml, sys
+
 cfg = json.load(open('$CONFIG'))
-for p in cfg.get('packages', {}):
-    print(p)
-"); do
-  for extra in $(python3 -c "
-import json
-cfg = json.load(open('$CONFIG'))
-pkg = cfg['packages'].get('$pkg_path', {})
-for f in pkg.get('extra-files', []):
-    name = f if isinstance(f, str) else f.get('path', '')
-    if name.endswith('.yml') or name.endswith('.yaml'):
-        print(name)
-"); do
-    target="$pkg_path/$extra"
-    if [ -f "$target" ] && ! grep -q "x-release-please-version" "$target"; then
-      echo "  ❌ Missing annotation: $target needs '# x-release-please-version' on the version line"
-      ERRORS=$((ERRORS + 1))
-    fi
-  done
-done
-echo "  Annotations present ✓"
+errors = 0
+for pkg_path, pkg_cfg in cfg.get('packages', {}).items():
+    for f in pkg_cfg.get('extra-files', []):
+        if isinstance(f, dict) and f.get('type') == 'yaml':
+            path = f'{pkg_path}/{f[\"path\"]}'
+            jsonpath = f.get('jsonpath', '')
+            try:
+                with open(path) as fh:
+                    data = yaml.safe_load(fh)
+                # simple \$.version check
+                if jsonpath == '\$.version':
+                    if 'version' not in data:
+                        print(f'  ❌ {path} missing \"version\" key (jsonpath: {jsonpath})')
+                        errors += 1
+                    elif not data['version']:
+                        print(f'  ❌ {path} has empty \"version\" value')
+                        errors += 1
+            except FileNotFoundError:
+                pass  # already caught above
+            except Exception as e:
+                print(f'  ❌ {path} parse error: {e}')
+                errors += 1
+sys.exit(errors)
+" || ERRORS=$((ERRORS + $?))
+echo "  Version fields valid ✓"
 
 echo ""
 if [ "$ERRORS" -gt 0 ]; then
