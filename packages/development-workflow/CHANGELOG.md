@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.5.0...development-workflow-v0.6.0) (2026-08-02)
+
+
+### Features
+
+* add conciseness directives to all agents ([53f4e95](https://github.com/arielvalentin/agent-packages/commit/53f4e95f7f889899b74ca75155c10696963e7608))
+* enforce evidence-backed reviews and refine style directives ([c4ae2dd](https://github.com/arielvalentin/agent-packages/commit/c4ae2ddb367747a45bf4e62974e70d9b9b68ad32))
+
+
+### Bug Fixes
+
+* reduce eval flakiness with temperature:0 and broader assertions ([#9](https://github.com/arielvalentin/agent-packages/issues/9)) ([809131d](https://github.com/arielvalentin/agent-packages/commit/809131db4d2fb0a766d412a3cbc0c46a721de455))
+
 ## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.4.0...development-workflow-v0.5.0) (2026-08-01)
 
 
