@@ -1,0 +1,51 @@
+description: "Development workflow package behavioral tests"
+
+providers:
+  - id: ollama:llama3.2:3b
+    label: skill-under-test
+
+prompts:
+  - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+
+tests:
+  # --- implementer agent ---
+  - description: "implementer: reads handoff-envelope inputs"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "How do you receive your task assignment?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('handoff') || l.includes('envelope') || l.includes('goal') || l.includes('artifact') || l.includes('assignment') || l.includes('task')"
+
+  - description: "implementer: follows TDD approach"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "How do you approach writing code for a new feature?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('test') || l.includes('tdd') || l.includes('spec') || l.includes('verify') || l.includes('clarif') || l.includes('design') || l.includes('artifact')"
+
+  - description: "implementer: matches surrounding code style"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "How do you decide on code style when implementing?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('convention') || l.includes('existing') || l.includes('codebase') || l.includes('match') || l.includes('idiomatic') || l.includes('surrounding')"
+
+  # --- system-architect agent ---
+  - description: "system-architect: produces a design document"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "What is your primary output?"
+    assert:
+      - type: icontains
+        value: "design"
+
+  - description: "system-architect: uses dense scannable format"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "What format should the design document use?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('table') || l.includes('bullet') || l.includes('diagram') || l.includes('scannable') || l.includes('dense') || l.includes('concise')"

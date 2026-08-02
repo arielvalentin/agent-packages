@@ -1,0 +1,16 @@
+{
+  "name": "agent-packages",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
+    "test:coordinator": "promptfoo eval --config packages/coordinator/tests/promptfooconfig.yaml",
+    "test:dev-workflow": "promptfoo eval --config packages/development-workflow/tests/promptfooconfig.yaml",
+    "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.121.19"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

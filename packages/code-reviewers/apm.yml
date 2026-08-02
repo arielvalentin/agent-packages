@@ -1,4 +1,4 @@
 name: code-reviewers
-version: 0.2.0
+version: 0.2.0 # x-release-please-version
 description: Performance and style review agents bundled with Datadog routing skill.
 license: Apache-2.0

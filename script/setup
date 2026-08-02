@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> Installing dependencies via Homebrew..."
+brew bundle --file=Brewfile
+
+echo "==> Ensuring Node.js is available..."
+if ! command -v node &>/dev/null; then
+  echo "    Linking node@26..."
+  brew link --overwrite node@26
+fi
+echo "    Node $(node --version)"
+
+echo "==> Installing npm packages..."
+npm ci
+
+echo "==> Starting Ollama (if not already running)..."
+if ! pgrep -x ollama &>/dev/null; then
+  ollama serve &>/dev/null &
+  sleep 2
+fi
+
+echo "==> Pulling eval model..."
+ollama pull llama3.2:3b
+
+echo ""
+echo "✅ Setup complete! Run tests with:"
+echo "   npm test"

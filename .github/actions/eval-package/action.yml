@@ -1,0 +1,84 @@
+name: "Run promptfoo eval"
+description: "Sets up Ollama (pinned + SHA256 verified), pulls the model, installs deps, and runs promptfoo eval for a package"
+
+inputs:
+  package:
+    description: "Package name (directory under packages/)"
+    required: true
+  model:
+    description: "Ollama model to use"
+    required: false
+    default: "llama3.2:3b"
+  node-version:
+    description: "Node.js version"
+    required: false
+    default: "26"
+  ollama-version:
+    description: "Pinned Ollama release version"
+    required: false
+    default: "0.32.5"
+  ollama-sha256:
+    description: "SHA256 checksum of ollama-linux-amd64.tar.zst"
+    required: false
+    default: "f7d6bdbcf71b83aa8670c4e7dc4b6936c0952fcf8b114eaf6a11cbadb9684214"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: npm
+
+    - name: Cache Ollama binary
+      id: cache-ollama
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          /usr/local/bin/ollama
+          /usr/local/lib/ollama
+        key: ollama-bin-${{ inputs.ollama-version }}
+
+    - name: Install Ollama (pinned + verified)
+      if: steps.cache-ollama.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        TARBALL="ollama-linux-amd64.tar.zst"
+        URL="https://github.com/ollama/ollama/releases/download/v${{ inputs.ollama-version }}/${TARBALL}"
+
+        echo "Downloading Ollama v${{ inputs.ollama-version }}..."
+        curl -fSL -o "${TARBALL}" "${URL}"
+
+        echo "Verifying SHA256 checksum..."
+        echo "${{ inputs.ollama-sha256 }}  ${TARBALL}" | sha256sum -c -
+
+        echo "Extracting..."
+        tar --use-compress-program=unzstd -xf "${TARBALL}"
+        sudo mv bin/ollama /usr/local/bin/ollama
+        sudo mkdir -p /usr/local/lib/ollama
+        sudo mv lib/ollama/* /usr/local/lib/ollama/
+        rm -rf "${TARBALL}" bin/ lib/
+
+        echo "✅ Ollama v${{ inputs.ollama-version }} installed and verified"
+
+    - name: Cache Ollama model
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: /usr/share/ollama/.ollama
+        key: ollama-model-${{ inputs.model }}-v1
+
+    - name: Start Ollama and pull model
+      shell: bash
+      run: |
+        ollama serve &
+        sleep 2
+        ollama pull ${{ inputs.model }}
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Run evals
+      shell: bash
+      run: npx promptfoo eval --config packages/${{ inputs.package }}/tests/promptfooconfig.yaml --no-cache
