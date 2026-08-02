@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Validate release-please-config.json:
+# 1. Valid JSON
+# 2. Referenced files exist
+# 3. YAML extra-files have x-release-please-version annotation
+
+CONFIG="release-please-config.json"
+ERRORS=0
+
+echo "=== Validating $CONFIG ==="
+
+# 1. Valid JSON
+echo "→ JSON syntax..."
+if ! python3 -c "import json; json.load(open('$CONFIG'))"; then
+  echo "  ❌ Invalid JSON"
+  ERRORS=$((ERRORS + 1))
+else
+  echo "  Valid ✓"
+fi
+
+# 2. Check referenced files exist for each package
+echo "→ Checking referenced files..."
+for pkg_path in $(python3 -c "
+import json
+cfg = json.load(open('$CONFIG'))
+for p in cfg.get('packages', {}):
+    print(p)
+"); do
+  if [ ! -f "$pkg_path/version.txt" ]; then
+    echo "  ❌ Missing: $pkg_path/version.txt (required by release-type: simple)"
+    ERRORS=$((ERRORS + 1))
+  fi
+
+  for extra in $(python3 -c "
+import json
+cfg = json.load(open('$CONFIG'))
+pkg = cfg['packages'].get('$pkg_path', {})
+for f in pkg.get('extra-files', []):
+    print(f if isinstance(f, str) else f.get('path', ''))
+"); do
+    if [ -n "$extra" ] && [ ! -f "$pkg_path/$extra" ]; then
+      echo "  ❌ Missing: $pkg_path/$extra (listed in extra-files)"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+done
+echo "  Files exist ✓"
+
+# 3. Check x-release-please-version annotation in YAML extra-files
+echo "→ Checking version annotations..."
+for pkg_path in $(python3 -c "
+import json
+cfg = json.load(open('$CONFIG'))
+for p in cfg.get('packages', {}):
+    print(p)
+"); do
+  for extra in $(python3 -c "
+import json
+cfg = json.load(open('$CONFIG'))
+pkg = cfg['packages'].get('$pkg_path', {})
+for f in pkg.get('extra-files', []):
+    name = f if isinstance(f, str) else f.get('path', '')
+    if name.endswith('.yml') or name.endswith('.yaml'):
+        print(name)
+"); do
+    target="$pkg_path/$extra"
+    if [ -f "$target" ] && ! grep -q "x-release-please-version" "$target"; then
+      echo "  ❌ Missing annotation: $target needs '# x-release-please-version' on the version line"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+done
+echo "  Annotations present ✓"
+
+echo ""
+if [ "$ERRORS" -gt 0 ]; then
+  echo "❌ $ERRORS error(s) found in release-please configuration"
+  exit 1
+fi
+
+echo "✅ release-please configuration is valid"

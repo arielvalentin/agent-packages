@@ -56,6 +56,26 @@ apm install
 - Private/internal agents are intentionally excluded.
 - Transitive marketplace dependencies are not copied here unless explicitly added to a package manifest.
 
+## Running behavioral tests locally
+
+Tests use [promptfoo](https://promptfoo.dev) + [Ollama](https://ollama.com) (local LLM, no API keys needed).
+
+```bash
+# One-time setup (installs Ollama, Node, npm deps, pulls model)
+script/setup
+
+# Run tests
+npm test                     # all packages
+npm run test:coordinator     # single package
+npm run test:reviewers
+npm run test:dev-workflow
+```
+
+Dependencies are declared in `Brewfile` — `script/setup` is idempotent and safe to re-run.
+
+> **Note:** CI uses a pinned Ollama binary with SHA256 verification for supply chain safety.
+> Locally, the Homebrew-managed version is fine.
+
 ## License
 
 Apache-2.0. See `LICENSE`.

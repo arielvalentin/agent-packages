@@ -1,0 +1,89 @@
+description: "Coordinator package behavioral tests"
+
+providers:
+  - id: ollama:llama3.2:3b
+    label: skill-under-test
+
+prompts:
+  - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+
+tests:
+  # --- pr-lifecycle ---
+  - description: "pr-lifecycle: creates draft PR for new feature work"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "I just started a new feature branch. What should I do about a PR?"
+    assert:
+      - type: icontains
+        value: "--draft"
+      - type: icontains
+        value: "gh pr create"
+
+  - description: "pr-lifecycle: skips WIP PR for research flows"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "I am doing a research flow to investigate a performance issue. Should I open a PR?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('skip') || l.includes('no') || l.includes('not') || l.includes(\"don't\") || l.includes('unnecessary')"
+
+  - description: "pr-lifecycle: monitors CI after push"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "I just pushed commits to my PR branch. What should I do next?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('gh pr checks') || l.includes('gh pr create') || l.includes('ci') || l.includes('check') || l.includes('review') || l.includes('monitor')"
+  - description: "adversarial-review: uses multiple independent model lineages"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "How does the adversarial review work? What models are used?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('gpt') || l.includes('claude') || l.includes('gemini') || l.includes('lineage') || l.includes('independent') || l.includes('parallel')"
+
+  # --- review-fix-loop ---
+  - description: "review-fix-loop: escalates after max retries"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "What happens if the review-fix loop keeps finding issues after many retries?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('escalat') || l.includes('stop') || l.includes('max') || l.includes('limit') || l.includes('abort') || l.includes('exhaust')"
+
+  # --- acting-on-behalf ---
+  - description: "acting-on-behalf: includes AI disclaimer in PR comments"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "I need to post a comment on a PR. What must I include?"
+    assert:
+      - type: icontains
+        value: "disclaimer"
+      - type: icontains
+        value: "AI"
+
+  - description: "acting-on-behalf: requires adversarial review before PR creation"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "What safety checks do I need before opening a PR with code changes?"
+    assert:
+      - type: icontains
+        value: "adversarial"
+
+  # --- consensus-panel ---
+  - description: "consensus-panel: dispatches to multiple models in parallel"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "How does the consensus panel work?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('parallel') || l.includes('multiple') || l.includes('dispatch')) && (l.includes('consensus') || l.includes('verdict') || l.includes('synthesiz') || l.includes('unified'))"
+
+  # --- stage-pr ---
+  - description: "stage-pr: creates a preview environment"
+    vars:
+      skill_content: file://../.apm/skills/stage-pr/SKILL.md
+      user_input: "I want to preview this PR in a running environment. How?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('codespace') || l.includes('preview') || l.includes('environment') || l.includes('dev server') || l.includes('localhost')"

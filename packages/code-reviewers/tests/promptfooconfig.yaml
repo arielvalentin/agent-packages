@@ -1,0 +1,43 @@
+description: "Code reviewers package behavioral tests"
+
+providers:
+  - id: ollama:llama3.2:3b
+    label: skill-under-test
+
+prompts:
+  - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+
+tests:
+  # --- perf-reviewer agent ---
+  - description: "perf-reviewer: identifies scaling risks without running live profiles"
+    vars:
+      skill_content: file://../.apm/agents/perf-reviewer.agent.md
+      user_input: "How do you review code for performance?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('static') || l.includes('read') || l.includes('analyz') || l.includes('review') || l.includes('findings') || l.includes('severity') || l.includes('performance')) && !l.includes('run benchmark')"
+
+  - description: "perf-reviewer: flags N+1 queries"
+    vars:
+      skill_content: file://../.apm/agents/perf-reviewer.agent.md
+      user_input: "Review this code for performance:\n```ruby\nusers = User.all\nusers.each { |u| puts u.posts.count }\n```"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('n+1') || l.includes('n + 1') || l.includes('eager') || l.includes('preload') || l.includes('includes(') || l.includes('batch') || l.includes('each user') || l.includes('quadratic') || l.includes('count') || l.includes('loop') || l.includes('query per')"
+
+  # --- style-reviewer agent ---
+  - description: "style-reviewer: checks language idioms and patterns"
+    vars:
+      skill_content: file://../.apm/agents/style-reviewer.agent.md
+      user_input: "What do you focus on when reviewing code?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('idiom') || l.includes('pattern') || l.includes('readability') || l.includes('convention') || l.includes('style') || l.includes('design') || l.includes('review') || l.includes('best practice') || l.includes('naming') || l.includes('severity')"
+
+  - description: "style-reviewer: does not comment on trivial formatting"
+    vars:
+      skill_content: file://../.apm/agents/style-reviewer.agent.md
+      user_input: "Do you flag whitespace or bracket formatting issues?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('not') || l.includes('no') || l.includes('avoid') || l.includes('skip') || l.includes('trivial') || l.includes('ignore')"

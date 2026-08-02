@@ -14,7 +14,7 @@ jobs:
     name: Structural validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install APM
         run: curl -sSL https://aka.ms/apm-unix | sh
@@ -37,3 +37,12 @@ jobs:
         run: |
           chmod +x script/check-cross-references.sh
           ./script/check-cross-references.sh
+
+  release-please-config:
+    name: Validate release-please config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate release-please configuration
+        run: ./script/validate-release-please
