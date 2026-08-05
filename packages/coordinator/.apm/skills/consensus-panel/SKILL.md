@@ -1,18 +1,21 @@
 ---
 name: consensus-panel
 description: >
-  Dispatch a review or research task to N models in parallel and synthesize
-  a consensus verdict (simple/correct/pragmatic/beneficial). Use for every
-  specialist review dispatch.
+  Dispatch a specialist review to N models in parallel and synthesize a
+  consensus verdict (simple/correct/pragmatic/beneficial). Use for every
+  specialist review dispatch, never for duplicated fact-finding research.
 ---
 
 # Consensus Panel
 
 ## When to use
 
-Use before any review or research dispatch. Skipping this is a bug —
-callers must either follow the panel protocol or explicitly document why
-a single-model call is acceptable.
+Use before any specialist review dispatch. Skipping this is a bug unless the
+role is explicitly designated single-model.
+
+Do not use this skill for research fact-finding. Research uses one agent per
+source; identical queries must never be duplicated across models to manufacture
+consensus.
 
 ## Panel selection (runtime, not hard-coded)
 
@@ -28,9 +31,11 @@ Select panelists from models available in the current runtime/session:
 ## Dispatch
 
 Fire N parallel `task` calls to the **same specialist agent**, each with a
-different selected `model` override and `model_index` set in the handoff
-envelope. Include the JSON verdict schema below in every panelist prompt so
-the panelist can return structured output even if it doesn't load this skill.
+different selected `model` override. Set `consensus_role: panel-member` and
+`model_index` in every handoff envelope so panel-aware specialists do not
+recursively dispatch their own reviewers. Include the JSON verdict schema below
+in every panelist prompt so the panelist can return structured output even if it
+doesn't load this skill.
 
 ## Verdict schema (every panelist returns this)
 

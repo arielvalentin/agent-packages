@@ -36,6 +36,40 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('gh pr checks') || l.includes('gh pr create') || l.includes('ci') || l.includes('check') || l.includes('review') || l.includes('monitor')"
+
+  # --- pr-review-protocol ---
+  - description: "pr-review-protocol: waits for required CI before review"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "The pull request has a failing required check. Should I review it now?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('stop') || l.includes('wait') || l.includes('not proceed') || l.includes(\"don't review\") || l.includes('do not review')) && (l.includes('green') || l.includes('pass') || l.includes('required check'))"
+
+  - description: "pr-review-protocol: establishes intent before reviewing code"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "What context should I gather before reviewing a pull request diff?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('description') || l.includes('issue') || l.includes('intent') || l.includes('acceptance') || l.includes('rationale')"
+
+  - description: "pr-review-protocol: targets the repository and reuses context"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "How do I avoid reviewing the wrong repository or repeatedly fetching the same PR?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('--repo') || l.includes('owner/repo') || l.includes('repository')) && (l.includes('once') || l.includes('artifact') || l.includes('reuse') || l.includes('saved'))"
+
+  - description: "pr-review-protocol: requires evidence and one synthesized review"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "Should I post several quick review comments based only on my opinions?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('evidence') || l.includes('documentation') || l.includes('spec') || l.includes('repository')) && (l.includes('one') || l.includes('single') || l.includes('synthes'))"
+
   - description: "adversarial-review: uses multiple independent model lineages"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
@@ -43,6 +77,14 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('gpt') || l.includes('claude') || l.includes('gemini') || l.includes('lineage') || l.includes('independent') || l.includes('parallel')"
+
+  - description: "adversarial-review: panel members do not spawn nested reviews"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "My handoff says consensus_role: panel-member. Should I dispatch more reviewer agents?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('do not') || l.includes(\"don't\") || l.includes('no') || l.includes('not dispatch')) && (l.includes('direct') || l.includes('single') || l.includes('panel'))"
 
   # --- review-fix-loop ---
   - description: "review-fix-loop: escalates after max retries"
@@ -52,6 +94,14 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('escalat') || l.includes('stop') || l.includes('max') || l.includes('limit') || l.includes('abort') || l.includes('exhaust')"
+
+  - description: "review-fix-loop: specialist reviews use consensus panel"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "How should the reviewer be dispatched during a review-fix loop?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('consensus-panel') || l.includes('consensus panel') || l.includes('panel policy')"
 
   # --- acting-on-behalf ---
   - description: "acting-on-behalf: includes AI disclaimer in PR comments"
@@ -80,6 +130,14 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.toLowerCase(); (l.includes('parallel') || l.includes('multiple') || l.includes('dispatch')) && (l.includes('consensus') || l.includes('verdict') || l.includes('synthesiz') || l.includes('unified'))"
+
+  - description: "consensus-panel: never duplicates research for consensus"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Should I send three agents to search the same GitHub repository for the same facts?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('not') || l.includes('never') || l.includes('do not') || l.includes(\"don't\")) && (l.includes('one') || l.includes('single') || l.includes('duplicate') || l.includes('identical'))"
 
   # --- stage-pr ---
   - description: "stage-pr: creates a preview environment"
