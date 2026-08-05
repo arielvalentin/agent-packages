@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.10.0...coordinator-v0.11.0) (2026-08-05)
+
+
+### Features
+
+* **coordinator:** add reusable PR review protocol ([ef768ea](https://github.com/arielvalentin/agent-packages/commit/ef768ea4b91f86f93234728c899554c9720fd6f6))
+
 ## [0.10.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.9.0...coordinator-v0.10.0) (2026-08-02)
 
 
