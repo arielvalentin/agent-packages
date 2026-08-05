@@ -17,8 +17,8 @@ Load at the start of any subagent turn where the prompt begins with a
 
 ```json
 {
-  "flow": "feature|bugfix|refactor|research",
-  "phase": "design|implement|review-correctness|review-security|review-perf|review-style|review-arch|docs",
+  "flow": "feature|bugfix|refactor|research|pr-review",
+  "phase": "design|implement|review-context|review-correctness|review-security|review-perf|review-style|review-arch|review-impact|review-post|docs",
   "task_id": "<coordinator-assigned>",
   "goal": "one-line objective",
   "inputs": {
@@ -57,5 +57,7 @@ Examples: `01-design.md`, `02-security-review.json`, `03-impl-summary.md`,
 
 ## Ambiguity
 
-If the envelope is missing `goal`, `phase`, or acceptance criteria,
-respond with 1–3 clarifying questions and stop. Never guess.
+If the envelope is missing `goal`, `phase`, or acceptance criteria, respond
+with 1–3 clarifying questions and stop. For `flow: pr-review`, the PR body and
+linked issues are the acceptance-criteria source; unclear intent is review
+feedback to return to the coordinator, not a reason for a panel member to halt.

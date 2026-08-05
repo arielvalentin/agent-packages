@@ -8,8 +8,15 @@ Coordinator workflow package for delegated agent orchestration and gated reviews
   - `coordinator`
 - Skills:
   - `acting-on-behalf`
+  - `adversarial-review`
   - `consensus-panel`
   - `handoff-envelope`
+  - `pr-feedback-review`
+  - `pr-lifecycle`
+  - `pr-review-protocol`
+  - `resolve-github-user`
+  - `review-fix-loop`
+  - `stage-pr`
 
 ## Intent
 

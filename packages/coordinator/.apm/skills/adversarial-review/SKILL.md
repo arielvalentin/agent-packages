@@ -20,6 +20,15 @@ this plan", "second opinion on this diff", "stress-test this design",
 
 ## Protocol
 
+### Panel-member mode
+
+If the handoff envelope sets `consensus_role: panel-member`, perform one hostile
+review directly and return the requested structured verdict. Do not select
+models, dispatch subagents, or synthesize other reviewers; the caller's
+`consensus-panel` owns those responsibilities.
+
+The remaining protocol is for standalone use only.
+
 ### 1. Select two independent models
 
 Choose 2 models from **different lineages** to ensure independent analysis:

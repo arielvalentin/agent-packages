@@ -30,8 +30,9 @@ code-review, and observability review gates.
 1. **Check skip condition** — if `skip_condition` is defined and matches the
    current context, skip the gate entirely. Record the skip reason.
 
-2. **Dispatch reviewer** — send `scope` and `context` to the `reviewer` agent.
-   If `focus` is provided, include it as explicit review instructions.
+2. **Dispatch reviewer** — run the `reviewer` through `consensus-panel` unless
+   that role is explicitly designated single-model. Send `scope` and `context`;
+   if `focus` is provided, include it as explicit review instructions.
 
 3. **Evaluate findings** — filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
@@ -39,7 +40,8 @@ code-review, and observability review gates.
 
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
-   b. Re-dispatch `reviewer` against the updated `scope`.
+   b. Re-run `reviewer` through the same panel policy against the updated
+      `scope`.
    c. If no findings at or above threshold → **gate passes**. Record result.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.
