@@ -8,7 +8,7 @@
     "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml"
   },
   "devDependencies": {
-    "promptfoo": "^0.121.19"
+    "promptfoo": "^0.121.20"
   },
   "engines": {
     "node": ">=22"
