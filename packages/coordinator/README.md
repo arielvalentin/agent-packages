@@ -17,6 +17,7 @@ Coordinator workflow package for delegated agent orchestration and gated reviews
   - `resolve-github-user`
   - `review-fix-loop`
   - `stage-pr`
+  - `tech-research`
 
 ## Intent
 
