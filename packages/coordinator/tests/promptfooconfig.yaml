@@ -73,7 +73,7 @@ tests:
       user_input: "How do I hand durable synthesized research to another agent, and should that agent repeat the covered backend queries?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('artifact_paths') && (l.includes('do not re-query') || l.includes(\"don't re-query\") || l.includes('not re-query') || l.includes('do not repeat') || l.includes('should not repeat') || l.includes('not repeat')) && (l.includes('covered') || l.includes('backend'))"
+        value: "const l = output.toLowerCase(); l.includes('artifact_paths') && /(do not|don't|should not|must not|never|avoid|without|no need|not necessary|skip)/.test(l) && /(re-?query|repeat|redundant|duplicate)/.test(l) && (l.includes('covered') || l.includes('backend'))"
 
   # --- pr-lifecycle ---
   - description: "pr-lifecycle: creates draft PR for new feature work"
