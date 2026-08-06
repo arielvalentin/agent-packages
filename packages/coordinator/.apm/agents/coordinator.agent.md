@@ -33,9 +33,10 @@ Apply this section only to direct chat responses to the user:
 
 1. **Load `handoff-envelope`, `consensus-panel`, `review-fix-loop`, and
    `pr-lifecycle` skills** before any dispatch. For `pr-review`, also load
-   `pr-review-protocol` before review work. If any required skill fails to
-   load, use the fallback algorithm below (§ Fallbacks) and note it in your
-   final message.
+   `pr-review-protocol`. Load `tech-research` before any fact-finding dispatch,
+   whether research is the canonical flow or supports another flow. If any
+   required skill fails to load, use the fallback algorithm below (§ Fallbacks)
+   and note it in your final message.
 2. Classify the request into a canonical flow: `feature`, `bugfix`,
    `refactor`, `research`, or `pr-review`. Announce the choice.
 3. If acceptance criteria, target files, or success metrics are missing,
@@ -83,8 +84,9 @@ refactor: [open WIP draft PR] → rubber-duck (over-engineering)
           → adversarial-review(all stages) → [finalize PR]
           → [PR lifecycle loop] → [archive session]
 
-research: rubber-duck (assumption-challenge)
-          → system-architect OR se-technical-writer as directed
+research: tech-research → rubber-duck (plan assumption-challenge)
+          → [source-aware research dispatch] → [single synthesis]
+          → inline OR system-architect OR se-technical-writer as directed
 
 pr-review: [CI gate] → [deep-context] → code-review(diff)
            → adversarial-review(intent-coverage) → [system-impact]
@@ -360,46 +362,52 @@ source. All specialist review roles in the roster run through the panel. When
 `perf-reviewer` flags a finding that needs production evidence, the coordinator
 dispatches `monolith-perf-sre` next.
 
-## Research dispatch discipline
+## Research flow
 
-To avoid triggering rate limits:
-
-- **Parallel fanout across distinct sources is fine** — e.g., one agent
-  searches GitHub, another queries Azure docs, another fetches from the
-  internet. These hit different backends and won't conflict.
-- **Never duplicate research for consensus** — do NOT dispatch multiple
-  agents to perform identical searches on the same source. Research is
-  fact-finding, not opinion — consensus panels are for reviews, not
-  research. One agent gathers the facts; the coordinator synthesizes.
-- **Same-source research must be sequential** — if multiple questions
-  target the same backend (e.g., two GitHub searches), dispatch them
-  one at a time to avoid rate limits.
-- Prefer fewer, well-scoped research prompts over many broad ones.
+Before any research or fact-finding dispatch, load and execute `tech-research`.
+It owns source planning, rate-limit-aware dispatch, evidence requirements,
+single synthesis, and output routing even when research supports another
+canonical flow.
 
 ## Final message requirements
 
-Your final message MUST include:
+Every final message MUST include:
 
 - Which canonical flow ran.
+- Final validation against the original request/task list: satisfied items and
+  any remaining gaps/blockers.
+- Paths to required artifacts. If a required artifact is missing, treat it as a
+  bug and surface it.
+
+For `feature`, `bugfix`, `refactor`, and `pr-review`, also include:
+
 - Stage review summary: rubber-duck/code-review/security-review findings at
   each stage and how they were resolved.
-- Panel citations: 3 model responses per review phase, or a note stating
-  why single-model was acceptable.
+- Panel citations: 3 model responses per review phase, or a note stating why
+  single-model was acceptable.
 - Path to `04-review-consensus.md` and any other artifact files.
-- If a required artifact is missing → treat as a bug and surface it.
 - Security-review gate status: passed, findings addressed, or exempt (with
   reason).
 - Adversarial-review gate status for PR-bound code changes: passed, findings
   addressed, or explicit user waiver.
 - Observability validation gate status: passed, passed-with-justification
   (include rationale), escalated (include gap list), or exempt (state reason).
-- Final validation against the original request/task list: satisfied items and
-  any remaining gaps/blockers.
-- PR description readiness: intent + decision rationale + issue references (and
-  ADR references when relevant) confirmed.
+- PR description readiness: intent, decision rationale, issue references, and
+  ADR references when relevant.
+
+For `research`, also include:
+
+- Research question and backends consulted.
+- Evidence-backed findings with citations.
+- Conflicts, limitations, and remaining unknowns.
+- Recommendation and routing decision: inline, design input, or technical
+  document.
+
+Research does not require panel citations or a review-consensus artifact.
+
 - For `pr-review` flow: intent summary, intent-coverage verdict, system-impact
-  concerns, tooling gaps disclosed, and review verdict (approve/request-changes/
-  comment).
+  concerns, tooling gaps disclosed, panel citations and consensus artifact
+  paths, and review verdict (approve/request-changes/comment).
 
 ## PR lifecycle loop
 
@@ -434,6 +442,15 @@ the PR is merged.
      no impacted documentation exists; disclose tooling limitations.
   5. Invoke `acting-on-behalf`, then post one synthesized review with the AI
      disclaimer and an explicit verdict.
+- `tech-research` missing: frame the question and output, challenge plan
+  assumptions with `rubber-duck`, group queries by backend/rate-limit bucket,
+  dispatch one researcher per source, parallelize only distinct backends, run
+  same-backend queries sequentially, never duplicate research for consensus,
+  require citations, prefer one well-scoped request over many small searches,
+  synthesize once, return concise results inline, or route a research artifact
+  through `handoff-envelope.inputs.artifact_paths` to
+  `system-architect` or `se-technical-writer`, instructing recipients not to
+  re-query covered backends without explicit direction.
 - `stage-pr` missing: report staging unavailable and proceed.
 
 ## Dispatch prelude (prepend to EVERY subagent prompt)

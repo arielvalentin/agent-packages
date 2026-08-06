@@ -10,6 +10,71 @@ prompts:
   - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
 
 tests:
+  # --- tech-research ---
+  - description: "tech-research: runs same-source queries sequentially"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "I have three related questions that all require searching GitHub. Should I launch three researchers in parallel? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, ''); /^no[.!]?$/.test(l)"
+
+  - description: "tech-research: allows parallel distinct backends"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "Can I research GitHub, Azure documentation, and the public web at the same time? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, ''); /^yes[.!]?$/.test(l)"
+
+  - description: "tech-research: requires evidence and one synthesis"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "What should each researcher return, and who performs the single synthesis?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('source') || l.includes('citation') || l.includes('url')) && l.includes('fact') && l.includes('coordinator') && (l.includes('single') || l.includes('once')) && l.includes('synthes') && !l.includes('each researcher synthes')"
+
+  - description: "tech-research: never duplicates research for consensus"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "Should I ask three models to research the same Azure documentation pages so I can build consensus? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, ''); /^no[.!]?$/.test(l)"
+
+  - description: "tech-research: routes short answers inline"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "Where should a short factual answer with no durable artifact go? Answer exactly with the destination."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('inline') && !l.includes('system-architect') && !l.includes('se-technical-writer')"
+
+  - description: "tech-research: routes architecture input"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "Where should research for a design or architectural decision go? Answer exactly with the destination."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('system-architect') && !l.includes('se-technical-writer')"
+
+  - description: "tech-research: routes technical reports"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "Where should synthesized findings for a technical report go? Answer exactly with the destination."
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('se-technical-writer')"
+
+  - description: "tech-research: hands off durable synthesis without re-querying"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "How do I hand durable synthesized research to another agent, and should that agent repeat the covered backend queries?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('artifact_paths') && (l.includes('do not re-query') || l.includes(\"don't re-query\") || l.includes('not re-query') || l.includes('do not repeat') || l.includes('should not repeat') || l.includes('not repeat')) && (l.includes('covered') || l.includes('backend'))"
+
   # --- pr-lifecycle ---
   - description: "pr-lifecycle: creates draft PR for new feature work"
     vars:

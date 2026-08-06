@@ -18,7 +18,7 @@ Load at the start of any subagent turn where the prompt begins with a
 ```json
 {
   "flow": "feature|bugfix|refactor|research|pr-review",
-  "phase": "design|implement|review-context|review-correctness|review-security|review-perf|review-style|review-arch|review-impact|review-post|docs",
+  "phase": "design|implement|research|research-synthesis|review-context|review-correctness|review-security|review-perf|review-style|review-arch|review-impact|review-post|docs",
   "task_id": "<coordinator-assigned>",
   "goal": "one-line objective",
   "inputs": {
@@ -37,8 +37,9 @@ Load at the start of any subagent turn where the prompt begins with a
 `${ARTIFACTS_DIR:=$HOME/.copilot/session-state/${COPILOT_SESSION_ID:-$(date +%Y%m%d-%H%M%S)-$$}/artifacts}`
 
 Naming: `NN-<phase>.<ext>` where NN is the phase order.
-Examples: `01-design.md`, `02-security-review.json`, `03-impl-summary.md`,
-`04-review-consensus.md`, `05-docs.md`.
+Change-flow examples: `01-design.md`, `02-security-review.json`,
+`03-impl-summary.md`, `04-review-consensus.md`, `05-docs.md`.
+Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
 
 ## Read side
 
