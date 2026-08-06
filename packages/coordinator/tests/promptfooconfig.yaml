@@ -17,7 +17,7 @@ tests:
       user_input: "I have three related questions that all require searching GitHub. Should I launch three researchers in parallel? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
-        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, ''); /^no[.!]?$/.test(l)"
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "tech-research: allows parallel distinct backends"
     vars:
@@ -25,7 +25,7 @@ tests:
       user_input: "Can I research GitHub, Azure documentation, and the public web at the same time? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
-        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, ''); /^yes[.!]?$/.test(l)"
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
 
   - description: "tech-research: requires evidence and one synthesis"
     vars:
@@ -41,7 +41,7 @@ tests:
       user_input: "Should I ask three models to research the same Azure documentation pages so I can build consensus? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
-        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, ''); /^no[.!]?$/.test(l)"
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "tech-research: routes short answers inline"
     vars:
