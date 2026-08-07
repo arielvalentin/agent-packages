@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.11.0...coordinator-v0.12.0) (2026-08-06)
+
+
+### Features
+
+* **coordinator:** add reusable tech research workflow ([#16](https://github.com/arielvalentin/agent-packages/issues/16)) ([d74757d](https://github.com/arielvalentin/agent-packages/commit/d74757d333ba249b9632fd38112c79e90592ecb9))
+
 ## [0.11.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.10.0...coordinator-v0.11.0) (2026-08-05)
 
 
