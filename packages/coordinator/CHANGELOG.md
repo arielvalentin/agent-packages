@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.0...coordinator-v0.12.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **coordinator:** preserve issue-ops slash command placement ([#21](https://github.com/arielvalentin/agent-packages/issues/21)) ([a9d96c0](https://github.com/arielvalentin/agent-packages/commit/a9d96c06e5dbd44814ecdbef80c3761328dfe38e))
+
 ## [0.12.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.11.0...coordinator-v0.12.0) (2026-08-06)
 
 
