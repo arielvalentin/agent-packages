@@ -41,8 +41,12 @@ username. Use the returned handle in disclaimers and attributions.
 Before posting or replying to a PR/issue comment:
 
 1. Include the AI disclaimer line in the comment body.
-2. Verify the disclaimer remains in the final text sent to GitHub.
-3. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`).
+2. If the comment invokes a GitHub issue-ops slash command (for example,
+   `/catalog-diff`), keep the slash command as the exact first line of the
+   comment and place the AI disclaimer after it. Do not prefix the command with
+   the disclaimer or any other text.
+3. Verify the disclaimer remains in the final text sent to GitHub.
+4. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`).
 
 ## If no issue is provided
 
