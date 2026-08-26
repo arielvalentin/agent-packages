@@ -442,11 +442,15 @@ the PR is merged.
   breaking changes. Validate every title against
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
   before creating, updating, or readying a PR title — whether through the
-  built-in `create_pull_request`/`update_pull_request` tools or `gh pr
-  create --draft --title "<type>: <description>" --body "<issue ref +
-  placeholder>"` (non-interactive; never a bare `--draft` with no
-  `--body`), `gh pr edit --title`, and `gh pr ready`. Use `gh
-  pr checks --watch` for CI monitoring, `gh pr view --json
+  built-in `create_pull_request`/`update_pull_request` tools or:
+
+  ```sh
+  gh pr create --draft --title "<type>: <description>" --body "<issue ref + placeholder>"
+  ```
+
+  That command is non-interactive; never issue a bare `--draft` with no
+  `--body`. Then use `gh pr edit --title` and `gh pr ready` for later title
+  changes, `gh pr checks --watch` for CI monitoring, `gh pr view --json
   reviews,comments` for review polling, and `archive_session` for
   post-merge cleanup.
 - `pr-review-protocol` missing: execute the `pr-review` canonical flow in order:
