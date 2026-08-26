@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.6.0...development-workflow-v0.6.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* enforce conventional PR titles from draft creation ([ecafb4d](https://github.com/arielvalentin/agent-packages/commit/ecafb4d2ec1b661acef0511f4b0e47d83580e7a6))
+
 ## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.5.0...development-workflow-v0.6.0) (2026-08-02)
 
 
