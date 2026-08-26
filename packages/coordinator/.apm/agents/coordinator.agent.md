@@ -56,29 +56,31 @@ Apply this section only to direct chat responses to the user:
   → Model selection for dispatch).
 - For panel work, prefer cross-family diversity when possible.
 
-## Early WIP draft PR (production changes only)
+## Early draft PR (production changes only)
 
-Follow the `pr-lifecycle` skill's "Early WIP draft PR" section for
+Follow the `pr-lifecycle` skill's "Early draft PR" section for
 `feature`, `bugfix`, and `refactor` flows. Skip for `research` flows or
-when the user explicitly says not to open a PR yet.
+when the user explicitly says not to open a PR yet. The draft PR title
+uses Conventional Commits format from creation (`<type>: <description>`)
+— never a `WIP:` placeholder.
 
 ## Canonical flows
 
 ```
-feature:  [open WIP draft PR] → system-architect → rubber-duck(design)
+feature:  [open draft PR] → system-architect → rubber-duck(design)
           → GATE(design) → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
           → se-technical-writer → [PR lifecycle loop]
           → [archive session]
 
-bugfix:   [open WIP draft PR] → rubber-duck (root-cause)
+bugfix:   [open draft PR] → rubber-duck (root-cause)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → security-review → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
           → [PR lifecycle loop] → [archive session]
 
-refactor: [open WIP draft PR] → rubber-duck (over-engineering)
+refactor: [open draft PR] → rubber-duck (over-engineering)
           → [incremental dispatch w/ code-review per step]
           → code-review(pre-commit) → GATE(impl)
           → adversarial-review(all stages) → [finalize PR]
@@ -212,8 +214,8 @@ Evaluate the implementation plan and choose the optimal dispatch mode:
 - Each track benefits from its own worktree, branch, and CI feedback
 - The design explicitly identifies isolated subsystems
 
-When using fleet sessions, set `base_branch` to the WIP PR's branch so
-tracks stack on it. Monitor via session notifications and
+When using fleet sessions, set `base_branch` to the early draft PR's
+branch so tracks stack on it. Monitor via session notifications and
 `send_session_message` for coordination.
 
 ### Dispatch rules
@@ -431,9 +433,28 @@ the PR is merged.
 - `adversarial-review` missing: run hostile `rubber-duck` critique through the
   consensus panel (or manual 3-model panel if needed) and keep the same
   blocker/major loop.
-- `pr-lifecycle` missing: use `gh pr create --draft` for WIP PRs, `gh pr
-  checks --watch` for CI monitoring, `gh pr view --json reviews,comments`
-  for review polling, and `archive_session` for post-merge cleanup.
+- `pr-lifecycle` missing: open early draft PRs with a Conventional Commits
+  title from creation — default `<type>` from the flow (`feature`→`feat`,
+  `bugfix`→`fix`, `refactor`→`refactor`), substituting one of the other
+  allowed types (`docs`, `test`, `chore`, `ci`, `perf`, `build`, `revert`)
+  when the actual change warrants it. Add `(<scope>)` only when it
+  materially clarifies the change (omit by default), and append `!` for
+  breaking changes. Validate every title against
+  `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
+  before creating, updating, or readying a PR title — whether through the
+  built-in `create_pull_request`/`update_pull_request` tools or the
+  non-interactive create command, with the real type/description/issue ref
+  substituted in (never emit the placeholders literally):
+
+  ```sh
+  gh pr create --draft --title "fix: correct null handling in login handler" --body "Refs #123"
+  ```
+
+  Never issue a bare `--draft` with no `--body`. Then use
+  `gh pr edit --title` and `gh pr ready` for later title changes,
+  `gh pr checks --watch` for CI monitoring, `gh pr view --json
+  reviews,comments` for review polling, and `archive_session` for
+  post-merge cleanup.
 - `pr-review-protocol` missing: execute the `pr-review` canonical flow in order:
   1. Stop until required CI is green and tell the user which checks block it.
   2. Read the PR description and linked issues; summarize intent.
