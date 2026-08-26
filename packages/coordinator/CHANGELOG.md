@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.1...coordinator-v0.12.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* enforce conventional PR titles from draft creation ([ecafb4d](https://github.com/arielvalentin/agent-packages/commit/ecafb4d2ec1b661acef0511f4b0e47d83580e7a6))
+
 ## [0.12.1](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.0...coordinator-v0.12.1) (2026-08-21)
 
 
