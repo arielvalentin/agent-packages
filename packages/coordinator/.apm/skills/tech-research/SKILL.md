@@ -124,7 +124,7 @@ Include:
 
 ## Boundaries
 
-- Do not open a WIP PR for research-only work.
+- Do not open an early draft PR for research-only work.
 - Do not duplicate same-source queries for confidence or consensus.
 - Do not present inference as fact.
 - Do not hide rate limits, access failures, or stale sources.

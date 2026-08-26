@@ -76,17 +76,107 @@ tests:
         value: "const l = output.toLowerCase(); l.includes('artifact_paths') && /(do not|don't|should not|must not|never|avoid|without|no need|not necessary|skip)/.test(l) && /(re-?query|repeat|redundant|duplicate)/.test(l) && (l.includes('covered') || l.includes('backend'))"
 
   # --- pr-lifecycle ---
-  - description: "pr-lifecycle: creates draft PR for new feature work"
+  - description: "pr-lifecycle: draft PR create command carries a conventional --title in position (no prose fallback, no <type> placeholder exception), and a later gh pr edit --title cannot launder a WIP/missing create title"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "I just started a new feature branch. What should I do about a PR?"
+      user_input: "I am fixing a null-pointer crash in the login handler on this bugfix branch, and no draft PR exists yet. What exact `gh pr create` command do I run right now?"
     assert:
       - type: icontains
         value: "--draft"
       - type: icontains
         value: "gh pr create"
+      - type: javascript
+        value: "const raw = output; const BT = String.fromCharCode(96); const DQ = String.fromCharCode(34); const SQ = String.fromCharCode(39); const SENT = String.fromCharCode(1); const normalized = raw.replace(/\\\\\\s*\\n\\s*/g, ' '); function ciIndexOf(text, needle, from) { const escaped = needle.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&').replace(/\\s+/g, '\\\\s+'); const re = new RegExp(escaped, 'i'); const rel = text.slice(from || 0).search(re); return rel === -1 ? -1 : rel + (from || 0); } const masked = normalized.replace(new RegExp('(--title\\\\s*=?\\\\s*)' + BT + '([^' + BT + ']*)' + BT, 'gi'), function (m, p1, p2) { return p1 + SENT + p2 + SENT; }); function extractCreateSegments(text) { const out = []; const anchor = 'gh pr create'; const ghRe = /\\bgh\\b/gi; let idx = ciIndexOf(text, anchor); while (idx !== -1) { const searchFrom = idx + anchor.length; const nextCreate = ciIndexOf(text, anchor, searchFrom); const nextBacktick = text.indexOf(BT, searchFrom); const nextNewline = text.indexOf('\\n', searchFrom); ghRe.lastIndex = searchFrom; const ghMatch = ghRe.exec(text); const nextGh = ghMatch ? ghMatch.index : -1; const stops = [nextCreate, nextBacktick, nextNewline, nextGh].filter((i) => i !== -1); const end = stops.length ? Math.min(...stops) : text.length; out.push(text.slice(idx, end)); idx = nextCreate; } return out; } const createSegments = extractCreateSegments(masked).map((seg) => seg.split(/\\s*(?:&&|;|\\|\\|)\\s*/)[0]); function extractTitleArg(segment) { const anchorRe = /--title\\s*=?\\s*/i; const m = anchorRe.exec(segment); if (!m) return null; const rest = segment.slice(m.index + m[0].length); let title = ''; if (rest[0] === DQ) { const end = rest.indexOf(DQ, 1); title = end === -1 ? rest.slice(1) : rest.slice(1, end); } else if (rest[0] === SQ) { const end = rest.indexOf(SQ, 1); title = end === -1 ? rest.slice(1) : rest.slice(1, end); } else if (rest[0] === SENT) { const end = rest.indexOf(SENT, 1); title = end === -1 ? rest.slice(1) : rest.slice(1, end); } else { const flagMatch = rest.match(/\\s+--[a-z]/i); const flagIdx = flagMatch ? flagMatch.index : -1; const nlIdx = rest.indexOf('\\n'); const stops = [flagIdx, nlIdx].filter((i) => i !== -1); const endIdx = stops.length ? Math.min(...stops) : rest.length; title = rest.slice(0, endIdx); } return title.trim(); } const conventionalRe = /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/; const wipRe = /^wip\\b/i; const draftCreateSegments = createSegments.filter((segment) => /--draft\\b/i.test(segment)); const hasDraftCreate = draftCreateSegments.length > 0; const draftCreateTitles = draftCreateSegments.map(extractTitleArg); const allDraftCreatesHaveValidTitle = hasDraftCreate && draftCreateTitles.every((t) => t !== null && t !== '' && conventionalRe.test(t) && !wipRe.test(t)); hasDraftCreate && allDraftCreatesHaveValidTitle"
 
-  - description: "pr-lifecycle: skips WIP PR for research flows"
+  - description: "pr-lifecycle: flow-to-type mapping is a default, not absolute"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "I'm in a bugfix flow, but the very first change is documentation-only. Reply with exactly two lines and nothing else, in this exact format:\nOverridable: <Yes or No> (can the flow's default type mapping be overridden when the actual initial change is docs, test, chore, ci, perf, build, or revert work?)\nType: <the single Conventional Commits type token you would use for the draft PR title in this situation>"
+    assert:
+      - type: javascript
+        value: "const BT = String.fromCharCode(96); const stripped = output.replace(new RegExp(BT, 'g'), ''); const overridableMatch = /overridable\\s*:\\s*(yes|no)\\b/i.exec(stripped); const typeMatch = /type\\s*:\\s*([a-z]+)\\b/i.exec(stripped); const isOverridable = !!overridableMatch && overridableMatch[1].toLowerCase() === 'yes'; const typeIsDocs = !!typeMatch && typeMatch[1].toLowerCase() === 'docs'; isOverridable && typeIsDocs"
+
+  - description: "pr-lifecycle: rejects an empty scope as invalid grammar (explicit leading rejection)"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Is `fix(): correct the bug` a valid PR title under this skill's title format? Start your reply with exactly one word, Yes or No, then state the specific reason."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').trim(); const BT = String.fromCharCode(96); const stripped = l.split(BT).join(''); const startsNo = /^no\\b/.test(stripped); const mentionsEmptyScope = /\\(\\)/.test(stripped) || (/\\bscope\\b/.test(stripped) && /\\b(empty|blank|missing|nothing|no\\s+scope)\\b/.test(stripped)); startsNo && mentionsEmptyScope"
+
+  - description: "pr-lifecycle: rejects a whitespace-only scope as invalid grammar"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Is `fix( ): correct the bug` (a scope made only of a single space) a valid PR title under this skill's title format? Start your reply with exactly one word, Yes or No, then state the specific reason."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').trim(); const BT = String.fromCharCode(96); const stripped = l.split(BT).join(''); const startsNo = /^no\\b/.test(stripped); const mentionsWhitespaceScope = /\\bscope\\b/.test(stripped) && /\\b(empty|blank|missing|nothing|whitespace|no\\s+scope|only\\s+(a\\s+)?spaces?|only\\s+whitespace|not\\s+(a\\s+)?(valid|non-empty|non-whitespace)|invalid)\\b/.test(stripped); startsNo && mentionsWhitespaceScope"
+
+  - description: "pr-lifecycle: rejects a whitespace-only description as invalid grammar"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Is `fix:   ` (a colon followed only by spaces, with no description text) a valid PR title under this skill's title format? Start your reply with exactly one word, Yes or No, then state the specific reason."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').trim(); const BT = String.fromCharCode(96); const stripped = l.split(BT).join(''); const startsNo = /^no\\b/.test(stripped); const mentionsEmptyDescription = /\\bdescription\\b/.test(stripped) && /\\b(empty|blank|missing|nothing|whitespace|no\\s+description|only\\s+spaces|only\\s+whitespace)\\b/.test(stripped); startsNo && mentionsEmptyDescription"
+
+  - description: "pr-lifecycle: title is unscoped by default"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Under this skill's Title format, is a (scope) required in the PR title by default? Start your reply with exactly one word, Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').trim(); const BT = String.fromCharCode(96); const stripped = l.split(BT).join(''); /^no\\b/.test(stripped)"
+
+  - description: "pr-lifecycle: scope is permitted only when material"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Under this skill's Title format, is the scoped form <type>(<scope>): <description> allowed only when the scope materially clarifies the change, rather than being usable at any time for any reason? Start your reply with exactly one word, Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').trim(); const BT = String.fromCharCode(96); const stripped = l.split(BT).join(''); /^yes\\b/.test(stripped)"
+
+  - description: "pr-lifecycle: breaking changes use the optional ! marker"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "According to the Title format section, exactly how do I write a breaking-change PR title? Quote the format."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); const grammarRe = /(<type>|feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\(<scope>\\)|\\([^()\\s]+\\))?!:\\s+\\S/; grammarRe.test(l) && l.includes('break')"
+
+  - description: "pr-lifecycle: validates title before create"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before running `gh pr create` to open a PR, must I validate the title against the Title format section? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "pr-lifecycle: validates title before update"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before running `gh pr edit --title` to update a PR's title, must I validate the new title against the Title format section? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "pr-lifecycle: validates title before ready"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before running `gh pr ready` to mark a PR ready for review, must I validate the title against the Title format section? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "pr-lifecycle: finalization re-derives/corrects the title and explicitly rejects rename/convert-to-conventional framing"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "My PR is ready to finalize. Statement: finalization converts or renames the PR title into Conventional Commits format for the first time. Is that statement true or false? Start your reply with exactly one word, True or False, then explain what finalization actually does to the title."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); const stripped = l.replace(/[*_#]/g, '').split(String.fromCharCode(96)).join('').trim(); const leadingDecline = /^false\\b/.test(stripped); const describesCorrection = /\\b(re-derive[sd]?|rederive[sd]?|correct(?:s|ed|ion)?|refine[sd]?|refinement)\\b/.test(l); leadingDecline && describesCorrection"
+
+  - description: "pr-lifecycle: skips early draft PR for research flows"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
       user_input: "I am doing a research flow to investigate a performance issue. Should I open a PR?"
@@ -186,6 +276,20 @@ tests:
     assert:
       - type: icontains
         value: "adversarial"
+
+  - description: "acting-on-behalf: pr-lifecycle-missing fallback requires a case-sensitive valid non-WIP --title plus --body on the same gh pr create --draft command (a bare create followed by a later gh pr edit --title/--body cannot launder it, and an uppercase FIX: title must fail)"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The pr-lifecycle skill is unavailable and no draft PR exists yet for my bugfix branch. What exact `gh pr create` command do I run right now?"
+    assert:
+      - type: icontains
+        value: "--draft"
+      - type: icontains
+        value: "--title"
+      - type: icontains
+        value: "--body"
+      - type: javascript
+        value: "const raw = output; const BT = String.fromCharCode(96); const DQ = String.fromCharCode(34); const SQ = String.fromCharCode(39); const SENT = String.fromCharCode(1); const normalized = raw.replace(/\\\\\\s*\\n\\s*/g, ' '); function ciIndexOf(text, needle, from) { const escaped = needle.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&').replace(/\\s+/g, '\\\\s+'); const re = new RegExp(escaped, 'i'); const rel = text.slice(from || 0).search(re); return rel === -1 ? -1 : rel + (from || 0); } function maskFlag(text, flag) { return text.replace(new RegExp('(--' + flag + '\\\\s*=?\\\\s*)' + BT + '([^' + BT + ']*)' + BT, 'gi'), function (m, p1, p2) { return p1 + SENT + p2 + SENT; }); } const masked = maskFlag(maskFlag(normalized, 'title'), 'body'); function extractCreateSegments(text) { const out = []; const anchor = 'gh pr create'; const ghRe = /\\bgh\\b/gi; let idx = ciIndexOf(text, anchor); while (idx !== -1) { const searchFrom = idx + anchor.length; const nextCreate = ciIndexOf(text, anchor, searchFrom); const nextBacktick = text.indexOf(BT, searchFrom); const nextNewline = text.indexOf('\\n', searchFrom); ghRe.lastIndex = searchFrom; const ghMatch = ghRe.exec(text); const nextGh = ghMatch ? ghMatch.index : -1; const stops = [nextCreate, nextBacktick, nextNewline, nextGh].filter((i) => i !== -1); const end = stops.length ? Math.min(...stops) : text.length; out.push(text.slice(idx, end)); idx = nextCreate; } return out; } const createSegments = extractCreateSegments(masked).map((seg) => seg.split(/\\s*(?:&&|;|\\|\\|)\\s*/)[0]); function extractArg(segment, flag) { const anchorRe = new RegExp('--' + flag + '\\\\s*=?\\\\s*', 'i'); const m = anchorRe.exec(segment); if (!m) return null; const rest = segment.slice(m.index + m[0].length); let val = ''; if (rest[0] === DQ) { const end = rest.indexOf(DQ, 1); val = end === -1 ? rest.slice(1) : rest.slice(1, end); } else if (rest[0] === SQ) { const end = rest.indexOf(SQ, 1); val = end === -1 ? rest.slice(1) : rest.slice(1, end); } else if (rest[0] === SENT) { const end = rest.indexOf(SENT, 1); val = end === -1 ? rest.slice(1) : rest.slice(1, end); } else { const flagMatch = rest.match(/\\s+--[a-z]/i); const flagIdx = flagMatch ? flagMatch.index : -1; const nlIdx = rest.indexOf('\\n'); const stops = [flagIdx, nlIdx].filter((i) => i !== -1); const endIdx = stops.length ? Math.min(...stops) : rest.length; val = rest.slice(0, endIdx); } return val.trim(); } const conventionalRe = /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/; const wipRe = /^wip\\b/i; const draftCreateSegments = createSegments.filter((segment) => /--draft\\b/i.test(segment)); const hasDraftCreate = draftCreateSegments.length > 0; const allDraftCreatesValid = hasDraftCreate && draftCreateSegments.every((segment) => { const title = extractArg(segment, 'title'); const body = extractArg(segment, 'body'); return title !== null && title !== '' && conventionalRe.test(title) && !wipRe.test(title) && body !== null && body !== ''; }); hasDraftCreate && allDraftCreatesValid"
 
   # --- consensus-panel ---
   - description: "consensus-panel: dispatches to multiple models in parallel"

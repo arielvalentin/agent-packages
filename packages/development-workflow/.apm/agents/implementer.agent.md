@@ -36,10 +36,18 @@ If any of those are missing, return 1–3 clarifying questions and stop.
 ## Workflow
 
 1. Read every artifact in `inputs.artifact_paths` before touching code.
-2. **Early WIP draft PR**: Follow the `pr-lifecycle` skill — if a draft PR
+2. **Early draft PR**: Follow the `pr-lifecycle` skill — if a draft PR
    does not already exist for this branch and the work targets a production
-   codebase, open one. Skip if the coordinator already opened one or the user
-   said not to.
+   codebase, open one with a Conventional Commits title from creation:
+   `<type>: <description>` — a required space and a non-empty description
+   after the colon (never `WIP: <goal>` and never `<type>:<description>`
+   with no space). `<type>` is one of `feat`, `fix`, `docs`, `refactor`,
+   `test`, `chore`, `ci`, `perf`, `build`, `revert`. An optional
+   `(<scope>)` — a non-empty, non-whitespace token — may follow `<type>`
+   only when it materially clarifies the change (omit by default), and an
+   optional `!` after the type/scope marks a breaking change:
+   `<type>(<scope>)!: <description>`. Skip if the coordinator already
+   opened one or the user said not to.
 3. Prefer TDD when tests exist or the change is behavior-visible:
    red → green → refactor. Don't force TDD on trivial edits.
 4. Make surgical changes. Don't touch unrelated code.

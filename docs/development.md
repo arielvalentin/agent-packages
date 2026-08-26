@@ -45,7 +45,9 @@ apm install
 
 1. Edit primitives in one package.
 2. Validate in a small consumer project.
-3. Commit changes with a clear package-scoped commit message.
+3. Commit changes with a clear Conventional Commits message (see
+   [AGENTS.md](../AGENTS.md#commit-authoring)) — unscoped by default;
+   add a `(<scope>)` only when the package/area isn't obvious from the diff.
 4. Tag and publish/release when stable.
 
 ## Troubleshooting

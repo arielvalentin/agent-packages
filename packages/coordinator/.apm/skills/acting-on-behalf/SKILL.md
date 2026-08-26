@@ -103,7 +103,16 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> use `gh pr create --draft`, `gh pr checks --watch`,
-   `gh pr view|edit|comment|checks`, and `gh run view|watch`.
+2. `pr-lifecycle` missing -> use `gh pr create --draft --title "<type>:
+   <description>" --body "<issue ref + placeholder>"` (non-interactive —
+   never a bare `--draft` with no `--body`, and never a `WIP:` placeholder)
+   — `<type>` is one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`,
+   `ci`, `perf`, `build`, `revert`, with an optional `(<scope>)` and
+   optional `!` for breaking changes. Validate the title against
+   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
+   before creating, updating, or readying a PR title — whether through the
+   built-in `create_pull_request`/`update_pull_request` tools or `gh pr
+   create`, `gh pr edit --title`, `gh pr ready`. Also use `gh pr checks
+   --watch`, `gh pr view|edit|comment|checks`, and `gh run view|watch`.
 3. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.
