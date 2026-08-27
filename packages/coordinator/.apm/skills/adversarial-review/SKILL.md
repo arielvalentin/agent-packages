@@ -20,12 +20,14 @@ this plan", "second opinion on this diff", "stress-test this design",
 
 ## Protocol
 
-### Panel-member mode
+### Dispatched mode
 
-If the handoff envelope sets `consensus_role: panel-member`, perform one hostile
-review directly and return the requested structured verdict. Do not select
-models, dispatch subagents, or synthesize other reviewers; the caller's
-`consensus-panel` owns those responsibilities.
+If the handoff envelope sets `consensus_role` to `panel-member` **or**
+`single`, perform one hostile review directly and return the requested
+structured verdict. Do not select models, dispatch subagents, or synthesize
+other reviewers; the caller's `consensus-panel` owns those responsibilities.
+`single` is the fast path for non-code and tiny changes — fanning out to a
+second model there would defeat the exemption.
 
 The remaining protocol is for standalone use only.
 
@@ -39,9 +41,17 @@ Choose 2 models from **different lineages** to ensure independent analysis:
 | OpenAI | GPT-5.5, GPT-5.4 |
 | Google | Gemini Pro, Gemini Flash |
 
-Select the two highest-capability models from different families. If only
-one family is available, use two distinct models from it and note reduced
-independence.
+Select the two initial models from different families, preferring mid-tier or
+fast-capable models — the same initial-wave tier policy as `consensus-panel`,
+so a standalone adversarial review is no more expensive than any other panel.
+If only one family is available, use two distinct models from it and note
+reduced independence.
+
+Standalone use follows the same adaptive 2+1 policy: classify the scope first
+and take the single-reviewer fast path when it qualifies, then dispatch the two
+initial models, and dispatch **exactly one** high-capability tiebreaker only
+when one of `consensus-panel`'s five escalation triggers fires. That skill owns
+the triggers and the synthesis rules; do not restate or invent them here.
 
 ### 2. Dispatch parallel reviews
 
@@ -78,7 +88,9 @@ Do not comment on style, formatting, or naming unless it causes a bug.
 
 ### 3. Synthesize findings
 
-Merge results from both models:
+Merge results from every reviewer that returned — the single reviewer on the
+fast path, the two initial models, or all three once a tiebreaker was
+dispatched:
 
 1. **Deduplicate** by `(location, issue)` — same finding from both models
    increases confidence.
@@ -127,5 +139,6 @@ If multi-model dispatch is unavailable (only one model accessible):
 
 1. Run a single hostile `rubber-duck` review with the same adversarial prompt.
 2. Mark the output as **reduced-assurance** (single-model, no corroboration).
-3. If `consensus-panel` is available, use it to run 3 models on the same
-   specialist instead.
+3. If `consensus-panel` is available, use it to run the adaptive 2+1 panel on
+   the same specialist instead (2 reviewers, plus a tiebreaker only when an
+   escalation trigger fires).

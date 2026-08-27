@@ -88,7 +88,8 @@ Phase 3), and mirrors the commit-subject policy in `AGENTS.md`.
   it only when the scope materially clarifies the change. When present,
   `<scope>` must be a non-empty, non-whitespace token (e.g. `coordinator`,
   `ci`, `CI`, `foo,bar`) — `()` or a whitespace-only scope like `( )` is
-  invalid grammar.
+  invalid grammar. Empty parentheses are not the same as omitting the
+  scope: `fix: correct the bug` is valid, `fix(): correct the bug` is not.
 - Allowed `<type>`: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`,
   `ci`, `perf`, `build`, `revert`.
 - Optional `!` after the type/scope marks a breaking change, unscoped or

@@ -28,9 +28,16 @@ Load at the start of any subagent turn where the prompt begins with a
   },
   "constraints": ["..."],
   "consensus_role": "primary|panel-member|single",
-  "model_index": "1|2|3"
+  "model_index": "1|2|3",
+  "panel_wave": "initial|tiebreak"
 }
 ```
+
+`model_index` `1` and `2` are the initial panel wave; `3` is the conditional
+tiebreaker (see `consensus-panel` skill). `panel_wave` is optional and additive
+— an envelope that omits it is read as `initial` for `model_index` 1–2 and
+`tiebreak` for 3. A single-reviewer fast-path dispatch uses
+`consensus_role: single` and omits both `model_index` and `panel_wave`.
 
 ## Artifacts directory
 
@@ -53,8 +60,11 @@ Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
 - Output ≤2KB and not referenced by later phases → return inline.
 - Output >2KB OR referenced by later phases → write to `${ARTIFACTS_DIR}/NN-<phase>.<ext>`,
   return `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.
-- Panel members (`consensus_role: panel-member`) always return the JSON
-  consensus schema (see `consensus-panel` skill), never prose.
+- Panel members (`consensus_role: panel-member`) and fast-path single reviewers
+  (`consensus_role: single`) always return the JSON consensus schema (see
+  `consensus-panel` skill), never prose. Both values also mean the reviewer is
+  already dispatched: it reviews directly and must not select models or
+  dispatch reviewers of its own. Only `primary` may fan out.
 
 ## Ambiguity
 
