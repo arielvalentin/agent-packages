@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.3](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.2...coordinator-v0.12.3) (2026-08-27)
+
+
+### Performance Improvements
+
+* speed up consensus reviews ([#26](https://github.com/arielvalentin/agent-packages/issues/26)) ([b02dbbc](https://github.com/arielvalentin/agent-packages/commit/b02dbbc73c3b6a469dbff2c49255e957a10f31b2))
+
 ## [0.12.2](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.1...coordinator-v0.12.2) (2026-08-26)
 
 
