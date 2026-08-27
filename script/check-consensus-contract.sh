@@ -10,6 +10,12 @@
 #
 # Patterns are matched against whitespace-normalized file contents so that
 # prose wrapped across lines still matches.
+#
+# Scope: the forbid patterns detect accidental regression toward the old
+# always-three policy. They are lexical, so they cannot be semantically
+# complete — a determined author can always paraphrase around them. Treat a
+# forbid hit as a real failure, but do not read a clean run as proof that no
+# always-three rule was introduced; that is what review is for.
 set -euo pipefail
 
 errors=0
@@ -181,6 +187,8 @@ require "$panel" "operational definition of a new dependency" \
   '\*\*new dependency\*\*'
 require "$panel" "definition of a valid response" \
   'a response is \*\*valid\*\* when it parses as json'
+require "$panel" "finding entries are covered by the validity rule" \
+  'malformed finding entry is invalid'
 require "$panel" "total confidence rule" \
   'otherwise the \*\*lowest\*\* value among the valid responses'
 require "$agent" "coordinator deferring to canonical scope definitions" \
@@ -227,6 +235,23 @@ forbid_in_packages "contradicts the adaptive policy with an always-three rule" \
   'always (dispatch|use|run|fire) (3|three)'
 forbid_in_packages "reintroduces highest-capability models in the initial wave" \
   '(two|2) highest-capability models'
+
+# The same rule can be reintroduced without naming the number, by describing the
+# tiebreaker itself as unconditional. Anchored on the modality, not the count.
+forbid_in_packages "describes the tiebreaker as unconditional" \
+  '(mandatory|required|unconditional|obligatory|automatic) (tiebreaker|third reviewer)'
+forbid_in_packages "asserts the tiebreaker always runs" \
+  'tiebreaker is (mandatory|required|unconditional|automatic|always)'
+forbid_in_packages "dispatches a further reviewer unconditionally" \
+  '(always|unconditionally|invariably|routinely) (dispatch|fire|run|add|include|ask|send)(es|s|ing)? (a |an |the )?(tiebreaker|third|additional reviewer|extra reviewer|further reviewer)'
+forbid_in_packages "ignores the escalation triggers" \
+  'regardless of (the |any )?(escalation )?(trigger|disagreement)'
+forbid_in_packages "escalates even when the initial wave agrees" \
+  'even when the (first |initial )?(two|pair) (align|agree)'
+forbid_in_packages "restores a fixed three-reviewer panel by another name" \
+  '(full|complete|entire) trio'
+forbid_in_packages "raises the tier for every reviewer" \
+  'highest-capability (tier|model|models) for (each|every|all)'
 
 # --- Summary ---
 if [[ $errors -gt 0 ]]; then
