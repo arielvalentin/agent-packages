@@ -81,4 +81,29 @@ runs:
 
     - name: Run evals
       shell: bash
-      run: npx promptfoo eval --config packages/${{ inputs.package }}/tests/promptfooconfig.yaml --no-cache
+      run: |
+        set -uo pipefail
+        npx promptfoo eval \
+          --config packages/${{ inputs.package }}/tests/promptfooconfig.yaml \
+          --no-cache \
+          --output "$RUNNER_TEMP/eval.json"
+        status=$?
+        # promptfoo truncates its result table, so a failing case is often not
+        # visible in the log. Print every failure explicitly before exiting.
+        if [[ $status -ne 0 && -f "$RUNNER_TEMP/eval.json" ]]; then
+          echo "::group::Failed cases"
+          node -e '
+            const r = require(process.env.RUNNER_TEMP + "/eval.json");
+            const rows = (r.results && r.results.results) || r.results || [];
+            for (const x of rows.filter((x) => !x.success)) {
+              console.log("FAIL: " + (x.description || (x.testCase && x.testCase.description) || (x.vars && x.vars.user_input) || "?"));
+              console.log("  prompt: " + JSON.stringify((x.vars && x.vars.user_input) || "").slice(0, 300));
+              console.log("  output: " + JSON.stringify((x.response && x.response.output) || "").slice(0, 500));
+              for (const c of x.gradingResult?.componentResults || []) {
+                if (!c.pass) console.log("  reason: " + c.reason);
+              }
+            }
+          '
+          echo "::endgroup::"
+        fi
+        exit $status
