@@ -94,8 +94,15 @@ runs:
           echo "::group::Failed cases"
           node -e '
             const r = require(process.env.RUNNER_TEMP + "/eval.json");
-            const rows = (r.results && r.results.results) || r.results || [];
-            for (const x of rows.filter((x) => !x.success)) {
+            // promptfoo 0.122 nests the rows at results.results. Accept the
+            // other documented shapes too, so a version bump degrades into a
+            // missing summary rather than a crash.
+            const rows = [r.results && r.results.results, r.results && r.results.outputs, r.results, r.outputs]
+              .find(Array.isArray) || [];
+            if (!rows.length) {
+              console.log("No per-case rows in the eval output; see the table above.");
+            }
+            for (const x of rows.filter((x) => x && !x.success)) {
               console.log("FAIL: " + (x.description || (x.testCase && x.testCase.description) || (x.vars && x.vars.user_input) || "?"));
               console.log("  prompt: " + JSON.stringify((x.vars && x.vars.user_input) || "").slice(0, 300));
               console.log("  output: " + JSON.stringify((x.response && x.response.output) || "").slice(0, 500));
