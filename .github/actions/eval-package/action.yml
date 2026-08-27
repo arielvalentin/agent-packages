@@ -82,6 +82,10 @@ runs:
     - name: Run evals
       shell: bash
       run: |
+        # GitHub invokes this shell with -e, which would abort the step on a
+        # failing eval before the summary below can run. Take the exit code
+        # ourselves instead.
+        set +e
         set -uo pipefail
         npx promptfoo eval \
           --config packages/${{ inputs.package }}/tests/promptfooconfig.yaml \
