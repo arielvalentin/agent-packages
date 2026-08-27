@@ -20,12 +20,14 @@ this plan", "second opinion on this diff", "stress-test this design",
 
 ## Protocol
 
-### Panel-member mode
+### Dispatched mode
 
-If the handoff envelope sets `consensus_role: panel-member`, perform one hostile
-review directly and return the requested structured verdict. Do not select
-models, dispatch subagents, or synthesize other reviewers; the caller's
-`consensus-panel` owns those responsibilities.
+If the handoff envelope sets `consensus_role` to `panel-member` **or**
+`single`, perform one hostile review directly and return the requested
+structured verdict. Do not select models, dispatch subagents, or synthesize
+other reviewers; the caller's `consensus-panel` owns those responsibilities.
+`single` is the fast path for non-code and tiny changes — fanning out to a
+second model there would defeat the exemption.
 
 The remaining protocol is for standalone use only.
 
@@ -39,9 +41,11 @@ Choose 2 models from **different lineages** to ensure independent analysis:
 | OpenAI | GPT-5.5, GPT-5.4 |
 | Google | Gemini Pro, Gemini Flash |
 
-Select the two highest-capability models from different families. If only
-one family is available, use two distinct models from it and note reduced
-independence.
+Select the two initial models from different families, preferring mid-tier or
+fast-capable models — the same initial-wave tier policy as `consensus-panel`,
+so a standalone adversarial review is no more expensive than any other panel.
+Reserve a high-capability model for the tiebreaker. If only one family is
+available, use two distinct models from it and note reduced independence.
 
 ### 2. Dispatch parallel reviews
 

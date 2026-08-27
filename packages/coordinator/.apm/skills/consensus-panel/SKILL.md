@@ -38,12 +38,32 @@ A scope is **fast-path exempt** when either of these holds:
    changed.
 2. **Tiny change** — at most **10 changed lines** (added + removed, ignoring
    pure-whitespace lines) across at most **2 files**, including one-line
-   changes, with no new control flow, no new dependency, and no change to a
-   public API contract.
+   changes, with no new or materially altered control flow, no new dependency,
+   and no change to a public API contract.
+
+Operational definitions, so two agents classify the same diff identically:
+
+- **Pure-whitespace line** — a changed line whose before and after differ only
+  in whitespace. It does not count toward the 10-line budget.
+- **New or materially altered control flow** — adding or removing a branch,
+  loop, guard, early return, or exception path, **or** changing the condition
+  of an existing one. Rewording a comment above a branch is not.
+- **Public API contract** — any signature, route, event payload, schema,
+  environment variable, CLI flag, or exported symbol that something outside the
+  changed files can depend on.
 
 A fast-path scope is **disqualified** — and takes the full panel — when it
-touches authentication, authorization, cryptography, secrets, input
-validation, access control, or a public API contract, however small the diff.
+touches any of the following, however small the diff:
+
+1. Authentication, authorization, or access control.
+2. Cryptography or secrets.
+3. Input validation or untrusted-input parsing.
+4. A public API contract.
+5. Concurrency, locking, or shared mutable state.
+6. Data migration, deletion, or any other irreversible data operation.
+
+This list is closed: a scope that touches none of these and meets the size
+threshold is fast-path exempt.
 
 Everything else is a **substantive code change** and takes the adaptive 2+1
 panel.
@@ -53,12 +73,14 @@ panel.
 Dispatch **exactly one** reviewer. Do not run a panel, do not select a second
 model, and do not synthesize across models.
 
-- **Model tier** — select by complexity and risk: a mid-tier model for
-  documentation, prose, and mechanical tiny edits; a high-capability model when
-  the tiny change carries elevated risk (hot path, error handling, concurrency,
-  data migration). Never a fast/light model.
+- **Model tier** — a mid-tier model by default (documentation, prose, and
+  mechanical tiny edits); a high-capability model when the tiny change is
+  semantically subtle — a boundary or off-by-one condition, a regex, a format
+  string, or an arithmetic/units change. Never a fast/light model.
 - **Envelope** — set `consensus_role: single`. Omit `model_index` and
-  `panel_wave`.
+  `panel_wave`. Like `panel-member`, this value tells a panel-aware specialist
+  it is already dispatched, so it reviews directly instead of selecting or
+  dispatching reviewers of its own.
 - **Output** — the reviewer returns the same JSON verdict schema below, so
   downstream gates are unchanged.
 - **Report** — still write the report artifact, recording
@@ -67,7 +89,9 @@ model, and do not synthesize across models.
 This exemption **takes precedence** over any general "every specialist review
 runs a panel" rule in the coordinator or `review-fix-loop`. A single
 `blocker`/`major` finding does not promote a fast-path scope to a panel; only
-re-classification under Step 1 does.
+re-classification under Step 1 does. The safety argument is the size and
+disqualifier bounds, not the finding: a scope this small that touches none of
+the six disqualified categories has a blast radius one reviewer can hold.
 
 ## Step 2b — Panel selection for substantive code changes
 
@@ -76,7 +100,8 @@ Select panelists from models available in the current runtime/session:
 1. Determine the currently available models at dispatch time.
 2. **Initial wave** — pick exactly 2 models from distinct families, preferring
    mid-tier or fast-capable models appropriate for review latency. Do not spend
-   a high-capability model here.
+   a high-capability model here. "Fast-capable" means a capable model tuned
+   for latency, never a fast/light model — the same floor as the fast path.
 3. **Tiebreaker** — reserve one high-capability model, independent of the
    initial wave (a family neither initial model came from, when available).
    Dispatch it only when an escalation trigger fires.
@@ -128,8 +153,10 @@ Dispatch the tiebreaker when **any** of these hold:
    `blocker` or `major`.
 4. **Insufficient responses** — fewer than 2 valid responses remain after the
    retry policy in § Failure modes.
-5. **Low confidence** — either response reports `confidence: low`, or the
-   confidence that would be synthesized from the two is `low`.
+5. **Low confidence** — the synthesized confidence is `low`. Confidence merges
+   deterministically as the **lower** of the two reported values, ordered
+   `high` > `medium` > `low`, so a `high`+`medium` pair synthesizes to `medium`
+   and does not escalate, while any `low` escalates.
 
 If none of these hold, the two responses agree and carry no high-risk finding.
 Synthesize immediately; a third reviewer cannot change the outcome.
@@ -162,6 +189,9 @@ Synthesize immediately; a third reviewer cannot change the outcome.
    - **Not escalated (2 responses)** — both responses agree on every axis by
      definition of trigger 1, so the agreed value is the consensus value.
    - **Escalated (3 responses)** — majority wins; `mixed` when no majority.
+   - **Escalated with only 2 valid responses** — when the two agree on an axis
+     that value stands; when they differ (including the trigger-1 disagreement
+     that caused the escalation) the axis is `mixed`. Flag reduced confidence.
    - **Escalated with fewer than 2 valid responses** — use the valid responses
      that returned, `mixed` when no majority, and flag reduced confidence.
 3. Surface a disagreement matrix whenever the panel diverges.
@@ -180,8 +210,9 @@ Synthesize immediately; a third reviewer cannot change the outcome.
 - Disagreement matrix (which model returned what per axis). Omitted on the fast
   path.
 - Consolidated findings, sorted by severity, with corroboration noted.
-- Confidence line: the single reviewer's confidence on the fast path, the agreed
-  confidence when not escalated, otherwise the majority confidence value.
+- Confidence line: the single reviewer's confidence on the fast path, the lower
+  of the two values when not escalated (see trigger 5), otherwise the majority
+  confidence value across the three responses.
 
 ## Failure modes
 
@@ -194,8 +225,9 @@ Synthesize immediately; a third reviewer cannot change the outcome.
   model(s) failed, and flag the result as reduced-confidence.
 - Fewer than 2 valid responses in total after escalation → proceed with whatever
   returned and flag as reduced-confidence.
-- Tiebreaker fails to return → proceed with the 2 initial responses using
-  majority-per-axis over the valid responses, and flag as reduced-confidence.
+- Tiebreaker fails to return → proceed with the 2 initial responses under the
+  "escalated with only 2 valid responses" rule above, and flag as
+  reduced-confidence.
 
 ## Backward compatibility
 

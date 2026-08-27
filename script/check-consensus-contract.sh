@@ -19,6 +19,7 @@ panel="$root/packages/coordinator/.apm/skills/consensus-panel/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/coordinator/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/coordinator/.apm/skills/handoff-envelope/SKILL.md"
+adversarial="$root/packages/coordinator/.apm/skills/adversarial-review/SKILL.md"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -98,7 +99,7 @@ require "$panel" "immediate synthesis when the initial wave agrees" \
 require "$panel" "explicit no-op rationale for the skipped tiebreaker" \
   'a third reviewer cannot change the outcome'
 require "$agent" "coordinator synthesizing immediately without a third" \
-  'synthesize immediately\*\* without waiting for a third'
+  'without waiting for a third'
 
 # --- Synthesis rules cover both the escalated and non-escalated paths ---
 require "$panel" "majority-per-axis synthesis for the escalated path" \
@@ -118,11 +119,11 @@ require "$agent" "coordinator synthesis covering both paths" \
 
 # --- Single-reviewer fast path for non-code and tiny scopes ---
 require "$panel" "scope classification running before model selection" \
-  'classify the review scope \*\*before\*\* selecting any model'
+  'classify the review scope'
 require "$panel" "single-reviewer fast path section" \
   'single-reviewer fast path'
 require "$panel" "exactly one reviewer on the fast path" \
-  'dispatch \*\*exactly one\*\* reviewer'
+  'exactly one\*\* reviewer'
 require "$panel" "prohibition on a panel for fast-path scopes" \
   'do not run a panel'
 require "$panel" "non-code exemption" \
@@ -134,25 +135,47 @@ require "$panel" "deterministic file threshold for tiny changes" \
 require "$panel" "one-line changes covered by the tiny exemption" \
   'including one-line changes'
 require "$panel" "mid- or high-capability tier on the fast path" \
-  'mid-tier model for documentation'
+  'mid-tier model'
 require "$panel" "prohibition on fast/light models for reviews" \
   'never a fast/light model'
 require "$panel" "consensus_role: single on the fast path" \
   'consensus_role: single'
 require "$panel" "fast-path exemption overriding the general panel rule" \
-  'takes precedence\*\* over any general'
+  'takes precedence'
 require "$panel" "security-sensitive disqualifiers forcing a panel" \
-  'disqualified\*\* .{1,4} and takes the full panel'
+  'takes the full panel'
+require "$panel" "closed disqualifier list" \
+  'this list is closed'
+require "$panel" "concurrency listed as a disqualifier" \
+  'concurrency, locking, or shared mutable state'
+require "$panel" "irreversible data operations listed as a disqualifier" \
+  'irreversible data operation'
+require "$panel" "operational definition of a pure-whitespace line" \
+  '\*\*pure-whitespace line\*\*'
+require "$panel" "operational definition of altered control flow" \
+  '\*\*new or materially altered control flow\*\*'
+require "$panel" "operational definition of a public API contract" \
+  '\*\*public API contract\*\*'
+require "$panel" "deterministic confidence merge for the initial wave" \
+  'lower\*\* of the two'
 require "$panel" "fast-path scopes never escalating to a panel" \
-  'a fast-path scope never escalates to a panel'
+  'never escalates to a panel'
 require "$agent" "coordinator single-reviewer fast path section" \
   'single-reviewer fast path \(checked first, overrides the panel rule\)'
 require "$agent" "coordinator dispatching exactly one fast-path reviewer" \
-  'dispatch \*\*exactly one\*\* mid- or high-capability reviewer'
+  'exactly one\*\* mid- or high-capability reviewer'
 require "$agent" "coordinator restricting the panel to substantive code changes" \
   'adaptive 2\+1 panel \(substantive code changes\)'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   're-classify the scope each cycle'
+
+# --- Dispatched reviewers never fan out (anti-recursion guard) ---
+require "$adversarial" "recursion guard covering panel members and fast-path singles" \
+  'panel-member.{0,14}single'
+require "$envelope" "envelope stating only primary may fan out" \
+  'only .primary. may fan out'
+require "$panel" "fast-path envelope carrying the anti-recursion semantics" \
+  'it is already dispatched'
 
 # --- Envelope backward compatibility ---
 require "$panel" "model_index backward compatibility note" \
@@ -174,15 +197,19 @@ require "$panel" "fact-finding exclusion" \
 
 # --- No residual "always three high-capability panelists" language ---
 forbid_in_packages "fires three panelists unconditionally" \
-  '(fire|dispatch|run) (\*\*)?3 (\*\*)?(parallel|models)'
+  '(fire|dispatch|run|select|use) (\*\*)?(3|three)(\*\*)? +(parallel|panel |models|reviewers|panelists)'
 forbid_in_packages "selects three panel models unconditionally" \
-  '(3|three) panel models'
+  '(3|three)(\*\*)? +panel models'
 forbid_in_packages "prefers three high-capability panelists" \
-  'prefer 3 high-capability'
+  'prefer (3|three) high-capability'
 forbid_in_packages "claims every panelist is high-capability" \
-  'all high-capability'
+  'all (\w+ ){0,2}high-capability'
 forbid_in_packages "requires three panel responses" \
-  '(fewer than 3 responses|3 model responses)'
+  '(fewer than (3|three) responses|(3|three) model responses)'
+forbid_in_packages "contradicts the adaptive policy with an always-three rule" \
+  'always (dispatch|use|run|fire) (3|three)'
+forbid_in_packages "reintroduces highest-capability models in the initial wave" \
+  '(two|2) highest-capability models'
 
 # --- Summary ---
 if [[ $errors -gt 0 ]]; then

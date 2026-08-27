@@ -62,7 +62,9 @@ Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
   return `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.
 - Panel members (`consensus_role: panel-member`) and fast-path single reviewers
   (`consensus_role: single`) always return the JSON consensus schema (see
-  `consensus-panel` skill), never prose.
+  `consensus-panel` skill), never prose. Both values also mean the reviewer is
+  already dispatched: it reviews directly and must not select models or
+  dispatch reviewers of its own. Only `primary` may fan out.
 
 ## Ambiguity
 

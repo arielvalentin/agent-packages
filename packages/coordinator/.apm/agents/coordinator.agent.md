@@ -249,7 +249,7 @@ Choose the model for each dispatch based on task characteristics:
 | Consensus panel — initial wave (2 reviewers) | Cross-family diversity, mid-tier or fast-capable for review latency |
 | Consensus panel — tiebreaker (3rd reviewer, only when escalated) | High-capability, independent of the initial wave |
 | Rubber-duck stage reviews | Mid-tier (fast feedback over deep analysis) |
-| Final adversarial review | High-capability (thorough, holistic analysis) |
+| Final adversarial review | Adaptive 2+1 — mid-tier initial wave, high-capability tiebreaker |
 
 Determine available models at runtime. If runtime model discovery is
 unavailable, omit the model override and let the runtime auto-select.
@@ -271,18 +271,20 @@ reviewer — no panel, no second model, no synthesis — when either holds:
   license). No source, config, schema, script, or workflow file changed.
 - **Tiny change** — at most 10 changed lines (added + removed, ignoring
   pure-whitespace lines) across at most 2 files, including one-line changes,
-  with no new control flow, no new dependency, and no public API contract
-  change.
+  with no new or materially altered control flow, no new dependency, and no
+  public API contract change.
 
 Pick the tier by complexity and risk: mid-tier for prose and mechanical edits,
-high-capability when the tiny change carries elevated risk. Never a fast/light
-model. Set `consensus_role: single` and omit `model_index`/`panel_wave`.
+high-capability when the tiny change is semantically subtle (boundary
+condition, regex, format string, arithmetic). Never a fast/light model. Set
+`consensus_role: single` and omit `model_index`/`panel_wave`.
 
 A fast-path scope is disqualified — and takes the full panel — when it touches
-authentication, authorization, cryptography, secrets, input validation, access
-control, or a public API contract, however small the diff. A `blocker`/`major`
-finding does not by itself promote a fast-path scope to a panel; only
-re-classification does.
+authentication, authorization, access control, cryptography, secrets, input
+validation, a public API contract, concurrency or shared mutable state, or an
+irreversible data operation, however small the diff. That list is closed. A
+`blocker`/`major` finding does not by itself promote a fast-path scope to a
+panel; only re-classification does.
 
 ### Adaptive 2+1 panel (substantive code changes)
 

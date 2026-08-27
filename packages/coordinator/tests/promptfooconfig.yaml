@@ -348,7 +348,7 @@ tests:
       user_input: "When the panel escalates, how many extra reviewers do I add and what capability tier should that model be?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); (l.includes('one') || l.includes('1') || l.includes('single')) && (l.includes('high-capability') || l.includes('high capability') || l.includes('tiebreak'))"
+        value: "const l = output.toLowerCase(); const one = l.includes('one') || l.includes('single') || /(^|\\W)1(\\W|$)/.test(l); const tier = l.includes('high-capability') || l.includes('high capability'); one && tier"
 
   - description: "consensus-panel: docs-only change takes a single reviewer"
     vars:
@@ -380,7 +380,31 @@ tests:
       user_input: "On the single-reviewer fast path, which model capability tier should I select?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const light = l.includes('fast/light') || l.includes('light model'); const negated = l.includes('not select a fast/light') || l.includes('never a fast/light') || l.includes('not use a fast/light') || l.includes('avoid a fast/light'); tier && (!light || negated)"
+        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && (!light || negated)"
+
+  - description: "consensus-panel: concurrency change is not fast-path exempt"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The diff is 4 lines in one file, but it changes locking around shared mutable state. Is this scope fast-path exempt? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: high plus medium confidence merges to medium"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Two initial reviewers agree on every verdict axis with no blocker or major finding. One reports confidence high, the other medium. Which confidence value does the synthesis record?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('medium') && !l.includes('escalat')"
+
+  - description: "consensus-panel: dispatched single reviewer does not fan out"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "A reviewer receives an envelope with consensus_role set to single. May it select and dispatch a second reviewer of its own? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "consensus-panel: substantive code change still takes two reviewers"
     vars:
