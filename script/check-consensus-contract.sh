@@ -45,6 +45,20 @@ require() {
   fi
 }
 
+# forbid <file> <description> <extended-regex>
+forbid() {
+  local file="$1" desc="$2" pattern="$3"
+  if [[ ! -f "$file" ]]; then
+    echo "ERROR: missing file: ${file#"$root/"}"
+    errors=$((errors + 1))
+    return
+  fi
+  if normalize "$file" | grep -Eiq -- "$pattern"; then
+    echo "ERROR: ${file#"$root/"}: contains $desc"
+    errors=$((errors + 1))
+  fi
+}
+
 # forbid_in_packages <description> <extended-regex>
 forbid_in_packages() {
   local desc="$1" pattern="$2" file hits=""
@@ -62,18 +76,96 @@ forbid_in_packages() {
 }
 
 # --- Initial wave is exactly two reviewers ---
-require "$panel" "initial wave of exactly 2 parallel dispatches" \
-  'exactly 2 parallel .task. calls'
+require "$panel" "conditional initial wave of exactly 2 parallel dispatches" \
+  'when wave 1 is available, fire exactly 2 parallel .task. calls'
 require "$panel" "prohibition on a third reviewer in the initial wave" \
   'never dispatch a third reviewer in this wave'
-require "$panel" "mid-tier/fast model preference for the initial wave" \
-  'mid-tier or fast-capable'
+require "$panel" "preferred-tier GPTs first in the initial wave" \
+  'mid-tier or fast-capable gpts, then unreserved high-capability gpts'
 require "$agent" "coordinator selecting exactly 2 initial panel models" \
   'exactly \*\*2 panel models'
 require "$agent" "coordinator firing 2 parallel panel dispatches" \
   'fire \*\*2 parallel'
 require "$agent" "coordinator prohibition on an unconditional third reviewer" \
   'never dispatch a third reviewer unconditionally'
+
+# --- GPT-first model selection is deterministic ---
+for file in "$panel" "$agent"; do
+  require "$file" "GPT classification by normalized gpt- model ID prefix" \
+    'normalized model id starts with .gpt-.'
+  require "$file" "family metadata unable to override GPT ID classification" \
+    'family metadata.{0,80}(must not|never|cannot) override'
+  require "$file" "first-occurrence-wins model ID deduplication" \
+    'deduplicate.{0,80}model id.{0,80}first occurrence wins'
+  require "$file" "two distinct Wave 1-eligible GPT IDs preferred in the initial wave" \
+    'wave 1.{0,140}prefer(s|red)?.{0,80}(two|2) distinct wave 1-eligible gpt model ids'
+  require "$file" "an unused high-capability GPT reserved for Wave 2" \
+    'wave 2.{0,100}(reserve|select).{0,80}unused high-capability gpt model id'
+  require "$file" "existing runtime capability categorization" \
+    'runtime model-discovery capability categorization'
+  require "$file" "no invented boolean capability dependency" \
+    '(does not require|without requiring).{0,80}boolean capability metadata'
+  require "$file" "Wave 1 quality floor" \
+    'wave 1.{0,120}excludes fast/light models'
+  require "$file" "preferred Wave 1 capability classes" \
+    'mid-tier or fast-capable'
+  require "$file" "high-capability GPT exhaustion fallback" \
+    'unreserved high-capability gpts.{0,100}(only after|only when).{0,100}(mid-tier or fast-capable|preferred)'
+  require "$file" "non-GPT Wave 2 reservation fallback" \
+    'if none exists.{0,100}high-capability non-gpt'
+  require "$file" "unavailable Wave 2 state" \
+    'wave 2.{0,80}unavailable'
+  require "$file" "Wave 2 unavailable without any suitable high-capability model" \
+    'no suitable high-capability model exists in any family.{0,80}wave 2 unavailable'
+  require "$file" "reservation preserving two Wave 1 candidates" \
+    'keep (a |that |the )?reservation only.{0,120}at least two other distinct suitable.{0,40}candidates remain'
+  require "$file" "Wave 1 GPT sufficiency excludes fast/light models" \
+    'suitable gpt id.{0,100}wave 1-eligible only.{0,100}wave 1 quality floor.{0,100}fast/light gpts do not count toward gpt sufficiency'
+  require "$file" "non-GPT fallback only after eligible GPT insufficiency" \
+    'non-gpt.{0,100}only when.{0,100}insufficient suitable.{0,40}wave 1-eligible gpt'
+  require "$file" "cross-wave model ID uniqueness" \
+    'wave 1 must exclude the wave 2 reservation'
+  require "$file" "global panel model ID uniqueness" \
+    'no model id may appear more than once across the panel'
+  require "$file" "insufficient successful catalog handling" \
+    'fewer than two distinct suitable.{0,80}ids.{0,100}mark wave 1 unavailable'
+  require "$file" "terminal Wave 1 unavailable handling" \
+    'stop the review gate'
+  require "$file" "selected model ID reporting" \
+    'report.{0,100}selected model ids'
+  require "$file" "intentional reduced-family-diversity reporting" \
+    'intentionally reduced model-family diversity'
+  require "$file" "GPT-first rationale overrides prior cross-family diversity" \
+    'user-requested gpt-first consistency and determinism intentionally override prior cross-family diversity'
+done
+require "$panel" "reserve-before-Wave-1 selection order" \
+  'reserve wave 2 before selecting wave 1'
+forbid "$panel" "unconditional Wave 1 opener despite selection failure handling" \
+  'wave 1 .{1,4} always exactly 2'
+require "$panel" "ordered Wave 1 capability classes" \
+  'mid-tier or fast-capable gpts, then unreserved high-capability gpts, then mid-tier or fast-capable non-gpts, then unreserved high-capability non-gpts'
+require "$panel" "runtime-auto fallback when discovery is unavailable" \
+  'discovery is unavailable.{0,100}runtime auto-selection'
+forbid "$panel" "cross-family diversity taking precedence over GPT-first selection" \
+  'pick exactly 2 models from distinct families'
+forbid "$agent" "cross-family diversity taking precedence over GPT-first selection" \
+  '(prefer cross-family diversity|from distinct families when available)'
+forbid "$agent" "tier-based initial-wave selection taking precedence over GPT-first selection" \
+  'mid-tier initial wave'
+require "$adversarial" "standalone model selection delegated to consensus-panel" \
+  'delegate.{0,80}model selection.{0,80}consensus-panel'
+require "$adversarial" "canonical GPT-first selection taking precedence" \
+  'canonical gpt-first.{0,100}(takes precedence|must not be overridden|cannot be overridden)'
+require "$adversarial" "explicit GPT-first diversity tradeoff rationale" \
+  'user-requested gpt-first consistency and determinism intentionally override prior cross-family diversity'
+require "$adversarial" "reduced model-family diversity reporting" \
+  'reduced model-family diversity'
+forbid "$adversarial" "cross-family selection overriding canonical GPT-first selection" \
+  '(choose 2 models from \*\*different lineages\*\*|select the two initial models from different families)'
+forbid "$panel" "nonexistent boolean capability metadata dependency" \
+  '(high_capability|high-capability) *[:=]+ *(true|false)'
+forbid "$agent" "nonexistent boolean capability metadata dependency" \
+  '(high_capability|high-capability) *[:=]+ *(true|false)'
 
 # --- Third reviewer is conditional, independent, and capped at one ---
 require "$panel" "conditional single tiebreaker wave" \
@@ -142,8 +234,8 @@ require "$panel" "one-line changes covered by the tiny exemption" \
   'including one-line changes'
 require "$panel" "mid- or high-capability tier on the fast path" \
   'mid-tier model'
-require "$panel" "prohibition on fast/light models for reviews" \
-  'never a fast/light model'
+require "$panel" "fast-path prohibition on fast/light models" \
+  'the fast path never uses a fast/light model'
 require "$panel" "consensus_role: single on the fast path" \
   'consensus_role: single'
 require "$panel" "fast-path exemption overriding the general panel rule" \

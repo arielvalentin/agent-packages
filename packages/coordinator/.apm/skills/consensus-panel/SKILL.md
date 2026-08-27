@@ -1,7 +1,7 @@
 ---
 name: consensus-panel
 description: >
-  Dispatch a specialist review to two diverse reviewers in parallel, then add a
+  Dispatch a specialist review to two GPT-first reviewers in parallel, then add a
   high-capability tiebreaker only on disagreement or high-risk findings, and
   synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
   every specialist review dispatch; never duplicate identical fact-finding
@@ -80,7 +80,8 @@ model, and do not synthesize across models.
 - **Model tier** — a mid-tier model by default (documentation, prose, and
   mechanical tiny edits); a high-capability model when the tiny change is
   semantically subtle — a boundary or off-by-one condition, a regex, a format
-  string, or an arithmetic/units change. Never a fast/light model.
+  string, or an arithmetic/units change. The fast path never uses a fast/light
+  model.
 - **Envelope** — set `consensus_role: single`. Omit `model_index` and
   `panel_wave`. Like `panel-member`, this value tells a panel-aware specialist
   it is already dispatched, so it reviews directly instead of selecting or
@@ -99,32 +100,69 @@ the six disqualified categories has a blast radius one reviewer can hold.
 
 ## Step 2b — Panel selection for substantive code changes
 
-Select panelists from models available in the current runtime/session:
+Determine the currently available models at dispatch time. Use the same
+runtime model-discovery capability categorization used by the general dispatch
+policy: high-capability, mid-tier, fast-capable, and fast/light. This does not
+require boolean capability metadata or invent a new catalog field. When
+discovery succeeds, preserve catalog order and apply this procedure:
 
-1. Determine the currently available models at dispatch time.
-2. **Initial wave** — pick exactly 2 models from distinct families, preferring
-   mid-tier or fast-capable models appropriate for review latency. Do not spend
-   a high-capability model here. "Fast-capable" means a capable model tuned
-   for latency, never a fast/light model — the same floor as the fast path.
-3. **Tiebreaker** — reserve one high-capability model, independent of the
-   initial wave (a family neither initial model came from, when available).
-   Dispatch it only when an escalation trigger fires.
-4. If 2 distinct families are not available, use the best 2 distinct models and
-   note reduced diversity in the report.
-5. If explicit model discovery is unavailable, dispatch without model
-   overrides (runtime auto-selection) and record that fallback in the report.
+1. Deduplicate identical model ID strings before filtering; the **first
+   occurrence wins**, including its discovered suitability and capability
+   category. A candidate is suitable when runtime discovery says it is
+   available for this dispatch and does not identify it as incompatible.
+2. For classification only, trim and lowercase the ID. A candidate is GPT when
+   the normalized model ID starts with `gpt-`. Family metadata may corroborate
+   that classification but must not override the normalized ID rule. An ID that
+   does not start with `gpt-` is non-GPT even when family metadata says `gpt`.
+3. Reserve Wave 2 before selecting Wave 1: reserve the first suitable unused
+   high-capability GPT model ID in catalog order. If none exists, reserve the
+   first suitable high-capability non-GPT. If no suitable high-capability model
+   exists in any family, mark Wave 2 unavailable. Keep a reservation only when
+   at least two other distinct suitable, non-fast/light candidates remain for
+   Wave 1; otherwise release it and mark Wave 2 unavailable. Do not dispatch a
+   reservation unless an escalation trigger fires.
+4. Wave 1 excludes fast/light models. It prefers the capability floor from the
+   prior contract: mid-tier or fast-capable models. Treat those as one preferred
+   Wave 1 capability class; catalog order is only the deterministic tie-breaker
+   within a capability class.
+5. Wave 1 prefers two distinct Wave 1-eligible GPT model IDs, excluding the
+   Wave 2 reservation. A suitable GPT ID is Wave 1-eligible only when it also
+   meets the Wave 1 quality floor, so fast/light GPTs do not count toward GPT
+   sufficiency.
+   Fill its slots from these ordered classes: mid-tier or fast-capable GPTs,
+   then unreserved high-capability GPTs, then mid-tier or fast-capable non-GPTs,
+   then unreserved high-capability non-GPTs. Preserve catalog order inside each
+   class. Use unreserved high-capability GPTs only after preferred GPT candidates
+   are exhausted, retaining one high-capability GPT for Wave 2 when possible. A
+   non-GPT may fill a slot only when there are insufficient suitable,
+   Wave 1-eligible GPT IDs after the reservation.
+6. Wave 1 must exclude the Wave 2 reservation, and no model ID may appear more
+   than once across the panel.
+7. A successful catalog with fewer than two distinct suitable,
+   non-fast/light IDs available to Wave 1 is a selection failure: mark Wave 1
+   unavailable and do not start an invalid panel or replace it with runtime
+   auto-selection.
+
+The user-requested GPT-first consistency and determinism intentionally override
+prior cross-family diversity. This trades model-family diversity for repeatable
+selection; the report must make that reduction explicit.
+
+When discovery is unavailable, dispatch without model overrides (runtime
+auto-selection) and record that fallback in the report. This fallback still
+uses two parallel Wave 1 calls and adds one runtime-auto Wave 2 call only when
+an escalation trigger fires.
 
 ## Dispatch (substantive code changes only)
 
-### Wave 1 — always exactly 2, in parallel
+### Wave 1 — exactly 2 when selection is available, in parallel
 
-Fire exactly 2 parallel `task` calls to the **same specialist agent**, each with
-a different selected `model` override. Never dispatch a third reviewer in this
-wave. Set `consensus_role: panel-member`, `model_index: 1` and `2`, and
-`panel_wave: initial` in every handoff envelope so panel-aware specialists do
-not recursively dispatch their own reviewers. Include the JSON verdict schema
-below in every panelist prompt so the panelist can return structured output even
-if it doesn't load this skill.
+When Wave 1 is available, fire exactly 2 parallel `task` calls to the **same
+specialist agent**, each with a different selected `model` override. Never
+dispatch a third reviewer in this wave. Set `consensus_role: panel-member`,
+`model_index: 1` and `2`, and `panel_wave: initial` in every handoff envelope so
+panel-aware specialists do not recursively dispatch their own reviewers.
+Include the JSON verdict schema below in every panelist prompt so the panelist
+can return structured output even if it doesn't load this skill.
 
 ### Wave 2 — exactly 1, only on escalation
 
@@ -134,7 +172,8 @@ Evaluate the escalation triggers below against the wave-1 responses.
   responses. Do not dispatch a third reviewer.
 - **Any trigger fires** → fire exactly **one** additional `task` call to the
   same specialist with the reserved high-capability model, `model_index: 3`,
-  and `panel_wave: tiebreak`.
+  and `panel_wave: tiebreak`. If Wave 2 is unavailable, do not reuse a Wave 1
+  model; apply the reduced-confidence failure rule below.
 
 The tiebreaker receives the same scope and context as wave 1 and must **not**
 receive the wave-1 verdicts or findings — its value depends on reviewing
@@ -225,6 +264,11 @@ escalation never depends on a severity the panelist failed to state.
   applied) or `panel: adaptive 2+1`.
 - Selected model IDs used, labelled by wave (`initial` / `tiebreak`), or the
   single reviewer's model and chosen tier on the fast path.
+- For an adaptive panel, the report must list the selected model IDs. Because
+  user-requested GPT-first consistency and determinism intentionally override
+  prior cross-family diversity, state `intentionally reduced model-family
+  diversity` whenever selection uses one family rather than treating it as an
+  accidental fallback.
 - Escalation line: `escalated: yes|no`, and when yes, which trigger(s) fired.
   Always `no` on the fast path.
 - Disagreement matrix (which model returned what per axis). Omitted on the fast
@@ -247,6 +291,14 @@ escalation never depends on a severity the panelist failed to state.
 - Tiebreaker fails to return → proceed with the 2 initial responses under the
   "escalated with only 2 valid responses" rule above, and flag as
   reduced-confidence.
+- Wave 2 is unavailable when escalation fires → do not reuse a Wave 1 model;
+  proceed with the initial responses under the "escalated with only 2 valid
+  responses" rule, record the selection failure, and flag reduced confidence.
+- Wave 1 is unavailable after successful discovery → dispatch no reviewers,
+  write the consensus report with the selection failure and any candidate IDs,
+  set every verdict axis to `mixed` with `low` confidence, and stop the review
+  gate for coordinator or user intervention. Do not present an unreviewed scope
+  as a synthesized verdict.
 
 ## Backward compatibility
 

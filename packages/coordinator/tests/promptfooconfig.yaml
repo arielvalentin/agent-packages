@@ -227,13 +227,29 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); (l.includes('evidence') || l.includes('documentation') || l.includes('spec') || l.includes('repository')) && (l.includes('one') || l.includes('single') || l.includes('synthes'))"
 
-  - description: "adversarial-review: uses multiple independent model lineages"
+  - description: "adversarial-review: uses independently dispatched reviewers"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
       user_input: "How does the adversarial review work? What models are used?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('gpt') || l.includes('claude') || l.includes('gemini') || l.includes('lineage') || l.includes('independent') || l.includes('parallel')"
+        value: "const l = output.toLowerCase(); (l.includes('independent') || l.includes('parallel')) && (l.includes('gpt-first') || l.includes('consensus-panel') || l.includes('consensus panel'))"
+
+  - description: "adversarial-review: standalone selection delegates to canonical GPT-first policy"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "For a standalone substantive review, the post-reservation Wave 1 preferred-tier pool contains three suitable IDs in catalog order: gpt-5.5, claude-sonnet-5, and gpt-5.4. Both GPT IDs remain available. Which Wave 1 pair follows the canonical GPT-first policy? A: gpt-5.5 and gpt-5.4. B: gpt-5.5 and claude-sonnet-5. Answer exactly one letter: A or B."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^a\\b/.test(l) || /\\b(?:answer|choice|pair)\\s+(?:is\\s+)?a\\b/.test(l)"
+
+  - description: "adversarial-review: family and tier preferences cannot override GPT-first selection"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "May a standalone adversarial review replace an eligible GPT Wave 1 candidate with a different-family model solely to increase family diversity? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "adversarial-review: panel members do not spawn nested reviews"
     vars:
@@ -310,6 +326,166 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(2|two)(\\W|$)/.test(l) && !/(^|\\W)(3|three)(\\W|$)/.test(l)"
 
+  - description: "consensus-panel: GPT classification follows the normalized model ID"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "According to Step 2b, complete this sentence exactly: A candidate is GPT when..."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('normalized model id') && l.includes('gpt-')"
+
+  - description: "consensus-panel: family metadata cannot promote a non-GPT ID"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "According to Step 2b, may family metadata override the normalized model-ID rule? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: duplicate model IDs use the first occurrence"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "When the runtime catalog repeats an identical model ID, which occurrence wins and which selection metadata is retained?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('first occurrence') && l.includes('wins')"
+
+  - description: "consensus-panel: uses runtime-discovery capability categories"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Does panel selection require a high_capability boolean field, or does it use the existing runtime model-discovery capability categorization?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('does not require') || l.includes('without requiring') || l.includes('no')) && l.includes('runtime model-discovery capability categorization')"
+
+  - description: "consensus-panel: reserves an unused high-capability GPT"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The suitable catalog, in order, is gpt-high (runtime category: high-capability), gpt-review-a (runtime category: mid-tier), and gpt-review-b (runtime category: fast-capable). Which single ID does Step 2b reserve for Wave 2? Answer with only the model ID."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('gpt-high') && !l.includes('gpt-review-a') && !l.includes('gpt-review-b')"
+
+  - description: "consensus-panel: Wave 1 prefers review-tier GPT candidates"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Name only the first capability/family class in Step 2b's ordered Wave 1 selection."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('mid-tier') && !l.includes('non-gpt') && !l.includes('high-capability')"
+
+  - description: "consensus-panel: Wave 1 excludes fast-light models"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Only one mid-tier GPT remains after reservation, plus one fast/light GPT and one mid-tier non-GPT. Which candidate is ineligible for Wave 1?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); const fastLight = l.includes('fast/light') || l.includes('fast-light'); fastLight && (l.includes('ineligible') || l.includes('exclude'))"
+
+  - description: "consensus-panel: high-capability GPT is an exhaustion fallback"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "After reserving one high-capability GPT, only one mid-tier GPT remains, plus another high-capability GPT and a mid-tier non-GPT. Which capability/family class fills the second Wave 1 slot?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('high-capability gpt') && (l.includes('second') || l.includes('fill'))"
+
+  - description: "consensus-panel: non-GPT fills only a GPT shortfall"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "According to Step 2b, when may a suitable non-GPT candidate fill a missing Wave 1 slot?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); const eligible = l.includes('wave 1-eligible gpt') || l.includes('non-fast-light gpt') || l.includes('non-fast/light gpt'); l.includes('insufficient') && eligible"
+
+  - description: "consensus-panel: fast-light GPT does not block non-GPT fallback"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Apply Step 2b's Wave 1 quality floor before measuring GPT sufficiency. The complete suitable catalog is gpt-mid (runtime category: mid-tier), gpt-light (runtime category: fast/light), and claude-mid (runtime category: mid-tier). No Wave 2 reservation is available. Which Wave 1 pair follows the policy? A: gpt-mid and claude-mid. B: gpt-mid and gpt-light. Answer exactly one letter: A or B."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^a[.!]?$/.test(l)"
+
+  - description: "consensus-panel: ordered catalog fills GPT shortfall with non-GPT"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The complete suitable ordered catalog is claude-review-a (runtime category: mid-tier), then gpt-review-a (runtime category: fast-capable). No other suitable IDs exist. Which two model IDs fill Wave 1? Name only those IDs."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('gpt-review-a') && l.includes('claude-review-a')"
+
+  - description: "consensus-panel: explicit incompatibility makes a model unsuitable"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "A runtime catalog entry is available but explicitly dispatch-incompatible. Is it suitable for the panel? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: omitted compatibility does not make a model unsuitable"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "A runtime catalog entry is available and does not include compatibility metadata. Does the suitability rule reject it merely because that metadata is missing? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: Wave 2 falls back to explicit-high non-GPT"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Runtime discovery has no suitable GPT in its high-capability category. The first suitable high-capability non-GPT has ID claude-high. Which model ID is reserved for Wave 2? Answer with only the model ID."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('claude-high') && !l.includes('gpt-')"
+
+  - description: "consensus-panel: Wave 2 unavailable without any high-capability model"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Runtime discovery succeeds, but no suitable high-capability model exists in any family. What is Wave 2's availability? Answer exactly one word: Available or Unavailable."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /^unavailable$/.test(l)"
+
+  - description: "consensus-panel: insufficient successful catalog does not use runtime auto-selection"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Model discovery succeeded, but fewer than two distinct suitable Wave 1 IDs remain. Do I start a panel using runtime auto-selection? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: reservation never starves a two-model Wave 1"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The successful catalog has exactly two suitable GPT IDs: runtime discovery categorizes gpt-high as high-capability and gpt-mid as mid-tier. Does the policy reserve gpt-high and leave Wave 1 unavailable? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: Wave 1 unavailability stops the review gate"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Successful discovery leaves fewer than two distinct suitable Wave 1 IDs. What must happen to the review gate and confidence?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('stop') && l.includes('review gate') && l.includes('low')"
+
+  - description: "consensus-panel: discovery outage preserves runtime auto-selection"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Explicit model discovery is unavailable. Should both parallel Wave 1 calls omit model overrides and use runtime auto-selection? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "consensus-panel: reports intentional reduced family diversity"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Wave 1 selected two GPT model IDs. What exact diversity note must the report include?"
+    assert:
+      - type: icontains
+        value: "intentionally reduced model-family diversity"
+
   - description: "consensus-panel: no third reviewer when the initial two agree"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
@@ -377,10 +553,10 @@ tests:
   - description: "consensus-panel: fast path never uses a fast/light model"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "On the single-reviewer fast path, which model capability tier should I select?"
+      user_input: "On the single-reviewer fast path, state the default tier, the tier for a semantically subtle tiny change, and the prohibited tier."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && high && (!light || negated)"
+        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const fastLight = l.includes('fast/light') || l.includes('fast-light'); const prohibited = l.includes('never') || l.includes('not use') || l.includes('avoid') || l.includes('prohibit') || l.includes('exclude') || l.includes('ineligible'); tier && high && fastLight && prohibited"
 
   - description: "consensus-panel: escalates when the two reviewers conflict on a finding"
     vars:
@@ -444,7 +620,7 @@ tests:
       user_input: "Should I send three agents to search the same GitHub repository for the same facts?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); (l.includes('not') || l.includes('never') || l.includes('do not') || l.includes(\"don't\")) && (l.includes('one') || l.includes('single') || l.includes('duplicate') || l.includes('identical'))"
+        value: "const l = output.toLowerCase(); (l.includes('not') || l.includes('never') || l.includes('do not') || l.includes(\"don't\")) && (l.includes('one') || l.includes('single') || l.includes('duplica') || l.includes('identical'))"
 
   # --- stage-pr ---
   - description: "stage-pr: creates a preview environment"

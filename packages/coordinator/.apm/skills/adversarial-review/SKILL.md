@@ -2,14 +2,14 @@
 name: adversarial-review
 description: >
   Multi-model hostile critique of a plan, diff, design, or decision.
-  Runs parallel reviews on two independent model lineages so feedback
-  is genuinely independent rather than a same-lineage rubber-stamp.
+  Runs parallel reviews through the canonical consensus-panel selection
+  policy so feedback is independent without conflicting model rules.
 ---
 
 # Adversarial Review
 
 A hostile, thorough review designed to find what other reviews miss.
-Uses two independent model lineages for genuinely diverse perspectives.
+Uses independently dispatched reviewers for separate perspectives.
 
 ## When to use
 
@@ -31,21 +31,22 @@ second model there would defeat the exemption.
 
 The remaining protocol is for standalone use only.
 
-### 1. Select two independent models
+### 1. Delegate model selection
 
-Choose 2 models from **different lineages** to ensure independent analysis:
+Delegate standalone model selection to `consensus-panel`; do not maintain a
+separate selection algorithm here. Its canonical GPT-first policy takes
+precedence and must not be overridden by cross-family or lineage-diversity
+preferences. User-requested GPT-first consistency and determinism intentionally
+override prior cross-family diversity. That tradeoff may produce reduced
+model-family diversity, which the final report must state explicitly.
 
-| Lineage | Example models |
-|---------|---------------|
-| Anthropic | Claude Opus, Claude Sonnet |
-| OpenAI | GPT-5.5, GPT-5.4 |
-| Google | Gemini Pro, Gemini Flash |
-
-Select the two initial models from different families, preferring mid-tier or
-fast-capable models — the same initial-wave tier policy as `consensus-panel`,
-so a standalone adversarial review is no more expensive than any other panel.
-If only one family is available, use two distinct models from it and note
-reduced independence.
+Use the distinct model IDs selected by `consensus-panel`. Wave 1 uses eligible
+mid-tier or fast-capable GPT IDs first, excludes fast/light models, and uses an
+unreserved high-capability GPT only after the preferred GPT class is exhausted.
+A non-GPT fills a slot only when the canonical policy determines that eligible
+GPT IDs are insufficient. Apply that GPT-first precedence before catalog order:
+an earlier non-GPT must not displace a later eligible GPT when two eligible GPT
+IDs remain after the Wave 2 reservation.
 
 Standalone use follows the same adaptive 2+1 policy: classify the scope first
 and take the single-reviewer fast path when it qualifies, then dispatch the two

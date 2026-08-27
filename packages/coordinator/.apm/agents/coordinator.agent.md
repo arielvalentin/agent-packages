@@ -54,9 +54,9 @@ Apply this section only to direct chat responses to the user:
   model override (let runtime auto-select) and note that fallback.
 - Match model capability to task complexity (see § Incremental dispatch
   → Model selection for dispatch).
-- For panel work, prefer cross-family diversity when possible. Reviews are
-  single-reviewer for non-code and tiny scopes, and adaptive 2+1 for
-  substantive code changes — see § Review panel dispatch.
+- Panel work uses the GPT-first policy below. Reviews are single-reviewer for
+  non-code and tiny scopes, and adaptive 2+1 for substantive code changes —
+  see § Review panel dispatch.
 
 ## Early draft PR (production changes only)
 
@@ -246,10 +246,10 @@ Choose the model for each dispatch based on task characteristics:
 | Straightforward implementation, small edits | Mid-tier model (e.g., Sonnet, GPT-5.4) |
 | Boilerplate, config changes, simple test additions | Fast/light model (e.g., Haiku, GPT-5-mini, Flash) |
 | Non-code or tiny change review (single-reviewer fast path) | One mid-tier model, or high-capability when the tiny change carries elevated risk |
-| Consensus panel — initial wave (2 reviewers) | Cross-family diversity, mid-tier or fast-capable for review latency |
-| Consensus panel — tiebreaker (3rd reviewer, only when escalated) | High-capability, independent of the initial wave |
+| Consensus panel — initial wave (2 reviewers) | Two distinct mid-tier or fast-capable GPT IDs; unreserved high-capability GPT, then non-GPT fallback |
+| Consensus panel — tiebreaker (3rd reviewer, only when escalated) | Unused high-capability GPT, or high-capability non-GPT fallback |
 | Rubber-duck stage reviews | Mid-tier (fast feedback over deep analysis) |
-| Final adversarial review | Adaptive 2+1 — mid-tier initial wave, high-capability tiebreaker |
+| Final adversarial review | Adaptive 2+1 — use the canonical GPT-first panel selection |
 
 Determine available models at runtime. If runtime model discovery is
 unavailable, omit the model override and let the runtime auto-select.
@@ -294,9 +294,45 @@ API contracts, and new dependencies — classify against those, not from memory.
 Panels are **adaptive 2+1** — never dispatch a third reviewer
 unconditionally:
 
-- **Initial wave** — select exactly **2 panel models at runtime**, from
-  distinct families when available (for example Claude/GPT/Gemini), preferring
-  mid-tier or fast-capable models appropriate for review latency.
+- Use the existing runtime model-discovery capability categorization:
+  high-capability, mid-tier, fast-capable, and fast/light. This does not require
+  boolean capability metadata or invent a new catalog field.
+- On successful discovery, preserve catalog order and deduplicate identical
+  model ID strings before filtering; the **first occurrence wins**, including
+  its discovered suitability and capability category. Suitable means available
+  for this dispatch and not identified as incompatible by runtime discovery.
+- For classification only, trim and lowercase the ID. A candidate is GPT when
+  the normalized model ID starts with `gpt-`. Family metadata may corroborate
+  but must not override the normalized ID rule. An ID that does not start with
+  `gpt-` is non-GPT even when family metadata says `gpt`.
+- Reserve Wave 2 before selecting Wave 1: reserve the first suitable unused
+  high-capability GPT model ID in catalog order. If none exists, reserve the
+  first suitable high-capability non-GPT. If no suitable high-capability model
+  exists in any family, mark Wave 2 unavailable. Keep the reservation only when
+  at least two other distinct suitable, non-fast/light candidates remain for
+  Wave 1; otherwise release it and mark Wave 2 unavailable.
+- **Initial wave** — select exactly **2 panel models at runtime**. Wave 1
+  excludes fast/light models and prefers two distinct Wave 1-eligible GPT model
+  IDs, excluding the reservation. A suitable GPT ID is Wave 1-eligible only
+  when it also meets the Wave 1 quality floor, so fast/light GPTs do not count
+  toward GPT sufficiency. Apply these ordered classes: mid-tier or fast-capable
+  GPTs, then unreserved
+  high-capability GPTs, then mid-tier or fast-capable non-GPTs, then unreserved
+  high-capability non-GPTs. Catalog order is only the deterministic tie-breaker
+  within a capability class. Use unreserved high-capability GPTs only after the
+  preferred GPT class is exhausted, keeping one high-capability GPT unused for
+  Wave 2 when possible. Use a distinct suitable non-GPT only when there are
+  insufficient suitable, Wave 1-eligible GPT IDs after the Wave 2 reservation.
+- Wave 1 must exclude the Wave 2 reservation, and no model ID may appear more
+  than once across the panel. If a successful catalog has fewer than two
+  distinct suitable, non-fast/light IDs available to Wave 1, mark Wave 1
+  unavailable; do not start an invalid panel or switch to runtime
+  auto-selection. Dispatch no reviewers, write the selection failure to the
+  consensus report with all verdict axes `mixed` and `low` confidence, and stop
+  the review gate for coordinator or user intervention.
+- User-requested GPT-first consistency and determinism intentionally override
+  prior cross-family diversity. This accepts reduced model-family diversity in
+  exchange for repeatable selection, and the consensus report must say so.
 - Fire **2 parallel `task` calls** to the same specialist with those selected
   model overrides. Set `consensus_role: panel-member`, `model_index: 1|2`, and
   `panel_wave: initial` in each envelope.
@@ -305,7 +341,8 @@ unconditionally:
   — only when the two initial responses disagree on any verdict axis,
   materially conflict on findings, either reports a `blocker`/`major` finding,
   fewer than 2 valid responses remain after the retry policy, or confidence is
-  too low to accept the two-model result.
+  too low to accept the two-model result. If Wave 2 is unavailable, do not reuse
+  a Wave 1 model; apply the canonical reduced-confidence synthesis rule.
 - **If the two initial responses agree and carry no high-risk finding,
   synthesize immediately** without waiting for a third.
 - Inline the JSON verdict schema (see `consensus-panel/SKILL.md`) in
@@ -314,7 +351,11 @@ unconditionally:
 - Synthesize with majority-per-axis when escalated, or the unanimous
   two-response value when not, and dedup findings by `(location, issue)`.
   Write the report to `${ARTIFACTS_DIR}/04-review-consensus.md`, including the
-  review mode, whether the panel escalated, and which trigger fired.
+  review mode, selected model IDs by wave, whether the panel escalated, and
+  which trigger fired. Because user-requested GPT-first consistency and
+  determinism intentionally override prior cross-family diversity, explicitly
+  note `intentionally reduced model-family diversity` whenever selection uses
+  one family.
 
 ## User gates
 
