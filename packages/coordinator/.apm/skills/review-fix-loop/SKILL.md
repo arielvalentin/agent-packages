@@ -31,8 +31,13 @@ code-review, and observability review gates.
    current context, skip the gate entirely. Record the skip reason.
 
 2. **Dispatch reviewer** — run the `reviewer` through `consensus-panel` unless
-   that role is explicitly designated single-model. Send `scope` and `context`;
-   if `focus` is provided, include it as explicit review instructions.
+   that role is explicitly designated single-model. `consensus-panel` classifies
+   the scope first: non-code and tiny scopes take the single-reviewer fast path
+   (exactly one mid- or high-capability reviewer, no panel), and substantive
+   code changes take the adaptive 2+1 panel — two reviewers in parallel with a
+   third added only when an escalation trigger fires. Send `scope` and
+   `context`; if `focus` is provided, include it as explicit review
+   instructions.
 
 3. **Evaluate findings** — filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
@@ -41,7 +46,11 @@ code-review, and observability review gates.
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
    b. Re-run `reviewer` through the same panel policy against the updated
-      `scope`.
+      `scope`. Re-classify the scope each cycle: a scope that is still non-code
+      or tiny stays on the single-reviewer fast path, and a panelled scope
+      starts a **fresh initial wave of 2** reviewers, escalating to a tiebreaker
+      only if that cycle's own responses fire an escalation trigger — a previous
+      cycle's escalation does not carry over.
    c. If no findings at or above threshold → **gate passes**. Record result.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.
@@ -57,6 +66,9 @@ code-review, and observability review gates.
    - Outcome: `passed`, `passed-after-fixes`, `skipped` (with reason),
      `escalated`, or `warned`
    - Number of fix cycles used
+   - Review mode per cycle: `single-reviewer fast path` (with the exemption that
+     applied) or `adaptive 2+1`
+   - Whether any review wave escalated to a tiebreaker, and which trigger fired
    - Unresolved findings (if any)
 
 ## Same-finding detection
@@ -87,6 +99,17 @@ severity_threshold: blocker,major
 on_exhaust: escalate
 skip_condition: refactor flow unless touching auth, crypto, input validation, or access control
 ```
+
+### Documentation-only review (single-reviewer fast path)
+```
+reviewer: code-review
+scope: docs-only diff (branch vs base)
+max_retries: 1
+severity_threshold: blocker,major
+on_exhaust: warn
+```
+`consensus-panel` classifies this scope as non-code and dispatches exactly one
+mid-tier reviewer — no panel.
 
 ### Per-step code review
 ```

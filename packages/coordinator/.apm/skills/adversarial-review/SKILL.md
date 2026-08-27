@@ -127,5 +127,6 @@ If multi-model dispatch is unavailable (only one model accessible):
 
 1. Run a single hostile `rubber-duck` review with the same adversarial prompt.
 2. Mark the output as **reduced-assurance** (single-model, no corroboration).
-3. If `consensus-panel` is available, use it to run 3 models on the same
-   specialist instead.
+3. If `consensus-panel` is available, use it to run the adaptive 2+1 panel on
+   the same specialist instead (2 reviewers, plus a tiebreaker only when an
+   escalation trigger fires).

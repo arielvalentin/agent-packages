@@ -302,6 +302,94 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); (l.includes('parallel') || l.includes('multiple') || l.includes('dispatch')) && (l.includes('consensus') || l.includes('verdict') || l.includes('synthesiz') || l.includes('unified'))"
 
+  - description: "consensus-panel: initial wave is exactly two reviewers"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "How many reviewers do I dispatch in the initial wave? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(2|two)(\\W|$)/.test(l) && !/(^|\\W)(3|three)(\\W|$)/.test(l)"
+
+  - description: "consensus-panel: no third reviewer when the initial two agree"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "This is a substantive code change, so the adaptive 2+1 panel applies and the initial wave of two reviewers has returned. They agreed on every verdict axis with high confidence and only minor findings. Does an escalation trigger fire, meaning I must dispatch the tiebreaker? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: blocker and major severities are high-risk triggers"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Which finding severities count as a high-risk escalation trigger for the panel?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('blocker') && l.includes('major')"
+
+  - description: "consensus-panel: escalates on verdict disagreement"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "This is a substantive code change, so the adaptive 2+1 panel applies and the initial wave of two reviewers has returned. They returned different values on the correct verdict axis. Does an escalation trigger fire, meaning I must dispatch the tiebreaker? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "consensus-panel: documents the escalation triggers"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "List the conditions that require a tiebreaker reviewer."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('disagree') || l.includes('differ')) && (l.includes('blocker') || l.includes('major') || l.includes('high-risk')) && (l.includes('confidence') || l.includes('conflict'))"
+
+  - description: "consensus-panel: tiebreaker is a single high-capability model"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "When the panel escalates, how many extra reviewers do I add and what capability tier should that model be?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('one') || l.includes('1') || l.includes('single')) && (l.includes('high-capability') || l.includes('high capability') || l.includes('tiebreak'))"
+
+  - description: "consensus-panel: docs-only change takes a single reviewer"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The diff changes only markdown documentation files. How many reviewers do I dispatch? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(1|one)(\\W|$)/.test(l) && !/(^|\\W)(2|two|3|three)(\\W|$)/.test(l)"
+
+  - description: "consensus-panel: one-line change takes a single reviewer"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The diff is a one-line typo fix in a single source file, with no new control flow and no API change. How many reviewers do I dispatch? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(1|one)(\\W|$)/.test(l) && !/(^|\\W)(2|two|3|three)(\\W|$)/.test(l)"
+
+  - description: "consensus-panel: security-sensitive tiny change is not fast-path exempt"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The diff is one line, but it changes an authentication check. Is this scope fast-path exempt? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: fast path never uses a fast/light model"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "On the single-reviewer fast path, which model capability tier should I select?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const light = l.includes('fast/light') || l.includes('light model'); const negated = l.includes('not select a fast/light') || l.includes('never a fast/light') || l.includes('not use a fast/light') || l.includes('avoid a fast/light'); tier && (!light || negated)"
+
+  - description: "consensus-panel: substantive code change still takes two reviewers"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The diff refactors 400 lines across 9 source files. How many reviewers do I dispatch in the initial wave? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(2|two)(\\W|$)/.test(l) && !/(^|\\W)(3|three)(\\W|$)/.test(l)"
+
   - description: "consensus-panel: never duplicates research for consensus"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md

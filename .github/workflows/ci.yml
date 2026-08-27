@@ -38,6 +38,11 @@ jobs:
           chmod +x script/check-cross-references.sh
           ./script/check-cross-references.sh
 
+      - name: Consensus panel contract checks
+        run: |
+          chmod +x script/check-consensus-contract.sh
+          ./script/check-consensus-contract.sh
+
   release-please-config:
     name: Validate release-please config
     runs-on: ubuntu-latest

@@ -54,7 +54,9 @@ Apply this section only to direct chat responses to the user:
   model override (let runtime auto-select) and note that fallback.
 - Match model capability to task complexity (see § Incremental dispatch
   → Model selection for dispatch).
-- For panel work, prefer cross-family diversity when possible.
+- For panel work, prefer cross-family diversity when possible. Reviews are
+  single-reviewer for non-code and tiny scopes, and adaptive 2+1 for
+  substantive code changes — see § Review panel dispatch.
 
 ## Early draft PR (production changes only)
 
@@ -243,7 +245,9 @@ Choose the model for each dispatch based on task characteristics:
 | Complex design, architecture, or critical review | High-capability model (e.g., Opus, GPT-5.5+, Gemini Pro) |
 | Straightforward implementation, small edits | Mid-tier model (e.g., Sonnet, GPT-5.4) |
 | Boilerplate, config changes, simple test additions | Fast/light model (e.g., Haiku, GPT-5-mini, Flash) |
-| Consensus panel members | Cross-family diversity, all high-capability |
+| Non-code or tiny change review (single-reviewer fast path) | One mid-tier model, or high-capability when the tiny change carries elevated risk |
+| Consensus panel — initial wave (2 reviewers) | Cross-family diversity, mid-tier or fast-capable for review latency |
+| Consensus panel — tiebreaker (3rd reviewer, only when escalated) | High-capability, independent of the initial wave |
 | Rubber-duck stage reviews | Mid-tier (fast feedback over deep analysis) |
 | Final adversarial review | High-capability (thorough, holistic analysis) |
 
@@ -253,21 +257,59 @@ unavailable, omit the model override and let the runtime auto-select.
 ## Review panel dispatch
 
 Every specialist review dispatch MUST go through `consensus-panel` unless its
-role is explicitly designated single-model. Research fact-finding never uses
-the panel:
+role is explicitly designated single-model **or the scope qualifies for the
+single-reviewer fast path**. Research fact-finding never uses the panel.
 
-- Select **3 panel models at runtime** from available models, preferring
-  high-capability options from distinct families (for example Claude/GPT/Gemini
-  when available).
-- Fire **3 parallel `task` calls** to the same specialist with those selected
-  model overrides.
-- Set `consensus_role: panel-member` and `model_index: 1|2|3` in each
-  envelope.
+### Single-reviewer fast path (checked first, overrides the panel rule)
+
+Classify the review scope before selecting any model, and re-classify at the
+start of every review cycle. Dispatch **exactly one** mid- or high-capability
+reviewer — no panel, no second model, no synthesis — when either holds:
+
+- **Non-code change** — every changed file is a text artifact with no
+  executable effect (documentation, prose, markdown, comments, changelog,
+  license). No source, config, schema, script, or workflow file changed.
+- **Tiny change** — at most 10 changed lines (added + removed, ignoring
+  pure-whitespace lines) across at most 2 files, including one-line changes,
+  with no new control flow, no new dependency, and no public API contract
+  change.
+
+Pick the tier by complexity and risk: mid-tier for prose and mechanical edits,
+high-capability when the tiny change carries elevated risk. Never a fast/light
+model. Set `consensus_role: single` and omit `model_index`/`panel_wave`.
+
+A fast-path scope is disqualified — and takes the full panel — when it touches
+authentication, authorization, cryptography, secrets, input validation, access
+control, or a public API contract, however small the diff. A `blocker`/`major`
+finding does not by itself promote a fast-path scope to a panel; only
+re-classification does.
+
+### Adaptive 2+1 panel (substantive code changes)
+
+Panels are **adaptive 2+1** — never dispatch a third reviewer
+unconditionally:
+
+- **Initial wave** — select exactly **2 panel models at runtime**, from
+  distinct families when available (for example Claude/GPT/Gemini), preferring
+  mid-tier or fast-capable models appropriate for review latency.
+- Fire **2 parallel `task` calls** to the same specialist with those selected
+  model overrides. Set `consensus_role: panel-member`, `model_index: 1|2`, and
+  `panel_wave: initial` in each envelope.
+- **Escalate to exactly 1 tiebreaker** — a high-capability model independent of
+  the initial wave, dispatched with `model_index: 3` and `panel_wave: tiebreak`
+  — only when the two initial responses disagree on any verdict axis,
+  materially conflict on findings, either reports a `blocker`/`major` finding,
+  fewer than 2 valid responses remain after the retry policy, or confidence is
+  too low to accept the two-model result.
+- **If the two initial responses agree and carry no high-risk finding,
+  synthesize immediately** without waiting for a third.
 - Inline the JSON verdict schema (see `consensus-panel/SKILL.md`) in
-  every panelist prompt so marketplace agents comply.
-- Synthesize with majority-per-axis and dedup findings by
-  `(location, issue)`. Write the report to
-  `${ARTIFACTS_DIR}/04-review-consensus.md`.
+  every reviewer prompt so marketplace agents comply. Never send wave-1
+  verdicts to the tiebreaker; it must review independently.
+- Synthesize with majority-per-axis when escalated, or the unanimous
+  two-response value when not, and dedup findings by `(location, issue)`.
+  Write the report to `${ARTIFACTS_DIR}/04-review-consensus.md`, including the
+  review mode, whether the panel escalated, and which trigger fired.
 
 ## User gates
 
@@ -385,8 +427,11 @@ For `feature`, `bugfix`, `refactor`, and `pr-review`, also include:
 
 - Stage review summary: rubber-duck/code-review/security-review findings at
   each stage and how they were resolved.
-- Panel citations: 3 model responses per review phase, or a note stating why
-  single-model was acceptable.
+- Review mode per review phase: `single-reviewer fast path` (name the exemption
+  and the model) or `adaptive 2+1`.
+- Panel citations: the 2 initial model responses per panelled review phase, plus
+  the tiebreaker response when the panel escalated (state which trigger fired),
+  or a note stating why single-model was acceptable.
 - Path to `04-review-consensus.md` and any other artifact files.
 - Security-review gate status: passed, findings addressed, or exempt (with
   reason).
@@ -427,11 +472,14 @@ the PR is merged.
 - `review-fix-loop` missing: manually apply the gate pattern — dispatch
   reviewer, evaluate findings, dispatch fixer if needed, re-run reviewer,
   escalate after 2 retries of the same finding.
-- `consensus-panel` missing: dispatch 3 models manually per rules above.
+- `consensus-panel` missing: classify the scope manually — one mid- or
+  high-capability reviewer for non-code and tiny changes, otherwise the adaptive
+  2+1 panel per rules above (2 reviewers first, a third only when an escalation
+  trigger fires).
 - `handoff-envelope` missing: use inline schema at top of every
   subagent prompt.
 - `adversarial-review` missing: run hostile `rubber-duck` critique through the
-  consensus panel (or manual 3-model panel if needed) and keep the same
+  consensus panel (or a manual adaptive 2+1 panel if needed) and keep the same
   blocker/major loop.
 - `pr-lifecycle` missing: open early draft PRs with a Conventional Commits
   title from creation — default `<type>` from the flow (`feature`→`feat`,
@@ -509,8 +557,10 @@ surface it in the final message.
 ## Never
 
 - Guess when the ask is ambiguous.
-- Skip a required review panel. Research fact-finding remains single-model per
-  source and must not be duplicated for consensus.
+- Skip a required review panel for a substantive code change. Non-code and tiny
+  scopes use the single-reviewer fast path by design, not by omission. Research
+  fact-finding remains single-model per source and must not be duplicated for
+  consensus.
 - Continue past a gate without user approval.
 - Rewrite marketplace agent behavior — pass the schema in the prompt
   instead.
