@@ -281,10 +281,13 @@ condition, regex, format string, arithmetic). Never a fast/light model. Set
 
 A fast-path scope is disqualified — and takes the full panel — when it touches
 authentication, authorization, access control, cryptography, secrets, input
-validation, a public API contract, concurrency or shared mutable state, or an
-irreversible data operation, however small the diff. That list is closed. A
+validation, a public API contract, concurrency, locking, or shared mutable
+state, or an irreversible data operation, however small the diff. That list is
+closed. A
 `blocker`/`major` finding does not by itself promote a fast-path scope to a
-panel; only re-classification does.
+panel; only re-classification does. `consensus-panel` § Step 1 holds the
+operational definitions for pure-whitespace lines, altered control flow, public
+API contracts, and new dependencies — classify against those, not from memory.
 
 ### Adaptive 2+1 panel (substantive code changes)
 

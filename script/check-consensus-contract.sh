@@ -73,7 +73,7 @@ require "$agent" "coordinator prohibition on an unconditional third reviewer" \
 require "$panel" "conditional single tiebreaker wave" \
   'wave 2 .{1,4} exactly 1, only on escalation'
 require "$panel" "hard cap of three reviewers per panel" \
-  'never dispatch more than 3 reviewers'
+  'never dispatch a fourth reviewer'
 require "$panel" "independent tiebreaker (no wave-1 verdicts)" \
   'must \*\*not\*\* receive the wave-1 verdicts'
 require "$agent" "coordinator escalating to exactly one tiebreaker" \
@@ -177,6 +177,17 @@ require "$envelope" "envelope stating only primary may fan out" \
 require "$panel" "fast-path envelope carrying the anti-recursion semantics" \
   'it is already dispatched'
 
+require "$panel" "operational definition of a new dependency" \
+  '\*\*new dependency\*\*'
+require "$panel" "definition of a valid response" \
+  'a response is \*\*valid\*\* when it parses as json'
+require "$panel" "total confidence rule" \
+  'otherwise the \*\*lowest\*\* value among the valid responses'
+require "$agent" "coordinator deferring to canonical scope definitions" \
+  'operational definitions'
+require "$adversarial" "standalone adversarial review deferring to the shared triggers" \
+  'five escalation triggers fires'
+
 # --- Envelope backward compatibility ---
 require "$panel" "model_index backward compatibility note" \
   'backward compatibility'
@@ -196,8 +207,10 @@ require "$panel" "fact-finding exclusion" \
   'do not use this skill for research fact-finding'
 
 # --- No residual "always three high-capability panelists" language ---
+# Anchored on the nouns, not the verbs: any wording that pairs the number three
+# with reviewers/models/panelists is stale, whichever verb introduces it.
 forbid_in_packages "fires three panelists unconditionally" \
-  '(fire|dispatch|run|select|use) (\*\*)?(3|three)(\*\*)? +(parallel|panel |models|reviewers|panelists)'
+  '(\*\*)?(3|three)(\*\*)? +(parallel|panel |panelists|reviewers?|models|high-capability)'
 forbid_in_packages "selects three panel models unconditionally" \
   '(3|three)(\*\*)? +panel models'
 forbid_in_packages "prefers three high-capability panelists" \
@@ -206,6 +219,10 @@ forbid_in_packages "claims every panelist is high-capability" \
   'all (\w+ ){0,2}high-capability'
 forbid_in_packages "requires three panel responses" \
   '(fewer than (3|three) responses|(3|three) model responses)'
+forbid_in_packages "makes the tiebreaker unconditional" \
+  'always (add|adds|adding|dispatch|dispatches|include|includes) a third'
+forbid_in_packages "adds a third reviewer without an escalation trigger" \
+  '(then|and) (always )?add(s|ing)? a third (reviewer|model|panelist)'
 forbid_in_packages "contradicts the adaptive policy with an always-three rule" \
   'always (dispatch|use|run|fire) (3|three)'
 forbid_in_packages "reintroduces highest-capability models in the initial wave" \

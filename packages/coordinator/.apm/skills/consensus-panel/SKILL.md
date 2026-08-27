@@ -51,6 +51,10 @@ Operational definitions, so two agents classify the same diff identically:
 - **Public API contract** — any signature, route, event payload, schema,
   environment variable, CLI flag, or exported symbol that something outside the
   changed files can depend on.
+- **New dependency** — referencing a package that is not already declared in a
+  dependency manifest (`package.json`, `go.mod`, `Gemfile`, `requirements.txt`,
+  and the like). Importing another symbol from a package the repository already
+  declares is not a new dependency; adding the manifest entry is.
 
 A fast-path scope is **disqualified** — and takes the full panel — when it
 touches any of the following, however small the diff:
@@ -134,7 +138,7 @@ Evaluate the escalation triggers below against the wave-1 responses.
 
 The tiebreaker receives the same scope and context as wave 1 and must **not**
 receive the wave-1 verdicts or findings — its value depends on reviewing
-independently. Never dispatch more than 3 reviewers for a single panel.
+independently. Never dispatch a fourth reviewer for a single panel.
 
 ## Escalation triggers
 
@@ -181,6 +185,11 @@ Synthesize immediately; a third reviewer cannot change the outcome.
 
 ## Synthesis rules
 
+A response is **valid** when it parses as JSON and every required field is
+present with a value from its enum. Anything else — prose, malformed JSON, a
+missing or out-of-enum `confidence` or verdict axis — is invalid after the one
+retry in § Failure modes, and does not count toward trigger 4.
+
 1. Merge `findings`; dedupe by `(location, issue)`. A finding reported by more
    than one panelist is corroborated and keeps the highest severity reported.
 2. Per verdict axis:
@@ -194,8 +203,13 @@ Synthesize immediately; a third reviewer cannot change the outcome.
      that caused the escalation) the axis is `mixed`. Flag reduced confidence.
    - **Escalated with fewer than 2 valid responses** — use the valid responses
      that returned, `mixed` when no majority, and flag reduced confidence.
-3. Surface a disagreement matrix whenever the panel diverges.
-4. Write the report to `${ARTIFACTS_DIR}/04-review-consensus.md`
+3. Confidence, in every case: the majority value when one exists, otherwise the
+   **lowest** value among the valid responses (`high` > `medium` > `low`). This
+   is total — it covers the fast path's single value, the non-escalated pair
+   (trigger 5), a three-way `high`/`medium`/`low` split, and any partial set
+   after failures.
+4. Surface a disagreement matrix whenever the panel diverges.
+5. Write the report to `${ARTIFACTS_DIR}/04-review-consensus.md`
    (see `handoff-envelope` skill for path resolution).
 
 ## Report contents
@@ -210,9 +224,8 @@ Synthesize immediately; a third reviewer cannot change the outcome.
 - Disagreement matrix (which model returned what per axis). Omitted on the fast
   path.
 - Consolidated findings, sorted by severity, with corroboration noted.
-- Confidence line: the single reviewer's confidence on the fast path, the lower
-  of the two values when not escalated (see trigger 5), otherwise the majority
-  confidence value across the three responses.
+- Confidence line: the synthesized confidence per synthesis rule 3 (majority,
+  otherwise the lowest valid value).
 
 ## Failure modes
 

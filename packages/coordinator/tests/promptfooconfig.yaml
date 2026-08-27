@@ -38,7 +38,7 @@ tests:
   - description: "tech-research: never duplicates research for consensus"
     vars:
       skill_content: file://../.apm/skills/tech-research/SKILL.md
-      user_input: "Should I ask three models to research the same Azure documentation pages so I can build consensus? Answer exactly one word: Yes or No."
+      user_input: "Should I ask multiple models to research the same Azure documentation pages so I can build consensus? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
@@ -340,7 +340,7 @@ tests:
       user_input: "List the conditions that require a tiebreaker reviewer."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); (l.includes('disagree') || l.includes('differ')) && (l.includes('blocker') || l.includes('major') || l.includes('high-risk')) && (l.includes('confidence') || l.includes('conflict'))"
+        value: "const l = output.toLowerCase(); const t1 = l.includes('disagree') || l.includes('differ'); const t2 = l.includes('conflict') || l.includes('contradict'); const t3 = l.includes('blocker') || l.includes('major') || l.includes('high-risk'); const t4 = l.includes('fewer than') || l.includes('insufficient') || l.includes('invalid'); const t5 = l.includes('confidence'); t1 && t2 && t3 && t4 && t5"
 
   - description: "consensus-panel: tiebreaker is a single high-capability model"
     vars:
@@ -380,7 +380,31 @@ tests:
       user_input: "On the single-reviewer fast path, which model capability tier should I select?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && (!light || negated)"
+        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && high && (!light || negated)"
+
+  - description: "consensus-panel: escalates when the two reviewers conflict on a finding"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "This is a substantive code change, so the adaptive 2+1 panel applies and the initial wave of two reviewers has returned. They agree on every verdict axis, but they contradict each other about the same location: one says the code is broken there and proposes the opposite fix. Does an escalation trigger fire, meaning I must dispatch the tiebreaker? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "consensus-panel: insufficient responses is an escalation trigger"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Escalation trigger 4 is named insufficient responses. What condition does it describe?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); (l.includes('fewer than 2') || l.includes('fewer than two')) && l.includes('valid response')"
+
+  - description: "consensus-panel: low synthesized confidence is an escalation trigger"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Which synthesized confidence value fires an escalation trigger? Answer with one word."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); l.includes('low') && !l.includes('high') && !l.includes('medium')"
 
   - description: "consensus-panel: concurrency change is not fast-path exempt"
     vars:

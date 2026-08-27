@@ -44,8 +44,14 @@ Choose 2 models from **different lineages** to ensure independent analysis:
 Select the two initial models from different families, preferring mid-tier or
 fast-capable models — the same initial-wave tier policy as `consensus-panel`,
 so a standalone adversarial review is no more expensive than any other panel.
-Reserve a high-capability model for the tiebreaker. If only one family is
-available, use two distinct models from it and note reduced independence.
+If only one family is available, use two distinct models from it and note
+reduced independence.
+
+Standalone use follows the same adaptive 2+1 policy: classify the scope first
+and take the single-reviewer fast path when it qualifies, then dispatch the two
+initial models, and dispatch **exactly one** high-capability tiebreaker only
+when one of `consensus-panel`'s five escalation triggers fires. That skill owns
+the triggers and the synthesis rules; do not restate or invent them here.
 
 ### 2. Dispatch parallel reviews
 
@@ -82,7 +88,9 @@ Do not comment on style, formatting, or naming unless it causes a bug.
 
 ### 3. Synthesize findings
 
-Merge results from both models:
+Merge results from every reviewer that returned — the single reviewer on the
+fast path, the two initial models, or all three once a tiebreaker was
+dispatched:
 
 1. **Deduplicate** by `(location, issue)` — same finding from both models
    increases confidence.
