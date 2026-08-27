@@ -401,7 +401,7 @@ tests:
   - description: "consensus-panel: low synthesized confidence is an escalation trigger"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "Which synthesized confidence value fires an escalation trigger? Answer with one word."
+      user_input: "Escalation trigger 5 concerns the synthesized confidence. State the exact confidence value that fires it. Answer with one word."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); l.includes('low') && !l.includes('high') && !l.includes('medium')"
