@@ -310,6 +310,14 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(2|two)(\\W|$)/.test(l) && !/(^|\\W)(3|three)(\\W|$)/.test(l)"
 
+  - description: "consensus-panel: prefers GPT models over cross-family diversity"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Enough suitable GPT model IDs are available for both initial reviewers and an unused high-capability GPT model is available for the conditional tiebreaker. Should I replace any of them with Claude or Gemini solely to get cross-family diversity? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
   - description: "consensus-panel: no third reviewer when the initial two agree"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md

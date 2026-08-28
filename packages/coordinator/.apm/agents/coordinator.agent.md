@@ -54,7 +54,8 @@ Apply this section only to direct chat responses to the user:
   model override (let runtime auto-select) and note that fallback.
 - Match model capability to task complexity (see § Incremental dispatch
   → Model selection for dispatch).
-- For panel work, prefer cross-family diversity when possible. Reviews are
+- For panel work, prefer distinct suitable GPT model IDs; use non-GPT models
+  only when too few suitable GPT choices are available. Reviews are
   single-reviewer for non-code and tiny scopes, and adaptive 2+1 for
   substantive code changes — see § Review panel dispatch.
 
@@ -294,20 +295,23 @@ API contracts, and new dependencies — classify against those, not from memory.
 Panels are **adaptive 2+1** — never dispatch a third reviewer
 unconditionally:
 
-- **Initial wave** — select exactly **2 panel models at runtime**, from
-  distinct families when available (for example Claude/GPT/Gemini), preferring
-  mid-tier or fast-capable models appropriate for review latency.
+- **Initial wave** — select exactly **2 panel models at runtime**, preferring
+  distinct suitable GPT model IDs at a mid-tier or fast-capable review tier.
 - Fire **2 parallel `task` calls** to the same specialist with those selected
   model overrides. Set `consensus_role: panel-member`, `model_index: 1|2`, and
   `panel_wave: initial` in each envelope.
-- **Escalate to exactly 1 tiebreaker** — a high-capability model independent of
-  the initial wave, dispatched with `model_index: 3` and `panel_wave: tiebreak`
-  — only when the two initial responses disagree on any verdict axis,
+- **Escalate to exactly 1 tiebreaker** — prefer a distinct high-capability GPT
+  model independent of the initial wave, dispatched with `model_index: 3` and
+  `panel_wave: tiebreak` — only when the two initial responses disagree on any
+  verdict axis,
   materially conflict on findings, either reports a `blocker`/`major` finding,
   fewer than 2 valid responses remain after the retry policy, or confidence is
   too low to accept the two-model result.
 - **If the two initial responses agree and carry no high-risk finding,
   synthesize immediately** without waiting for a third.
+- Use a suitable non-GPT model only for a slot that available suitable GPT
+  choices cannot fill. GPT-first intentionally overrides cross-family diversity:
+  when enough suitable GPT choices exist, all three slots are GPT.
 - Inline the JSON verdict schema (see `consensus-panel/SKILL.md`) in
   every reviewer prompt so marketplace agents comply. Never send wave-1
   verdicts to the tiebreaker; it must review independently.
