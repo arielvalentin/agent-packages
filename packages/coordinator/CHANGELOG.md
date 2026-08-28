@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.4](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.3...coordinator-v0.12.4) (2026-08-28)
+
+
+### Performance Improvements
+
+* prefer GPT models for consensus ([f041fe0](https://github.com/arielvalentin/agent-packages/commit/f041fe03a771cef75e65565dc0bc7e38245258e7))
+
 ## [0.12.3](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.2...coordinator-v0.12.3) (2026-08-27)
 
 
