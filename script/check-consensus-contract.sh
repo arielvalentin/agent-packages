@@ -99,7 +99,7 @@ require "$agent" "coordinator escalating to exactly one tiebreaker" \
 require "$agent" "high-capability tiebreaker independent of the initial wave" \
   'high-capability GPT model independent of'
 require "$agent" "coordinator non-GPT fallback policy" \
-  'non-GPT model only for a slot that available suitable GPT choices cannot fill'
+  'non-GPT model only for a slot that (the )?available suitable GPT choices cannot fill'
 if normalize "$agent" | grep -Eiq \
   'Consensus panel .{1,4} initial wave .{1,80} Cross-family diversity'; then
   echo "ERROR: ${agent#"$root/"}: stale mandatory cross-family initial-wave model selection"

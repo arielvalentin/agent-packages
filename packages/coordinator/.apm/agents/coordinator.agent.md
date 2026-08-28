@@ -309,7 +309,7 @@ unconditionally:
   too low to accept the two-model result.
 - **If the two initial responses agree and carry no high-risk finding,
   synthesize immediately** without waiting for a third.
-- Use a suitable non-GPT model only for a slot that available suitable GPT
+- Use a suitable non-GPT model only for a slot that the available suitable GPT
   choices cannot fill. GPT-first intentionally overrides cross-family diversity:
   when enough suitable GPT choices exist, all three slots are GPT.
 - Inline the JSON verdict schema (see `consensus-panel/SKILL.md`) in
