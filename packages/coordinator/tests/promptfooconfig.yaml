@@ -388,7 +388,7 @@ tests:
       user_input: "On the single-reviewer fast path, which model capability tier should I select?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && high && (!light || negated)"
+        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('never choose a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && high && (!light || negated)"
 
   - description: "consensus-panel: escalates when the two reviewers conflict on a finding"
     vars:
