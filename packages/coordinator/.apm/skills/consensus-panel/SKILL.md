@@ -1,9 +1,9 @@
 ---
 name: consensus-panel
 description: >
-  Dispatch a specialist review to two distinct GPT reviewers in parallel, then
-  add a high-capability tiebreaker only on disagreement or high-risk findings, and
-  synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
+  Dispatch a specialist review to two distinct suitable GPT model IDs in parallel,
+  then add a distinct high-capability GPT model ID only as a conditional tiebreaker,
+  and synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
   every specialist review dispatch; never duplicate identical fact-finding
   research across models to manufacture consensus.
 ---
