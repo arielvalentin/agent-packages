@@ -1,9 +1,9 @@
 ---
 name: consensus-panel
 description: >
-  Dispatch a specialist review to two diverse reviewers in parallel, then add a
-  high-capability tiebreaker only on disagreement or high-risk findings, and
-  synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
+  Dispatch a specialist review to two distinct suitable GPT model IDs in parallel,
+  then add a distinct high-capability GPT model ID only as a conditional tiebreaker,
+  and synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
   every specialist review dispatch; never duplicate identical fact-finding
   research across models to manufacture consensus.
 ---
@@ -102,15 +102,17 @@ the six disqualified categories has a blast radius one reviewer can hold.
 Select panelists from models available in the current runtime/session:
 
 1. Determine the currently available models at dispatch time.
-2. **Initial wave** — pick exactly 2 models from distinct families, preferring
+2. **Initial wave** — prefer exactly 2 distinct suitable GPT model IDs, using
    mid-tier or fast-capable models appropriate for review latency. Do not spend
    a high-capability model here. "Fast-capable" means a capable model tuned
    for latency, never a fast/light model — the same floor as the fast path.
-3. **Tiebreaker** — reserve one high-capability model, independent of the
-   initial wave (a family neither initial model came from, when available).
-   Dispatch it only when an escalation trigger fires.
-4. If 2 distinct families are not available, use the best 2 distinct models and
-   note reduced diversity in the report.
+3. **Tiebreaker** — prefer a distinct high-capability GPT model ID independent
+   of the initial wave. Dispatch it only when an escalation trigger fires.
+4. Use suitable non-GPT models only to fill slots when the available suitable
+   GPT choices cannot fill them. GPT-first intentionally overrides cross-family
+   diversity: when enough suitable GPT choices exist, all three model slots are
+   GPT. Do not introduce a non-GPT model for diversity. Note any non-GPT
+   fallback in the report.
 5. If explicit model discovery is unavailable, dispatch without model
    overrides (runtime auto-selection) and record that fallback in the report.
 

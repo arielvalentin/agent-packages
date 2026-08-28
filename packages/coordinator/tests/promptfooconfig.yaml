@@ -310,6 +310,14 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#.]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\W)(2|two)(\\W|$)/.test(l) && !/(^|\\W)(3|three)(\\W|$)/.test(l)"
 
+  - description: "consensus-panel: prefers GPT models over cross-family diversity"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "Enough suitable GPT model IDs are available for both initial reviewers and an unused high-capability GPT model is available for the conditional tiebreaker. Should I replace any of them with Claude or Gemini solely to get cross-family diversity? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
   - description: "consensus-panel: no third reviewer when the initial two agree"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
@@ -380,7 +388,7 @@ tests:
       user_input: "On the single-reviewer fast path, which model capability tier should I select?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && high && (!light || negated)"
+        value: "const l = output.toLowerCase(); const tier = l.includes('mid-tier') || l.includes('mid tier'); const high = l.includes('high-capability') || l.includes('high capability'); const light = l.includes('light'); const negated = l.includes('never a fast/light') || l.includes('never use a fast/light') || l.includes('never choose a fast/light') || l.includes('not a fast/light') || l.includes('not use a fast/light') || l.includes('not select a fast/light') || l.includes('avoid a fast/light') || l.includes('never a light') || l.includes('never use a light'); tier && high && (!light || negated)"
 
   - description: "consensus-panel: escalates when the two reviewers conflict on a finding"
     vars:

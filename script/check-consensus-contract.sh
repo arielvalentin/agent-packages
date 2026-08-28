@@ -3,8 +3,8 @@
 #
 # The coordinator package must state a deterministic review policy: non-code and
 # genuinely tiny scopes take a single mid- or high-capability reviewer, and
-# substantive code changes take an adaptive 2+1 panel — an initial wave of
-# exactly two reviewers, plus exactly one high-capability tiebreaker dispatched
+# substantive code changes take a GPT-first adaptive 2+1 panel — an initial wave
+# of exactly two reviewers, plus exactly one high-capability tiebreaker dispatched
 # only when an escalation trigger fires. Residual "always three high-capability
 # panelists" language makes the contract ambiguous.
 #
@@ -68,6 +68,18 @@ require "$panel" "prohibition on a third reviewer in the initial wave" \
   'never dispatch a third reviewer in this wave'
 require "$panel" "mid-tier/fast model preference for the initial wave" \
   'mid-tier or fast-capable'
+require "$panel" "two distinct GPT model IDs preferred for the initial wave" \
+  'prefer exactly 2 distinct suitable GPT model IDs'
+require "$panel" "high-capability GPT model preferred for the tiebreaker" \
+  'prefer a distinct high-capability GPT model ID'
+require "$panel" "non-GPT models used only as fallback" \
+  'non-GPT models only to fill slots when the available suitable GPT choices cannot fill them'
+require "$panel" "GPT-first explicitly overrides cross-family diversity" \
+  'GPT-first intentionally overrides cross-family diversity'
+require "$panel" "all slots use GPT when enough choices exist" \
+  'when enough suitable GPT choices exist, all three model slots are GPT'
+require "$panel" "non-GPT diversity substitution is prohibited" \
+  'do not introduce a non-GPT model for diversity'
 require "$agent" "coordinator selecting exactly 2 initial panel models" \
   'exactly \*\*2 panel models'
 require "$agent" "coordinator firing 2 parallel panel dispatches" \
@@ -85,7 +97,14 @@ require "$panel" "independent tiebreaker (no wave-1 verdicts)" \
 require "$agent" "coordinator escalating to exactly one tiebreaker" \
   'escalate to exactly 1 tiebreaker'
 require "$agent" "high-capability tiebreaker independent of the initial wave" \
-  'high-capability model independent of'
+  'high-capability GPT model independent of'
+require "$agent" "coordinator non-GPT fallback policy" \
+  'non-GPT model only for a slot that (the )?available suitable GPT choices cannot fill'
+if normalize "$agent" | grep -Eiq -- \
+  'Consensus panel .*initial wave .{1,80} Cross-family diversity'; then
+  echo "ERROR: ${agent#"$root/"}: stale mandatory cross-family initial-wave model selection"
+  errors=$((errors + 1))
+fi
 
 # --- All five escalation triggers are documented ---
 for trigger in \
