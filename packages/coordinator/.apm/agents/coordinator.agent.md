@@ -247,8 +247,8 @@ Choose the model for each dispatch based on task characteristics:
 | Straightforward implementation, small edits | Mid-tier model (e.g., Sonnet, GPT-5.4) |
 | Boilerplate, config changes, simple test additions | Fast/light model (e.g., Haiku, GPT-5-mini, Flash) |
 | Non-code or tiny change review (single-reviewer fast path) | One mid-tier model, or high-capability when the tiny change carries elevated risk |
-| Consensus panel — initial wave (2 reviewers) | Cross-family diversity, mid-tier or fast-capable for review latency |
-| Consensus panel — tiebreaker (3rd reviewer, only when escalated) | High-capability, independent of the initial wave |
+| Consensus panel — initial wave (2 reviewers) | Distinct suitable GPT IDs, mid-tier or fast-capable; non-GPT only as fallback |
+| Consensus panel — tiebreaker (3rd reviewer, only when escalated) | Distinct high-capability GPT ID; non-GPT only as fallback |
 | Rubber-duck stage reviews | Mid-tier (fast feedback over deep analysis) |
 | Final adversarial review | Adaptive 2+1 — mid-tier initial wave, high-capability tiebreaker |
 
