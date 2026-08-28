@@ -393,10 +393,10 @@ tests:
   - description: "consensus-panel: non-GPT fills only a GPT shortfall"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "According to Step 2b, when may a suitable non-GPT candidate fill a missing Wave 1 slot?"
+      user_input: "Answer in one sentence beginning with 'After reserving a Wave 2 model ID,': when may a suitable non-GPT candidate fill a missing Wave 1 slot? Explicitly tie that fallback to there being insufficient remaining suitable, non-fast/light GPT candidates."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); const eligible = l.includes('wave 1-eligible gpt') || l.includes('non-fast-light gpt') || l.includes('non-fast/light gpt'); l.includes('insufficient') && eligible"
+        value: "const accepts = value => { const text = value.toLowerCase(); const contradiction = /\\b(?:despite|regardless of|whether or not|even (?:if|when|though)|although|while)\\b[^.!?;]{0,100}\\b(?:sufficient|enough|adequate)\\b/; const reservationBeforeFallback = /\\b(?:after|following|once)\\b[^.!?;]{0,100}\\b(?:wave 2[^.!?;]{0,40}reserv(?:e|ed|ing|ation)|reserv(?:e|ed|ing|ation)[^.!?;]{0,40}wave 2)\\b/; const fallbackAfterReservation = /(?:\\bfallback\\b|\\bnon-gpt\\b[^.!?;]{0,60})[^.!?;]{0,80}\\b(?:occurs?|comes?|is|used)?\\s*after (?:the )?wave 2 reserv(?:e|ed|ing|ation)\\b/; const fallback = /\\bnon-gpt\\b(?:\\s+(?:model|candidate))?/; const fallbackAction = /\\bnon-gpt\\b[^.!?;]{0,100}\\b(?:fallback|fill(?:s|ing)?|used|use)\\b|\\b(?:fallback|fill(?:s|ing)?|used|use)\\b[^.!?;]{0,100}\\bnon-gpt\\b/; const shortage = /(?:insufficient|(?:not|without) (?:having )?enough|fewer than (?:two|2)|shortfall|exhaust(?:ed|ion))[^.!?;]{0,100}(?:wave 1[- ]eligible|non-fast(?:\\/|-)light|suitable)[^.!?;]{0,80}(?<!non-)\\bgpt(?:s| models?| ids?| candidates?)?\\b|(?:wave 1[- ]eligible|non-fast(?:\\/|-)light|suitable)[^.!?;]{0,80}(?<!non-)\\bgpt(?:s| models?| ids?| candidates?)?\\b[^.!?;]{0,80}(?:are |is )?(?:insufficient|(?:not|without) (?:having )?enough|fewer than (?:two|2)|in shortfall|exhausted)/g; return (text.match(/[^.!?;]+/g) || []).some(clause => { if (contradiction.test(clause) || !fallbackAction.test(clause) || !(reservationBeforeFallback.test(clause) || fallbackAfterReservation.test(clause))) return false; const nonGpt = clause.match(fallback); if (!nonGpt) return false; return [...clause.matchAll(shortage)].some(gptShortage => { if (nonGpt.index < gptShortage.index) return /\\b(?:only (?:if|when|because)|because|due to|owing to)\\b/.test(clause.slice(nonGpt.index, gptShortage.index)); return /\\b(?:only )?(?:if|when|because)\\b/.test(clause.slice(Math.max(0, gptShortage.index - 50), gptShortage.index)); }); }); }; const positives = ['After reserving Wave 2, a non-GPT fallback fills Wave 1 only when insufficient suitable non-fast/light GPT candidates remain.', 'Following the Wave 2 reservation, if fewer than two suitable Wave 1-eligible GPT IDs remain, use a non-GPT candidate to fill Wave 1.', 'A non-GPT fallback fills Wave 1 only when suitable non-fast/light GPT IDs are insufficient, and the fallback occurs after the Wave 2 reservation.']; const negatives = ['After reserving Wave 2, a non-GPT fallback fills Wave 1 when selection fails even if enough suitable non-fast/light GPT candidates remain, although a different catalog can have insufficient suitable non-fast/light GPT candidates.', 'After reserving Wave 2, use a non-GPT fallback despite sufficient Wave 1-eligible GPT IDs.', 'After reserving Wave 2, use a non-GPT fallback regardless of sufficient suitable GPT candidates.']; positives.every(accepts) && negatives.every(value => !accepts(value)) && accepts(output)"
 
   - description: "consensus-panel: fast-light GPT does not block non-GPT fallback"
     vars:
@@ -481,10 +481,10 @@ tests:
   - description: "consensus-panel: reports intentional reduced family diversity"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "Wave 1 selected two GPT model IDs. What exact diversity note must the report include?"
+      user_input: "Answer in one sentence: Wave 1 selected two GPT model IDs. What intentional diversity tradeoff must the report disclose, and whose request or preference established the GPT-first selection policy? State that user provenance explicitly."
     assert:
-      - type: icontains
-        value: "intentionally reduced model-family diversity"
+      - type: javascript
+        value: "const l = output.toLowerCase(); const diversity = /reduc(?:e|ed|ing)[^.!?;]{0,100}family diversity|(?:one|single) (?:model )?family|overrid(?:e|es|ing|den)[^.!?;]{0,100}cross-family diversity/; const intentionalDiversity = /intention(?:al|ally)[^.!?;]{0,140}(?:family diversity|(?:one|single) (?:model )?family|cross-family diversity)|(?:family diversity|(?:one|single) (?:model )?family|cross-family diversity)[^.!?;]{0,140}intention(?:al|ally)/.test(l); const userGptFirst = /(?:user[- ]requested|user(?:'s)? (?:stated )?(?:preference|request))[^.!?;]{0,100}gpt-first|gpt-first[^.!?;]{0,100}(?:user[- ]requested|user(?:'s)? (?:stated )?(?:preference|request)|requested by (?:the )?user)/.test(l); diversity.test(l) && intentionalDiversity && userGptFirst"
 
   - description: "consensus-panel: no third reviewer when the initial two agree"
     vars:
