@@ -17,20 +17,33 @@ username. Use the returned handle in disclaimers and attributions.
 
 ## Always enforce
 
-1. Include an AI-generated disclaimer in posted content.
-2. For PR/issue comment posts and replies, invoke this skill before posting
-   and keep the disclaimer in the final comment body.
-3. For replies to PR feedback comments, include the related commit SHA in the
-   comment text (for example: `Fixed in <sha>`).
-4. Open PRs in draft mode by default (`gh pr create --draft`).
-5. Tie PRs and non-trivial commits to an issue.
-6. Use `gh` CLI for all GitHub operations.
-7. PR descriptions must include intent and decision-making rationale:
+1. Include an AI-generated disclaimer in every public/shared post.
+2. Place the disclaimer either:
+   - as the final non-empty paragraph/content in the post, with nothing after
+     it; or
+   - as a Markdown footnote referenced from the post, with the disclaimer's
+     footnote definition as the final non-empty content.
+   This placement rule applies to PR bodies, issue bodies, comments, review
+   replies, release notes, and similar public/shared text.
+3. Invoke this skill before posting any public/shared content covered by the
+   placement rule, including PR/issue bodies, comments, review replies, release
+   notes, and similar text. For comments and replies, keep the disclaimer in
+   the final comment body.
+4. For replies to PR feedback comments, include the related commit SHA in the
+   comment text (for example: `Fixed in <sha>`) before the final disclaimer or
+   disclaimer footnote definition.
+5. Open PRs in draft mode by default (`gh pr create --draft`).
+6. Tie PRs and non-trivial commits to an issue when the repository supports
+   Issues. If Issues are disabled, use the repository's supported tracking
+   mechanism or document its absence in the PR body.
+7. Use `gh` CLI for all GitHub operations.
+8. PR descriptions must include intent and decision-making rationale:
    - why the change exists
    - key decisions/tradeoffs
-   - direct issue references (`Closes`/`Fixes owner/repo#N`)
+   - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
+     or the documented absence of issue tracking
    - optional ADR references when relevant
-8. For PRs containing code/config/script changes, run `adversarial-review`
+9. For PRs containing code/config/script changes, run `adversarial-review`
    before PR creation and continue fix/re-review cycles until blocker/major
    feedback is satisfied. If the same blocker/major concern is raised twice and
    still unsatisfied, escalate to the user before proceeding. Skip only on
@@ -40,25 +53,42 @@ username. Use the returned handle in disclaimers and attributions.
 
 Before posting or replying to a PR/issue comment:
 
-1. Include the AI disclaimer line in the comment body.
+1. Include the requested substantive message and the AI disclaimer in the
+   comment body.
 2. If the comment invokes a GitHub issue-ops slash command (for example,
    `/catalog-diff`), keep the slash command as the exact first line of the
-   comment and place the AI disclaimer after it. Do not prefix the command with
-   the disclaimer or any other text.
-3. Verify the disclaimer remains in the final text sent to GitHub.
-4. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`).
+   comment. Do not prefix the command with the disclaimer or any other text.
+3. Place the disclaimer last, using one of the two allowed forms above. When
+   other content follows a slash command, never place the disclaimer immediately
+   after the command.
+4. Verify the disclaimer remains last in the final text sent to GitHub.
+5. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`) before
+   the final disclaimer or disclaimer footnote definition.
 
 ## If no issue is provided
 
-1. Search for likely existing issues first:
+1. When the repository supports Issues, search for likely existing issues
+   first:
    - `gh issue list --search "<keywords>"`
 2. Confirm the candidate with the user before assuming.
 3. If nothing matches, ask whether to open a new issue, then draft/create it
    before opening a PR.
+4. If Issues are disabled, use the repository's supported tracking mechanism.
+   If none exists, document that in the PR body and proceed.
 
-## Posting template (adapt wording by context)
+## Posting templates (adapt wording by context)
+
+Direct final paragraph:
 
 > _🤖 This comment was drafted by an AI agent on behalf of @{username}._
+
+Footnote:
+
+```markdown
+Substantive post content.[^ai]
+
+[^ai]: 🤖 This post was drafted by an AI agent on behalf of @{username}.
+```
 
 Replace `{username}` with the authenticated GitHub handle at runtime.
 
@@ -84,7 +114,9 @@ Before opening a PR, ensure the description includes:
 
 1. Intent: what problem/outcome this PR addresses.
 2. Decision process: key choices and tradeoffs made.
-3. Direct issue references using closing syntax (`Closes`/`Fixes`).
+3. Direct issue references using closing syntax (`Closes`/`Fixes`) when the
+   repository supports Issues; otherwise document the tracking alternative or
+   absence of issue tracking.
 4. ADR references when an ADR informed the decision (optional).
 
 ## PR evidence requirement for policy/config refactors
@@ -103,9 +135,12 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> create the draft PR non-interactively, with a
-   real Conventional title substituted in (never emit `<type>` or
-   `<description>` literally):
+2. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
+   draft PR exists, create it non-interactively with one `gh pr create --draft`
+   command, a real Conventional title substituted in (never emit `<type>` or
+   `<description>` literally), and a non-empty body:
+   The create command must include all three flags: `--draft`, `--title`, and
+   `--body`. Never omit `--draft`.
 
    ```sh
    gh pr create --draft --title "fix: correct null handling in login handler" --body "Refs #123"
