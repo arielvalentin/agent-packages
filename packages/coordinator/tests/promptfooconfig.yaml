@@ -261,15 +261,53 @@ tests:
         value: "const l = output.toLowerCase(); l.includes('consensus-panel') || l.includes('consensus panel') || l.includes('panel policy')"
 
   # --- acting-on-behalf ---
-  - description: "acting-on-behalf: includes AI disclaimer in PR comments"
+  - description: "acting-on-behalf: places AI disclaimer last in PR comments"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "I need to post a comment on a PR. What must I include?"
+      user_input: "A PR comment has substantive content and a direct AI disclaimer paragraph. Must the disclaimer paragraph be First or Last? Answer exactly one word: First or Last."
     assert:
-      - type: icontains
-        value: "disclaimer"
-      - type: icontains
-        value: "AI"
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^last[.!]?$/.test(l)"
+
+  - description: "acting-on-behalf: places referenced disclaimer footnote definition last"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A public post uses the Markdown footnote form for its AI disclaimer. Reply with exactly two lines in this format:\nReferenced: <Yes or No>\nDefinition: <First or Last>"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /referenced\\s*:\\s*yes\\b/.test(l) && /definition\\s*:\\s*last\\b/.test(l)"
+
+  - description: "acting-on-behalf: keeps issue-ops command first and disclaimer last"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Statement: In an issue comment with `/catalog-diff` and explanatory content, the slash command is the exact first line, the explanation follows it, and the AI disclaimer is last. Is this correct? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "acting-on-behalf: requires review commit SHA"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Must a reply to PR feedback include the related commit SHA? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "acting-on-behalf: places review commit SHA before final disclaimer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "According to the PR/issue comment rule, what must a PR feedback reply add before the final disclaimer? Answer exactly: Commit SHA"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('commit sha') && l.includes('before') && l.includes('final disclaimer')"
+
+  - description: "acting-on-behalf: applies final disclaimer rule to all public post bodies"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Does the final-position AI disclaimer rule apply to PR bodies, issue bodies, comments, review replies, and release notes? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
 
   - description: "acting-on-behalf: requires adversarial review before PR creation"
     vars:
