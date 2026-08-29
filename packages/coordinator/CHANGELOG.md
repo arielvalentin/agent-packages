@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.5](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.4...coordinator-v0.12.5) (2026-08-29)
+
+
+### Bug Fixes
+
+* place AI disclaimers last ([6cff28b](https://github.com/arielvalentin/agent-packages/commit/6cff28b455366e85a7be6a941c9f4b4522a21025))
+
 ## [0.12.4](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.3...coordinator-v0.12.4) (2026-08-28)
 
 
