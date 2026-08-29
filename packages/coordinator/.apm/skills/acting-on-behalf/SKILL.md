@@ -31,12 +31,15 @@ username. Use the returned handle in disclaimers and attributions.
    comment text (for example: `Fixed in <sha>`) before the final disclaimer or
    disclaimer footnote definition.
 5. Open PRs in draft mode by default (`gh pr create --draft`).
-6. Tie PRs and non-trivial commits to an issue.
+6. Tie PRs and non-trivial commits to an issue when the repository supports
+   Issues. If Issues are disabled, use the repository's supported tracking
+   mechanism or document its absence in the PR body.
 7. Use `gh` CLI for all GitHub operations.
 8. PR descriptions must include intent and decision-making rationale:
    - why the change exists
    - key decisions/tradeoffs
-   - direct issue references (`Closes`/`Fixes owner/repo#N`)
+   - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
+     or the documented absence of issue tracking
    - optional ADR references when relevant
 9. For PRs containing code/config/script changes, run `adversarial-review`
    before PR creation and continue fix/re-review cycles until blocker/major
@@ -62,11 +65,14 @@ Before posting or replying to a PR/issue comment:
 
 ## If no issue is provided
 
-1. Search for likely existing issues first:
+1. When the repository supports Issues, search for likely existing issues
+   first:
    - `gh issue list --search "<keywords>"`
 2. Confirm the candidate with the user before assuming.
 3. If nothing matches, ask whether to open a new issue, then draft/create it
    before opening a PR.
+4. If Issues are disabled, use the repository's supported tracking mechanism.
+   If none exists, document that in the PR body and proceed.
 
 ## Posting templates (adapt wording by context)
 
@@ -106,7 +112,9 @@ Before opening a PR, ensure the description includes:
 
 1. Intent: what problem/outcome this PR addresses.
 2. Decision process: key choices and tradeoffs made.
-3. Direct issue references using closing syntax (`Closes`/`Fixes`).
+3. Direct issue references using closing syntax (`Closes`/`Fixes`) when the
+   repository supports Issues; otherwise document the tracking alternative or
+   absence of issue tracking.
 4. ADR references when an ADR informed the decision (optional).
 
 ## PR evidence requirement for policy/config refactors

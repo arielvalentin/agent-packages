@@ -264,7 +264,7 @@ tests:
   - description: "acting-on-behalf: places AI disclaimer last in PR comments"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A PR comment has substantive content and a direct AI disclaimer paragraph. Must the disclaimer paragraph be First or Last? Answer exactly one word: First or Last."
+      user_input: "According to placement rule 2, which position is required for a direct AI disclaimer paragraph? Reply with exactly `Last` and no other text."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^last[.!]?$/.test(l)"
@@ -280,7 +280,7 @@ tests:
   - description: "acting-on-behalf: keeps issue-ops command first and disclaimer last"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "Statement: In an issue comment with `/catalog-diff` and explanatory content, the slash command is the exact first line, the explanation follows it, and the AI disclaimer is last. Is this correct? Answer exactly one word: Yes or No."
+      user_input: "According to PR/issue comment rule items 2-3, is this order required: `/catalog-diff` as the exact first line, explanatory content next, and the AI disclaimer last? Reply with exactly `Yes` and no other text."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
@@ -296,10 +296,10 @@ tests:
   - description: "acting-on-behalf: places review commit SHA before final disclaimer"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "According to the PR/issue comment rule, what must a PR feedback reply add before the final disclaimer? Answer exactly: Commit SHA"
+      user_input: "According to PR/issue comment rule item 5, what example format adds the related commit SHA before the final disclaimer? Reply with the plain-text string `Fixed in <sha>` only. Do not add Markdown, punctuation, or an explanation."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('commit sha') && l.includes('before') && l.includes('final disclaimer')"
+        value: "output.trim() === 'Fixed in <sha>'"
 
   - description: "acting-on-behalf: applies final disclaimer rule to all public post bodies"
     vars:
