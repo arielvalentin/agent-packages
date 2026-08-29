@@ -296,10 +296,10 @@ tests:
   - description: "acting-on-behalf: places review commit SHA before final disclaimer"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "According to PR/issue comment rule item 5, what example format adds the related commit SHA before the final disclaimer? Reply with the plain-text string `Fixed in <sha>` only. Do not add Markdown, punctuation, or an explanation."
+      user_input: "According to PR/issue comment rule item 5, must the related commit SHA appear before the final disclaimer? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
     assert:
       - type: javascript
-        value: "output.trim() === 'Fixed in <sha>'"
+        value: "output.trim() === 'Yes'"
 
   - description: "acting-on-behalf: applies final disclaimer rule to all public post bodies"
     vars:
