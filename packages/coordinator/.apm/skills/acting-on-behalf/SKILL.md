@@ -25,8 +25,10 @@ username. Use the returned handle in disclaimers and attributions.
      footnote definition as the final non-empty content.
    This placement rule applies to PR bodies, issue bodies, comments, review
    replies, release notes, and similar public/shared text.
-3. For PR/issue comment posts and replies, invoke this skill before posting
-   and keep the disclaimer in the final comment body.
+3. Invoke this skill before posting any public/shared content covered by the
+   placement rule, including PR/issue bodies, comments, review replies, release
+   notes, and similar text. For comments and replies, keep the disclaimer in
+   the final comment body.
 4. For replies to PR feedback comments, include the related commit SHA in the
    comment text (for example: `Fixed in <sha>`) before the final disclaimer or
    disclaimer footnote definition.
