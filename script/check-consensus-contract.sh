@@ -214,13 +214,13 @@ require "$panel" "total confidence rule" \
 require "$agent" "coordinator deferring to canonical scope definitions" \
   'operational definitions'
 require "$adversarial" "standalone adversarial review deferring to consensus-panel as the source of truth" \
-  'invoke .consensus-panel. first.{0,120}single source of truth'
+  'invoke[[:space:][:punct:]]+consensus-panel[[:space:][:punct:]]+first.{0,120}single source of truth'
 require "$adversarial" "standalone adversarial review delegating the canonical review contract" \
   'canonical review contract: scope classification, dispatch, json verdict schema, synthesis, reporting, and failure handling'
 require "$adversarial" "standalone adversarial review delegating the shared consensus report artifact" \
   '04-review-consensus\.md'
 require "$adversarial" "standalone adversarial review requiring the canonical JSON verdict schema" \
-  'exact json verdict schema required by .consensus-panel.'
+  'exact json verdict schema required by[[:space:][:punct:]]+consensus-panel([[:space:][:punct:]]|$)'
 require "$adversarial" "standalone adversarial review rejecting local prose and informational findings" \
   'do not emit prose, markdown headings, a local summary report, or .informational. findings'
 require "$adversarial" "standalone adversarial review using consensus-panel fallback and failure rules" \
