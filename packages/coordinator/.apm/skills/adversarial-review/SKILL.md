@@ -1,7 +1,8 @@
 ---
 name: adversarial-review
 description: >
-  Multi-model hostile critique of a plan, diff, design, or decision.
+  Adaptive one-to-three-reviewer hostile critique of a plan, diff,
+  design, or decision.
   In standalone mode, defer dispatch, schema, synthesis, reporting, and
   failure handling to `consensus-panel` so adversarial review follows the
   canonical GPT-first review contract instead of maintaining a local copy.
