@@ -227,13 +227,45 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); (l.includes('evidence') || l.includes('documentation') || l.includes('spec') || l.includes('repository')) && (l.includes('one') || l.includes('single') || l.includes('synthes'))"
 
-  - description: "adversarial-review: uses multiple independent model lineages"
+  - description: "adversarial-review: standalone defers to consensus-panel as the source of truth"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "How does the adversarial review work? What models are used?"
+      user_input: "For standalone adversarial review, what is the single source of truth for classification and model selection?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('gpt') || l.includes('claude') || l.includes('gemini') || l.includes('lineage') || l.includes('independent') || l.includes('parallel')"
+        value: "const l = output.toLowerCase(); l.includes('consensus-panel')"
+
+  - description: "adversarial-review: standalone returns consensus-panel JSON instead of markdown prose"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "In standalone use, may adversarial-review return a local Markdown summary instead of the consensus-panel JSON verdict schema? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "adversarial-review: standalone does not reintroduce informational severity"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "In standalone use, may adversarial-review return an informational finding severity? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "adversarial-review: standalone delegates the shared consensus report artifact"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "In standalone use, which skill owns the ${ARTIFACTS_DIR}/04-review-consensus.md report?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('consensus-panel')"
+
+  - description: "adversarial-review: standalone uses consensus-panel failure handling"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "In standalone use, which skill owns fallback and failure handling when model discovery, dispatch, or reviewer output goes wrong?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('consensus-panel')"
 
   - description: "adversarial-review: panel members do not spawn nested reviews"
     vars:
@@ -352,6 +384,30 @@ tests:
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
       user_input: "Enough suitable GPT model IDs are available for both initial reviewers and an unused high-capability GPT model is available for the conditional tiebreaker. Should I replace any of them with Claude or Gemini solely to get cross-family diversity? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: GPT host does not select Opus plus Gemini when GPT reviewers are available"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The coordinator is running on a GPT host model. Suitable GPT model IDs are available for both initial reviewers, and a separate high-capability GPT model ID is available for the conditional tiebreaker. Should I replace the GPT reviewer slots with Opus plus Gemini solely because the host is GPT? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: GPT host does not require cross-family reviewers"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The coordinator is running on a GPT host model. Suitable GPT model IDs are available for both initial reviewers, and a separate high-capability GPT model ID is available for the conditional tiebreaker. Must the reviewer selection include Claude or Gemini so the panel spans multiple model families? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: GPT host does not exclude GPT reviewers from selection"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The coordinator is running on a GPT host model. Suitable GPT model IDs are available for both initial reviewers, and a separate high-capability GPT model ID is available for the conditional tiebreaker. Should I exclude GPT reviewer models from selection just because the host is GPT? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"

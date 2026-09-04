@@ -26,6 +26,7 @@ agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/coordinator/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/coordinator/.apm/skills/handoff-envelope/SKILL.md"
 adversarial="$root/packages/coordinator/.apm/skills/adversarial-review/SKILL.md"
+tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -212,8 +213,49 @@ require "$panel" "total confidence rule" \
   'otherwise the \*\*lowest\*\* value among the valid responses'
 require "$agent" "coordinator deferring to canonical scope definitions" \
   'operational definitions'
-require "$adversarial" "standalone adversarial review deferring to the shared triggers" \
-  'five escalation triggers fires'
+require "$adversarial" "standalone adversarial review deferring to consensus-panel as the source of truth" \
+  'invoke .consensus-panel. first.{0,120}single source of truth'
+require "$adversarial" "standalone adversarial review delegating the canonical review contract" \
+  'canonical review contract: scope classification, dispatch, json verdict schema, synthesis, reporting, and failure handling'
+require "$adversarial" "standalone adversarial review delegating the shared consensus report artifact" \
+  '04-review-consensus\.md'
+require "$adversarial" "standalone adversarial review requiring the canonical JSON verdict schema" \
+  'exact json verdict schema required by .consensus-panel.'
+require "$adversarial" "standalone adversarial review rejecting local prose and informational findings" \
+  'do not emit prose, markdown headings, a local summary report, or .informational. findings'
+require "$adversarial" "standalone adversarial review using consensus-panel fallback and failure rules" \
+  'fallback and failure rules'
+require "$tests" "promptfoo regression for consensus-panel source of truth" \
+  'adversarial-review: standalone defers to consensus-panel as the source of truth'
+require "$tests" "promptfoo regression requiring consensus-panel JSON instead of markdown prose" \
+  'adversarial-review: standalone returns consensus-panel JSON instead of markdown prose'
+require "$tests" "promptfoo regression rejecting informational severity" \
+  'adversarial-review: standalone does not reintroduce informational severity'
+require "$tests" "promptfoo regression requiring the shared consensus report artifact" \
+  'adversarial-review: standalone delegates the shared consensus report artifact'
+require "$tests" "promptfoo regression requiring consensus-panel failure handling" \
+  'adversarial-review: standalone uses consensus-panel failure handling'
+require "$tests" "promptfoo regression rejecting GPT-host Opus-plus-Gemini substitution" \
+  'consensus-panel: GPT host does not select Opus plus Gemini when GPT reviewers are available'
+require "$tests" "promptfoo regression rejecting mandatory cross-family reviewers on GPT hosts" \
+  'consensus-panel: GPT host does not require cross-family reviewers'
+require "$tests" "promptfoo regression rejecting GPT-host family exclusion" \
+  'consensus-panel: GPT host does not exclude GPT reviewers from selection'
+if normalize "$adversarial" | grep -Eiq -- \
+  'independent model lineages|different lineages|different families|reduced independence'; then
+  echo "ERROR: ${adversarial#"$root/"}: stale standalone lineage-selection wording"
+  errors=$((errors + 1))
+fi
+if normalize "$adversarial" | grep -Eiq -- \
+  'severity: blocker \| major \| minor \| informational|adversarial review summary|pass-with-concerns|minor / informational|corroboration matrix|reduced-assurance'; then
+  echo "ERROR: ${adversarial#"$root/"}: stale standalone local output contract wording"
+  errors=$((errors + 1))
+fi
+if normalize "$tests" | grep -Eiq -- \
+  'independent model lineages|different lineages|different families'; then
+  echo "ERROR: ${tests#"$root/"}: stale standalone lineage-selection regression wording"
+  errors=$((errors + 1))
+fi
 
 # --- Envelope backward compatibility ---
 require "$panel" "model_index backward compatibility note" \
