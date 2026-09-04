@@ -42,8 +42,8 @@ the canonical JSON verdict schema, synthesis, the
 `${ARTIFACTS_DIR}/04-review-consensus.md` report, and failure handling.
 
 Do not restate or invent those rules here. In particular, do not replace them
-with a local Markdown verdict, a local severity list, or an adversarial-review-
-specific fallback.
+with a local Markdown verdict, a local severity list, or an
+adversarial-review-specific fallback.
 
 ### 2. Review content for each dispatched reviewer
 
