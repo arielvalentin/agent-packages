@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.6](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.5...coordinator-v0.12.6) (2026-09-04)
+
+
+### Bug Fixes
+
+* align adversarial reviews with GPT-first policy ([#34](https://github.com/arielvalentin/agent-packages/issues/34)) ([31c9929](https://github.com/arielvalentin/agent-packages/commit/31c99292398e1fa273e97a4227610fb4379c6775))
+
 ## [0.12.5](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.4...coordinator-v0.12.5) (2026-08-29)
 
 

@@ -1,4 +1,4 @@
 name: coordinator
-version: 0.12.5
+version: 0.12.6
 description: Coordinator workflow agent bundled with its required handoff and panel skills.
 license: Apache-2.0
