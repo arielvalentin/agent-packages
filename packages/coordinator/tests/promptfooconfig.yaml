@@ -254,7 +254,7 @@ tests:
   - description: "adversarial-review: standalone delegates the shared consensus report artifact"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "In standalone use, which skill owns the ${ARTIFACTS_DIR}/04-review-consensus.md report?"
+      user_input: "In standalone use, which skill owns the shared 04-review-consensus.md report?"
     assert:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('consensus-panel')"
