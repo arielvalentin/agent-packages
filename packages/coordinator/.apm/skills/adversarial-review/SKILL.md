@@ -1,15 +1,19 @@
 ---
 name: adversarial-review
 description: >
-  Multi-model hostile critique of a plan, diff, design, or decision.
-  Runs parallel reviews on two independent model lineages so feedback
-  is genuinely independent rather than a same-lineage rubber-stamp.
+  Adaptive one-to-three-reviewer hostile critique of a plan, diff,
+  design, or decision.
+  In standalone mode, defer dispatch, schema, synthesis, reporting, and
+  failure handling to `consensus-panel` so adversarial review follows the
+  canonical GPT-first review contract instead of maintaining a local copy.
 ---
 
 # Adversarial Review
 
 A hostile, thorough review designed to find what other reviews miss.
-Uses two independent model lineages for genuinely diverse perspectives.
+Standalone use defers to `consensus-panel` for the canonical review
+contract: scope classification, dispatch, JSON verdict schema, synthesis,
+reporting, and failure handling.
 
 ## When to use
 
@@ -31,32 +35,21 @@ second model there would defeat the exemption.
 
 The remaining protocol is for standalone use only.
 
-### 1. Select two independent models
+### 1. Delegate standalone orchestration to `consensus-panel`
 
-Choose 2 models from **different lineages** to ensure independent analysis:
+For standalone use, invoke `consensus-panel` first. It is the single source of
+truth for scope classification, GPT-first reviewer selection, dispatch count,
+the canonical JSON verdict schema, synthesis, the
+`${ARTIFACTS_DIR}/04-review-consensus.md` report, and failure handling.
 
-| Lineage | Example models |
-|---------|---------------|
-| Anthropic | Claude Opus, Claude Sonnet |
-| OpenAI | GPT-5.5, GPT-5.4 |
-| Google | Gemini Pro, Gemini Flash |
+Do not restate or invent those rules here. In particular, do not replace them
+with a local Markdown verdict, a local severity list, or an
+adversarial-review-specific fallback.
 
-Select the two initial models from different families, preferring mid-tier or
-fast-capable models — the same initial-wave tier policy as `consensus-panel`,
-so a standalone adversarial review is no more expensive than any other panel.
-If only one family is available, use two distinct models from it and note
-reduced independence.
+### 2. Review content for each dispatched reviewer
 
-Standalone use follows the same adaptive 2+1 policy: classify the scope first
-and take the single-reviewer fast path when it qualifies, then dispatch the two
-initial models, and dispatch **exactly one** high-capability tiebreaker only
-when one of `consensus-panel`'s five escalation triggers fires. That skill owns
-the triggers and the synthesis rules; do not restate or invent them here.
-
-### 2. Dispatch parallel reviews
-
-Fire 2 parallel `task` calls, each with a different model override. Both
-receive the same prompt:
+Every reviewer dispatched through `consensus-panel` uses the same adversarial
+stance:
 
 ```
 You are an adversarial reviewer. Your job is to find problems, not
@@ -71,60 +64,14 @@ Review the following for:
 6. Missing error handling and failure modes
 7. Whether the change actually solves the stated problem
 
-For each finding, provide:
-- Severity: blocker | major | minor | informational
-- Confidence: high | medium | low
-- Location: file:line or section reference
-- Issue: what's wrong
-- Fix: concrete suggestion
-
-Only report findings you have medium or high confidence in.
-Do not comment on style, formatting, or naming unless it causes a bug.
+Return only the exact JSON verdict schema required by `consensus-panel`.
+Populate that schema from the review above. Do not emit prose, Markdown
+headings, a local summary report, or `informational` findings. Put caveats in
+the schema fields that `consensus-panel` defines.
 
 <context>
 {provide: intent summary, design doc, diffs, issue body as applicable}
 </context>
-```
-
-### 3. Synthesize findings
-
-Merge results from every reviewer that returned — the single reviewer on the
-fast path, the two initial models, or all three once a tiebreaker was
-dispatched:
-
-1. **Deduplicate** by `(location, issue)` — same finding from both models
-   increases confidence.
-2. **Corroborate** — findings flagged by both models independently are
-   promoted to high confidence.
-3. **Divergence** — findings from only one model keep their original
-   confidence level.
-4. **Severity** — take the higher severity when models disagree.
-
-### 4. Report
-
-Structure the output:
-
-```markdown
-## Adversarial Review Summary
-
-**Models used**: <model-1>, <model-2>
-**Scope**: <what was reviewed>
-
-### Blocker findings
-<findings sorted by confidence>
-
-### Major findings
-<findings sorted by confidence>
-
-### Minor / informational
-<findings sorted by confidence>
-
-### Corroboration matrix
-| Finding | Model 1 | Model 2 | Final severity | Final confidence |
-|---------|---------|---------|----------------|-----------------|
-
-### Verdict
-<pass | pass-with-concerns | fail>
 ```
 
 ## Integration with review-fix-loop
@@ -135,10 +82,6 @@ the updated result.
 
 ## Fallback
 
-If multi-model dispatch is unavailable (only one model accessible):
-
-1. Run a single hostile `rubber-duck` review with the same adversarial prompt.
-2. Mark the output as **reduced-assurance** (single-model, no corroboration).
-3. If `consensus-panel` is available, use it to run the adaptive 2+1 panel on
-   the same specialist instead (2 reviewers, plus a tiebreaker only when an
-   escalation trigger fires).
+If model discovery, dispatch, or reviewer output fails in standalone use, keep
+routing through `consensus-panel` and apply its fallback and failure rules
+instead of inventing a local adversarial-review path.
