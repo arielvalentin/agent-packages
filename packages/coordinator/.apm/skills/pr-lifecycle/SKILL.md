@@ -145,6 +145,8 @@ gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
 Retrieve PR review comments, reviews, issue/PR comments, and GraphQL review
 threads using the exact `gh api` commands in `human-interaction-safeguard`.
 Do not classify actors from `gh pr view --json reviews,comments` or login text.
+Exhaust both `reviewThreads` pages and every thread's independent `comments`
+pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:

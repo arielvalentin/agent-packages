@@ -49,7 +49,6 @@ classify_rest() {
   jq -r '
     if ((.user.type? // "") == "Bot")
        or (.performed_via_github_app? != null)
-       or (.app? != null)
     then "AUTOMATION_FLOW"
     else "HUMAN_STOP"
     end
@@ -59,8 +58,18 @@ classify_rest() {
 classify_graphql() {
   jq -r '
     if ((.author.__typename? // "") == "Bot")
-       or (.app? != null)
     then "AUTOMATION_FLOW"
+    else "HUMAN_STOP"
+    end
+  '
+}
+
+pagination_gate() {
+  jq -r '
+    if (.thread_pages_complete == true)
+       and (.all_comment_pages_complete == true)
+       and ((.pagination_failed? // false) == false)
+    then "READY_FOR_CLASSIFICATION"
     else "HUMAN_STOP"
     end
   '
@@ -74,7 +83,17 @@ require "$policy" "REST PR review retrieval" \
 require "$policy" "REST issue/PR comment retrieval" \
   'gh api --paginate "repos/\{owner\}/\{repo\}/issues/\{issue_number\}/comments"'
 require "$policy" "GraphQL review-thread retrieval" \
-  'reviewThreads\(first: 100\)'
+  'reviewThreads\(first: 100, after: \$threadCursor\)'
+require "$policy" "per-thread GraphQL comment retrieval" \
+  'comments\(first: 100, after: \$commentCursor\)'
+require "$policy" "thread cursor declaration" \
+  '\$threadCursor: String'
+require "$policy" "comment cursor declaration" \
+  '\$commentCursor: String'
+require "$policy" "complete nested pagination requirement" \
+  'Exhaust every comment page for every thread page'
+require "$policy" "incomplete pagination fails closed" \
+  'pagination level is incomplete.{0,180}`HUMAN_STOP`'
 require "$policy" "REST Bot classification" \
   '\.user\.type == "Bot".{0,20}`AUTOMATION_FLOW`'
 require "$policy" "GitHub App classification" \
@@ -94,6 +113,8 @@ require "$policy" "implementation permission excludes reply and resolution" \
 
 # --- No reply/resolve override and no interaction-initiated-change loophole ---
 forbid "$policy" "HUMAN_STOP override" 'override|solely'
+forbid "$policy" "phantom GraphQL app classification" \
+  'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
 forbid "$feedback" "human feedback override or solely loophole" 'override|solely'
 forbid "$lifecycle" "lifecycle override or solely loophole" 'override|solely'
 forbid "$acting" "HUMAN_STOP posting override" \
@@ -139,6 +160,20 @@ assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"author":{"__typename":"Bot","login":"helper"}}' | classify_graphql)" \
   "GraphQL Bot metadata"
 
+# --- Deterministic nested-pagination fixtures ---
+assert_eq "READY_FOR_CLASSIFICATION" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false}' | pagination_gate)" \
+  "complete thread and comment pagination"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":false,"all_comment_pages_complete":true,"pagination_failed":false}' | pagination_gate)" \
+  "incomplete thread pagination"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":false,"pagination_failed":false}' | pagination_gate)" \
+  "incomplete per-thread comment pagination"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":true}' | pagination_gate)" \
+  "pagination request failure"
+
 # --- Supplemental Promptfoo coverage must remain present ---
 for description in \
   'human-interaction: human question stops automation' \
@@ -148,6 +183,8 @@ for description in \
   'human-interaction: authoritative REST Bot uses normal flow' \
   'human-interaction: authoritative App metadata uses normal flow' \
   'human-interaction: authoritative GraphQL Bot uses normal flow' \
+  'human-interaction: GraphQL uses nested thread and comment cursors' \
+  'human-interaction: incomplete GraphQL pagination fails closed' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
   'human-interaction: acting-on-behalf enforces posting backstop'; do

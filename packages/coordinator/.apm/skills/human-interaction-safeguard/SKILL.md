@@ -50,10 +50,15 @@ Use GraphQL because REST does not return review-thread resolution state:
 gh api graphql \
   -f owner='{owner}' -f name='{repo}' -F number={pull_number} \
   -f query='
-    query($owner: String!, $name: String!, $number: Int!) {
+    query(
+      $owner: String!,
+      $name: String!,
+      $number: Int!,
+      $threadCursor: String
+    ) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
-          reviewThreads(first: 100) {
+          reviewThreads(first: 100, after: $threadCursor) {
             nodes {
               id
               isResolved
@@ -63,6 +68,7 @@ gh api graphql \
                   body
                   author { __typename login }
                 }
+                pageInfo { hasNextPage endCursor }
               }
             }
             pageInfo { hasNextPage endCursor }
@@ -72,30 +78,64 @@ gh api graphql \
     }'
 ```
 
-If `pageInfo.hasNextPage` is true, repeat with an `after` cursor until every
-thread is retrieved. For each GraphQL comment:
+Repeat the outer query with `-f threadCursor='<endCursor>'` while the
+`reviewThreads.pageInfo.hasNextPage` value is true.
+
+Each thread has an independent comment cursor. For every thread whose
+`comments.pageInfo.hasNextPage` value is true, retrieve the remaining comments
+with that thread ID:
+
+```bash
+gh api graphql \
+  -f threadId='{review_thread_node_id}' \
+  -f commentCursor='{comments_end_cursor}' \
+  -f query='
+    query($threadId: ID!, $commentCursor: String) {
+      node(id: $threadId) {
+        ... on PullRequestReviewThread {
+          comments(first: 100, after: $commentCursor) {
+            nodes {
+              databaseId
+              body
+              author { __typename login }
+            }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+      }
+    }'
+```
+
+Repeat the per-thread query with that thread's next `commentCursor` until its
+`comments.pageInfo.hasNextPage` value is false. Exhaust every comment page for
+every thread page before classifying or automating any interaction.
+
+If either pagination level is incomplete, a cursor cannot be advanced, a page
+request fails, or completeness cannot be verified, classify the retrieval as
+`HUMAN_STOP` and stop before automation.
+
+For each completely retrieved GraphQL comment:
 
 - `author.__typename == "Bot"` → `AUTOMATION_FLOW`.
-- Non-null authoritative GitHub App identity/metadata → `AUTOMATION_FLOW`.
 - `User`, `Mannequin`, null, missing, or any other actor type →
   `HUMAN_STOP`.
 
 Login is never classification evidence. A login ending in `[bot]`, containing
 `bot`, or matching a known automation name remains `HUMAN_STOP` unless the
-authoritative type/app metadata above selects `AUTOMATION_FLOW`.
+authoritative type above selects `AUTOMATION_FLOW`.
 
 ## Mandatory decision table
 
 | Author metadata | Required path |
 |-----------------|---------------|
 | REST `user.type == "Bot"` | `AUTOMATION_FLOW` |
-| Non-null authoritative GitHub App metadata | `AUTOMATION_FLOW` |
+| REST non-null `performed_via_github_app` | `AUTOMATION_FLOW` |
 | GraphQL `author.__typename == "Bot"` | `AUTOMATION_FLOW` |
 | REST `user.type == "User"` | `HUMAN_STOP` |
 | Unknown, missing, ambiguous, other, or unverified actor type | `HUMAN_STOP` |
 
-Verified bot/app metadata is conclusive: it is not unknown and must select
-`AUTOMATION_FLOW`, never `HUMAN_STOP`.
+REST Bot/App metadata and GraphQL Bot metadata are conclusive: they are not
+unknown and must select `AUTOMATION_FLOW`, never `HUMAN_STOP`.
 
 ## HUMAN_STOP
 

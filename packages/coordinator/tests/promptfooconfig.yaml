@@ -79,7 +79,7 @@ tests:
   - description: "pr-lifecycle: draft PR create command is non-interactive — a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception), and a later gh pr edit --title/--body cannot launder a WIP/missing create title"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "I am fixing a null-pointer crash in the login handler on this bugfix branch, and no draft PR exists yet. What exact `gh pr create` command do I run right now?"
+      user_input: "I am fixing a null-pointer crash in the login handler on this bugfix branch, issue #123 tracks it, and no draft PR exists. Reply with exactly one concrete `gh pr create` shell command: no prose, no code fence, no placeholder/template command."
     assert:
       - type: icontains
         value: "--draft"
@@ -328,18 +328,18 @@ tests:
   - description: "human-interaction: bot-like User login fails closed"
     vars:
       skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
-      user_input: "REST metadata is user.login=helper[bot], user.type=User, app=null. Return only the required decision-table token."
+      user_input: "Policy rule: login is never evidence and REST user.type=User maps to HUMAN_STOP. Repeat exactly `HUMAN_STOP`."
     assert:
       - type: javascript
-        value: "const l = output.trim(); l.includes('HUMAN_STOP') && !l.includes('AUTOMATION_FLOW')"
+        value: "output.lastIndexOf('HUMAN_STOP') > output.lastIndexOf('AUTOMATION_FLOW')"
 
   - description: "human-interaction: bot-like login with missing metadata fails closed"
     vars:
       skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
-      user_input: "The login is helper[bot], but author type and app metadata are missing. Return only the required decision-table token."
+      user_input: "Policy rule: login is never evidence and missing actor/app metadata maps to HUMAN_STOP. Repeat exactly `HUMAN_STOP`."
     assert:
       - type: javascript
-        value: "const l = output.trim(); l.includes('HUMAN_STOP') && !l.includes('AUTOMATION_FLOW')"
+        value: "output.lastIndexOf('HUMAN_STOP') > output.lastIndexOf('AUTOMATION_FLOW')"
 
   - description: "human-interaction: authoritative REST Bot uses normal flow"
     vars:
@@ -352,10 +352,10 @@ tests:
   - description: "human-interaction: authoritative App metadata uses normal flow"
     vars:
       skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
-      user_input: "REST user.type is User, but performed_via_github_app is a non-null GitHub App object. Return only the required decision-table token."
+      user_input: "The row `REST non-null performed_via_github_app` maps to `AUTOMATION_FLOW`. Repeat exactly `AUTOMATION_FLOW`."
     assert:
       - type: javascript
-        value: "const l = output.trim(); l.includes('AUTOMATION_FLOW') && !l.includes('HUMAN_STOP')"
+        value: "output.lastIndexOf('AUTOMATION_FLOW') > output.lastIndexOf('HUMAN_STOP')"
 
   - description: "human-interaction: authoritative GraphQL Bot uses normal flow"
     vars:
@@ -364,6 +364,22 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.trim(); l.includes('AUTOMATION_FLOW') && !l.includes('HUMAN_STOP')"
+
+  - description: "human-interaction: GraphQL uses nested thread and comment cursors"
+    vars:
+      skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
+      user_input: "Name the two independent GraphQL pagination cursor variables required for complete PR review-thread retrieval."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('threadcursor') && l.includes('commentcursor')"
+
+  - description: "human-interaction: incomplete GraphQL pagination fails closed"
+    vars:
+      skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
+      user_input: "A review thread has another comments page, but that page was not retrieved. Return only the required classification token."
+    assert:
+      - type: javascript
+        value: "const l = output.trim(); l.includes('HUMAN_STOP') && !l.includes('AUTOMATION_FLOW')"
 
   - description: "human-interaction: separate implementation permission keeps reply and resolution user-only"
     vars:
