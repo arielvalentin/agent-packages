@@ -69,6 +69,9 @@ When implementation is complete and gates pass:
    - **Testing** — validation performed
    - **References** — `Closes`/`Fixes #N`, ADR links (optional)
    - conditional AI attribution via `acting-on-behalf`
+   PR-body attribution is not part of feedback processing:
+   `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
+   sole source of truth for whether a PR body needs AI attribution.
 4. Validate the title against § Title format, then mark ready for review:
    ```bash
    gh pr ready <number>
