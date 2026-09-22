@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.7...coordinator-v0.13.0) (2026-09-22)
+
+
+### Features
+
+* stop automation on human feedback ([#43](https://github.com/arielvalentin/agent-packages/issues/43)) ([74a26e0](https://github.com/arielvalentin/agent-packages/commit/74a26e00c9aa6fa0755959ea145a97bc5e69507c))
+
 ## [0.12.7](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.6...coordinator-v0.12.7) (2026-09-22)
 
 
