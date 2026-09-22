@@ -270,7 +270,7 @@ for description in \
   'human-interaction: bot-like User login fails closed' \
   'human-interaction: bot-like login with missing metadata fails closed' \
   'human-interaction: authoritative REST Bot uses normal flow' \
-  'human-interaction: authoritative App metadata uses normal flow' \
+  'human-interaction: projected REST App payload uses normal flow' \
   'human-interaction: authoritative GraphQL Bot uses normal flow' \
   'human-interaction: GraphQL uses nested thread and comment cursors' \
   'human-interaction: incomplete GraphQL pagination fails closed' \
