@@ -147,6 +147,10 @@ threads using the exact `gh api` commands in `human-interaction-safeguard`.
 Do not classify actors from `gh pr view --json reviews,comments` or login text.
 Exhaust both `reviewThreads` pages and every thread's independent `comments`
 pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
+Apply the thread/chain taint rule after retrieval: `AUTOMATION_FLOW` requires
+every root comment and reply to have authoritative Bot/App metadata. Any
+`HUMAN_STOP` item taints the entire chain, so no comment in it may trigger
+implementation, an agent reply, or agent resolution.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:

@@ -25,9 +25,12 @@ classification and behavior. Load it before acting on any thread.
 
 ### Step 1: Read, Classify, and Understand
 
-Read **every** review comment and thread on the PR. For each comment:
+Read **every** review comment and thread on the PR. Group comments and replies
+into their complete relevant thread or conversation chain. For each chain:
 
-- Classify the author through `human-interaction-safeguard`.
+- Classify every author through `human-interaction-safeguard`.
+- Apply its thread/chain taint rule: continue automation only when every item is
+  `AUTOMATION_FLOW`; any `HUMAN_STOP` item taints the whole chain.
 - Identify the **specific concern** (correctness, style, performance, security,
   design, docs, etc.)
 - Note whether it's a blocking request, suggestion, or question
@@ -37,8 +40,8 @@ Do not skim or assume. Classify the actor before any research or action.
 
 ### Step 2: Stop for Human or Unknown Actors
 
-For every human-authored comment, and every comment whose actor type is unknown,
-follow `human-interaction-safeguard`:
+For every thread/chain classified `HUMAN_STOP`, follow
+`human-interaction-safeguard`:
 
 1. Stop automation for that interaction.
 2. Privately summarize the concern and apparent intent for the user.
@@ -51,7 +54,8 @@ If the user later gives a separate, explicit implementation instruction that
 identifies the concern, the requested code/config/test work may proceed as a
 new user instruction. The reply and thread resolution remain user-only.
 
-Only bot/app-authored feedback continues to Step 3.
+Only completely retrieved threads/chains whose every item is
+`AUTOMATION_FLOW` continue to Step 3.
 
 ### Step 3: Research Bot/App Feedback
 
@@ -66,7 +70,7 @@ For each concern, investigate:
 
 ### Step 4: Decide and Act on Bot/App Feedback
 
-For each bot/app-authored comment thread, choose one:
+For each all-automation comment thread, choose one:
 
 #### Accept — the feedback is valid
 

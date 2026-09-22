@@ -30,7 +30,7 @@ gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/reviews" \
   --jq '.[] | {surface: "pr_review", id, body, state, user: {login: .user.login, type: .user.type}}'
 
 gh api --paginate "repos/{owner}/{repo}/issues/{issue_number}/comments" \
-  --jq '.[] | {surface: "issue_or_pr_comment", id, body, user: {login: .user.login, type: .user.type}, app: .performed_via_github_app}'
+  --jq '.[] | {surface: "issue_or_pr_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 ```
 
 For each REST item:
@@ -123,6 +123,26 @@ For each completely retrieved GraphQL comment:
 Login is never classification evidence. A login ending in `[bot]`, containing
 `bot`, or matching a known automation name remains `HUMAN_STOP` unless the
 authoritative type above selects `AUTOMATION_FLOW`.
+
+## Thread and conversation-chain taint
+
+Classify the complete relevant thread or conversation chain only after every
+root comment and reply has been retrieved.
+
+- The entire thread/chain is `AUTOMATION_FLOW` only when **every** comment and
+  reply independently has authoritative Bot/App metadata that maps to
+  `AUTOMATION_FLOW`.
+- If **any** comment or reply maps to `HUMAN_STOP` because it is User, unknown,
+  missing, ambiguous, other, or unverified, the entire thread/chain is
+  `HUMAN_STOP`.
+- Incomplete retrieval or pagination failure taints the entire thread/chain as
+  `HUMAN_STOP`.
+
+Do not split a tainted chain into automated and human segments. Once the chain
+is `HUMAN_STOP`, no comment in that chain may trigger implementation, an
+agent-authored reply, or agent-performed resolution. Only a later, separate,
+explicit implementation instruction may authorize code/config/test work; the
+reply and resolution remain user-only.
 
 ## Mandatory decision table
 
