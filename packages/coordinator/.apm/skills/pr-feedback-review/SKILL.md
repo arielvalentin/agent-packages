@@ -11,9 +11,8 @@ A structured protocol for reviewing, researching, and responding to PR review
 comments. Load this skill when addressing PR feedback — whether implementing
 fixes or rebutting invalid concerns.
 
-`acting-on-behalf` is the single source of truth for actor classification and
-the human-authored public interaction safeguard. Load it before acting on any
-thread.
+`human-interaction-safeguard` is the single source of truth for actor
+classification and behavior. Load it before acting on any thread.
 
 ## When to Use
 
@@ -28,7 +27,7 @@ thread.
 
 Read **every** review comment and thread on the PR. For each comment:
 
-- Classify the author through `acting-on-behalf`.
+- Classify the author through `human-interaction-safeguard`.
 - Identify the **specific concern** (correctness, style, performance, security,
   design, docs, etc.)
 - Note whether it's a blocking request, suggestion, or question
@@ -39,7 +38,7 @@ Do not skim or assume. Classify the actor before any research or action.
 ### Step 2: Stop for Human or Unknown Actors
 
 For every human-authored comment, and every comment whose actor type is unknown,
-follow the `acting-on-behalf` human safeguard:
+follow `human-interaction-safeguard`:
 
 1. Stop automation for that interaction.
 2. Privately summarize the concern and apparent intent for the user.
@@ -108,9 +107,9 @@ After all comments are addressed:
 
 ## Rules
 
-- **Always load `acting-on-behalf`** before posting any reply
-- **Defer human/unknown actor behavior to `acting-on-behalf`** — never replace
-  its stop rule with accept/rebut/clarify automation
+- **Always load `acting-on-behalf`** before posting any permitted reply
+- **Defer actor behavior to `human-interaction-safeguard`** — never replace its
+  stop rule with accept/rebut/clarify automation
 - **Never blindly apply** bot/app suggestions — use judgement backed by evidence
 - **Never ignore** valid bot/app concerns — if you're unsure, lean toward
   accepting
