@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.7](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.6...coordinator-v0.12.7) (2026-09-22)
+
+
+### Bug Fixes
+
+* make acting disclaimer conditional ([8123630](https://github.com/arielvalentin/agent-packages/commit/8123630))
+
 ## [0.12.6](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.12.5...coordinator-v0.12.6) (2026-09-04)
 
 
