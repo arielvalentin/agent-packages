@@ -128,10 +128,12 @@ gh run view <run-id> --log-failed
 After CI passes, check for automated Copilot review:
 
 ```bash
-gh pr view <number> --json reviews \
-  --jq '[.reviews[] | select(.author.login | test("copilot"))]'
+gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
+  --jq '[.[] | select((.user.type == "Bot" or .performed_via_github_app != null) and ((.user.login // "") | startswith("copilot-pull-request-reviewer")))]'
 ```
 
+- The login prefix identifies Copilot only after authoritative Bot/App metadata
+  establishes `AUTOMATION_FLOW`; it never classifies the actor.
 - Poll every 30s, timeout after 10 minutes.
 - If findings: categorize by severity, feed actionable ones into
   `review-fix-loop`.
@@ -140,16 +142,17 @@ gh pr view <number> --json reviews \
 
 ## Phase 6 — Process review feedback
 
-Poll for reviewer feedback:
-```bash
-gh pr view <number> --json reviews,comments
-```
+Retrieve PR review comments, reviews, issue/PR comments, and GraphQL review
+threads using the exact `gh api` commands in `human-interaction-safeguard`.
+Do not classify actors from `gh pr view --json reviews,comments` or login text.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:
 
-- `HUMAN_STOP` → return control to the user; do not implement from the comment,
-  draft or post a reply, or resolve the thread.
+- `HUMAN_STOP` → return control to the user; do not initiate a change from the
+  interaction, draft or post a reply, or resolve the thread. A later, separate,
+  explicit implementation instruction may authorize code/config/test work;
+  reply and resolution remain user-only.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
 After pushing fixes:

@@ -16,8 +16,9 @@ This skill is mandatory for PR/issue comment posts and replies.
 Before drafting, posting, replying to, or resolving an existing public GitHub
 interaction, invoke `human-interaction-safeguard`.
 
-- `HUMAN_STOP` prohibits an agent-authored reply and thread resolution unless
-  the user explicitly overrides the safeguard for that identified interaction.
+- `HUMAN_STOP` unconditionally prohibits an agent-authored reply and
+  agent-performed thread resolution. The user writes the reply and controls
+  resolution.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
 
@@ -72,10 +73,9 @@ attributions.
    This placement rule applies to PR bodies, issue bodies, comments, review
    replies, release notes, and similar public/shared text when they require a
    disclaimer.
-5. For permitted replies to bot/app PR feedback, or to an identified human
-   interaction for which the user explicitly overrode the safeguard, include
-   the related commit SHA in the comment text (for example: `Fixed in <sha>`)
-   before the disclaimer when one is required.
+5. For permitted replies to bot/app PR feedback, include the related commit SHA
+   in the comment text (for example: `Fixed in <sha>`) before the disclaimer
+   when one is required.
 6. Open PRs in draft mode by default (`gh pr create --draft`).
 7. Tie PRs and non-trivial commits to an issue when the repository supports
    Issues. If Issues are disabled, use the repository's supported tracking
@@ -98,8 +98,7 @@ attributions.
 Before posting or replying to a PR/issue comment:
 
 1. Apply `human-interaction-safeguard` when the action responds to an existing
-   interaction. Do not draft, post, or resolve on `HUMAN_STOP` unless the user
-   explicitly overrides the safeguard for that identified interaction.
+   interaction. Never draft, post, or resolve on `HUMAN_STOP`.
 2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.

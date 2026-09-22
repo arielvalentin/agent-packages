@@ -43,12 +43,13 @@ follow `human-interaction-safeguard`:
 1. Stop automation for that interaction.
 2. Privately summarize the concern and apparent intent for the user.
 3. Prompt the user to engage directly in the thread.
-4. Do not research toward a rebuttal, implement a change, draft or post a reply,
-   or resolve the thread solely because of the comment.
+4. Do not research toward a rebuttal or initiate a repository change from the
+   comment.
+5. Never draft or post a reply, or resolve the thread.
 
-If the user later explicitly requests a specific implementation, it may proceed
-as a new user instruction. The reply remains for the user to write unless the
-user explicitly overrides the safeguard for that identified interaction.
+If the user later gives a separate, explicit implementation instruction that
+identifies the concern, the requested code/config/test work may proceed as a
+new user instruction. The reply and thread resolution remain user-only.
 
 Only bot/app-authored feedback continues to Step 3.
 
