@@ -33,14 +33,17 @@ gh api --paginate "repos/{owner}/{repo}/issues/{issue_number}/comments" \
   --jq '.[] | {surface: "issue_or_pr_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 ```
 
-For each REST item:
+For each REST item, apply this ordered REST classification algorithm:
 
-- `.user.type == "Bot"` → `AUTOMATION_FLOW`.
-- Non-null `.performed_via_github_app` on a surface that exposes it (including
-  issue/PR comments), or equivalent authoritative GitHub App metadata returned
-  by the endpoint → `AUTOMATION_FLOW`.
-- Every other result, including `.user.type == "User"`, missing `user`,
-  missing `type`, or missing app metadata → `HUMAN_STOP`.
+1. Discard `.user.login` completely; it is not a classification input.
+2. If `.performed_via_github_app` is non-null, select `AUTOMATION_FLOW`.
+3. Else if `.user.type == "Bot"` exactly, select `AUTOMATION_FLOW`.
+4. Else select `HUMAN_STOP`. This includes `.user.type == "User"` regardless
+   of a bot-like login, plus missing `user`, missing `type`, or missing app
+   metadata.
+
+Agents must not inspect `.user.login` to override or reconsider any step in
+this algorithm.
 
 ### PR review threads
 

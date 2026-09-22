@@ -47,8 +47,9 @@ assert_eq() {
 
 classify_rest() {
   jq -r '
-    if ((.user.type? // "") == "Bot")
-       or (.performed_via_github_app? != null)
+    if (.performed_via_github_app? != null)
+    then "AUTOMATION_FLOW"
+    elif ((.user.type? // "") == "Bot")
     then "AUTOMATION_FLOW"
     else "HUMAN_STOP"
     end
@@ -148,6 +149,12 @@ require "$policy" "REST Bot classification" \
   '\.user\.type == "Bot".{0,20}`AUTOMATION_FLOW`'
 require "$policy" "GitHub App classification" \
   'performed_via_github_app.{0,120}`AUTOMATION_FLOW`'
+require "$policy" "ordered login-blind REST algorithm" \
+  'ordered REST classification algorithm.{0,160}Discard `\.user\.login` completely.{0,180}performed_via_github_app.{0,180}\.user\.type == "Bot".{0,180}Else select `HUMAN_STOP`'
+require "$policy" "login cannot override REST algorithm" \
+  'must not inspect `\.user\.login` to override or reconsider'
+require "$policy" "REST User remains human despite bot-like login" \
+  '\.user\.type == "User".{0,80}regardless.{0,80}bot-like login'
 require "$policy" "GraphQL Bot classification" \
   'author\.__typename == "Bot".{0,20}`AUTOMATION_FLOW`'
 require "$policy" "login is never actor evidence" \
@@ -168,7 +175,8 @@ require "$policy" "tainted chain blocks automation" \
   'no comment in that chain may trigger implementation, an agent-authored reply, or agent-performed resolution'
 
 # --- No reply/resolve override and no interaction-initiated-change loophole ---
-forbid "$policy" "HUMAN_STOP override" 'override|solely'
+forbid "$policy" "HUMAN_STOP override" \
+  '(may|can|should) override|override (is|remains) (allowed|permitted)|solely'
 forbid "$policy" "phantom GraphQL app classification" \
   'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
 forbid "$feedback" "human feedback override or solely loophole" 'override|solely'
@@ -203,6 +211,9 @@ assert_eq "HUMAN_STOP" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"user":{"login":"helper[bot]","type":"User"},"performed_via_github_app":null}' | classify_rest)" \
   "bot-like login with User metadata"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"user":{"login":"dependabot[bot]","type":"User"},"performed_via_github_app":null}' | classify_rest)" \
+  "concrete dependabot-like login with User metadata"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"user":{"login":"helper[bot]"}}' | classify_rest)" \
   "bot-like login with missing type"
