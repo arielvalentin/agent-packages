@@ -1,49 +1,82 @@
 ---
 name: acting-on-behalf
-description: Use when posting comments/issues/PRs or other public content on behalf of the user.
+description: Use before posting comments/issues/PRs or other public/shared content.
 ---
 
 # Acting on behalf of the user
 
 Use this skill whenever you are about to post content to GitHub (or another
-shared/public platform) on behalf of the user.
+shared/public platform). It decides whether user attribution requires a
+disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+## Disclaimer decision
+
+A disclaimer is required when either condition is true:
+
+`uses_personal_credentials OR explicitly_attributes_user`
+
+- Personal credentials/token or the user's account: **Yes**.
+- Bot, app, or service credentials plus explicit user attribution: **Yes**.
+- Bot, app, or service credentials with no user attribution: **No**.
+- Unknown credential/account provenance: **Pause and ask before posting**.
+
+Never infer **No** from service credentials alone. Explicit user attribution
+overrides the service identity. Attribution includes the user's username or
+handle, display or real name, a byline, or wording such as "by" or "on behalf
+of." For example, a bot comment with `Prepared by Ariel Valentin` or `on behalf
+of @octocat` requires the disclaimer.
+
+If credential/account provenance cannot be determined confidently, do not
+silently treat the post as an unattributed service post. Pause and ask the user
+which identity will publish it before posting.
+
 ## Identifying the user
 
-Invoke the `resolve-github-user` skill to determine the current GitHub
-username. Use the returned handle in disclaimers and attributions.
+Invoke `resolve-github-user` only when a disclaimer is required or the post
+explicitly attributes the user. Use the returned handle in disclaimers and
+attributions.
 
 ## Always enforce
 
-1. Include an AI-generated disclaimer in every public/shared post.
-2. Place the disclaimer either:
+1. Include the short AI-assistance disclaimer only when either condition is
+   true:
+   - the agent posts using the user's personal credentials or token, including
+     when the platform shows the post under the user's account; or
+   - the post explicitly attributes the user through a username/handle,
+     display or real name, byline, or "by"/"on behalf of" wording.
+2. Do not add a disclaimer when a bot, app, or service identity posts without
+   attributing the user. Apply this only when the posting identity is known.
+3. In a required disclaimer, include the runtime username. Add a model
+   identifier only when that exact name or ID is publicly documented:
+   - prefer the public model display name;
+   - use a public model ID only when it is more useful than the display name;
+   - omit internal or otherwise non-public model names and IDs entirely.
+   Do not include the provider unless the user explicitly requests it.
+4. When a disclaimer is required, place it either:
    - as the final non-empty paragraph/content in the post, with nothing after
      it; or
    - as a Markdown footnote referenced from the post, with the disclaimer's
      footnote definition as the final non-empty content.
    This placement rule applies to PR bodies, issue bodies, comments, review
-   replies, release notes, and similar public/shared text.
-3. Invoke this skill before posting any public/shared content covered by the
-   placement rule, including PR/issue bodies, comments, review replies, release
-   notes, and similar text. For comments and replies, keep the disclaimer in
-   the final comment body.
-4. For replies to PR feedback comments, include the related commit SHA in the
-   comment text (for example: `Fixed in <sha>`) before the final disclaimer or
-   disclaimer footnote definition.
-5. Open PRs in draft mode by default (`gh pr create --draft`).
-6. Tie PRs and non-trivial commits to an issue when the repository supports
+   replies, release notes, and similar public/shared text when they require a
+   disclaimer.
+5. For replies to PR feedback comments, include the related commit SHA in the
+   comment text (for example: `Fixed in <sha>`) before the disclaimer when one
+   is required.
+6. Open PRs in draft mode by default (`gh pr create --draft`).
+7. Tie PRs and non-trivial commits to an issue when the repository supports
    Issues. If Issues are disabled, use the repository's supported tracking
    mechanism or document its absence in the PR body.
-7. Use `gh` CLI for all GitHub operations.
-8. PR descriptions must include intent and decision-making rationale:
+8. Use `gh` CLI for all GitHub operations.
+9. PR descriptions must include intent and decision-making rationale:
    - why the change exists
    - key decisions/tradeoffs
    - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
      or the documented absence of issue tracking
    - optional ADR references when relevant
-9. For PRs containing code/config/script changes, run `adversarial-review`
+10. For PRs containing code/config/script changes, run `adversarial-review`
    before PR creation and continue fix/re-review cycles until blocker/major
    feedback is satisfied. If the same blocker/major concern is raised twice and
    still unsatisfied, escalate to the user before proceeding. Skip only on
@@ -53,17 +86,19 @@ username. Use the returned handle in disclaimers and attributions.
 
 Before posting or replying to a PR/issue comment:
 
-1. Include the requested substantive message and the AI disclaimer in the
-   comment body.
+1. Include the requested substantive message and determine whether the post
+   meets a disclaimer condition.
+   If the posting identity is unknown, pause and ask before posting.
 2. If the comment invokes a GitHub issue-ops slash command (for example,
    `/catalog-diff`), keep the slash command as the exact first line of the
    comment. Do not prefix the command with the disclaimer or any other text.
-3. Place the disclaimer last, using one of the two allowed forms above. When
-   other content follows a slash command, never place the disclaimer immediately
-   after the command.
-4. Verify the disclaimer remains last in the final text sent to GitHub.
+3. If a disclaimer is required, place it last using one of the two allowed
+   forms above. When other content follows a slash command, never place the
+   disclaimer immediately after the command.
+4. Verify any required disclaimer remains last in the final text sent to
+   GitHub. Do not add one for an unattributed bot, app, or service post.
 5. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`) before
-   the final disclaimer or disclaimer footnote definition.
+   the final disclaimer or disclaimer footnote definition when present.
 
 ## If no issue is provided
 
@@ -76,21 +111,31 @@ Before posting or replying to a PR/issue comment:
 4. If Issues are disabled, use the repository's supported tracking mechanism.
    If none exists, document that in the PR body and proceed.
 
-## Posting templates (adapt wording by context)
+## Posting templates
 
-Direct final paragraph:
+Use the direct final paragraph by default. For a publicly documented model:
 
-> _🤖 This comment was drafted by an AI agent on behalf of @{username}._
+> _AI-assisted via @{username} · {model display name}._
 
-Footnote:
+For an internal or otherwise non-public model:
+
+> _AI-assisted via @{username}._
+
+Use the footnote only when the surrounding content benefits from a reference.
+Include the model segment only when the model identifier is publicly
+documented:
 
 ```markdown
 Substantive post content.[^ai]
 
-[^ai]: 🤖 This post was drafted by an AI agent on behalf of @{username}.
+[^ai]: AI-assisted via @{username} · {model display name}.
 ```
 
-Replace `{username}` with the authenticated GitHub handle at runtime.
+Replace `{username}` with the authenticated GitHub handle without braces
+(`octocat` produces `@octocat`, never `@{octocat}`). Replace
+`{model display name}` with the public display name at runtime, or use a public
+model ID when it is more useful. Never disclose an internal/non-public model
+name or ID. Do not add the provider unless the user explicitly requests it.
 
 ## PR safety gate
 

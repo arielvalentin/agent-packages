@@ -68,7 +68,7 @@ When implementation is complete and gates pass:
    - **Changes** — key decisions/tradeoffs
    - **Testing** — validation performed
    - **References** — `Closes`/`Fixes #N`, ADR links (optional)
-   - AI disclaimer via `acting-on-behalf`
+   - conditional AI attribution via `acting-on-behalf`
 4. Validate the title against § Title format, then mark ready for review:
    ```bash
    gh pr ready <number>

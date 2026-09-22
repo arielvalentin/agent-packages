@@ -108,7 +108,7 @@ Compile steps 3-7 into one review:
 
 Invoke `acting-on-behalf` before posting. Use `gh pr review` with `--approve`,
 `--request-changes`, or `--comment`, always passing the PR number and
-`--repo <owner/repo>`, and include the required AI disclaimer.
+`--repo <owner/repo>`, and include only the attribution that skill requires.
 
 ## Boundaries
 
