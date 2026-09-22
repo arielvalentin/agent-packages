@@ -20,10 +20,17 @@ A disclaimer is required when either condition is true:
 - Personal credentials/token or the user's account: **Yes**.
 - Bot, app, or service credentials plus explicit user attribution: **Yes**.
 - Bot, app, or service credentials with no user attribution: **No**.
+- Unknown credential/account provenance: **Pause and ask before posting**.
 
 Never infer **No** from service credentials alone. Explicit user attribution
-overrides the service identity. For example, a bot comment that says it was
-prepared by or on behalf of `@octocat` requires the disclaimer for `@octocat`.
+overrides the service identity. Attribution includes the user's username or
+handle, display or real name, a byline, or wording such as "by" or "on behalf
+of." For example, a bot comment with `Prepared by Ariel Valentin` or `on behalf
+of @octocat` requires the disclaimer.
+
+If credential/account provenance cannot be determined confidently, do not
+silently treat the post as an unattributed service post. Pause and ask the user
+which identity will publish it before posting.
 
 ## Identifying the user
 
@@ -37,9 +44,10 @@ attributions.
    true:
    - the agent posts using the user's personal credentials or token, including
      when the platform shows the post under the user's account; or
-   - the post or its byline explicitly attributes the user's username.
+   - the post explicitly attributes the user through a username/handle,
+     display or real name, byline, or "by"/"on behalf of" wording.
 2. Do not add a disclaimer when a bot, app, or service identity posts without
-   attributing the user.
+   attributing the user. Apply this only when the posting identity is known.
 3. In a required disclaimer, include the runtime username. Add a model
    identifier only when that exact name or ID is publicly documented:
    - prefer the public model display name;
@@ -80,6 +88,7 @@ Before posting or replying to a PR/issue comment:
 
 1. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
+   If the posting identity is unknown, pause and ask before posting.
 2. If the comment invokes a GitHub issue-ops slash command (for example,
    `/catalog-diff`), keep the slash command as the exact first line of the
    comment. Do not prefix the command with the disclaimer or any other text.
