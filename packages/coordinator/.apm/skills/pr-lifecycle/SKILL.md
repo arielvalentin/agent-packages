@@ -69,6 +69,9 @@ When implementation is complete and gates pass:
    - **Testing** — validation performed
    - **References** — `Closes`/`Fixes #N`, ADR links (optional)
    - conditional AI attribution via `acting-on-behalf`
+   PR-body attribution is not part of feedback processing:
+   `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
+   sole source of truth for whether a PR body needs AI attribution.
 4. Validate the title against § Title format, then mark ready for review:
    ```bash
    gh pr ready <number>
@@ -128,28 +131,38 @@ gh run view <run-id> --log-failed
 After CI passes, check for automated Copilot review:
 
 ```bash
-gh pr view <number> --json reviews \
-  --jq '[.reviews[] | select(.author.login | test("copilot"))]'
+gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
+  --jq '[.[] | select((.user.type == "Bot" or .performed_via_github_app != null) and ((.user.login // "") | startswith("copilot-pull-request-reviewer")))]'
 ```
 
+- The login prefix identifies Copilot only after authoritative Bot/App metadata
+  establishes `AUTOMATION_FLOW`; it never classifies the actor.
 - Poll every 30s, timeout after 10 minutes.
 - If findings: categorize by severity, feed actionable ones into
   `review-fix-loop`.
 - If no findings or timeout: proceed.
 - If repo doesn't use Copilot review: skip and note.
 
-## Phase 6 — Address human review feedback
+## Phase 6 — Process review feedback
 
-Poll for reviewer feedback:
-```bash
-gh pr view <number> --json reviews,comments
-```
+Retrieve PR review comments, reviews, issue/PR comments, and GraphQL review
+threads using the exact `gh api` commands in `human-interaction-safeguard`.
+Do not classify actors from `gh pr view --json reviews,comments` or login text.
+Exhaust both `reviewThreads` pages and every thread's independent `comments`
+pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
+Apply the thread/chain taint rule after retrieval: `AUTOMATION_FLOW` requires
+every root comment and reply to have authoritative Bot/App metadata. Any
+`HUMAN_STOP` item taints the entire chain, so no comment in it may trigger
+implementation, an agent reply, or agent resolution.
 
-For each comment:
-- **Actionable** → dispatch `implementer`, push fix, reply:
-  `Fixed in <sha>` (via `acting-on-behalf`), resolve thread.
-- **Question** → reply with evidence/rationale, leave thread open.
-- **Disagreement** → reply with rebuttal + evidence, let reviewer decide.
+Apply `human-interaction-safeguard` first. It is the sole source of truth for
+actor classification and behavior:
+
+- `HUMAN_STOP` → return control to the user; do not initiate a change from the
+  interaction, draft or post a reply, or resolve the thread. A later, separate,
+  explicit implementation instruction may authorize code/config/test work;
+  reply and resolution remain user-only.
+- `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
 After pushing fixes:
 ```bash
@@ -189,6 +202,8 @@ After the PR is **merged**:
 
 ## Pre-requisites
 
-- `acting-on-behalf` — required before any PR creation or comment.
+- `human-interaction-safeguard` — source of truth for actor behavior.
+- `acting-on-behalf` — posting and attribution backstop.
+- `pr-feedback-review` — bot/app feedback handling after actor classification.
 - `review-fix-loop` — for gate iteration.
 - `commit-message-storyteller` — for commit messages during fixes.

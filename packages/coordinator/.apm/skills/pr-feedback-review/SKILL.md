@@ -11,6 +11,9 @@ A structured protocol for reviewing, researching, and responding to PR review
 comments. Load this skill when addressing PR feedback — whether implementing
 fixes or rebutting invalid concerns.
 
+`human-interaction-safeguard` is the single source of truth for actor
+classification and behavior. Load it before acting on any thread.
+
 ## When to Use
 
 - User asks to "address PR feedback", "respond to review comments", "handle
@@ -20,18 +23,41 @@ fixes or rebutting invalid concerns.
 
 ## Protocol
 
-### Step 1: Read and Understand
+### Step 1: Read, Classify, and Understand
 
-Read **every** review comment and thread on the PR. For each comment:
+Read **every** review comment and thread on the PR. Group comments and replies
+into their complete relevant thread or conversation chain. For each chain:
 
+- Classify every author through `human-interaction-safeguard`.
+- Apply its thread/chain taint rule: continue automation only when every item is
+  `AUTOMATION_FLOW`; any `HUMAN_STOP` item taints the whole chain.
 - Identify the **specific concern** (correctness, style, performance, security,
   design, docs, etc.)
 - Note whether it's a blocking request, suggestion, or question
 - Understand the reviewer's reasoning — not just what they said, but *why*
 
-Do not skim. Do not assume. If a comment is ambiguous, research before acting.
+Do not skim or assume. Classify the actor before any research or action.
 
-### Step 2: Research
+### Step 2: Stop for Human or Unknown Actors
+
+For every thread/chain classified `HUMAN_STOP`, follow
+`human-interaction-safeguard`:
+
+1. Stop automation for that interaction.
+2. Privately summarize the concern and apparent intent for the user.
+3. Prompt the user to engage directly in the thread.
+4. Do not research toward a rebuttal or initiate a repository change from the
+   comment.
+5. Never draft or post a reply, or resolve the thread.
+
+If the user later gives a separate, explicit implementation instruction that
+identifies the concern, the requested code/config/test work may proceed as a
+new user instruction. The reply and thread resolution remain user-only.
+
+Only completely retrieved threads/chains whose every item is
+`AUTOMATION_FLOW` continue to Step 3.
+
+### Step 3: Research Bot/App Feedback
 
 For each concern, investigate:
 
@@ -42,9 +68,9 @@ For each concern, investigate:
   correctness or best practices
 - Form your own informed conclusion about whether the feedback is valid
 
-### Step 3: Decide and Act
+### Step 4: Decide and Act on Bot/App Feedback
 
-For each comment thread, choose one:
+For each all-automation comment thread, choose one:
 
 #### Accept — the feedback is valid
 
@@ -72,22 +98,26 @@ For each comment thread, choose one:
 2. Do NOT resolve the thread
 3. Do NOT implement speculative changes
 
-### Step 4: Verify
+### Step 5: Verify
 
 After all comments are addressed:
 
 1. Run the relevant test/lint/build commands to verify nothing broke
 2. Resume `pr-lifecycle` Phase 4 if changes were pushed
 3. Summarize actions taken:
+   - Human/unknown comments routed to the user (no automated action)
    - Comments accepted (with commit SHAs)
    - Comments rebutted (with evidence cited)
    - Comments needing clarification (questions asked)
 
 ## Rules
 
-- **Always load `acting-on-behalf`** before posting any reply
-- **Never blindly apply** every suggestion — use judgement backed by evidence
-- **Never ignore** valid concerns — if you're unsure, lean toward accepting
+- **Always load `acting-on-behalf`** before posting any permitted reply
+- **Defer actor behavior to `human-interaction-safeguard`** — never replace its
+  stop rule with accept/rebut/clarify automation
+- **Never blindly apply** bot/app suggestions — use judgement backed by evidence
+- **Never ignore** valid bot/app concerns — if you're unsure, lean toward
+  accepting
 - **One commit per logical fix** when addressing multiple comments (don't lump
   unrelated fixes)
 - **Keep fixes scoped** to what the reviewer asked — don't refactor adjacent code

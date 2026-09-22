@@ -11,6 +11,17 @@ disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+## Human-interaction posting backstop
+
+Before drafting, posting, replying to, or resolving an existing public GitHub
+interaction, invoke `human-interaction-safeguard`.
+
+- `HUMAN_STOP` unconditionally prohibits an agent-authored reply and
+  agent-performed thread resolution. The user writes the reply and controls
+  resolution.
+- `AUTOMATION_FLOW` may continue through the posting rules below.
+- If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
+
 ## Disclaimer decision
 
 A disclaimer is required when either condition is true:
@@ -62,9 +73,9 @@ attributions.
    This placement rule applies to PR bodies, issue bodies, comments, review
    replies, release notes, and similar public/shared text when they require a
    disclaimer.
-5. For replies to PR feedback comments, include the related commit SHA in the
-   comment text (for example: `Fixed in <sha>`) before the disclaimer when one
-   is required.
+5. For permitted replies to bot/app PR feedback, include the related commit SHA
+   in the comment text (for example: `Fixed in <sha>`) before the disclaimer
+   when one is required.
 6. Open PRs in draft mode by default (`gh pr create --draft`).
 7. Tie PRs and non-trivial commits to an issue when the repository supports
    Issues. If Issues are disabled, use the repository's supported tracking
@@ -86,19 +97,22 @@ attributions.
 
 Before posting or replying to a PR/issue comment:
 
-1. Include the requested substantive message and determine whether the post
+1. Apply `human-interaction-safeguard` when the action responds to an existing
+   interaction. Never draft, post, or resolve on `HUMAN_STOP`.
+2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.
-2. If the comment invokes a GitHub issue-ops slash command (for example,
+3. If the comment invokes a GitHub issue-ops slash command (for example,
    `/catalog-diff`), keep the slash command as the exact first line of the
    comment. Do not prefix the command with the disclaimer or any other text.
-3. If a disclaimer is required, place it last using one of the two allowed
+4. If a disclaimer is required, place it last using one of the two allowed
    forms above. When other content follows a slash command, never place the
    disclaimer immediately after the command.
-4. Verify any required disclaimer remains last in the final text sent to
+5. Verify any required disclaimer remains last in the final text sent to
    GitHub. Do not add one for an unattributed bot, app, or service post.
-5. For PR feedback replies, add the related commit SHA (`Fixed in <sha>`) before
-   the final disclaimer or disclaimer footnote definition when present.
+6. For a permitted PR feedback reply, add the related commit SHA
+   (`Fixed in <sha>`) before the final disclaimer or disclaimer footnote
+   definition when present.
 
 ## If no issue is provided
 
