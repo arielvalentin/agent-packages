@@ -293,26 +293,74 @@ tests:
         value: "const l = output.toLowerCase(); l.includes('consensus-panel') || l.includes('consensus panel') || l.includes('panel policy')"
 
   # --- acting-on-behalf ---
-  - description: "acting-on-behalf: places AI disclaimer last in PR comments"
+  - description: "acting-on-behalf: requires disclaimer for personal credentials"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "According to placement rule 2, which position is required for a direct AI disclaimer paragraph? Reply with exactly `Last` and no other text."
+      user_input: "The agent will post a PR comment using the user's personal GitHub token, so the comment appears under the user's account. Is the short AI-assistance disclaimer required? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: omits disclaimer for unattributed bot posts"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A service bot posts using its own app credentials and the comment does not name or attribute the user. Is an AI-assistance disclaimer required? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: requires disclaimer for explicit user attribution"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Decision-table case: posting path is bot/app/service credentials; attributes the user is Yes. Is the disclaimer required? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: prefers public model display name"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The runtime username is octocat. The current model has the publicly documented display name GPT-5 and public model ID gpt-5. The provider is OpenAI, but the user did not request it. What direct final disclaimer should be used? Reply with exactly the template and no other text."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted via @octocat · GPT-5._'"
+
+  - description: "acting-on-behalf: omits internal model identifiers"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted via @octocat._'"
+
+  - description: "acting-on-behalf: permits useful public model ID"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The runtime username is octocat. The model has no useful public display name, but the model ID gpt-5 is publicly documented and more useful. What direct final disclaimer should be used? Reply with exactly the template and no other text."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted via @octocat · gpt-5._'"
+
+  - description: "acting-on-behalf: places required AI disclaimer last in PR comments"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A PR comment posted with the user's personal token requires a direct AI disclaimer paragraph. Which position is required? Reply with exactly `Last` and no other text."
     assert:
       - type: javascript
         value: "output.trim() === 'Last'"
 
-  - description: "acting-on-behalf: places referenced disclaimer footnote definition last"
+  - description: "acting-on-behalf: places required disclaimer footnote definition last"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A public post uses the Markdown footnote form for its AI disclaimer. Reply with exactly two lines in this format:\nReferenced: <Yes or No>\nDefinition: <First or Last>"
+      user_input: "A public post requires and uses the Markdown footnote form for its AI disclaimer. Must the footnote definition be first or last? Reply with exactly `Last` and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === 'Referenced: Yes\\nDefinition: Last'"
+        value: "output.trim() === 'Last'"
 
   - description: "acting-on-behalf: keeps issue-ops command first and disclaimer last"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "According to PR/issue comment rule items 2-3, is this order required: `/catalog-diff` as the exact first line, explanatory content next, and the AI disclaimer last? Reply with exactly `Yes` and no other text."
+      user_input: "A comment requires a disclaimer and invokes `/catalog-diff`. Is this order required: command as the exact first line, explanatory content next, and the AI disclaimer last? Reply with exactly `Yes` and no other text."
     assert:
       - type: javascript
         value: "output.trim() === 'Yes'"
@@ -328,15 +376,15 @@ tests:
   - description: "acting-on-behalf: places review commit SHA before final disclaimer"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "According to PR/issue comment rule item 5, must the related commit SHA appear before the final disclaimer? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
+      user_input: "When a PR feedback reply requires a disclaimer, must the related commit SHA appear before the final disclaimer? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
     assert:
       - type: javascript
         value: "output.trim() === 'Yes'"
 
-  - description: "acting-on-behalf: applies final disclaimer rule to all public post bodies"
+  - description: "acting-on-behalf: applies final position to all bodies that require disclaimers"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "Does the final-position AI disclaimer rule apply to PR bodies, issue bodies, comments, review replies, and release notes? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
+      user_input: "When they require a disclaimer, does the final-position rule apply to PR bodies, issue bodies, comments, review replies, and release notes? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
     assert:
       - type: javascript
         value: "output.trim() === 'Yes'"
