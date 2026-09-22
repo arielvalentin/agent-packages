@@ -138,18 +138,26 @@ gh pr view <number> --json reviews \
 - If no findings or timeout: proceed.
 - If repo doesn't use Copilot review: skip and note.
 
-## Phase 6 — Address human review feedback
+## Phase 6 — Process review feedback
 
 Poll for reviewer feedback:
 ```bash
 gh pr view <number> --json reviews,comments
 ```
 
-For each comment:
-- **Actionable** → dispatch `implementer`, push fix, reply:
-  `Fixed in <sha>` (via `acting-on-behalf`), resolve thread.
-- **Question** → reply with evidence/rationale, leave thread open.
-- **Disagreement** → reply with rebuttal + evidence, let reviewer decide.
+For every interaction, load `acting-on-behalf` and defer to its actor
+classification and human-authored public interaction safeguard:
+
+- **Human or unknown actor** → stop automation for that interaction, privately
+  summarize the concern/intent, and prompt the user to engage directly. Do not
+  implement solely because of the comment, draft or post a reply, or resolve
+  the thread.
+- **Bot/app actor** → use `pr-feedback-review` for the normal
+  accept/rebut/clarify, implementation, reply, and resolution flow.
+
+A later explicit user instruction can authorize a specific implementation, but
+not a human-facing reply unless the user explicitly overrides the safeguard for
+that identified interaction.
 
 After pushing fixes:
 ```bash
@@ -189,6 +197,8 @@ After the PR is **merged**:
 
 ## Pre-requisites
 
-- `acting-on-behalf` — required before any PR creation or comment.
+- `acting-on-behalf` — source of truth for human-interaction safeguards and
+  required before any PR creation or comment.
+- `pr-feedback-review` — bot/app feedback handling after actor classification.
 - `review-fix-loop` — for gate iteration.
 - `commit-message-storyteller` — for commit messages during fixes.
