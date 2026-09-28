@@ -10,7 +10,9 @@ acting="$root/packages/coordinator/.apm/skills/acting-on-behalf/SKILL.md"
 resolver="$root/packages/coordinator/.apm/skills/resolve-github-user/SKILL.md"
 feedback="$root/packages/coordinator/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
+protocol="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
+readme="$root/packages/coordinator/README.md"
 tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
 
 normalize() {
@@ -202,7 +204,7 @@ require "$lifecycle" "lifecycle chain taint rule" \
 require "$agent" "coordinator chain taint fallback" \
   'Treat the entire chain as `HUMAN_STOP`'
 
-# --- Disclaimer format without changing the posting decision ---
+# --- Exact custom fallback and unchanged disclosure triggers ---
 assert_eq '> _AI-assisted._' \
   "$(grep '^> _AI-assisted' "$acting")" \
   "exact direct disclaimer"
@@ -231,6 +233,90 @@ forbid "$acting" "legacy username/model disclaimer rules" \
   'include the runtime username|prefer the public model display name|AI-assisted via'
 forbid "$resolver" "disclaimer identity-lookup trigger" \
   'attribution, disclaimers|\(disclaimers,'
+
+# --- Built-in disclosure is verified for the actual posting route ---
+require "$acting" "route and client-specific disclosure evidence" \
+  'actual posting path in the current client/configuration'
+require "$acting" "publishing provenance is independent of branding and footer" \
+  'Publishing provenance is the account/token actually used, not the host, CLI process, tool name, or footer'
+require "$acting" "posting path identifies the actual mechanism and provider" \
+  'The posting path is the actual mechanism/provider, not a host or shell label'
+require "$acting" "App-hosted CLI may use the observed mechanism" \
+  'A CLI agent inside the Copilot App may use the same App-managed posting mechanism'
+require "$acting" "adequate disclosure identifies AI or a known AI assistant" \
+  'Adequate text identifies AI assistance/authorship or a known AI assistant'
+require "$acting" "transport and automation alone are insufficient" \
+  'Generic posting/transport attribution and automation alone are not AI disclosure'
+require "$acting" "verified built-in disclosure takes precedence" \
+  'Prefer verified built-in AI disclosure from the actual posting path\. Do not add a custom disclaimer when that path supplies sufficient disclosure'
+require "$acting" "absent insufficient or unverified disclosure uses conditional fallback" \
+  'If built-in AI disclosure is absent, insufficient, or unverified, use the custom fallback when disclosure is required'
+require "$acting" "unstated availability is unverified" \
+  'Unstated or uncertain availability is unverified'
+require "$acting" "evidence cannot transfer between routes" \
+  'Evidence for one route does not establish another'
+require "$acting" "tool name is not a cross-client guarantee" \
+  'A tool name alone is not a guarantee across clients/configurations'
+require "$acting" "username or byline is not AI disclosure" \
+  'A username or byline alone is not AI disclosure'
+require "$acting" "verified App reply example" \
+  'https://github.com/arielvalentin/agent-packages/pull/46#discussion_r4124650579'
+require "$acting" "observed App-managed reply has a personal publisher" \
+  'published under the user.s personal account \(REST `user\.type=User`\)'
+require "$acting" "observed reply mechanism supplies the note" \
+  '`reply_and_resolve_review_thread` mechanism appended the'
+require "$acting" "unknown provenance still pauses with built-in disclosure" \
+  'Even with verified built-in AI disclosure, unknown credential/account provenance still requires pausing and asking before posting'
+require "$acting" "final placement applies only to custom fallback" \
+  'This placement rule applies only to the custom fallback in the supplied body, not to tool-managed text'
+require "$acting" "tool-managed footer is not rewritten or duplicated" \
+  'Do not move, rewrite, or duplicate a tool-managed footer'
+require "$acting" "fixing SHA survives every disclosure path" \
+  'with built-in disclosure, a custom fallback, or no disclaimer'
+require "$acting" "templates are custom-fallback-only" \
+  'Use these templates only when the custom fallback is needed'
+for consumer in "$feedback" "$lifecycle" "$protocol" "$agent"; do
+  require "$consumer" "actual-route attribution delegation" \
+    'actual posting route'
+  require "$consumer" "canonical disclosure and route section references" \
+    'Disclosure decision.{0,40}Posting-path evidence'
+  require "$consumer" "two-sided disclosure reminder" \
+    'Do not duplicate verified built-in AI disclosure; include any required custom fallback otherwise\.'
+done
+require "$feedback" "fixing SHA independent of disclosure path" \
+  'Keep `Fixed in <commit-sha>` regardless of disclosure path'
+require "$lifecycle" "App reply evidence is not PR-body evidence" \
+  'Evidence for an App reply does not establish disclosure for a PR create/update route'
+require "$protocol" "App reply evidence is not CLI review evidence" \
+  'Evidence for an App reply does not establish disclosure for `gh pr review`'
+require "$readme" "documented route-aware built-in preference" \
+  'Prefer verified built-in AI disclosure for the actual posting path'
+require "$readme" "documented verified App reply evidence" \
+  'https://github.com/arielvalentin/agent-packages/pull/46#discussion_r4124650579'
+
+# --- Policy answers are not fallback composition ---
+require "$acting" "policy questions retain their requested response form" \
+  'For policy-only questions that request no post body, honor the requested answer form \(such as Yes/No/Last\)\. Do not render or append a footer'
+require "$acting" "actual template text requests remain composition" \
+  'Requests for actual post, footer, or template text are composition requests, even when phrased as questions'
+require "$acting" "composition follows completed posting decisions" \
+  'After the safety, credential/attribution, and route decisions, include any required custom fallback when composing public content'
+require "$acting" "required disclosure needs no separate footer request" \
+  'No separate request for a footer is needed'
+require "$acting" "body-only output is not a disclosure waiver" \
+  'Returning only the body does not waive required disclosure'
+require "$acting" "literal format validation rejects extra metadata" \
+  'For custom-format checks, compare exact Markdown source, not just meaning\. Extra username, model, or provider text is invalid'
+require "$acting" "rendering command is scoped to actual composition" \
+  'Only for actual fallback composition after those decisions, copy the direct footer exactly'
+require "$resolver" "policy questions do not run resolution" \
+  'For policy questions, answer the question as phrased in the requested form without performing resolution'
+require "$resolver" "fallback composition is not a substantive handle requirement" \
+  'Fallback composition itself never needs the handle; substantive attribution or @-mentions may'
+require "$resolver" "substantive output permits resolved cached or user-supplied handles" \
+  'When a substantive operation needs the handle, return the resolved, cached, or user-supplied username as a plain string'
+require "$readme" "documented policy-answer boundary" \
+  'Answer policy-only questions in the requested form without rendering a footer'
 
 # --- Deterministic actor fixtures ---
 assert_eq "HUMAN_STOP" \
@@ -335,7 +421,38 @@ for description in \
   'acting-on-behalf: skips identity lookup solely for disclaimer' \
   'acting-on-behalf: skips model and provider lookups solely for disclaimer' \
   'acting-on-behalf: resolves identity for substantive explicit attribution' \
-  'acting-on-behalf: resolver needs no disclaimer lookup'; do
+  'acting-on-behalf: resolver needs no disclaimer lookup' \
+  'acting-on-behalf: verified built-in reply avoids duplicate disclaimer' \
+  'acting-on-behalf: verified built-in covers explicit user attribution' \
+  'acting-on-behalf: unstated built-in availability uses exact fallback' \
+  'acting-on-behalf: uncertain built-in uses exact fallback' \
+  'acting-on-behalf: reply evidence does not cover CLI comments' \
+  'acting-on-behalf: reply evidence does not cover PR bodies' \
+  'acting-on-behalf: same tool in another client needs fallback' \
+  'acting-on-behalf: username alone is not AI disclosure' \
+  'acting-on-behalf: byline alone is not AI disclosure' \
+  'acting-on-behalf: built-in footer is not moved or rewritten' \
+  'acting-on-behalf: unknown provenance still pauses with built-in disclosure' \
+  'acting-on-behalf: HUMAN_STOP still blocks with built-in disclosure' \
+  'acting-on-behalf: built-in reply keeps SHA without custom footer' \
+  'acting-on-behalf: unattributed bot reply keeps SHA without disclaimer' \
+  'acting-on-behalf: built-in disclosure keeps slash command first' \
+  'acting-on-behalf: unattributed bot with uncertain built-in omits fallback' \
+  'acting-on-behalf: fallback reply keeps SHA before final footer' \
+  'acting-on-behalf: fallback footnote is referenced and final' \
+  'acting-on-behalf: pr-lifecycle avoids duplicate built-in disclosure' \
+  'acting-on-behalf: pr-lifecycle includes required fallback on unverified route' \
+  'acting-on-behalf: pr-feedback-review keeps SHA with built-in disclosure' \
+  'acting-on-behalf: pr-review protocol requires review-route evidence' \
+  'acting-on-behalf: coordinator fallback avoids duplicate built-in disclosure' \
+  'acting-on-behalf: route question returns a decision not a footer' \
+  'acting-on-behalf: format question returns a verdict not a replacement' \
+  'acting-on-behalf: resolver answers substantive lookup question without resolving' \
+  'acting-on-behalf: complete body includes uncued required fallback' \
+  'acting-on-behalf: transport note does not disclose AI assistance' \
+  'acting-on-behalf: negatively phrased fallback lookup question follows meaning' \
+  'acting-on-behalf: resolver returns cached username for substantive content' \
+  'acting-on-behalf: resolver returns user-supplied username for substantive content'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
 

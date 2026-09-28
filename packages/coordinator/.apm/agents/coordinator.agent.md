@@ -544,7 +544,10 @@ the PR is merged.
   4. Check system, documentation, and tooling impact. Stay silent on docs when
      no impacted documentation exists; disclose tooling limitations.
   5. Invoke `acting-on-behalf`, then post one synthesized review with an
-     explicit verdict and only the attribution that skill requires.
+     explicit verdict and only the attribution that skill requires for the
+     actual posting route. Apply its `Disclosure decision` and `Posting-path
+     evidence` sections. Do not duplicate verified built-in AI disclosure;
+     include any required custom fallback otherwise.
 - `tech-research` missing: frame the question and output, challenge plan
   assumptions with `rubber-duck`, group queries by backend/rate-limit bucket,
   dispatch one researcher per source, parallelize only distinct backends, run

@@ -108,7 +108,11 @@ Compile steps 3-7 into one review:
 
 Invoke `acting-on-behalf` before posting. Use `gh pr review` with `--approve`,
 `--request-changes`, or `--comment`, always passing the PR number and
-`--repo <owner/repo>`, and include only the attribution that skill requires.
+`--repo <owner/repo>`, and include only the attribution that skill requires for
+the actual posting route. Apply its `Disclosure decision` and `Posting-path
+evidence` sections. Do not duplicate verified built-in AI disclosure;
+include any required custom fallback otherwise.
+Evidence for an App reply does not establish disclosure for `gh pr review`.
 
 ## Boundaries
 

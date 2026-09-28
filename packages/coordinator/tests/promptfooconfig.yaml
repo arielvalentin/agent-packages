@@ -480,7 +480,7 @@ tests:
   - description: "acting-on-behalf: requires disclaimer for personal credentials"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "The agent will post a PR comment using the user's personal GitHub token, so the comment appears under the user's account. Is the short AI-assistance disclaimer required? Reply with exactly `Yes` or `No`."
+      user_input: "This posting path has no built-in AI disclosure. The agent will post a PR comment using the user's personal GitHub token, so the comment appears under the user's account. Is the short AI-assistance disclaimer required? Reply with exactly `Yes` or `No`."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -504,7 +504,7 @@ tests:
   - description: "acting-on-behalf: requires disclaimer for explicit user attribution"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "Decision-table case: posting path is bot/app/service credentials; attributes the user is Yes. Is the disclaimer required? Reply with exactly `Yes` or `No`."
+      user_input: "This posting path has no built-in AI disclosure. Decision-table case: posting path is bot/app/service credentials; attributes the user is Yes. Is the disclaimer required? Reply with exactly `Yes` or `No`."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -512,7 +512,7 @@ tests:
   - description: "acting-on-behalf: recognizes non-username user attribution"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A service bot posts with its own credentials. The post does not show the user's username, but its byline says `Prepared by Ariel Valentin`, the user's display name. Is the disclaimer required? Reply with exactly `Yes` or `No`."
+      user_input: "This posting path has no built-in AI disclosure. A service bot posts with its own credentials. The post does not show the user's username, but its byline says `Prepared by Ariel Valentin`, the user's display name. Is the disclaimer required? Reply with exactly `Yes` or `No`."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -520,7 +520,7 @@ tests:
   - description: "acting-on-behalf: omits username public model and provider metadata"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "The runtime username is octocat. The current model has the publicly documented display name GPT-5 and public model ID gpt-5. The provider is OpenAI, but the user did not request it. What direct final disclaimer should be used? Reply with exactly the template and no other text."
+      user_input: "Personal credentials; this route has no built-in AI disclosure. The runtime username is octocat. The current model has the publicly documented display name GPT-5 and public model ID gpt-5. The provider is OpenAI, but the user did not request it. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
         value: "output.trim() === '> _AI-assisted._'"
@@ -528,7 +528,7 @@ tests:
   - description: "acting-on-behalf: omits internal model identifiers"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
+      user_input: "Personal credentials; this route has no built-in AI disclosure. The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
         value: "output.trim() === '> _AI-assisted._'"
@@ -536,7 +536,7 @@ tests:
   - description: "acting-on-behalf: omits useful public model ID"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "The runtime username is octocat. The model has no useful public display name, but the model ID gpt-5 is publicly documented and more useful. What direct final disclaimer should be used? Reply with exactly the template and no other text."
+      user_input: "Personal credentials; this route has no built-in AI disclosure. The runtime username is octocat. The model has no useful public display name, but the model ID gpt-5 is publicly documented and more useful. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
         value: "output.trim() === '> _AI-assisted._'"
@@ -544,7 +544,7 @@ tests:
   - description: "acting-on-behalf: uses exact footer without identity or model metadata"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "The post will use the user's personal credentials. The username, model, and provider are unavailable. Return only the required direct disclaimer."
+      user_input: "This posting path has no built-in AI disclosure. The post will use the user's personal credentials. The username, model, and provider are unavailable. Return only the required direct disclaimer."
     assert:
       - type: javascript
         value: "output.trim() === '> _AI-assisted._'"
@@ -552,7 +552,7 @@ tests:
   - description: "acting-on-behalf: uses exact footnote without attribution metadata"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A post using personal credentials requires the footnote disclaimer. The username is octocat, the public model is GPT-5, and the provider is OpenAI. Return only the disclaimer footnote definition using the label ai."
+      user_input: "This posting path has no built-in AI disclosure. A post using personal credentials requires the footnote disclaimer. The username is octocat, the public model is GPT-5, and the provider is OpenAI. Return only the disclaimer footnote definition using the label ai."
     assert:
       - type: javascript
         value: "output.trim() === '[^ai]: AI-assisted.'"
@@ -600,7 +600,7 @@ tests:
   - description: "acting-on-behalf: places required AI disclaimer last in PR comments"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A PR comment posted with the user's personal token requires a direct AI disclaimer paragraph. Which position is required? Reply with exactly `Last` and no other text."
+      user_input: "This posting path has no built-in AI disclosure. A PR comment posted with the user's personal token requires a direct AI disclaimer paragraph. Which position is required? Reply with exactly `Last` and no other text."
     assert:
       - type: javascript
         value: "/^last[.!]?$/i.test(output.trim())"
@@ -608,7 +608,7 @@ tests:
   - description: "acting-on-behalf: places required disclaimer footnote definition last"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A public post requires and uses the Markdown footnote form for its AI disclaimer. Must the footnote definition be first or last? Reply with exactly `Last` and no other text."
+      user_input: "This posting path has no built-in AI disclosure. A public post requires and uses the Markdown footnote form for its AI disclaimer. Must the footnote definition be first or last? Reply with exactly `Last` and no other text."
     assert:
       - type: javascript
         value: "/^last[.!]?$/i.test(output.trim())"
@@ -616,7 +616,7 @@ tests:
   - description: "acting-on-behalf: requires footnote reference in substantive content"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "When the disclaimer uses the Markdown footnote form, must the substantive post content contain the matching footnote reference? Reply with exactly `Yes` and no other text."
+      user_input: "This posting path has no built-in AI disclosure. When the disclaimer uses the Markdown footnote form, must the substantive post content contain the matching footnote reference? Reply with exactly `Yes` and no other text."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -624,7 +624,7 @@ tests:
   - description: "acting-on-behalf: keeps issue-ops command first and disclaimer last"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A comment requires a disclaimer and invokes `/catalog-diff`. Is this order required: command as the exact first line, explanatory content next, and the AI disclaimer last? Reply with exactly `Yes` and no other text."
+      user_input: "This posting path has no built-in AI disclosure. A comment requires a disclaimer and invokes `/catalog-diff`. Is this order required: command as the exact first line, explanatory content next, and the AI disclaimer last? Reply with exactly `Yes` and no other text."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -640,7 +640,7 @@ tests:
   - description: "acting-on-behalf: places review commit SHA before final disclaimer"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "When a PR feedback reply requires a disclaimer, must the related commit SHA appear before the final disclaimer? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
+      user_input: "This posting path has no built-in AI disclosure. When a PR feedback reply requires a disclaimer, must the related commit SHA appear before the final disclaimer? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -648,7 +648,7 @@ tests:
   - description: "acting-on-behalf: applies final position to all bodies that require disclaimers"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "When they require a disclaimer, does the final-position rule apply to PR bodies, issue bodies, comments, review replies, and release notes? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
+      user_input: "These posting paths have no built-in AI disclosure. When they require a disclaimer, does the final-position rule apply to PR bodies, issue bodies, comments, review replies, and release notes? Reply with the plain-text string `Yes` only. Do not add punctuation, Markdown, or an explanation."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
@@ -698,6 +698,254 @@ tests:
     assert:
       - type: javascript
         value: "/^acting-on-behalf[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "acting-on-behalf: verified built-in reply avoids duplicate disclaimer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A CLI agent inside the Copilot App uses the observed App-managed reply mechanism. The publisher is the user's personal account (REST user.type=User). The mechanism appends `Auto-replied by the GitHub Copilot app.` Must I also add a custom disclaimer? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: verified built-in covers explicit user attribution"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known app credentials and explicit user attribution. This exact posting path has verified sufficient built-in AI disclosure. Must I add a custom disclaimer? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: unstated built-in availability uses exact fallback"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. Write a complete new PR comment: Rebased onto main. Return only the body."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Rebased onto main.\\n\\n> _AI-assisted._'"
+
+  - description: "acting-on-behalf: uncertain built-in uses exact fallback"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. Built-in AI disclosure on this posting path is uncertain. Return only the required direct custom fallback."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: reply evidence does not cover CLI comments"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. Only the App reply path has verified AI disclosure. I will post with `gh pr comment`; its built-in disclosure is unverified. Return only the direct custom fallback."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: reply evidence does not cover PR bodies"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A CLI agent inside the Copilot App will use `create_pull_request` with the user's personal account. Only the reply mechanism's automatic note has been checked, not this PR-body mechanism. Write the complete PR body. Preserve this substantive text verbatim and return only the body:\n\nRebased onto main.\nIntent: Validate against current main.\nDecision: Rebase for linear history.\nTracking: Issues are disabled; this PR tracks the work.\nValidation: CI pending.\nADR: None applies."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Rebased onto main.\\nIntent: Validate against current main.\\nDecision: Rebase for linear history.\\nTracking: Issues are disabled; this PR tracks the work.\\nValidation: CI pending.\\nADR: None applies.\\n\\n> _AI-assisted._'"
+
+  - description: "acting-on-behalf: same tool in another client needs fallback"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal publishing account. The footer evidence is from posting provider A's `reply_and_resolve_review_thread`. This invocation uses posting provider B, whose automatic disclosure has not been checked. Return only the direct custom fallback."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: username alone is not AI disclosure"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The publisher is the user's personal account. The only automatic attribution is their username. Return only the direct custom fallback."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: byline alone is not AI disclosure"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known service credentials. The only automatic byline is `Prepared on behalf of @octocat.` Return only the direct custom fallback."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: built-in footer is not moved or rewritten"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. This route provides sufficient built-in AI disclosure above a tool-managed link. Must I move or rewrite that footer to make AI disclosure last? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: unknown provenance still pauses with built-in disclosure"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "This exact mechanism is verified to append `Auto-replied by the GitHub Copilot app.` The publishing account/token is unknown. What must I do before posting? Reply only Pause and ask or Proceed."
+    assert:
+      - type: javascript
+        value: "/^pause\\s+and\\s+ask[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: HUMAN_STOP still blocks with built-in disclosure"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "HUMAN_STOP applies. This exact posting path has verified built-in AI disclosure. May I draft or post a reply or resolve the thread? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: built-in reply keeps SHA without custom footer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "AUTOMATION_FLOW. Known personal credentials. This exact reply path appends sufficient built-in AI disclosure. Fixing SHA is abc1234. Return only the supplied reply body using `Fixed in <sha>`."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Fixed in abc1234'"
+
+  - description: "acting-on-behalf: unattributed bot reply keeps SHA without disclaimer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "AUTOMATION_FLOW. Known app credentials, no user attribution, no built-in AI disclosure. Fixing SHA is abc1234. Return only the reply body using `Fixed in <sha>`."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Fixed in abc1234'"
+
+  - description: "acting-on-behalf: built-in disclosure keeps slash command first"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. This exact comment path appends sufficient built-in AI disclosure. Return only `/catalog-diff`, one blank line, and `Check dependency changes.` as the supplied comment body."
+    assert:
+      - type: javascript
+        value: "output.trimEnd() === '/catalog-diff\\n\\nCheck dependency changes.'"
+
+  - description: "acting-on-behalf: unattributed bot with uncertain built-in omits fallback"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known service credentials, no user attribution. Built-in AI disclosure is uncertain on this route. Must I add the custom fallback? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: fallback reply keeps SHA before final footer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "AUTOMATION_FLOW. Known personal credentials. This reply route has no built-in AI disclosure. Fixing SHA is abc1234. Return only `Fixed in abc1234`, a blank line, and the direct custom fallback."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Fixed in abc1234\\n\\n> _AI-assisted._'"
+
+  - description: "acting-on-behalf: fallback footnote is referenced and final"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. This route has no built-in AI disclosure. Return only `Change applied.` with the ai footnote reference, a blank line, and the custom fallback footnote definition."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Change applied.[^ai]\\n\\n[^ai]: AI-assisted.'"
+
+  - description: "acting-on-behalf: pr-lifecycle avoids duplicate built-in disclosure"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Known personal credentials. This exact PR-body posting route has verified sufficient built-in AI disclosure. Must I still add a custom disclaimer? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: pr-lifecycle includes required fallback on unverified route"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "AI disclosure is required. This PR-body route's built-in AI disclosure is unverified. Must I include a custom fallback? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: pr-feedback-review keeps SHA with built-in disclosure"
+    vars:
+      skill_content: file://../.apm/skills/pr-feedback-review/SKILL.md
+      user_input: "AUTOMATION_FLOW. The fix is in abc1234. This exact reply path has verified sufficient built-in AI disclosure. Does that remove the need to include `Fixed in abc1234`? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: pr-review protocol requires review-route evidence"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "Known personal credentials. A verified App reply note is my only disclosure evidence. Is that sufficient to omit the custom fallback from a `gh pr review` body? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: coordinator fallback avoids duplicate built-in disclosure"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "The pr-review-protocol skill is unavailable. Known personal credentials. This exact review route has verified sufficient built-in AI disclosure. Must the fallback add a custom disclaimer too? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: route question returns a decision not a footer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal publishing account. Is the custom fallback required for a new comment? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: format question returns a verdict not a replacement"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Is `> _AI-assisted._` a valid direct custom fallback? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: resolver answers substantive lookup question without resolving"
+    vars:
+      skill_content: file://../.apm/skills/resolve-github-user/SKILL.md
+      user_input: "The substantive post needs the user's unknown GitHub handle for an @-mention. Is username resolution needed? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: complete body includes uncued required fallback"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal credentials. This posting path has no built-in AI disclosure. Write a complete new PR comment: Rebased onto main. Return only the body."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Rebased onto main.\\n\\n> _AI-assisted._'"
+
+  - description: "acting-on-behalf: transport note does not disclose AI assistance"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Known personal publishing account. This posting mechanism adds `Posted via acme-cli.` Write a complete new PR comment: Rebased onto main. Return only the body."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'Rebased onto main.\\n\\n> _AI-assisted._'"
+
+  - description: "acting-on-behalf: negatively phrased fallback lookup question follows meaning"
+    vars:
+      skill_content: file://../.apm/skills/resolve-github-user/SKILL.md
+      user_input: "No substantive content needs a handle. Is it correct that composing the disclaimer alone needs no username lookup? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: resolver returns cached username for substantive content"
+    vars:
+      skill_content: file://../.apm/skills/resolve-github-user/SKILL.md
+      user_input: "The substantive post needs an @-mention. The session already resolved and cached github_username=octocat. Return only the username to use."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'octocat'"
+
+  - description: "acting-on-behalf: resolver returns user-supplied username for substantive content"
+    vars:
+      skill_content: file://../.apm/skills/resolve-github-user/SKILL.md
+      user_input: "The substantive post needs an @-mention. The user supplied their GitHub username: octocat. Return only the username to use."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'octocat'"
 
   # --- consensus-panel ---
   - description: "consensus-panel: dispatches to multiple models in parallel"
