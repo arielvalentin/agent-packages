@@ -33,11 +33,12 @@ A disclaimer is required when either condition is true:
 - Bot, app, or service credentials with no user attribution: **No**.
 - Unknown credential/account provenance: **Pause and ask before posting**.
 
-Never infer **No** from service credentials alone. Explicit user attribution
-overrides the service identity. Attribution includes the user's username or
-handle, display or real name, a byline, or wording such as "by" or "on behalf
-of." For example, a bot comment with `Prepared by Ariel Valentin` or `on behalf
-of @octocat` requires the disclaimer.
+With known bot, app, or service credentials, check attribution before deciding:
+no user attribution means **No**; explicit user attribution means **Yes**.
+Attribution includes the user's username or handle, display or real name, a
+byline, or wording such as "by" or "on behalf of." For example, a bot comment
+with `Prepared by Ariel Valentin` or `on behalf of @octocat` requires the
+disclaimer.
 
 If credential/account provenance cannot be determined confidently, do not
 silently treat the post as an unattributed service post. Pause and ask the user
@@ -59,8 +60,10 @@ look up model/provider metadata solely to compose the disclaimer.
      display or real name, byline, or "by"/"on behalf of" wording.
 2. Do not add a disclaimer when a bot, app, or service identity posts without
    attributing the user. Apply this only when the posting identity is known.
-3. Use exactly `AI-assisted.` as the disclaimer text, with no username, model,
-   or provider.
+3. When required, copy the direct footer exactly: `> _AI-assisted._`.
+   Preserve the `>` marker, both underscores, and the period. The referenced
+   footnote below is the only alternative. Include no username, model, or
+   provider.
 4. When a disclaimer is required, place it either:
    - as the final non-empty paragraph/content in the post, with nothing after
      it; or
@@ -123,9 +126,12 @@ Before posting or replying to a PR/issue comment:
 
 ## Posting templates
 
-Use the direct final paragraph by default:
+Use the direct final paragraph by default. Copy the raw Markdown inside the
+fence, without the fence itself:
 
+```markdown
 > _AI-assisted._
+```
 
 Use the footnote only when the surrounding content benefits from a reference:
 

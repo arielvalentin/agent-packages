@@ -209,8 +209,14 @@ assert_eq '> _AI-assisted._' \
 assert_eq '[^ai]: AI-assisted.' \
   "$(grep '^\[\^ai\]:' "$acting")" \
   "exact footnote disclaimer"
+require "$acting" "literal direct-footer Markdown markers" \
+  'Preserve the `>` marker, both underscores, and the period'
+require "$acting" "raw Markdown copy boundary" \
+  'Copy the raw Markdown inside the fence, without the fence itself'
 require "$acting" "personal-credentials or explicit-attribution trigger" \
   'uses_personal_credentials OR explicitly_attributes_user'
+require "$acting" "explicit known-service attribution decision" \
+  'With known bot, app, or service credentials, check attribution before deciding: no user attribution means \*\*No\*\*; explicit user attribution means \*\*Yes\*\*'
 require "$acting" "unknown posting provenance pauses" \
   'Unknown credential/account provenance: \*\*Pause and ask before posting\*\*'
 require "$acting" "identity resolution only for substantive attribution" \
@@ -219,6 +225,8 @@ require "$acting" "no metadata lookups solely for disclaimer" \
   'Do not resolve a username or look up model/provider metadata solely to compose the disclaimer'
 require "$resolver" "disclaimer needs no username lookup" \
   'The `acting-on-behalf` disclaimer needs no username lookup'
+require "$resolver" "disclaimer-only resolution stops before identity sources" \
+  'If that is the only task, skip this skill: do not inspect identity sources, run commands, or ask the user for a handle\. Continue below only when a separate operation needs the user.s handle'
 forbid "$acting" "legacy username/model disclaimer rules" \
   'include the runtime username|prefer the public model display name|AI-assisted via'
 forbid "$resolver" "disclaimer identity-lookup trigger" \

@@ -36,3 +36,5 @@ footnote), with no username, model, or provider metadata. Skip lookups only
 when they serve solely to compose the disclaimer; substantive attribution may
 still need identity resolution. Unknown posting provenance requires pausing
 and asking before posting.
+
+Copy the Markdown markers verbatim, not just the rendered text.

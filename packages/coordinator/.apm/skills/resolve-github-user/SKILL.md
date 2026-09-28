@@ -9,7 +9,10 @@ Determines the authenticated GitHub username using the cheapest available
 source. Use this skill before any operation that requires the user's handle
 (attributions, @-mentions, commit trailers).
 
-The `acting-on-behalf` disclaimer needs no username lookup.
+The `acting-on-behalf` disclaimer needs no username lookup. If that is the
+only task, skip this skill: do not inspect identity sources, run commands, or
+ask the user for a handle. Continue below only when a separate operation needs
+the user's handle.
 
 ## Memoization
 
