@@ -32,5 +32,7 @@ posting backstop.
 
 When required by personal credentials or explicit user attribution, the final
 disclaimer is `> _AI-assisted._` (or a referenced `[^ai]: AI-assisted.`
-footnote), without username, model, or provider lookups. Unknown posting
-provenance requires pausing and asking before posting.
+footnote), with no username, model, or provider metadata. Skip lookups only
+when they serve solely to compose the disclaimer; substantive attribution may
+still need identity resolution. Unknown posting provenance requires pausing
+and asking before posting.
