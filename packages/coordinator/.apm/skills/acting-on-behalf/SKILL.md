@@ -45,9 +45,9 @@ which identity will publish it before posting.
 
 ## Identifying the user
 
-Invoke `resolve-github-user` only when a disclaimer is required or the post
-explicitly attributes the user. Use the returned handle in disclaimers and
-attributions.
+Invoke `resolve-github-user` only when the substantive post separately needs
+the user's identity for explicit attribution. Do not resolve a username or
+look up model/provider metadata solely to compose the disclaimer.
 
 ## Always enforce
 
@@ -59,12 +59,8 @@ attributions.
      display or real name, byline, or "by"/"on behalf of" wording.
 2. Do not add a disclaimer when a bot, app, or service identity posts without
    attributing the user. Apply this only when the posting identity is known.
-3. In a required disclaimer, include the runtime username. Add a model
-   identifier only when that exact name or ID is publicly documented:
-   - prefer the public model display name;
-   - use a public model ID only when it is more useful than the display name;
-   - omit internal or otherwise non-public model names and IDs entirely.
-   Do not include the provider unless the user explicitly requests it.
+3. Use exactly `AI-assisted.` as the disclaimer text, with no username, model,
+   or provider.
 4. When a disclaimer is required, place it either:
    - as the final non-empty paragraph/content in the post, with nothing after
      it; or
@@ -127,29 +123,17 @@ Before posting or replying to a PR/issue comment:
 
 ## Posting templates
 
-Use the direct final paragraph by default. For a publicly documented model:
+Use the direct final paragraph by default:
 
-> _AI-assisted via @{username} · {model display name}._
+> _AI-assisted._
 
-For an internal or otherwise non-public model:
-
-> _AI-assisted via @{username}._
-
-Use the footnote only when the surrounding content benefits from a reference.
-Include the model segment only when the model identifier is publicly
-documented:
+Use the footnote only when the surrounding content benefits from a reference:
 
 ```markdown
 Substantive post content.[^ai]
 
-[^ai]: AI-assisted via @{username} · {model display name}.
+[^ai]: AI-assisted.
 ```
-
-Replace `{username}` with the authenticated GitHub handle without braces
-(`octocat` produces `@octocat`, never `@{octocat}`). Replace
-`{model display name}` with the public display name at runtime, or use a public
-model ID when it is more useful. Never disclose an internal/non-public model
-name or ID. Do not add the provider unless the user explicitly requests it.
 
 ## PR safety gate
 

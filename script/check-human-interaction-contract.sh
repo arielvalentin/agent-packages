@@ -7,6 +7,7 @@ root="$(git rev-parse --show-toplevel)"
 
 policy="$root/packages/coordinator/.apm/skills/human-interaction-safeguard/SKILL.md"
 acting="$root/packages/coordinator/.apm/skills/acting-on-behalf/SKILL.md"
+resolver="$root/packages/coordinator/.apm/skills/resolve-github-user/SKILL.md"
 feedback="$root/packages/coordinator/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
@@ -201,6 +202,28 @@ require "$lifecycle" "lifecycle chain taint rule" \
 require "$agent" "coordinator chain taint fallback" \
   'Treat the entire chain as `HUMAN_STOP`'
 
+# --- Disclaimer format without changing the posting decision ---
+assert_eq '> _AI-assisted._' \
+  "$(grep '^> _AI-assisted' "$acting")" \
+  "exact direct disclaimer"
+assert_eq '[^ai]: AI-assisted.' \
+  "$(grep '^\[\^ai\]:' "$acting")" \
+  "exact footnote disclaimer"
+require "$acting" "personal-credentials or explicit-attribution trigger" \
+  'uses_personal_credentials OR explicitly_attributes_user'
+require "$acting" "unknown posting provenance pauses" \
+  'Unknown credential/account provenance: \*\*Pause and ask before posting\*\*'
+require "$acting" "identity resolution only for substantive attribution" \
+  'Invoke `resolve-github-user` only when the substantive post separately needs the user.s identity for explicit attribution'
+require "$acting" "no metadata lookups solely for disclaimer" \
+  'Do not resolve a username or look up model/provider metadata solely to compose the disclaimer'
+require "$resolver" "disclaimer needs no username lookup" \
+  'The `acting-on-behalf` disclaimer needs no username lookup'
+forbid "$acting" "legacy username/model disclaimer rules" \
+  'include the runtime username|prefer the public model display name|AI-assisted via'
+forbid "$resolver" "disclaimer identity-lookup trigger" \
+  'attribution, disclaimers|\(disclaimers,'
+
 # --- Deterministic actor fixtures ---
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"user":{"login":"octocat","type":"User"},"performed_via_github_app":null}' | classify_rest)" \
@@ -292,7 +315,19 @@ for description in \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
-  'human-interaction: acting-on-behalf enforces posting backstop'; do
+  'human-interaction: acting-on-behalf enforces posting backstop' \
+  'acting-on-behalf: requires disclaimer for personal credentials' \
+  'acting-on-behalf: omits disclaimer for unattributed bot posts' \
+  'acting-on-behalf: pauses for unknown posting provenance' \
+  'acting-on-behalf: requires disclaimer for explicit user attribution' \
+  'acting-on-behalf: recognizes non-username user attribution' \
+  'acting-on-behalf: uses exact footer without identity or model metadata' \
+  'acting-on-behalf: uses exact footnote without attribution metadata' \
+  'acting-on-behalf: rejects legacy identity-bearing footer' \
+  'acting-on-behalf: skips identity lookup solely for disclaimer' \
+  'acting-on-behalf: skips model and provider lookups solely for disclaimer' \
+  'acting-on-behalf: resolves identity for substantive explicit attribution' \
+  'acting-on-behalf: resolver needs no disclaimer lookup'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
 

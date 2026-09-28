@@ -517,13 +517,13 @@ tests:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
 
-  - description: "acting-on-behalf: prefers public model display name"
+  - description: "acting-on-behalf: omits username public model and provider metadata"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
       user_input: "The runtime username is octocat. The current model has the publicly documented display name GPT-5 and public model ID gpt-5. The provider is OpenAI, but the user did not request it. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === '> _AI-assisted via @octocat · GPT-5._'"
+        value: "output.trim() === '> _AI-assisted._'"
 
   - description: "acting-on-behalf: omits internal model identifiers"
     vars:
@@ -531,15 +531,71 @@ tests:
       user_input: "The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === '> _AI-assisted via @octocat._'"
+        value: "output.trim() === '> _AI-assisted._'"
 
-  - description: "acting-on-behalf: permits useful public model ID"
+  - description: "acting-on-behalf: omits useful public model ID"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
       user_input: "The runtime username is octocat. The model has no useful public display name, but the model ID gpt-5 is publicly documented and more useful. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === '> _AI-assisted via @octocat · gpt-5._'"
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: uses exact footer without identity or model metadata"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The post will use the user's personal credentials. The username, model, and provider are unavailable. Return only the required direct disclaimer."
+    assert:
+      - type: javascript
+        value: "output.trim() === '> _AI-assisted._'"
+
+  - description: "acting-on-behalf: uses exact footnote without attribution metadata"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A post using personal credentials requires the footnote disclaimer. The username is octocat, the public model is GPT-5, and the provider is OpenAI. Return only the disclaimer footnote definition using the label ai."
+    assert:
+      - type: javascript
+        value: "output.trim() === '[^ai]: AI-assisted.'"
+
+  - description: "acting-on-behalf: rejects legacy identity-bearing footer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Does `> _AI-assisted via @octocat · GPT-5._` match the required direct disclaimer format? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: skips identity lookup solely for disclaimer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A post using personal credentials requires a disclaimer but has no substantive user attribution. Must I invoke resolve-github-user solely to compose the disclaimer? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: skips model and provider lookups solely for disclaimer"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A disclaimer is required, but model and provider metadata are unavailable. Must I look them up solely to compose the disclaimer? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: resolves identity for substantive explicit attribution"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The substantive post separately needs the user's unknown GitHub handle for explicit attribution. Which skill should resolve that handle? Reply with only the skill name."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'resolve-github-user'"
+
+  - description: "acting-on-behalf: resolver needs no disclaimer lookup"
+    vars:
+      skill_content: file://../.apm/skills/resolve-github-user/SKILL.md
+      user_input: "The only pending task is composing an acting-on-behalf disclaimer. No substantive content needs the user's handle. Is a username lookup needed for the disclaimer? Reply with exactly `Yes` or `No`."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
 
   - description: "acting-on-behalf: places required AI disclaimer last in PR comments"
     vars:

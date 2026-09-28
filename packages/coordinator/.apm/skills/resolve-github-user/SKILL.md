@@ -1,13 +1,15 @@
 ---
 name: resolve-github-user
-description: Use when you need to determine the current GitHub username for attribution, disclaimers, or identity-aware operations.
+description: Use when you need to determine the current GitHub username for attribution or identity-aware operations.
 ---
 
 # Resolve GitHub User
 
 Determines the authenticated GitHub username using the cheapest available
 source. Use this skill before any operation that requires the user's handle
-(disclaimers, attributions, @-mentions, commit trailers).
+(attributions, @-mentions, commit trailers).
+
+The `acting-on-behalf` disclaimer needs no username lookup.
 
 ## Memoization
 
