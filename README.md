@@ -20,10 +20,7 @@ agent-packages/
     <package-name>/
       apm.yml
       .apm/            # canonical APM primitive root
-      apm -> .apm      # convenience symlink for visible dev path
 ```
-
-`apm/` symlinks to `.apm` so development can happen in a non-hidden path while APM still consumes the canonical `.apm` structure.
 
 ## Install and use
 

@@ -7,17 +7,12 @@
 
 ## Working with package contents
 
-Use the visible `apm/` path while editing:
+Use the canonical `.apm/` path while editing:
 
 ```bash
 cd packages/coordinator
-tree -a -l
+tree -a .apm
 ```
-
-Notes:
-
-- `apm/` is a symlink to `.apm`.
-- edits in either path affect the same files.
 
 ## Local validation
 
@@ -53,5 +48,4 @@ apm install
 ## Troubleshooting
 
 - Hidden directories not visible: use `ls -la` or `tree -a`.
-- Symlink not followed by tree: use `tree -l`.
 - Harness not auto-detected in consumer repo: pass `--target <harness>` or set `targets:` in consumer `apm.yml`.
