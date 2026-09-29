@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.13.1...coordinator-v0.13.2) (2026-09-29)
+
+
+### Bug Fixes
+
+* restore coordinator installs with APM 0.32.0 ([#48](https://github.com/arielvalentin/agent-packages/issues/48)) ([306333a](https://github.com/arielvalentin/agent-packages/commit/306333a2ccfb62bbf7eef94ff620af6d14a9490b))
+
 ## [0.13.1](https://github.com/arielvalentin/agent-packages/compare/coordinator-v0.13.0...coordinator-v0.13.1) (2026-09-29)
 
 
