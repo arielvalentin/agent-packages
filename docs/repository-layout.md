@@ -24,13 +24,13 @@ packages/<package-name>/
     instructions/   # optional
     prompts/        # optional
     hooks/          # optional
-  apm -> .apm
 ```
 
-### Why both `.apm` and `apm`
+### Primitive paths
 
-- `.apm` is the canonical primitive root used by APM package discovery.
-- `apm` is a symlink to `.apm` for developer ergonomics in tools that hide dot-directories.
+`.apm` is the canonical primitive root used by APM package discovery and editing.
+The coordinator package omits the legacy `apm -> .apm` development alias because
+APM 0.32.0 rejects that directory symlink when preparing Git dependencies.
 
 ## Packaging model
 
@@ -42,4 +42,3 @@ packages/<package-name>/
 
 - This repo is for shareable/community-safe content.
 - Internal/private assets should remain in private repositories and must not be added here.
-
