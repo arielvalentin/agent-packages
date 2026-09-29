@@ -45,9 +45,9 @@ which identity will publish it before posting.
 
 ## Identifying the user
 
-Invoke `resolve-github-user` only when a disclaimer is required or the post
-explicitly attributes the user. Use the returned handle in disclaimers and
-attributions.
+Invoke `resolve-github-user` only when the substantive post needs the user's
+identity for explicit attribution. Do not look up a username, model, or
+provider solely to render the disclaimer.
 
 ## Always enforce
 
@@ -59,20 +59,12 @@ attributions.
      display or real name, byline, or "by"/"on behalf of" wording.
 2. Do not add a disclaimer when a bot, app, or service identity posts without
    attributing the user. Apply this only when the posting identity is known.
-3. In a required disclaimer, include the runtime username. Add a model
-   identifier only when that exact name or ID is publicly documented:
-   - prefer the public model display name;
-   - use a public model ID only when it is more useful than the display name;
-   - omit internal or otherwise non-public model names and IDs entirely.
-   Do not include the provider unless the user explicitly requests it.
-4. When a disclaimer is required, place it either:
-   - as the final non-empty paragraph/content in the post, with nothing after
-     it; or
-   - as a Markdown footnote referenced from the post, with the disclaimer's
-     footnote definition as the final non-empty content.
-   This placement rule applies to PR bodies, issue bodies, comments, review
-   replies, release notes, and similar public/shared text when they require a
-   disclaimer.
+3. Do not include a username, model, or provider in the disclaimer.
+4. When a disclaimer is required, preserve the supplied substantive body, then
+   append a blank line and the exact footer below as the final paragraph of
+   the agent-composed body. This applies to PR bodies, issue bodies, comments,
+   review replies, release notes, and similar public/shared text.
+   Tool-added notices do not change this rule and should be left untouched.
 5. For permitted replies to bot/app PR feedback, include the related commit SHA
    in the comment text (for example: `Fixed in <sha>`) before the disclaimer
    when one is required.
@@ -105,14 +97,13 @@ Before posting or replying to a PR/issue comment:
 3. If the comment invokes a GitHub issue-ops slash command (for example,
    `/catalog-diff`), keep the slash command as the exact first line of the
    comment. Do not prefix the command with the disclaimer or any other text.
-4. If a disclaimer is required, place it last using one of the two allowed
-   forms above. When other content follows a slash command, never place the
+4. If a disclaimer is required, append it as the final paragraph of the
+   supplied body. When other content follows a slash command, never place the
    disclaimer immediately after the command.
-5. Verify any required disclaimer remains last in the final text sent to
-   GitHub. Do not add one for an unattributed bot, app, or service post.
+5. Verify any required disclaimer remains last in the agent-composed body.
+   Do not add one for an unattributed bot, app, or service post.
 6. For a permitted PR feedback reply, add the related commit SHA
-   (`Fixed in <sha>`) before the final disclaimer or disclaimer footnote
-   definition when present.
+   (`Fixed in <sha>`) before the final disclaimer when required.
 
 ## If no issue is provided
 
@@ -125,31 +116,11 @@ Before posting or replying to a PR/issue comment:
 4. If Issues are disabled, use the repository's supported tracking mechanism.
    If none exists, document that in the PR body and proceed.
 
-## Posting templates
+## Posting template
 
-Use the direct final paragraph by default. For a publicly documented model:
+Use this exact final paragraph when a disclaimer is required:
 
-> _AI-assisted via @{username} · {model display name}._
-
-For an internal or otherwise non-public model:
-
-> _AI-assisted via @{username}._
-
-Use the footnote only when the surrounding content benefits from a reference.
-Include the model segment only when the model identifier is publicly
-documented:
-
-```markdown
-Substantive post content.[^ai]
-
-[^ai]: AI-assisted via @{username} · {model display name}.
-```
-
-Replace `{username}` with the authenticated GitHub handle without braces
-(`octocat` produces `@octocat`, never `@{octocat}`). Replace
-`{model display name}` with the public display name at runtime, or use a public
-model ID when it is more useful. Never disclose an internal/non-public model
-name or ID. Do not add the provider unless the user explicitly requests it.
+> _AI Assisted._
 
 ## PR safety gate
 

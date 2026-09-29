@@ -201,6 +201,25 @@ require "$lifecycle" "lifecycle chain taint rule" \
 require "$agent" "coordinator chain taint fallback" \
   'Treat the entire chain as `HUMAN_STOP`'
 
+# --- Minimal append-only disclaimer ---
+assert_eq '> _AI Assisted._' \
+  "$(grep '^> _AI' "$acting")" \
+  "exact disclaimer footer"
+require "$acting" "unchanged disclosure conditions" \
+  'uses_personal_credentials OR explicitly_attributes_user'
+require "$acting" "known-service omission" \
+  'Bot, app, or service credentials with no user attribution: \*\*No\*\*'
+require "$acting" "unknown publisher pauses" \
+  'Unknown credential/account provenance: \*\*Pause and ask before posting\*\*'
+require "$acting" "body-preserving final footer" \
+  'preserve the supplied substantive body, then append a blank line and the exact footer below as the final paragraph of the agent-composed body'
+require "$acting" "fixing SHA before footer" \
+  'include the related commit SHA.{0,100}before the disclaimer'
+require "$acting" "slash command stays first" \
+  'keep the slash command as the exact first line'
+require "$acting" "no lookup solely for footer" \
+  'Do not look up a username, model, or provider solely to render the disclaimer'
+
 # --- Deterministic actor fixtures ---
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"user":{"login":"octocat","type":"User"},"performed_via_github_app":null}' | classify_rest)" \

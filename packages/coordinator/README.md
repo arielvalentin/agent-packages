@@ -29,3 +29,7 @@ safety: human-authored and unknown-actor GitHub comments stop automation and
 are routed to the user for a direct response, while verified bot/app feedback
 may continue through automated review flows. `acting-on-behalf` enforces the
 posting backstop.
+
+When personal credentials or explicit user attribution require disclosure,
+append a blank line and `> _AI Assisted._` after the supplied body. The
+disclaimer needs no username, model, or provider lookup.

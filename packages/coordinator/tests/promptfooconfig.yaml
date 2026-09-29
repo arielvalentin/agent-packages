@@ -517,13 +517,13 @@ tests:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
 
-  - description: "acting-on-behalf: prefers public model display name"
+  - description: "acting-on-behalf: uses exact disclaimer without identity or model metadata"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
       user_input: "The runtime username is octocat. The current model has the publicly documented display name GPT-5 and public model ID gpt-5. The provider is OpenAI, but the user did not request it. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === '> _AI-assisted via @octocat · GPT-5._'"
+        value: "output.trim() === '> _AI Assisted._'"
 
   - description: "acting-on-behalf: omits internal model identifiers"
     vars:
@@ -531,15 +531,15 @@ tests:
       user_input: "The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === '> _AI-assisted via @octocat._'"
+        value: "output.trim() === '> _AI Assisted._'"
 
-  - description: "acting-on-behalf: permits useful public model ID"
+  - description: "acting-on-behalf: omits public model identifiers"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
       user_input: "The runtime username is octocat. The model has no useful public display name, but the model ID gpt-5 is publicly documented and more useful. What direct final disclaimer should be used? Reply with exactly the template and no other text."
     assert:
       - type: javascript
-        value: "output.trim() === '> _AI-assisted via @octocat · gpt-5._'"
+        value: "output.trim() === '> _AI Assisted._'"
 
   - description: "acting-on-behalf: places required AI disclaimer last in PR comments"
     vars:
@@ -548,22 +548,6 @@ tests:
     assert:
       - type: javascript
         value: "/^last[.!]?$/i.test(output.trim())"
-
-  - description: "acting-on-behalf: places required disclaimer footnote definition last"
-    vars:
-      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A public post requires and uses the Markdown footnote form for its AI disclaimer. Must the footnote definition be first or last? Reply with exactly `Last` and no other text."
-    assert:
-      - type: javascript
-        value: "/^last[.!]?$/i.test(output.trim())"
-
-  - description: "acting-on-behalf: requires footnote reference in substantive content"
-    vars:
-      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "When the disclaimer uses the Markdown footnote form, must the substantive post content contain the matching footnote reference? Reply with exactly `Yes` and no other text."
-    assert:
-      - type: javascript
-        value: "/^yes[.!]?$/i.test(output.trim())"
 
   - description: "acting-on-behalf: keeps issue-ops command first and disclaimer last"
     vars:
