@@ -36,7 +36,6 @@ For `feature`, `bugfix`, and `refactor` flows:
      initial change is clearly `docs`, `test`, `chore`, `ci`, `perf`,
      `build`, or `revert` work, use that type instead.
    - Validate the title against § Title format before creating the PR.
-   - Apply `acting-on-behalf` to the actual create route when composing the body.
 2. Skip for `research` flows or when the user explicitly declines.
 
 ## Phase 2 — Implementation & gates
@@ -73,11 +72,6 @@ When implementation is complete and gates pass:
    PR-body attribution is not part of feedback processing:
    `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
    sole source of truth for whether a PR body needs AI attribution.
-   Apply its `Disclosure decision` and `Posting-path evidence` sections to the
-   actual posting route. Do not duplicate verified built-in AI disclosure;
-   include any required custom fallback otherwise.
-   Evidence for an App reply does not establish disclosure for a PR
-   create/update route.
 4. Validate the title against § Title format, then mark ready for review:
    ```bash
    gh pr ready <number>

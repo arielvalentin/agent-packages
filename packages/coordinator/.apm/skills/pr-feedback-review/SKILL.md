@@ -112,11 +112,7 @@ After all comments are addressed:
 
 ## Rules
 
-- **Always load `acting-on-behalf`** before posting any permitted reply, for the
-  actual posting route. Apply its `Disclosure decision` and `Posting-path
-  evidence` sections. Do not duplicate verified built-in AI disclosure;
-  include any required custom fallback otherwise.
-  Keep `Fixed in <commit-sha>` regardless of disclosure path.
+- **Always load `acting-on-behalf`** before posting any permitted reply
 - **Defer actor behavior to `human-interaction-safeguard`** — never replace its
   stop rule with accept/rebut/clarify automation
 - **Never blindly apply** bot/app suggestions — use judgement backed by evidence

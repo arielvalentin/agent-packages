@@ -9,15 +9,7 @@ Determines the authenticated GitHub username using the cheapest available
 source. Use this skill before any operation that requires the user's handle
 (attributions, @-mentions, commit trailers).
 
-First decide whether a handle is needed for a substantive operation.
-Fallback composition itself never needs the handle; substantive attribution
-or @-mentions may. For policy questions, answer the question as phrased in the
-requested form without performing resolution.
-
-The `acting-on-behalf` disclaimer needs no username lookup. If that is the
-only task, skip this skill: do not inspect identity sources, run commands, or
-ask the user for a handle. Continue below only when a separate operation needs
-the user's handle.
+The `acting-on-behalf` disclaimer needs no identity lookup.
 
 ## Memoization
 
@@ -67,9 +59,8 @@ counts against rate limits.
 
 ## Output
 
-When a substantive operation needs the handle, return the resolved, cached, or
-user-supplied username as a plain string (no `@` prefix). The calling skill or
-agent is responsible for formatting (e.g., prepending `@`).
+Return the resolved username as a plain string (no `@` prefix). The calling
+skill or agent is responsible for formatting (e.g., prepending `@`).
 
 ## Error handling
 
