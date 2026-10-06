@@ -8,7 +8,7 @@ This repository ships independent installable packages so consumers can pick onl
 
 | Package | Purpose | Includes |
 | --- | --- | --- |
-| `packages/coordinator` | Orchestration and gated review flow | `coordinator` agent + `acting-on-behalf`, `consensus-panel`, `handoff-envelope` skills |
+| `packages/coordinator` | Direct-work fast path with conditional orchestration and review | `coordinator` agent + `acting-on-behalf`, `consensus-panel`, `handoff-envelope` skills |
 | `packages/development-workflow` | Design + implementation workflow | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
 

@@ -79,11 +79,10 @@ provider solely to render the disclaimer.
    - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
      or the documented absence of issue tracking
    - optional ADR references when relevant
-10. For PRs containing code/config/script changes, run `adversarial-review`
-   before PR creation and continue fix/re-review cycles until blocker/major
-   feedback is satisfied. If the same blocker/major concern is raised twice and
-   still unsatisfied, escalate to the user before proceeding. Skip only on
-   explicit user request.
+10. For PRs containing high-risk code/config/script changes, or when the user
+    requests hostile critique, run `adversarial-review` before PR creation.
+    Routine changes rely on targeted validation and at most one optional review
+    gate. Security-sensitive changes still require `security-review`.
 
 ## PR/issue comment rule
 
@@ -122,9 +121,10 @@ Use this exact final paragraph when a disclaimer is required:
 
 > _AI Assisted._
 
-## PR safety gate
+## Conditional PR safety gate
 
-Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
+Before calling `pr-lifecycle` Phase 3 / `gh pr create` for high-risk code
+changes or an explicit adversarial-review request:
 
 1. Run `adversarial-review`.
 2. Address high-confidence blocker/major findings.
@@ -135,8 +135,9 @@ Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
 5. Keep changes scoped to the original request/task list; avoid unrelated edits.
 6. Validate final results against the original request/task list before PR
    creation.
-7. If the user explicitly says to skip adversarial review, proceed and note the
-   explicit waiver in the PR body or handoff summary.
+7. If the user explicitly says to skip a non-mandatory adversarial review,
+   proceed and note the waiver in the PR body or handoff summary. Do not treat
+   this as a waiver of mandatory security review or posting safeguards.
 
 ## PR description content checklist
 
@@ -163,8 +164,9 @@ For changes that modify agent policy/config behavior, include a compact
 
 If companion skills are unavailable, do not block progress. Use:
 
-1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
-   and keep blocker/major fix loops before PR creation.
+1. `adversarial-review` missing during a high-risk or explicitly requested
+   hostile review -> report reduced assurance. Use one bounded `rubber-duck`
+   review unless the user explicitly requested consensus.
 2. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
    draft PR exists, create it non-interactively with one `gh pr create --draft`
    command, a real Conventional title substituted in (never emit `<type>` or

@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Validates the consensus review contract.
+# Validates the coordinator fast path and conditional consensus contract.
 #
-# The coordinator package must state a deterministic review policy: non-code and
-# genuinely tiny scopes take a single mid- or high-capability reviewer, and
-# substantive code changes take a GPT-first adaptive 2+1 panel — an initial wave
-# of exactly two reviewers, plus exactly one high-capability tiebreaker dispatched
-# only when an escalation trigger fires. Residual "always three high-capability
-# panelists" language makes the contract ambiguous.
+# The coordinator must handle bounded work directly, prevent nested
+# orchestration, and reserve review panels for explicit or high-risk cases.
+# When consensus is selected, non-code and genuinely tiny scopes take a single
+# mid- or high-capability reviewer, and substantive code changes take a
+# GPT-first adaptive 2+1 panel.
 #
 # Patterns are matched against whitespace-normalized file contents so that
 # prose wrapped across lines still matches.
@@ -61,6 +60,26 @@ forbid_in_packages() {
     errors=$((errors + 1))
   fi
 }
+
+# --- Direct-work fast path and orchestration bounds ---
+require "$agent" "direct inspect-edit-validation-response path" \
+  'inspect -> edit -> targeted validation -> final response'
+require "$agent" "roughly five-call delegation threshold" \
+  'roughly five direct tool calls'
+require "$agent" "one orchestration owner invariant" \
+  'choose exactly one orchestration owner'
+require "$agent" "prohibition on parent and coordinator worker ownership" \
+  'never do both for the same objective'
+require "$agent" "routine review cap" \
+  'at most one review gate'
+require "$agent" "routine automatic critique prohibition" \
+  'do not run plan critique, assumption critique, adversarial review, consensus'
+require "$agent" "conditional artifact creation" \
+  'create an artifact only when'
+require "$agent" "delegated budget stop condition" \
+  'exceeds its time, retry, or context budget'
+require "$agent" "explicit security review first" \
+  'invoke `security-review` first'
 
 # --- Initial wave is exactly two reviewers ---
 require "$panel" "initial wave of exactly 2 parallel dispatches" \

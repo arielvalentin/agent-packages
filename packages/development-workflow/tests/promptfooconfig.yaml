@@ -49,6 +49,22 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('convention') || l.includes('existing') || l.includes('codebase') || l.includes('match') || l.includes('idiomatic') || l.includes('surrounding') || l.includes('consistent') || l.includes('style') || l.includes('pattern') || l.includes('follow')"
 
+  - description: "implementer: returns short results inline"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "My implementation summary is short, no later handoff needs it, and the user did not request an artifact. Should I write 03-impl-summary.md? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "implementer: does not launch nested agents"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "May the implementer launch a coordinator, reviewer, or documentation agent? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
   # --- system-architect agent ---
   - description: "system-architect: produces a design document"
     vars:

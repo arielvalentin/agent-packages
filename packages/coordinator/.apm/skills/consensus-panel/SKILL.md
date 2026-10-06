@@ -4,8 +4,8 @@ description: >
   Dispatch a specialist review to two distinct suitable GPT model IDs in parallel,
   then add a distinct high-capability GPT model ID only as a conditional tiebreaker,
   and synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
-  every specialist review dispatch; never duplicate identical fact-finding
-  research across models to manufacture consensus.
+  explicit consensus requests and judgment-heavy high-risk reviews; never duplicate
+  identical fact-finding research across models to manufacture consensus.
 ---
 
 # Consensus Panel
@@ -17,9 +17,16 @@ third only when it can change the answer.
 
 ## When to use
 
-Use before any specialist review dispatch, **except** scopes that qualify for
-the single-reviewer fast path below. Skipping this is a bug unless the role is
-explicitly designated single-model or the scope is fast-path exempt.
+Use when the caller has already determined that consensus is warranted:
+
+- The user explicitly requests consensus or multiple independent verdicts.
+- A judgment-heavy, high-risk review needs independent verdicts to resolve
+  uncertainty.
+- Another loaded skill explicitly requires this panel.
+
+Do not insert a consensus panel into routine code changes or simple lookups.
+Those use direct work and, when needed, at most one review gate. After the
+caller selects consensus, classify the scope below before choosing models.
 
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
@@ -90,8 +97,8 @@ model, and do not synthesize across models.
 - **Report** — still write the report artifact, recording
   `panel: single-reviewer fast path` and which exemption applied.
 
-This exemption **takes precedence** over any general "every specialist review
-runs a panel" rule in the coordinator or `review-fix-loop`. A single
+This exemption **takes precedence** over any selected consensus workflow in the
+coordinator or `review-fix-loop`. A single
 `blocker`/`major` finding does not promote a fast-path scope to a panel; only
 re-classification under Step 1 does. The safety argument is the size and
 disqualifier bounds, not the finding: a scope this small that touches none of

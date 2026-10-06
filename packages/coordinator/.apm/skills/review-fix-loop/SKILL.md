@@ -2,8 +2,8 @@
 name: review-fix-loop
 description: >
   Reusable gate pattern: dispatch a reviewer, fix findings with an implementer,
-  re-run the reviewer, and escalate after a retry limit. Use for every
-  review-then-fix gate in the coordinator workflow.
+  re-run the reviewer, and escalate after a retry limit. Use only when a review
+  gate is explicitly requested or justified by high-risk work.
 ---
 
 # Review-Fix Loop
@@ -20,7 +20,7 @@ code-review, and observability review gates.
 | `scope` | yes | — | What to review: diff ref, artifact path, or description of review target |
 | `context` | no | — | Additional context for the reviewer (intent summary, design doc, issue body) |
 | `focus` | no | — | Specific review focus or criteria (e.g., "intent-coverage", "exploitable vulnerabilities only") |
-| `max_retries` | no | 2 | Maximum fix-then-re-review cycles before escalation |
+| `max_retries` | no | 1 | Maximum fix-then-re-review cycles before escalation |
 | `severity_threshold` | no | `blocker,major` | Comma-separated severities that trigger a fix cycle |
 | `on_exhaust` | no | `escalate` | What to do when retries are exhausted: `escalate` (ask user) or `warn` (proceed with warning) |
 | `skip_condition` | no | — | Condition under which this gate is skipped (e.g., "refactor flow unless touching auth/crypto") |
@@ -30,14 +30,13 @@ code-review, and observability review gates.
 1. **Check skip condition** — if `skip_condition` is defined and matches the
    current context, skip the gate entirely. Record the skip reason.
 
-2. **Dispatch reviewer** — run the `reviewer` through `consensus-panel` unless
-   that role is explicitly designated single-model. `consensus-panel` classifies
-   the scope first: non-code and tiny scopes take the single-reviewer fast path
-   (exactly one mid- or high-capability reviewer, no panel), and substantive
-   code changes take the adaptive 2+1 panel — two reviewers in parallel with a
-   third added only when an escalation trigger fires. Send `scope` and
-   `context`; if `focus` is provided, include it as explicit review
-   instructions.
+2. **Dispatch reviewer** — use one reviewer by default. Route through
+   `consensus-panel` only when the user explicitly requested consensus, the
+   review is judgment-heavy and high-risk, or another loaded skill requires the
+   panel. When consensus is selected, `consensus-panel` classifies the scope
+   first: non-code and tiny scopes take the single-reviewer fast path, and
+   substantive code changes take the adaptive 2+1 panel. Send `scope` and
+   `context`; if `focus` is provided, include it as explicit instructions.
 
 3. **Evaluate findings** — filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
@@ -45,12 +44,12 @@ code-review, and observability review gates.
 
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
-   b. Re-run `reviewer` through the same panel policy against the updated
-      `scope`. Re-classify the scope each cycle: a scope that is still non-code
-      or tiny stays on the single-reviewer fast path, and a panelled scope
-      starts a **fresh initial wave of 2** reviewers, escalating to a tiebreaker
-      only if that cycle's own responses fire an escalation trigger — a previous
-      cycle's escalation does not carry over.
+   b. Re-run `reviewer` through the same single-reviewer or selected panel
+      policy against the updated `scope`. Re-classify the scope each cycle: a
+      scope that is still non-code or tiny stays on the single-reviewer fast
+      path, and a panelled scope starts a **fresh initial wave of 2** reviewers,
+      escalating to a tiebreaker only if that cycle's own responses fire an
+      escalation trigger. A previous cycle's escalation does not carry over.
    c. If no findings at or above threshold → **gate passes**. Record result.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.
@@ -70,6 +69,11 @@ code-review, and observability review gates.
      applied) or `adaptive 2+1`
    - Whether any review wave escalated to a tiebreaker, and which trigger fired
    - Unresolved findings (if any)
+
+For routine code changes, this gate is optional and must be the only review
+gate. Make the first patch and run targeted validation before invoking it.
+High-risk or explicitly requested review/fix loops may use a larger retry
+budget, but every invocation must declare a finite limit and stop condition.
 
 ## Same-finding detection
 

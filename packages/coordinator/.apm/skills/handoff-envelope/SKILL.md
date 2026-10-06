@@ -58,13 +58,23 @@ Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
 ## Write side
 
 - Output ≤2KB and not referenced by later phases → return inline.
-- Output >2KB OR referenced by later phases → write to `${ARTIFACTS_DIR}/NN-<phase>.<ext>`,
-  return `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.
+- Write an artifact only when the user requested one, a later phase needs the
+  content, or the output is too large for a useful inline result.
+- Output >2KB that meets one of those conditions → write to
+  `${ARTIFACTS_DIR}/NN-<phase>.<ext>` and return
+  `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.
 - Panel members (`consensus_role: panel-member`) and fast-path single reviewers
   (`consensus_role: single`) always return the JSON consensus schema (see
   `consensus-panel` skill), never prose. Both values also mean the reviewer is
   already dispatched: it reviews directly and must not select models or
   dispatch reviewers of its own. Only `primary` may fan out.
+
+## Budget and stop condition
+
+Every delegated handoff must include a bounded scope, required validation, and
+a stop condition. If the task exceeds that budget, return partial evidence and
+the narrow remaining objective instead of launching nested or replacement
+orchestration.
 
 ## Ambiguity
 

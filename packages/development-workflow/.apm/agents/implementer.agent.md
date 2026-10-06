@@ -56,15 +56,18 @@ If any of those are missing, return 1–3 clarifying questions and stop.
 6. **Commit messages**: Use `commit-message-storyteller` to generate
    narrative commit messages that explain WHY the change was made.
 
-## Output (write to `${ARTIFACTS_DIR}/03-impl-summary.md`)
+## Output
 
-- Files changed (path + one-line reason each).
-- New dependencies added and why.
-- Test commands run and their results.
-- Known follow-ups not addressed and why.
-- Any deviations from the design + rationale.
+Return a concise inline summary by default:
 
-Return `{"path": "…/03-impl-summary.md", "summary": "<=200 chars", "verdict": "ready-for-review"}`.
+- Files changed and why.
+- Validation commands and results.
+- Known follow-ups or design deviations.
+
+Write `${ARTIFACTS_DIR}/03-impl-summary.md` only when the user requests an
+artifact, a later handoff needs durable context, or the result is too large for
+a useful inline response. In that case return
+`{"path": "…/03-impl-summary.md", "summary": "<=200 chars", "verdict": "ready-for-review"}`.
 
 ## Rules
 
@@ -81,6 +84,8 @@ Return `{"path": "…/03-impl-summary.md", "summary": "<=200 chars", "verdict": 
   Instead, report them back to the coordinator with enough detail (files,
   rationale, suggested approach) for it to file a follow-up issue.
 - Never bypass user gates — the coordinator handles those.
+- Do not launch coordinators, reviewers, or documentation agents. Return the
+  bounded implementation result to the orchestration owner.
 - Never commit or push. That is the user's call.
 - Never rewrite git history (per repo AGENTS.md).
 - If a test you added fails after a good-faith fix, stop and report;

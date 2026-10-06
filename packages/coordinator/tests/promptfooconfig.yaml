@@ -10,7 +10,80 @@ prompts:
   - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
 
 tests:
+  # --- coordinator fast path ---
+  - description: "coordinator: bounded code work stays direct"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "I need a one-line typo fix in one source file and one targeted test. Should you delegate the work? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "coordinator: direct work follows inspect edit validate respond"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "State the default four-step path for bounded code work using only arrow-separated step names."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('inspect') && l.includes('edit') && l.includes('validation') && (l.includes('final') || l.includes('response'))"
+
+  - description: "coordinator: prevents nested orchestration"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "I delegated the complete objective to one coordinator. Should the parent also launch narrow workers for the same objective? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "coordinator: routine changes have at most one optional review gate"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "For routine code work, what is the maximum number of optional review gates? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\D)(?:1|one)(\\D|$)/.test(l)"
+
+  - description: "coordinator: routine work skips automatic critique waves"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "For a routine bug fix, must I automatically run plan critique, adversarial consensus, repeated synthesis, and a Tech Writer pass? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "coordinator: artifacts are conditional"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "A short result fits inline, no later handoff needs it, and the user did not request a file. Should I create an artifact? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "coordinator: delegated work stops at its budget"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "A delegated task exceeded its declared budget. Should I launch a replacement wave for the same objective? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "coordinator: explicit vulnerability review invokes security-review first"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "The user explicitly asks me to find exploitable vulnerabilities. Which reviewer must I invoke first? Answer with only the reviewer name."
+    assert:
+      - type: javascript
+        value: "/^security-review[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
   # --- tech-research ---
+  - description: "tech-research: simple lookup stays direct"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "A factual repository lookup is finishable with direct tools. Should I dispatch a research agent? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
   - description: "tech-research: runs same-source queries sequentially"
     vars:
       skill_content: file://../.apm/skills/tech-research/SKILL.md
@@ -66,6 +139,14 @@ tests:
     assert:
       - type: javascript
         value: "output.toLowerCase().includes('se-technical-writer')"
+
+  - description: "tech-research: Tech Writer is not automatic"
+    vars:
+      skill_content: file://../.apm/skills/tech-research/SKILL.md
+      user_input: "The user wants a short inline finding, not polished documentation. Must I add a Tech Writer pass? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "tech-research: hands off durable synthesis without re-querying"
     vars:
@@ -284,13 +365,21 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('escalat') || l.includes('stop') || l.includes('max') || l.includes('limit') || l.includes('abort') || l.includes('exhaust')"
 
-  - description: "review-fix-loop: specialist reviews use consensus panel"
+  - description: "review-fix-loop: reviewer is single by default"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
-      user_input: "How should the reviewer be dispatched during a review-fix loop?"
+      user_input: "The user did not request consensus and the review is routine. Should the review-fix loop use a consensus panel? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('consensus-panel') || l.includes('consensus panel') || l.includes('panel policy')"
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "review-fix-loop: routine default retry budget is one"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "What is the default max_retries value? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\D)(?:1|one)(\\D|$)/.test(l)"
 
   # --- acting-on-behalf ---
   - description: "human-interaction: human question stops automation"
@@ -581,13 +670,13 @@ tests:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim())"
 
-  - description: "acting-on-behalf: requires adversarial review before PR creation"
+  - description: "acting-on-behalf: routine PR does not require adversarial review"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "What safety checks do I need before opening a PR with code changes?"
+      user_input: "This is a routine validated code change, not high-risk, and the user did not request hostile critique. Is adversarial review mandatory before PR creation? Answer exactly one word: Yes or No."
     assert:
-      - type: icontains
-        value: "adversarial"
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "acting-on-behalf: pr-lifecycle-missing fallback requires a case-sensitive valid non-WIP --title plus --body on the same gh pr create --draft command (a bare create followed by a later gh pr edit --title/--body cannot launder it, and an uppercase FIX: title must fail)"
     vars:
@@ -628,6 +717,14 @@ tests:
         value: "/^acting-on-behalf[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
 
   # --- consensus-panel ---
+  - description: "consensus-panel: routine changes do not invoke consensus"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The change is routine, low-risk, and the user did not request consensus. Should I invoke this panel? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
   - description: "consensus-panel: dispatches to multiple models in parallel"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
