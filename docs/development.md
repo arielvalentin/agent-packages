@@ -64,11 +64,18 @@ When adding or changing an assertion:
    intentionally backward-incompatible and must update that manifest.
 3. Link the owning prose and every downstream policy consumer to the canonical
    record. Do not copy a second assertion record into a consumer.
-4. Add deterministic parser/schema fixtures for new enum or reference behavior.
-   Promptfoo policy decisions must return
-   `{"assertion_id":"...","result":"...","allowed":true|false}` and use
-   `assert-policy-decision.cjs`; do not infer policy from free-form model prose.
-5. Run:
+4. Add the independently expected `result` and `allowed` values to the manifest.
+   The checker compares those fixed expectations with the policy record, so a
+   registry edit cannot silently redefine its own expected outcome.
+5. Add deterministic parser/schema fixtures for new enum, reference,
+   precedence, or ambiguity behavior. Scenario-based Promptfoo coverage uses
+   `assert-policy-route.cjs` with `assertion_id`, `expected_result`, and
+   `expected_allowed`; the model must return the exact result token. Do not ask
+   the model to read the assertion record back or infer policy from unrestricted
+   free-form prose. If conflicting decisions are mutually exclusive, represent
+   that with an existing condition group or extend the validator's reviewed
+   mutually exclusive condition groups.
+6. Run:
 
    ```bash
    bash script/check-policy-assertions.sh
@@ -78,10 +85,11 @@ When adding or changing an assertion:
    ```
 
 The checker rejects malformed records, duplicate JSON keys or assertion IDs,
-unknown fields or enums, unresolved precedence and prose references,
-unreferenced assertions, and deterministic linked-marker contradictions.
-General natural-language contradiction detection is deliberately out of scope;
-the structured record is authoritative.
+unknown fields or enums, unresolved or cyclic precedence, ambiguous overlapping
+decisions without precedence, unresolved prose references, unreferenced
+assertions, expected-outcome drift, and deterministic linked-marker
+contradictions. General natural-language contradiction detection is
+deliberately out of scope; the structured record is authoritative.
 
 ## Troubleshooting
 

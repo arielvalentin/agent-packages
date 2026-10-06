@@ -82,6 +82,20 @@ const ENUMS = {
 const ID_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$/;
 const CONDITION_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/;
 const REFERENCE_PATTERN = /\{\{policy:([^}]+)\}\}/g;
+const MUTUALLY_EXCLUSIVE_CONDITION_GROUPS = [
+  new Set(['explicit-multi-review.true', 'explicit-multi-review.false']),
+  new Set([
+    'capacity.initial-slots.two',
+    'capacity.initial-slots.less-than-two',
+  ]),
+  new Set(['user.type.user', 'user.type.bot', 'user.type.missing-or-unknown']),
+  new Set(['author.typename.bot', 'author.typename.not-bot']),
+  new Set(['chain.complete', 'chain.incomplete']),
+  new Set(['chain.every-actor.bot', 'chain.any-actor.user']),
+  new Set(['chain.every-actor.bot', 'chain.any-actor.unknown']),
+  new Set(['item.new', 'item.existing']),
+  new Set(['item.all-participants.bot', 'item.any-participant.user']),
+];
 
 class PolicyAssertionError extends Error {
   constructor(message, source = 'policy assertions') {
@@ -114,19 +128,15 @@ function topLevelKeys(line, source) {
 
     const start = index;
     index += 1;
-    let value = '';
     let escaped = false;
     while (index < line.length) {
       const current = line[index];
       if (escaped) {
-        value += current;
         escaped = false;
       } else if (current === '\\') {
         escaped = true;
       } else if (current === '"') {
         break;
-      } else {
-        value += current;
       }
       index += 1;
     }
@@ -136,12 +146,19 @@ function topLevelKeys(line, source) {
     index += 1;
 
     if (depth === 1) {
+      let value;
+      try {
+        value = JSON.parse(line.slice(start, index));
+      } catch (error) {
+        throw new PolicyAssertionError(
+          `malformed JSON key: ${error.message}`,
+          source,
+        );
+      }
       let lookahead = index;
       while (/\s/.test(line[lookahead] || '')) lookahead += 1;
       if (line[lookahead] === ':') keys.push(value);
     }
-
-    if (index === start) index += 1;
   }
 
   return keys;
@@ -345,6 +362,83 @@ function buildRegistry(documents) {
         throw new PolicyAssertionError(
           `unknown precedence assertion "${predecessor}"`,
           assertion.source,
+        );
+      }
+    }
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  function visitPrecedence(id) {
+    if (visiting.has(id)) {
+      throw new PolicyAssertionError(
+        `precedence cycle includes "${id}"`,
+        registry.get(id).source,
+      );
+    }
+    if (visited.has(id)) return;
+    visiting.add(id);
+    for (const predecessor of registry.get(id).precedence) {
+      visitPrecedence(predecessor);
+    }
+    visiting.delete(id);
+    visited.add(id);
+  }
+  for (const id of registry.keys()) visitPrecedence(id);
+
+  function precedes(assertion, predecessorId, seen = new Set()) {
+    if (assertion.precedence.includes(predecessorId)) return true;
+    if (seen.has(assertion.id)) return false;
+    seen.add(assertion.id);
+    return assertion.precedence.some((id) =>
+      precedes(registry.get(id), predecessorId, seen),
+    );
+  }
+
+  const assertions = [...registry.values()];
+  for (let leftIndex = 0; leftIndex < assertions.length; leftIndex += 1) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < assertions.length;
+      rightIndex += 1
+    ) {
+      const left = assertions[leftIndex];
+      const right = assertions[rightIndex];
+      const sameSurface = ['contract', 'actor', 'provenance', 'interaction', 'action']
+        .every((field) => left[field] === right[field]);
+      if (!sameSurface) continue;
+
+      const rightConditions = new Set(right.conditions);
+      const sameConditions =
+        left.conditions.length === right.conditions.length &&
+        left.conditions.every((condition) => rightConditions.has(condition));
+      const sameDecision =
+        left.result === right.result && left.allowed === right.allowed;
+      if (sameConditions && sameDecision) {
+        throw new PolicyAssertionError(
+          `duplicate semantic assertions "${left.id}" and "${right.id}"`,
+          right.source,
+        );
+      }
+
+      const mutuallyExclusive = MUTUALLY_EXCLUSIVE_CONDITION_GROUPS.some(
+        (group) =>
+          left.conditions.some((condition) => group.has(condition)) &&
+          right.conditions.some((condition) => group.has(condition)) &&
+          !left.conditions.some(
+            (condition) =>
+              group.has(condition) && rightConditions.has(condition),
+          ),
+      );
+      if (
+        !sameDecision &&
+        !mutuallyExclusive &&
+        !precedes(left, right.id) &&
+        !precedes(right, left.id)
+      ) {
+        throw new PolicyAssertionError(
+          `conflicting assertions "${left.id}" and "${right.id}" lack precedence`,
+          right.source,
         );
       }
     }

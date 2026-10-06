@@ -22,6 +22,8 @@ Prose explains the contract but does not redefine it.
 {"id":"human-interaction.chain.incomplete","contract":"human-interaction.chain","actor":"unknown","provenance":"incomplete-chain","interaction":"public-github","action":"classify","conditions":["chain.incomplete"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
 {"id":"human-interaction.existing-item.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
 {"id":"human-interaction.existing-item.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.existing-issue.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
+{"id":"human-interaction.existing-issue.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
 {"id":"human-interaction.action.human-stop.implement","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"implement","conditions":["classification.human-stop","trigger.interaction"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
 {"id":"human-interaction.action.human-stop.draft","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"draft","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
 {"id":"human-interaction.action.human-stop.post","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
@@ -44,6 +46,8 @@ Prose explains the contract but does not redefine it.
 | Incomplete chain retrieval | {{policy:human-interaction.chain.incomplete.result}} |
 | Existing item with all-Bot context | {{policy:human-interaction.existing-item.all-bot.result}} |
 | Existing item with a human participant | {{policy:human-interaction.existing-item.any-human.result}} |
+| Existing issue with all-Bot context | {{policy:human-interaction.existing-issue.all-bot.result}} |
+| Existing issue with a human participant | {{policy:human-interaction.existing-issue.any-human.result}} |
 
 For a tainted interaction, implementation
 allowed={{policy:human-interaction.action.human-stop.implement.allowed}},

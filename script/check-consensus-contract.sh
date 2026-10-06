@@ -61,7 +61,7 @@ require_test_assert() {
     in_case && /- description: "/ { in_case = 0 }
     in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
     in_case && /^[[:space:]]+value:/ { has_value = 1 }
-    in_case && /[&*]policy_decision/ { has_policy_assert = 1 }
+    in_case && /[&*]policy_route/ { has_policy_assert = 1 }
     END { exit !(found && has_assert && (has_value || has_policy_assert)) }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assert block: $desc"
@@ -87,7 +87,9 @@ require_test_exact_token() {
         && index(block, "!l.includes") > 0
       structured_ok = assertion_id != "" \
         && index(block, "assertion_id: \"" assertion_id "\"") > 0 \
-        && index(block, "policy_decision") > 0
+        && index(block, "expected_result: \"" token "\"") > 0 \
+        && index(block, "expected_allowed:") > 0 \
+        && index(block, "policy_route") > 0
       exit !(found && (direct_ok || equality_ok || strict_ok || exclusive_ok || structured_ok))
     }
   ' "$tests"; then
@@ -308,7 +310,9 @@ require "$panel" "explicit panel stopping before tiebreak salvage" \
 require "$panel" "automatic panel retaining adaptive recovery" \
   'EXPLICIT_MULTI_REVIEW=false` with fewer than 2 valid initial responses.{0,100}`ADAPTIVE_RECOVERY`'
 require "$panel" "automatic unavailable decision row" \
-  'explicit_multi_review=false` and automatic discovery/capacity is unavailable.{0,80}`ADAPTIVE_RECOVERY`'
+  'explicit_multi_review=false` and automatic discovery/capacity is unavailable.{0,120}policy:consensus\.automatic\.unavailable\.result'
+require "$panel" "automatic initial-failure decision row" \
+  'explicit_multi_review=false` and one initial response remains invalid after retry.{0,120}policy:consensus\.automatic\.initial-failure\.result'
 require "$panel" "single envelope propagating explicit false" \
   'set `explicit_multi_review: false` and `consensus_role: single`'
 require "$panel" "panel envelopes propagating persisted explicit state" \
@@ -422,8 +426,6 @@ for description in \
   'coordinator: missing panel allows routine bounded fallback' \
   'consensus-panel: explicit under-capacity stops unavailable' \
   'consensus-panel: explicit failed initial dispatch stops unavailable' \
-  'consensus-panel: automatic under-capacity keeps bounded recovery' \
-  'consensus-panel: automatic initial failure keeps bounded recovery' \
   'coordinator: missing explicit review field rejects handoff' \
   'review-fix-loop: invalid explicit review field rejects handoff' \
   'adversarial-review: invalid explicit review field rejects handoff' \

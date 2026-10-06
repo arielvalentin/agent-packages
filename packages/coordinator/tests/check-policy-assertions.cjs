@@ -14,36 +14,51 @@ const promptfooConfig = path.join(
   'packages/coordinator/tests/promptfooconfig.yaml',
 );
 
-const requiredIds = [
-  'consensus.automatic.single',
-  'consensus.automatic.unavailable',
-  'consensus.explicit.initial-failure',
-  'consensus.explicit.panel',
-  'consensus.explicit.under-capacity',
-  'consensus.handoff.invalid',
-  'coordinator.policy.high-risk',
-  'coordinator.public.existing-item',
-  'coordinator.public.new-item',
-  'coordinator.security.explicit-vulnerability',
-  'human-interaction.action.human-stop.draft',
-  'human-interaction.action.human-stop.implement',
-  'human-interaction.action.human-stop.post',
-  'human-interaction.action.human-stop.reply',
-  'human-interaction.action.human-stop.resolve',
-  'human-interaction.actor.graphql-bot',
-  'human-interaction.actor.graphql-non-bot',
-  'human-interaction.actor.rest-bot',
-  'human-interaction.actor.rest-unknown',
-  'human-interaction.actor.rest-user',
-  'human-interaction.chain.all-bot',
-  'human-interaction.chain.any-human',
-  'human-interaction.chain.any-unknown',
-  'human-interaction.chain.incomplete',
-  'human-interaction.existing-item.all-bot',
-  'human-interaction.existing-item.any-human',
-  'human-interaction.ownership.human-stop',
-  'human-interaction.provenance.user-with-app',
-];
+const expectedAssertions = new Map(
+  Object.entries({
+    'consensus.automatic.initial-failure': ['ADAPTIVE_RECOVERY', true],
+    'consensus.automatic.single': ['SINGLE_1', true],
+    'consensus.automatic.unavailable': ['ADAPTIVE_RECOVERY', true],
+    'consensus.explicit.initial-failure': ['STOP_UNAVAILABLE', false],
+    'consensus.explicit.panel': ['PANEL_2', true],
+    'consensus.explicit.under-capacity': ['STOP_UNAVAILABLE', false],
+    'consensus.handoff.invalid': ['STOP_INVALID_HANDOFF', false],
+    'coordinator.policy.high-risk': ['DIRECT_HIGH_RISK_ADVERSARIAL', true],
+    'coordinator.public.existing-item': [
+      'HUMAN_INTERACTION_THEN_ACTING',
+      true,
+    ],
+    'coordinator.public.new-item': ['ACTING_ONLY', true],
+    'coordinator.security.explicit-vulnerability': [
+      'SECURITY_REVIEW_FIRST',
+      true,
+    ],
+    'human-interaction.action.human-stop.draft': ['PROHIBITED', false],
+    'human-interaction.action.human-stop.implement': ['PROHIBITED', false],
+    'human-interaction.action.human-stop.post': ['PROHIBITED', false],
+    'human-interaction.action.human-stop.reply': ['PROHIBITED', false],
+    'human-interaction.action.human-stop.resolve': ['PROHIBITED', false],
+    'human-interaction.actor.graphql-bot': ['AUTOMATION_FLOW', true],
+    'human-interaction.actor.graphql-non-bot': ['HUMAN_STOP', false],
+    'human-interaction.actor.rest-bot': ['AUTOMATION_FLOW', true],
+    'human-interaction.actor.rest-unknown': ['HUMAN_STOP', false],
+    'human-interaction.actor.rest-user': ['HUMAN_STOP', false],
+    'human-interaction.chain.all-bot': ['AUTOMATION_FLOW', true],
+    'human-interaction.chain.any-human': ['HUMAN_STOP', false],
+    'human-interaction.chain.any-unknown': ['HUMAN_STOP', false],
+    'human-interaction.chain.incomplete': ['HUMAN_STOP', false],
+    'human-interaction.existing-issue.all-bot': ['AUTOMATION_FLOW', true],
+    'human-interaction.existing-issue.any-human': ['HUMAN_STOP', false],
+    'human-interaction.existing-item.all-bot': ['AUTOMATION_FLOW', true],
+    'human-interaction.existing-item.any-human': ['HUMAN_STOP', false],
+    'human-interaction.ownership.human-stop': [
+      'USER_WRITES_REPLY_AND_RESOLVES',
+      true,
+    ],
+    'human-interaction.provenance.user-with-app': ['HUMAN_STOP', false],
+  }),
+);
+const requiredIds = [...expectedAssertions.keys()];
 
 const requiredPromptfooIds = [
   'consensus.explicit.initial-failure',
@@ -62,6 +77,9 @@ const requiredPromptfooIds = [
   'human-interaction.chain.any-human',
   'human-interaction.chain.any-unknown',
   'human-interaction.chain.incomplete',
+  'human-interaction.existing-issue.all-bot',
+  'human-interaction.existing-issue.any-human',
+  'human-interaction.existing-item.all-bot',
   'human-interaction.existing-item.any-human',
   'human-interaction.provenance.user-with-app',
 ];
@@ -81,15 +99,36 @@ if (missing.length > 0 || unexpected.length > 0) {
   process.exit(1);
 }
 
-const promptfoo = fs.readFileSync(promptfooConfig, 'utf8');
-for (const id of requiredPromptfooIds) {
-  if (!promptfoo.includes(`assertion_id: "${id}"`)) {
-    console.error(`Promptfoo is missing structured policy coverage for ${id}`);
+for (const [id, [expectedResult, expectedAllowed]] of expectedAssertions) {
+  const assertion = registry.get(id);
+  if (
+    assertion.result !== expectedResult ||
+    assertion.allowed !== expectedAllowed
+  ) {
+    console.error(
+      `${id} expected result=${expectedResult}, allowed=${expectedAllowed}; ` +
+        `received result=${assertion.result}, allowed=${assertion.allowed}`,
+    );
     process.exit(1);
   }
 }
-if (!promptfoo.includes('file://assert-policy-decision.cjs')) {
-  console.error('Promptfoo is missing the structured policy assertion helper');
+
+const promptfoo = fs.readFileSync(promptfooConfig, 'utf8');
+for (const id of requiredPromptfooIds) {
+  const [expectedResult, expectedAllowed] = expectedAssertions.get(id);
+  for (const marker of [
+    `assertion_id: "${id}"`,
+    `expected_result: "${expectedResult}"`,
+    `expected_allowed: ${expectedAllowed}`,
+  ]) {
+    if (!promptfoo.includes(marker)) {
+      console.error(`Promptfoo is missing policy coverage marker: ${marker}`);
+      process.exit(1);
+    }
+  }
+}
+if (!promptfoo.includes('file://assert-policy-route.cjs')) {
+  console.error('Promptfoo is missing the bounded policy route helper');
   process.exit(1);
 }
 if (

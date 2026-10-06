@@ -20,11 +20,12 @@ the answer.
 ```policy-assertions
 {"format":"policy-assertions","version":1}
 {"id":"consensus.handoff.invalid","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"route","conditions":["explicit-multi-review.missing-or-invalid"],"result":"STOP_INVALID_HANDOFF","allowed":false,"precedence":[]}
+{"id":"consensus.automatic.unavailable","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"fallback","conditions":["explicit-multi-review.false","automatic-capacity.unavailable"],"result":"ADAPTIVE_RECOVERY","allowed":true,"precedence":[]}
+{"id":"consensus.automatic.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"fallback","conditions":["explicit-multi-review.false","dispatch.initial-response.invalid-after-retry"],"result":"ADAPTIVE_RECOVERY","allowed":true,"precedence":[]}
+{"id":"consensus.automatic.single","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.false","scope.fast-path-eligible"],"result":"SINGLE_1","allowed":true,"precedence":[]}
 {"id":"consensus.explicit.panel","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.two"],"result":"PANEL_2","allowed":true,"precedence":[]}
 {"id":"consensus.explicit.under-capacity","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.less-than-two"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":[]}
 {"id":"consensus.explicit.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","dispatch.initial-response.invalid-after-retry"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":["consensus.explicit.panel"]}
-{"id":"consensus.automatic.unavailable","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"fallback","conditions":["explicit-multi-review.false","automatic-capacity.unavailable"],"result":"ADAPTIVE_RECOVERY","allowed":true,"precedence":[]}
-{"id":"consensus.automatic.single","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.false","scope.fast-path-eligible"],"result":"SINGLE_1","allowed":true,"precedence":[]}
 ```
 
 Invalid handoffs return
@@ -35,20 +36,24 @@ insufficient capacity return
 response after retry returns
 {{policy:consensus.explicit.initial-failure.result}}. Non-explicit unavailable
 capacity uses {{policy:consensus.automatic.unavailable.result}}. The automatic
-tiny/non-code path uses
+initial-response failure uses
+{{policy:consensus.automatic.initial-failure.result}}. The automatic tiny/non-code path uses
 {{policy:consensus.automatic.single.result}}.
 
 ## Entry decision table (apply first)
 
 `AUTOMATIC_FALSE_FALLBACK = ADAPTIVE_RECOVERY`.
+For `explicit_multi_review=false`, automatic capacity or initial-response
+failure returns `ADAPTIVE_RECOVERY`; `STOP_UNAVAILABLE` is exclusive to the
+equivalent `explicit_multi_review=true` failures.
 
 | Input/state | Required result |
 |-------------|-----------------|
-| `explicit_multi_review` missing, null, string, or non-boolean | `STOP_INVALID_HANDOFF` |
-| `explicit_multi_review=false` and automatic discovery/capacity is unavailable | `ADAPTIVE_RECOVERY` |
-| `explicit_multi_review=false` and one initial response remains invalid after retry | `ADAPTIVE_RECOVERY` |
-| `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` |
-| `explicit_multi_review=true` and either initial slot still fails after its one same-slot retry | `STOP_UNAVAILABLE` |
+| `explicit_multi_review` missing, null, string, or non-boolean | `STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}) |
+| `explicit_multi_review=false` and automatic discovery/capacity is unavailable | `ADAPTIVE_RECOVERY` ({{policy:consensus.automatic.unavailable.result}}) |
+| `explicit_multi_review=false` and one initial response remains invalid after retry | `ADAPTIVE_RECOVERY` ({{policy:consensus.automatic.initial-failure.result}}) |
+| `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` ({{policy:consensus.explicit.under-capacity.result}}) |
+| `explicit_multi_review=true` and either initial slot still fails after its one same-slot retry | `STOP_UNAVAILABLE` ({{policy:consensus.explicit.initial-failure.result}}) |
 
 This table overrides the fast-path, escalation, synthesis, and generic failure
 rules below. Explicit under-capacity never becomes a single-reviewer path.
@@ -59,6 +64,18 @@ initial response, the immediate routing answer is `ADAPTIVE_RECOVERY`, not
 When model discovery or automatic capacity is unavailable and
 `explicit_multi_review=false`, the immediate routing answer is likewise
 `ADAPTIVE_RECOVERY`, never `STOP_UNAVAILABLE`.
+
+Apply this mechanical false-control before reading the generic failure modes:
+
+```text
+if explicit_multi_review == false
+and (automatic capacity is unavailable
+     or an initial response remains invalid after retry):
+  return ADAPTIVE_RECOVERY
+```
+
+`STOP_UNAVAILABLE` in this skill's entry contract applies to those capacity or
+initial-response failures only when `explicit_multi_review=true`.
 
 ## Persisted explicit multi-review input
 

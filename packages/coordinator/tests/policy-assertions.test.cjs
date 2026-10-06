@@ -7,7 +7,7 @@ const {
   compareRegistryIds,
   parsePolicyMarkdown,
 } = require('./policy-assertions.cjs');
-const assertPolicyDecision = require('./assert-policy-decision.cjs');
+const assertPolicyRoute = require('./assert-policy-route.cjs');
 
 const assertion = (overrides = {}) => ({
   id: 'test.actor.user',
@@ -105,6 +105,71 @@ assert.throws(
   PolicyAssertionError,
 );
 
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'non-subset-semantic-conflict',
+        markdown: markdown(
+          [
+            assertion({
+              id: 'test.actor.first',
+              conditions: ['user.type.user', 'request.one'],
+            }),
+            assertion({
+              id: 'test.actor.second',
+              conditions: ['user.type.user', 'request.two'],
+              result: 'AUTOMATION_FLOW',
+              allowed: true,
+            }),
+          ],
+          [
+            '{{policy:test.actor.first.result}}',
+            '{{policy:test.actor.second.result}}',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+
+const mutuallyExclusiveRegistry = buildRegistry([
+  {
+    source: 'mutually-exclusive-decisions',
+    markdown: markdown(
+      [
+        assertion({
+          id: 'test.actor.user',
+          conditions: ['explicit-multi-review.true'],
+        }),
+        assertion({
+          id: 'test.actor.automatic',
+          conditions: ['explicit-multi-review.false'],
+          result: 'AUTOMATION_FLOW',
+          allowed: true,
+        }),
+      ],
+      [
+        '{{policy:test.actor.user.result}}',
+        '{{policy:test.actor.automatic.result}}',
+      ].join('\n'),
+    ),
+  },
+]);
+assert.equal(mutuallyExclusiveRegistry.size, 2);
+
+const escapedDuplicateKey = [
+  '```policy-assertions',
+  '{"format":"policy-assertions","version":1}',
+  '{"id":"test.actor.user","\\u0069d":"test.actor.bot","contract":"test.contract","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}',
+  '```',
+  'Reference {{policy:test.actor.user.result}}.',
+].join('\n');
+assert.throws(
+  () => parsePolicyMarkdown(escapedDuplicateKey, 'escaped-duplicate-key'),
+  PolicyAssertionError,
+);
+
 const duplicateId = buildRegistry.bind(null, [
   {
     source: 'first',
@@ -122,6 +187,77 @@ const duplicateId = buildRegistry.bind(null, [
   },
 ]);
 assert.throws(duplicateId, PolicyAssertionError);
+
+assert.throws(
+  () => {
+    const first = assertion({
+      id: 'test.actor.first',
+      precedence: ['test.actor.second'],
+    });
+    const second = assertion({
+      id: 'test.actor.second',
+      precedence: ['test.actor.first'],
+    });
+    buildRegistry([
+      {
+        source: 'precedence-cycle',
+        markdown: markdown(
+          [first, second],
+          [
+            '{{policy:test.actor.first.result}}',
+            '{{policy:test.actor.second.result}}',
+          ].join('\n'),
+        ),
+      },
+    ]);
+  },
+  PolicyAssertionError,
+);
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'duplicate-semantic-assertion',
+        markdown: markdown(
+          [
+            assertion({ id: 'test.actor.first' }),
+            assertion({ id: 'test.actor.second' }),
+          ],
+          [
+            '{{policy:test.actor.first.result}}',
+            '{{policy:test.actor.second.result}}',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'semantic-conflict',
+        markdown: markdown(
+          [
+            assertion({ id: 'test.actor.broad' }),
+            assertion({
+              id: 'test.actor.specific',
+              conditions: ['user.type.user', 'app.association.present'],
+              result: 'AUTOMATION_FLOW',
+              allowed: true,
+            }),
+          ],
+          [
+            '{{policy:test.actor.broad.result}}',
+            '{{policy:test.actor.specific.result}}',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
 
 assert.throws(
   () =>
@@ -220,48 +356,53 @@ assert.throws(
   PolicyAssertionError,
 );
 
-const decisionContext = {
-  vars: { assertion_id: 'human-interaction.actor.rest-user' },
+const routeContext = {
+  vars: {
+    assertion_id: 'human-interaction.actor.rest-user',
+    expected_result: 'HUMAN_STOP',
+    expected_allowed: false,
+  },
 };
-const decision =
-  '{"assertion_id":"human-interaction.actor.rest-user","result":"HUMAN_STOP","allowed":false}';
-assert.equal(assertPolicyDecision(decision, decisionContext), true);
+assert.equal(assertPolicyRoute('HUMAN_STOP', routeContext), true);
 assert.equal(
-  assertPolicyDecision(`\`\`\`json\n${decision}\n\`\`\``, decisionContext),
+  assertPolicyRoute('Classification: HUMAN_STOP', routeContext),
   true,
 );
+assert.equal(assertPolicyRoute('Route token: HUMAN_STOP', routeContext), true);
 assert.equal(
-  assertPolicyDecision(`Canonical decision:\n${decision}`, decisionContext),
-  true,
-);
-assert.equal(
-  assertPolicyDecision(
-    [
-      'Canonical decision:',
-      '* `assertion_id`: `human-interaction.actor.rest-user`',
-      '* `result`: `HUMAN_STOP`',
-      '* `allowed`: `false`',
-    ].join('\n'),
-    decisionContext,
-  ),
-  true,
-);
-assert.equal(
-  assertPolicyDecision(`${decision}\n${decision}`, decisionContext),
+  assertPolicyRoute('The prose mentions HUMAN_STOP without selecting it.', routeContext),
   false,
 );
 assert.equal(
-  assertPolicyDecision(
-    `${decision}\n{"note":"second structured object"}`,
-    decisionContext,
-  ),
+  assertPolicyRoute('```text\nHUMAN_STOP\n```', routeContext),
   false,
 );
 assert.equal(
-  assertPolicyDecision(
-    '{"assertion_id":"human-interaction.actor.rest-user","result":"HUMAN_STOP","allowed":false,"allowed":true}',
-    decisionContext,
-  ),
+  assertPolicyRoute('HUMAN_STOP\nAUTOMATION_FLOW', routeContext),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('AUTOMATION_FLOW', routeContext),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('HUMAN_STOP', {
+    vars: {
+      assertion_id: 'human-interaction.actor.rest-user',
+      expected_result: 'AUTOMATION_FLOW',
+      expected_allowed: false,
+    },
+  }),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('HUMAN_STOP', {
+    vars: {
+      assertion_id: 'human-interaction.actor.rest-user',
+      expected_result: 'HUMAN_STOP',
+      expected_allowed: true,
+    },
+  }),
   false,
 );
 

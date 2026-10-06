@@ -46,7 +46,7 @@ require_test_assert() {
     in_case && /- description: "/ { in_case = 0 }
     in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
     in_case && /^[[:space:]]+value:/ { has_value = 1 }
-    in_case && /\*policy_decision/ { has_shared_assert = 1 }
+    in_case && /\*policy_route/ { has_shared_assert = 1 }
     END { exit !(found && has_assert && (has_value || has_shared_assert)) }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assertion block: $desc"
@@ -62,9 +62,11 @@ require_test_policy_assertion() {
     in_case { block = block $0 "\n" }
     END {
       id_ok = index(block, "assertion_id: \"" assertion_id "\"") > 0
-      helper_ok = index(block, "*policy_decision") > 0 \
-        || index(block, "&policy_decision") > 0
-      exit !(found && id_ok && helper_ok)
+      result_ok = index(block, "expected_result:") > 0
+      allowed_ok = index(block, "expected_allowed:") > 0
+      helper_ok = index(block, "*policy_route") > 0 \
+        || index(block, "&policy_route") > 0
+      exit !(found && id_ok && result_ok && allowed_ok && helper_ok)
     }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks structured assertion $assertion_id: $desc"
@@ -416,6 +418,7 @@ for description in \
   'human-interaction: top-level review classifies complete existing PR' \
   'human-interaction: all-Bot existing PR allows top-level review flow' \
   'human-interaction: all-Bot existing issue allows top-level comment flow' \
+  'human-interaction: human existing issue stops top-level comment flow' \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: tainted-thread drafting is prohibited' \
@@ -428,9 +431,9 @@ for description in \
 done
 
 require "$tests" "shared structured policy assertion anchor" \
-  '&policy_decision'
+  '&policy_route'
 require "$tests" "shared structured policy assertion helper call" \
-  'file://assert-policy-decision\.cjs'
+  'file://assert-policy-route\.cjs'
 require "$policy_assertions" "policy assertion fence parser" \
   'policy-assertions'
 require "$policy_assertions" "duplicate key rejection" \
