@@ -17,13 +17,5 @@ module.exports = (output, context = {}) => {
     `Classification: ${expectedClassification}`,
     ...LABELS.slice(1).map((label) => `${label}: ${expectedAction}`),
   ];
-  const lines = String(output)
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  return (
-    lines.length === expected.length &&
-    expected.every((line, index) => lines[index] === line)
-  );
+  return String(output).replace(/\r\n/g, '\n') === expected.join('\n');
 };

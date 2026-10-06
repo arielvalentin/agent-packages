@@ -138,6 +138,48 @@ assert.throws(
   PolicyAssertionError,
 );
 
+for (const structuralContradiction of [
+  [
+    '- Route {{policy:test.actor.user.result}}',
+    '  but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
+    '1. Route {{policy:test.actor.user.result}}',
+    '   but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
+    '> Route {{policy:test.actor.user.result}}',
+    '> but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+]) {
+  assert.throws(
+    () =>
+      buildRegistry([
+        {
+          source: 'structural-continuation-contradiction',
+          markdown: markdown([assertion()], structuralContradiction),
+        },
+      ]),
+    PolicyAssertionError,
+  );
+}
+
+for (const identifierContradiction of [
+  'Route for `user.type` {{policy:test.actor.user.result}} but automation_flow.',
+  'Permission for `user.type` {{policy:test.actor.user.allowed}} allowed: true.',
+]) {
+  assert.throws(
+    () =>
+      buildRegistry([
+        {
+          source: 'identifier-contradiction',
+          markdown: markdown([assertion()], identifierContradiction),
+        },
+      ]),
+    PolicyAssertionError,
+  );
+}
+
 assert.throws(
   () =>
     buildRegistry([
@@ -517,6 +559,9 @@ const routeContext = {
   },
 };
 assert.equal(assertPolicyRoute('HUMAN_STOP', routeContext), true);
+assert.equal(assertPolicyRoute(' HUMAN_STOP', routeContext), false);
+assert.equal(assertPolicyRoute('HUMAN_STOP ', routeContext), false);
+assert.equal(assertPolicyRoute('HUMAN_STOP\n', routeContext), false);
 assert.equal(assertPolicyRoute('`HUMAN_STOP`', routeContext), false);
 assert.equal(assertPolicyRoute('HUMAN_STOP.', routeContext), false);
 assert.equal(
@@ -592,6 +637,47 @@ assert.equal(
     ].join('\n'),
   ),
   true,
+);
+assert.equal(
+  assertStructuredActions(
+    [
+      'Classification: HUMAN_STOP',
+      '',
+      'Implement: No',
+      'Draft: No',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+  ),
+  false,
+);
+assert.equal(
+  assertStructuredActions(
+    [
+      'Classification: HUMAN_STOP',
+      ' Implement: No',
+      'Draft: No',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+  ),
+  false,
+);
+assert.equal(
+  assertStructuredActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Implement: No',
+      'Draft: No',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+      '',
+    ].join('\n'),
+  ),
+  false,
 );
 assert.equal(
   assertStructuredActions(

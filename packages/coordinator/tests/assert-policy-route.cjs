@@ -7,8 +7,7 @@ const policyRoot = path.resolve(__dirname, '../.apm');
 let cachedRegistry;
 
 function exactResult(output) {
-  const text = String(output).trim();
-  if (text.includes('```') || text.includes('\n')) return null;
+  const text = String(output);
   return ENUMS.result.has(text) ? text : null;
 }
 

@@ -264,12 +264,26 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
     for (const match of line.matchAll(REFERENCE_PATTERN)) {
       referencedText = referencedText.replace(match[0], '');
       const trimmed = line.trim();
-      const structuralLine =
-        trimmed === '' ||
-        /^(?:```|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(trimmed);
       let paragraphStart = index;
       let paragraphEnd = index;
-      if (!structuralLine) {
+      if (/^(?:[-*+]\s|\d+\.\s)/.test(trimmed)) {
+        while (
+          paragraphEnd + 1 < lines.length &&
+          /^(?: {2,}|\t)\S/.test(lines[paragraphEnd + 1])
+        ) {
+          paragraphEnd += 1;
+        }
+      } else if (/^>/.test(trimmed)) {
+        while (
+          paragraphEnd + 1 < lines.length &&
+          /^>/.test(lines[paragraphEnd + 1].trim())
+        ) {
+          paragraphEnd += 1;
+        }
+      } else if (
+        trimmed !== '' &&
+        !/^(?:```|#{1,6}\s|[|])/.test(trimmed)
+      ) {
         while (
           paragraphStart > 0 &&
           lines[paragraphStart - 1].trim() !== '' &&
@@ -297,22 +311,18 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         match.index;
       const beforeMarker = paragraph.slice(0, markerIndex);
       const afterMarker = paragraph.slice(markerIndex + match[0].length);
-      const sentenceStart =
-        Math.max(
-          beforeMarker.lastIndexOf('.'),
-          beforeMarker.lastIndexOf('!'),
-          beforeMarker.lastIndexOf('?'),
-        ) + 1;
-      const sentenceEndOffsets = ['.', '!', '?']
-        .map((terminator) => afterMarker.indexOf(terminator))
-        .filter((offset) => offset >= 0);
+      let sentenceStart = 0;
+      for (const terminator of beforeMarker.matchAll(/[.!?](?=\s|$)/g)) {
+        sentenceStart = terminator.index + 1;
+      }
+      const sentenceEndMatch = afterMarker.match(/[.!?](?=\s|$)/);
       const sentenceEnd =
-        sentenceEndOffsets.length === 0
+        sentenceEndMatch === null
           ? paragraph.length
           : markerIndex +
             match[0].length +
-            Math.min(...sentenceEndOffsets) +
-            1;
+            sentenceEndMatch.index +
+            sentenceEndMatch[0].length;
       const parsedReference = match[1].match(
         /^([a-z][a-z0-9]*(?:[.-][a-z0-9]+)+)\.([a-z_]+)$/,
       );
