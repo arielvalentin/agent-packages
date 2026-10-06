@@ -129,13 +129,13 @@ classify_chain() {
 actions_for_path() {
   case "$1" in
     HUMAN_STOP)
-      printf '%s' "implementation_from_interaction=false reply=false resolve=false"
+      printf '%s' "implementation_from_interaction=false draft=false post=false reply=false resolve=false"
       ;;
     AUTOMATION_FLOW)
-      printf '%s' "implementation_from_interaction=allowed reply=allowed resolve=allowed"
+      printf '%s' "implementation_from_interaction=allowed draft=allowed post=allowed reply=allowed resolve=allowed"
       ;;
     *)
-      printf '%s' "implementation_from_interaction=false reply=false resolve=false"
+      printf '%s' "implementation_from_interaction=false draft=false post=false reply=false resolve=false"
       ;;
   esac
 }
@@ -358,24 +358,30 @@ assert_eq "AUTOMATION_FLOW" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)" \
   "Bot root with User reply"
-assert_eq "implementation_from_interaction=false reply=false resolve=false" \
+assert_eq "implementation_from_interaction=false draft=false post=false reply=false resolve=false" \
   "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)")" \
   "Bot root with User reply prohibited actions"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":null}]}' | classify_chain)" \
   "Bot root with unknown reply"
-assert_eq "implementation_from_interaction=false reply=false resolve=false" \
+assert_eq "implementation_from_interaction=false draft=false post=false reply=false resolve=false" \
   "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":null}]}' | classify_chain)")" \
   "Bot root with unknown reply prohibited actions"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "incomplete all-Bot thread"
+assert_eq "implementation_from_interaction=false draft=false post=false reply=false resolve=false" \
+  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)")" \
+  "incomplete thread prohibited actions"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"pull_request","user":{"type":"User"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}}]}' | classify_chain)" \
   "top-level review with human PR author"
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"pull_request","user":{"type":"Bot"}},{"surface":"pr_review","user":{"type":"Bot"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "all-Bot existing PR context"
+assert_eq "implementation_from_interaction=allowed draft=allowed post=allowed reply=allowed resolve=allowed" \
+  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"pull_request","user":{"type":"Bot"}},{"surface":"pr_review","user":{"type":"Bot"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)")" \
+  "all-Bot existing PR structured actions"
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"issue","user":{"type":"Bot"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}}]}' | classify_chain)" \
   "all-Bot existing issue context"
@@ -402,7 +408,6 @@ assert_eq "HUMAN_STOP" \
 
 # --- Supplemental Promptfoo coverage must remain present ---
 for description in \
-  'human-interaction: incomplete chain blocks every automated action' \
   'human-interaction: human question stops automation' \
   'human-interaction: unknown actor fails closed as human' \
   'human-interaction: bot-like User login fails closed' \
@@ -437,6 +442,11 @@ require "$policy" "six-decision HUMAN_STOP response contract" \
   'Classification: HUMAN_STOP Implement: No Draft: No Post: No Reply: No Resolve: No'
 require "$policy" "six-decision AUTOMATION_FLOW response contract" \
   'Classification: AUTOMATION_FLOW Implement: Allowed Draft: Allowed Post: Allowed Reply: Allowed Resolve: Allowed'
+require "$policy" "Yes/No HUMAN_STOP permission response" \
+  'for `HUMAN_STOP`, return exactly `No`'
+require "$root/packages/coordinator/tests/policy-assertions.test.cjs" \
+  "structured action helper unit coverage" \
+  'assert-structured-actions\.cjs'
 require "$tests" "shared structured policy assertion anchor" \
   '&policy_route'
 require "$tests" "shared structured policy assertion helper call" \

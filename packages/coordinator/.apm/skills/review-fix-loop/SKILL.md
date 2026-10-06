@@ -88,15 +88,16 @@ false from absence.
    Mandatory or explicitly requested gates stop/escalate on incomplete
    evidence; optional gates may warn only when the caller explicitly allows
    reduced assurance. Every complete aggregate is pass-eligible only when
-   `verdict.correct` is `yes`. `correct: no` or `correct: mixed` remains
-   unresolved even when `findings` is empty. An optional gate may continue
-   with a warning only when its caller explicitly permits reduced assurance;
-   it does not report the gate as passed. Use actionable findings for the fix
-   cycle when available; otherwise stop/escalate with the unresolved aggregate
-   verdict instead of inventing a finding or reporting pass. Then filter
-   findings by `severity_threshold`.
-   - `verdict.correct: yes` and no findings at or above threshold → **gate
-     passes**. Record result.
+   `verdict.correct`, `verdict.pragmatic`, and `verdict.beneficial` are all
+   `yes`; `verdict.simple` is advisory. A `no` or `mixed` value on any required
+   axis remains unresolved even when `findings` is empty. An optional gate may
+   continue with a warning only when its caller explicitly permits reduced
+   assurance; it does not report the gate as passed. Use actionable findings
+   for the fix cycle when available; otherwise stop/escalate with the
+   unresolved aggregate verdict instead of inventing a finding or reporting
+   pass. Then filter findings by `severity_threshold`.
+   - All required verdict axes are `yes` and no findings at or above threshold
+     → **gate passes**. Record result.
    - Findings at or above threshold → proceed to fix cycle.
 
 4. **Fix cycle** (up to `max_retries` iterations):
@@ -111,10 +112,10 @@ false from absence.
          panel-required scope starts a fresh initial wave of 2.
       Escalate only if that cycle's own responses fire a trigger. A previous
       cycle's escalation does not carry over.
-   c. If `verdict.correct: yes` and no findings at or above threshold → **gate
-      passes**. A `correct: no|mixed` aggregate still stops/escalates, or may
-      continue only as an explicit reduced-assurance warning for an optional
-      gate.
+   c. If `verdict.correct`, `verdict.pragmatic`, and `verdict.beneficial` are
+      all `yes` and no findings at or above threshold → **gate passes**. A
+      `no|mixed` required axis still stops/escalates, or may continue only as
+      an explicit reduced-assurance warning for an optional gate.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.
 

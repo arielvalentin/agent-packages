@@ -8,7 +8,7 @@ const {
   compareRegistryIds,
   parsePolicyMarkdown,
 } = require('./policy-assertions.cjs');
-const assertHumanStopActions = require('./assert-human-stop-actions.cjs');
+const assertStructuredActions = require('./assert-structured-actions.cjs');
 const assertPolicyPermission = require('./assert-policy-permission.cjs');
 const assertPolicyRoute = require('./assert-policy-route.cjs');
 
@@ -96,6 +96,14 @@ const failures = [
   ['missing field', assertion({ precedence: undefined })],
   ['unknown enum', assertion({ result: 'MAYBE' })],
   ['invalid allowed', assertion({ allowed: 'false' })],
+  [
+    'duplicate conditions',
+    assertion({ conditions: ['user.type.user', 'user.type.user'] }),
+  ],
+  [
+    'mutually exclusive conditions',
+    assertion({ conditions: ['source.rest', 'source.graphql'] }),
+  ],
   ['unknown precedence', assertion({ precedence: ['missing.assertion'] })],
 ];
 
@@ -127,6 +135,20 @@ const duplicateKey = [
 ].join('\n');
 assert.throws(
   () => parsePolicyMarkdown(duplicateKey, 'duplicate-key'),
+  PolicyAssertionError,
+);
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'repeated-marker-contradiction',
+        markdown: markdown(
+          [assertion()],
+          'First {{policy:test.actor.user.result}}. Second {{policy:test.actor.user.result}} but AUTOMATION_FLOW.',
+        ),
+      },
+    ]),
   PolicyAssertionError,
 );
 
@@ -538,7 +560,7 @@ assert.equal(assertPolicyPermission('Yes', routeContext), false);
 assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext), false);
 
 assert.equal(
-  assertHumanStopActions(
+  assertStructuredActions(
     [
       'Classification: HUMAN_STOP',
       'Implement: No',
@@ -551,7 +573,26 @@ assert.equal(
   true,
 );
 assert.equal(
-  assertHumanStopActions(
+  assertStructuredActions(
+    [
+      'Classification: AUTOMATION_FLOW',
+      'Implement: Allowed',
+      'Draft: Allowed',
+      'Post: Allowed',
+      'Reply: Allowed',
+      'Resolve: Allowed',
+    ].join('\n'),
+    {
+      vars: {
+        expected_classification: 'AUTOMATION_FLOW',
+        expected_action: 'Allowed',
+      },
+    },
+  ),
+  true,
+);
+assert.equal(
+  assertStructuredActions(
     [
       'The agent will resolve this thread.',
       'Classification: HUMAN_STOP',
@@ -565,7 +606,7 @@ assert.equal(
   false,
 );
 assert.equal(
-  assertHumanStopActions(
+  assertStructuredActions(
     [
       'Classification: HUMAN_STOP',
       'Implement: Yes',
@@ -578,7 +619,7 @@ assert.equal(
   false,
 );
 assert.equal(
-  assertHumanStopActions(
+  assertStructuredActions(
     [
       'Classification: HUMAN_STOP',
       'Classification: AUTOMATION_FLOW',
@@ -592,7 +633,7 @@ assert.equal(
   false,
 );
 assert.equal(
-  assertHumanStopActions(
+  assertStructuredActions(
     [
       'Classification: HUMAN_STOP',
       'Implement: No',
@@ -605,7 +646,7 @@ assert.equal(
   false,
 );
 assert.equal(
-  assertHumanStopActions(
+  assertStructuredActions(
     [
       'Classification: HUMAN_STOP',
       'Implement: No',

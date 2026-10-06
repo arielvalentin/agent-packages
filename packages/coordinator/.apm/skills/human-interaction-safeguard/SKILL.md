@@ -113,8 +113,10 @@ combination is always `HUMAN_STOP`:
    the request also mentions a later, separately authorized implementation.
 3. If the caller asks for structured classification plus action decisions,
    return the matching structured block in § Response contracts.
-4. If the caller asks whether agent drafting, posting, or resolution is allowed
-   for `HUMAN_STOP`, return exactly `Prohibited`.
+4. If the caller asks whether interaction-triggered implementation, agent
+   drafting, posting, replying, or resolution is allowed for `HUMAN_STOP`,
+   return exactly `No`. The assertion result remains `PROHIBITED`; permission
+   questions use the Yes/No response shape.
 
 **Classification quick table:** authoritative REST `user.type == "Bot"` means
 `AUTOMATION_FLOW`; authoritative GraphQL `author.__typename == "Bot"` means

@@ -229,6 +229,19 @@ function validateAssertion(record, source) {
   ) {
     throw new PolicyAssertionError('"conditions" must contain stable condition IDs', source);
   }
+  const conditionSet = new Set(record.conditions);
+  if (conditionSet.size !== record.conditions.length) {
+    throw new PolicyAssertionError('"conditions" must not contain duplicates', source);
+  }
+  for (const group of MUTUALLY_EXCLUSIVE_CONDITION_GROUPS) {
+    const matches = record.conditions.filter((condition) => group.has(condition));
+    if (matches.length > 1) {
+      throw new PolicyAssertionError(
+        `"conditions" contains mutually exclusive values: ${matches.join(', ')}`,
+        source,
+      );
+    }
+  }
   validateStringArray(record.precedence, 'precedence', source);
   if (record.precedence.some((id) => !ID_PATTERN.test(id))) {
     throw new PolicyAssertionError('"precedence" must contain assertion IDs', source);
@@ -273,7 +286,11 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         }
       }
       const paragraph = lines.slice(paragraphStart, paragraphEnd + 1).join(' ');
-      const markerIndex = paragraph.indexOf(match[0]);
+      const markerIndex =
+        lines
+          .slice(paragraphStart, index)
+          .reduce((offset, paragraphLine) => offset + paragraphLine.length + 1, 0) +
+        match.index;
       const beforeMarker = paragraph.slice(0, markerIndex);
       const afterMarker = paragraph.slice(markerIndex + match[0].length);
       const sentenceStart =
@@ -450,9 +467,10 @@ function buildRegistry(documents) {
 
   function isStrictConditionSuperset(assertion, predecessor) {
     const conditions = new Set(assertion.conditions);
+    const predecessorConditions = new Set(predecessor.conditions);
     return (
-      assertion.conditions.length > predecessor.conditions.length &&
-      predecessor.conditions.every((condition) => conditions.has(condition))
+      conditions.size > predecessorConditions.size &&
+      [...predecessorConditions].every((condition) => conditions.has(condition))
     );
   }
 

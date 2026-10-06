@@ -369,12 +369,12 @@ require "$loop" "review loop failing closed on panel failure" \
   'EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE`'
 require "$loop" "review loop preserving routine single fallback" \
   'optional routine review may use one bounded `SINGLE_1`'
-require "$loop" "mandatory aggregate correctness gate" \
-  'pass-eligible only when `verdict\.correct` is `yes`'
+require "$loop" "mandatory aggregate required-axis gate" \
+  '`verdict\.correct`, `verdict\.pragmatic`, and `verdict\.beneficial` are all `yes`'
 require "$loop" "negative aggregate verdict stopping empty findings" \
-  '`correct: no` or `correct: mixed` remains unresolved'
-require "$loop" "all aggregate correctness gate" \
-  'Every complete aggregate is pass-eligible only when `verdict\.correct` is `yes`'
+  'A `no` or `mixed` value on any required axis remains unresolved'
+require "$loop" "simple verdict remaining advisory" \
+  '`verdict\.simple` is advisory'
 require "$loop" "optional negative verdict reduced-assurance rule" \
   'optional gate may continue with a warning only when its caller explicitly permits reduced assurance'
 require "$adversarial" "standalone consuming required persisted intent" \
@@ -432,6 +432,8 @@ for description in \
   'review-fix-loop: failed panel dispatch stops independent verdicts' \
   'review-fix-loop: negative mandatory verdict cannot pass empty findings' \
   'review-fix-loop: mixed mandatory verdict cannot pass failed tiebreak' \
+  'review-fix-loop: non-beneficial mandatory verdict cannot pass' \
+  'review-fix-loop: non-pragmatic mandatory verdict cannot pass' \
   'review-fix-loop: negative optional verdict cannot pass silently' \
   'adversarial-review: insufficient panel stops multi-reviewer request' \
   'coordinator: missing panel allows routine bounded fallback' \
