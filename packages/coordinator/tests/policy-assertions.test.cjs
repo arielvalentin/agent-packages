@@ -151,6 +151,18 @@ for (const structuralContradiction of [
     '> Route {{policy:test.actor.user.result}}',
     '> but AUTOMATION_FLOW after all.',
   ].join('\n'),
+  [
+    '- Route AUTOMATION_FLOW but the canonical result is',
+    '  {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '1. Route AUTOMATION_FLOW but the canonical result is',
+    '   {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '> Route AUTOMATION_FLOW but the canonical result is',
+    '> {{policy:test.actor.user.result}}.',
+  ].join('\n'),
 ]) {
   assert.throws(
     () =>
@@ -163,6 +175,23 @@ for (const structuralContradiction of [
     PolicyAssertionError,
   );
 }
+
+assert.doesNotThrow(() =>
+  buildRegistry([
+    {
+      source: 'non-authoritative-fence',
+      markdown: markdown(
+        [assertion()],
+        [
+          '```text',
+          'Example AUTOMATION_FLOW {{policy:test.actor.user.result}}.',
+          '```',
+          'Canonical {{policy:test.actor.user.result}}.',
+        ].join('\n'),
+      ),
+    },
+  ]),
+);
 
 for (const identifierContradiction of [
   'Route for `user.type` {{policy:test.actor.user.result}} but automation_flow.',
@@ -692,11 +721,47 @@ assert.equal(
     {
       vars: {
         expected_classification: 'AUTOMATION_FLOW',
-        expected_action: 'Allowed',
       },
     },
   ),
   true,
+);
+assert.equal(
+  assertStructuredActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Implement: Allowed',
+      'Draft: Allowed',
+      'Post: Allowed',
+      'Reply: Allowed',
+      'Resolve: Allowed',
+    ].join('\n'),
+    {
+      vars: {
+        expected_classification: 'HUMAN_STOP',
+        expected_action: 'Allowed',
+      },
+    },
+  ),
+  false,
+);
+assert.equal(
+  assertStructuredActions(
+    [
+      'Classification: UNKNOWN',
+      'Implement: No',
+      'Draft: No',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+    {
+      vars: {
+        expected_classification: 'UNKNOWN',
+      },
+    },
+  ),
+  false,
 );
 assert.equal(
   assertStructuredActions(

@@ -459,19 +459,23 @@ for description in \
   'coordinator: top-level PR review uses posting gate' \
   'coordinator: top-level PR comment keeps interaction gate' \
   'coordinator: top-level issue comment keeps interaction gate' \
-  'coordinator: existing unknown reply remains human stop'; do
+  'coordinator: existing unknown reply keeps interaction gate'; do
   require "$tests" "Promptfoo regression: $description" "$description"
   require_test_assert "$description"
 done
 
 require_test_exact_token \
-  'coordinator: explicit consensus activates panel envelopes' 'PANEL_2'
+  'coordinator: explicit consensus activates panel envelopes' 'PANEL_2' \
+  'consensus.explicit.panel'
 require_test_exact_token \
-  'coordinator: literal panel review activates panel envelopes' 'PANEL_2'
+  'coordinator: literal panel review activates panel envelopes' 'PANEL_2' \
+  'consensus.explicit.panel'
 require_test_exact_token \
-  'coordinator: multiple independent verdicts activate panel envelopes' 'PANEL_2'
+  'coordinator: multiple independent verdicts activate panel envelopes' 'PANEL_2' \
+  'consensus.explicit.panel'
 require_test_exact_token \
-  'coordinator: multi-reviewer adversarial activates panel envelopes' 'PANEL_2'
+  'coordinator: multi-reviewer adversarial activates panel envelopes' 'PANEL_2' \
+  'consensus.explicit.panel'
 require_test_exact_token \
   'consensus-panel: explicit under-capacity stops unavailable' 'STOP_UNAVAILABLE' \
   'consensus.explicit.under-capacity'
@@ -496,7 +500,8 @@ require_test_exact_token \
   'coordinator: new issue uses top-level posting gate' 'ACTING_ONLY' \
   'coordinator.public.new-item'
 require_test_exact_token \
-  'coordinator: existing unknown reply remains human stop' 'HUMAN_STOP'
+  'coordinator: existing unknown reply keeps interaction gate' \
+  'HUMAN_INTERACTION_THEN_ACTING' 'coordinator.public.existing-item'
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \

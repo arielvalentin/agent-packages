@@ -260,20 +260,49 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
+    const trimmedLine = line.trim();
+    if (trimmedLine.startsWith('```') && trimmedLine !== '```policy-assertions') {
+      for (index += 1; index < lines.length; index += 1) {
+        if (lines[index].trim() === '```') break;
+      }
+      continue;
+    }
     let referencedText = line;
     for (const match of line.matchAll(REFERENCE_PATTERN)) {
       referencedText = referencedText.replace(match[0], '');
       const trimmed = line.trim();
       let paragraphStart = index;
       let paragraphEnd = index;
-      if (/^(?:[-*+]\s|\d+\.\s)/.test(trimmed)) {
-        while (
-          paragraphEnd + 1 < lines.length &&
-          /^(?: {2,}|\t)\S/.test(lines[paragraphEnd + 1])
-        ) {
-          paragraphEnd += 1;
+      const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+      const listContinuation = /^(?: {2,}|\t)\S/;
+      if (listLead.test(trimmed) || listContinuation.test(line)) {
+        if (listContinuation.test(line)) {
+          while (
+            paragraphStart > 0 &&
+            listContinuation.test(lines[paragraphStart])
+          ) {
+            paragraphStart -= 1;
+          }
+          if (!listLead.test(lines[paragraphStart].trim())) {
+            paragraphStart = index;
+          }
+        }
+        if (listLead.test(lines[paragraphStart].trim())) {
+          paragraphEnd = paragraphStart;
+          while (
+            paragraphEnd + 1 < lines.length &&
+            listContinuation.test(lines[paragraphEnd + 1])
+          ) {
+            paragraphEnd += 1;
+          }
         }
       } else if (/^>/.test(trimmed)) {
+        while (
+          paragraphStart > 0 &&
+          /^>/.test(lines[paragraphStart - 1].trim())
+        ) {
+          paragraphStart -= 1;
+        }
         while (
           paragraphEnd + 1 < lines.length &&
           /^>/.test(lines[paragraphEnd + 1].trim())
@@ -348,7 +377,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
       );
     }
 
-    if (line.trim() !== '```policy-assertions') continue;
+    if (trimmedLine !== '```policy-assertions') continue;
 
     blockIndex += 1;
     const blockSource = `${source}:policy-assertions#${blockIndex}`;
