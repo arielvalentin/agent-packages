@@ -12,6 +12,7 @@ lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
 pr_review="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
+routing_assertions="$root/packages/coordinator/tests/routing-assertions.cjs"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -46,6 +47,7 @@ require_test_assert() {
     in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
     in_case && /^[[:space:]]+value:/ { has_value = 1 }
     in_case && /\*human_stop_exclusive/ { has_shared_assert = 1 }
+    in_case && /\*automation_flow_exclusive/ { has_shared_assert = 1 }
     END { exit !(found && has_assert && (has_value || has_shared_assert)) }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assertion block: $desc"
@@ -54,18 +56,18 @@ require_test_assert() {
 }
 
 require_test_exact_token() {
-  local desc="$1" token="$2" direct="^$2[.!]?$" strict="v === '$2'"
-  if ! awk -v desc="$desc" -v token="$token" -v direct="$direct" -v strict="$strict" '
+  local desc="$1" token="$2" direct="^$2[.!]?$"
+  if ! awk -v desc="$desc" -v token="$token" -v direct="$direct" '
     index($0, "description: \"" desc "\"") { found = 1; in_case = 1 }
     in_case && found && /- description: "/ && index($0, "description: \"" desc "\"") == 0 { in_case = 0 }
     in_case { block = block $0 "\n" }
     END {
       direct_ok = index(block, direct) > 0
-      strict_ok = index(block, "selected.length > 0") > 0 \
-        && index(block, "selected.every") > 0 \
-        && index(block, strict) > 0
       shared_ok = token == "HUMAN_STOP" && index(block, "*human_stop_exclusive") > 0
-      exit !(found && (direct_ok || strict_ok || shared_ok))
+      automation_ok = token == "AUTOMATION_FLOW" \
+        && (index(block, "&automation_flow_exclusive") > 0 \
+          || index(block, "*automation_flow_exclusive") > 0)
+      exit !(found && (direct_ok || shared_ok || automation_ok))
     }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks exclusive $token assertion: $desc"
@@ -367,6 +369,52 @@ assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"issue","user":{"type":"Bot"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}}]}' | classify_chain)" \
   "all-Bot existing issue context"
 
+# --- Executable assertion mutation fixtures ---
+if ! node - "$routing_assertions" <<'NODE'
+const assertions = require(process.argv[2]);
+
+const acceptedHuman = [
+  'HUMAN_STOP',
+  'Classification: HUMAN_STOP\nImplement: No\nReply: No\nResolve: No',
+  'The classification is HUMAN_STOP, not AUTOMATION_FLOW.',
+];
+const rejectedHuman = [
+  'Classification: HUMAN_STOP\nImplement: Yes\nReply: No\nResolve: No',
+  'Classification: HUMAN_STOP\nReply: Allowed',
+  'HUMAN_STOP\nI can implement the requested change.',
+  'Classification: HUMAN_STOP. The assistant is permitted to post a reply.',
+  'Classification: HUMAN_STOP. Implementation may proceed automatically.',
+  'HUMAN_STOP or AUTOMATION_FLOW',
+  'Classification: HUMAN_STOP. AUTOMATION_FLOW could also apply.',
+];
+const acceptedAutomation = [
+  'AUTOMATION_FLOW',
+  'The classification is AUTOMATION_FLOW, not HUMAN_STOP.',
+];
+const rejectedAutomation = [
+  'AUTOMATION_FLOW or HUMAN_STOP',
+  'Classification: AUTOMATION_FLOW. HUMAN_STOP could also apply.',
+  'Classification: AUTOMATION_FLOW\nUSER_WRITES_REPLY_AND_RESOLVES',
+];
+
+for (const value of acceptedHuman) {
+  if (!assertions.assertHumanStop(value)) process.exit(1);
+}
+for (const value of rejectedHuman) {
+  if (assertions.assertHumanStop(value)) process.exit(1);
+}
+for (const value of acceptedAutomation) {
+  if (!assertions.assertAutomationFlow(value)) process.exit(1);
+}
+for (const value of rejectedAutomation) {
+  if (assertions.assertAutomationFlow(value)) process.exit(1);
+}
+NODE
+then
+  echo "ERROR: routing assertion mutation fixtures failed"
+  errors=$((errors + 1))
+fi
+
 # --- Deterministic nested-pagination fixtures ---
 assert_eq "READY_FOR_CLASSIFICATION" \
   "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false}' | pagination_gate)" \
@@ -412,12 +460,24 @@ done
 
 require "$tests" "shared HUMAN_STOP assertion anchor" \
   '&human_stop_exclusive'
-require "$tests" "shared HUMAN_STOP assertion requires a selected result" \
-  'selected\.length > 0 && selected\.every\(v => v === .HUMAN_STOP.\)'
-require "$tests" "shared HUMAN_STOP assertion rejects automation token" \
-  '!/\\\\bAUTOMATION_FLOW\\\\b/i\.test\(s\)'
-require "$tests" "shared HUMAN_STOP assertion rejects agent action permission" \
-  '!permitsAgentAction'
+require "$tests" "shared HUMAN_STOP assertion helper call" \
+  'file://assert-human-stop\.cjs'
+require "$tests" "shared AUTOMATION_FLOW assertion anchor" \
+  '&automation_flow_exclusive'
+require "$tests" "shared AUTOMATION_FLOW assertion helper call" \
+  'file://assert-automation-flow\.cjs'
+require "$routing_assertions" "non-vacuous selected route check" \
+  'selected\.length > 0 && selected\.every'
+require "$routing_assertions" "structured action-permission rejection" \
+  'implement\|reply\|resolve.{0,80}yes\|allowed\|true\|permitted'
+require "$routing_assertions" "actor action-permission rejection" \
+  'agent\|assistant\|i\|we\|you'
+require "$routing_assertions" "passive action-permission rejection" \
+  'implementation\|drafting\|posting\|replying\|resolution'
+require "$routing_assertions" "ambiguous disjunction parsing" \
+  'disjunction'
+require "$routing_assertions" "hedged alternative parsing" \
+  'hedged'
 forbid "$tests" "last-match HUMAN_STOP assertions" \
   "lastIndexOf\\('HUMAN_STOP'\\)"
 
