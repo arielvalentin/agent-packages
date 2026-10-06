@@ -185,6 +185,14 @@ for (const structuralContradiction of [
     '',
     '   {{policy:test.actor.user.result}}.',
   ].join('\n'),
+  [
+    '- Route {{policy:test.actor.user.result}}',
+    '  - but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
+    '- Route {{policy:test.actor.user.result}}',
+    '  > but AUTOMATION_FLOW after all.',
+  ].join('\n'),
 ]) {
   assert.throws(
     () =>
@@ -197,6 +205,51 @@ for (const structuralContradiction of [
     PolicyAssertionError,
   );
 }
+
+assert.throws(
+  () =>
+      buildRegistry([
+        {
+          source: 'contrasting-next-sentence',
+          markdown: markdown(
+            [assertion()],
+            'Route {{policy:test.actor.user.result}}. But route AUTOMATION_FLOW now.',
+          ),
+        },
+      ]),
+  PolicyAssertionError,
+);
+
+assert.doesNotThrow(() =>
+  buildRegistry([
+      {
+        source: 'blockquote-paragraph-separator',
+        markdown: markdown(
+          [assertion()],
+          [
+            '> Canonical {{policy:test.actor.user.result}}.',
+            '>',
+            '> Independent AUTOMATION_FLOW example.',
+          ].join('\n'),
+        ),
+      },
+  ]),
+);
+assert.doesNotThrow(() =>
+  buildRegistry([
+      {
+        source: 'indented-code-example',
+        markdown: markdown(
+          [assertion()],
+          [
+            'Canonical {{policy:test.actor.user.result}}.',
+            '',
+            '    AUTOMATION_FLOW example code.',
+          ].join('\n'),
+        ),
+      },
+  ]),
+);
 
 assert.doesNotThrow(() =>
   buildRegistry([
@@ -238,6 +291,34 @@ assert.throws(
     parsePolicyMarkdown(
       ['```text', '{{policy:test.actor.user.result}}.'].join('\n'),
       'unclosed-generic-fence',
+    ),
+  PolicyAssertionError,
+);
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'indented-policy-fence',
+        markdown: [
+          '    ```policy-assertions',
+          '    {"format":"policy-assertions","version":1}',
+          `    ${JSON.stringify(assertion())}`,
+          '    ```',
+          'Reference {{policy:test.actor.user.result}}.',
+        ].join('\n'),
+      },
+    ]),
+  PolicyAssertionError,
+);
+assert.throws(
+  () =>
+    parsePolicyMarkdown(
+      [
+        '```text`invalid',
+        '{{policy:test.actor.user.result}} but AUTOMATION_FLOW.',
+        '```',
+      ].join('\n'),
+      'invalid-backtick-info',
     ),
   PolicyAssertionError,
 );
@@ -718,6 +799,15 @@ assert.equal(
     vars: {
       ...routeContext.vars,
       skill_content: 'This file does not bind the assertion.',
+    },
+  }),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('HUMAN_STOP', {
+    vars: {
+      ...routeContext.vars,
+      skill_content: 'file://../.apm/skills/acting-on-behalf/SKILL.md',
     },
   }),
   false,

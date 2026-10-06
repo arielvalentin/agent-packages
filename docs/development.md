@@ -66,7 +66,10 @@ When adding or changing an assertion:
    `packages/coordinator/tests/check-policy-assertions.cjs`. Removing an ID is
    intentionally backward-incompatible and must update that manifest.
 3. Link the owning prose and every downstream policy consumer to the canonical
-   record. Do not copy a second assertion record into a consumer.
+   record. Register each intentional consumer path in
+   `packages/coordinator/tests/policy-assertion-consumers.cjs`; model assertions
+   reject unregistered or inline consumer content. Do not copy a second
+   assertion record into a consumer.
 4. Add the independently expected `result`, `allowed`, and contract signature
    to the manifest. The signature pins contract, actor, provenance,
    interaction, action, conditions, and precedence, so a registry edit cannot

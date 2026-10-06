@@ -2,6 +2,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  allowedPolicyConsumers,
+} = require('./policy-assertion-consumers.cjs');
 
 const FORMAT = 'policy-assertions';
 const VERSION = 1;
@@ -252,37 +255,59 @@ function validateAssertion(record, source) {
   }
 }
 
-function fenceOpening(trimmedLine) {
-  const match = trimmedLine.match(/^(`{3,}|~{3,})/);
+function fenceOpening(line) {
+  const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
   if (!match) return null;
+  if (match[1][0] === '`' && match[2].includes('`')) return null;
   return { delimiter: match[1][0], length: match[1].length };
 }
 
-function fenceClosing(trimmedLine, opening) {
+function fenceClosing(line, opening) {
   const escaped = opening.delimiter === '`' ? '`' : '~';
-  return new RegExp(`^${escaped}{${opening.length},}\\s*$`).test(trimmedLine);
+  return new RegExp(`^ {0,3}${escaped}{${opening.length},}\\s*$`).test(line);
+}
+
+function indentationWidth(line) {
+  const indentation = line.match(/^[ \t]*/)[0];
+  return indentation.replace(/\t/g, '    ').length;
 }
 
 function listBlockEnd(lines, start) {
   const listLead = /^(?:[-*+]\s|\d+\.\s)/;
   const listContinuation = /^(?: {2,}|\t)\S/;
+  const startIndent = indentationWidth(lines[start]);
   let end = start;
   for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
+    const raw = lines[cursor];
     const trimmed = lines[cursor].trim();
     if (trimmed === '') {
       let next = cursor + 1;
       while (next < lines.length && lines[next].trim() === '') next += 1;
-      if (next < lines.length && listContinuation.test(lines[next])) {
+      const nextLine = lines[next] || '';
+      const nestedContainer =
+        indentationWidth(nextLine) > startIndent &&
+        /^(?:[-*+]\s|\d+\.\s|>)/.test(nextLine.trim());
+      const indentedCode =
+        indentationWidth(nextLine) >= startIndent + 4 && !nestedContainer;
+      if (
+        next < lines.length &&
+        listContinuation.test(nextLine) &&
+        !indentedCode
+      ) {
         end = next;
         cursor = next;
         continue;
       }
       break;
     }
-    if (
-      listLead.test(trimmed) ||
-      /^(?:```|~~~|#{1,6}\s|>|[|])/.test(trimmed)
-    ) {
+    const nestedContainer =
+      indentationWidth(raw) > startIndent &&
+      (listLead.test(trimmed) || /^>/.test(trimmed));
+    if (nestedContainer) {
+      end = cursor;
+      continue;
+    }
+    if (listLead.test(trimmed) || /^(?:```|~~~|#{1,6}\s|>|[|])/.test(trimmed)) {
       break;
     }
     end = cursor;
@@ -292,12 +317,17 @@ function listBlockEnd(lines, start) {
 
 function logicalListSpan(lines, index) {
   const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  let containingSpan = null;
   for (let start = index; start >= 0; start -= 1) {
     if (!listLead.test(lines[start].trim())) continue;
     const end = listBlockEnd(lines, start);
-    return index <= end ? { start, end } : null;
+    if (index <= end) {
+      containingSpan = { start, end };
+      continue;
+    }
+    if (containingSpan) break;
   }
-  return null;
+  return containingSpan;
 }
 
 function blockquoteEnd(lines, start) {
@@ -307,6 +337,8 @@ function blockquoteEnd(lines, start) {
     const trimmed = lines[cursor].trim();
     if (
       trimmed === '' ||
+      trimmed === '>' ||
+      /^>\s{4,}\S/.test(trimmed) ||
       listLead.test(trimmed) ||
       /^(?:```|~~~|#{1,6}\s|[|])/.test(trimmed)
     ) {
@@ -340,11 +372,19 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const trimmedLine = line.trim();
-    const openingFence = fenceOpening(trimmedLine);
-    if (openingFence && trimmedLine !== '```policy-assertions') {
+    if (/^(?: {4,}|\t)\S/.test(line) || /^>\s{4,}\S/.test(trimmedLine)) {
+      continue;
+    }
+    const openingFence = fenceOpening(line);
+    const policyFence =
+      openingFence &&
+      openingFence.delimiter === '`' &&
+      openingFence.length === 3 &&
+      trimmedLine === '```policy-assertions';
+    if (openingFence && !policyFence) {
       let closed = false;
       for (index += 1; index < lines.length; index += 1) {
-        if (fenceClosing(lines[index].trim(), openingFence)) {
+        if (fenceClosing(lines[index], openingFence)) {
           closed = true;
           break;
         }
@@ -414,6 +454,21 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
             match[0].length +
             sentenceEndMatch.index +
             sentenceEndMatch[0].length;
+      let linkedEnd = sentenceEnd;
+      const contrast = paragraph
+        .slice(sentenceEnd)
+        .match(/^\s*(?:But|However|Instead|Yet)\b/i);
+      if (contrast) {
+        const contrastedText = paragraph.slice(sentenceEnd + contrast[0].length);
+        const contrastedEnd = contrastedText.match(/[.!?](?=\s|$)/);
+        linkedEnd =
+          contrastedEnd === null
+            ? paragraph.length
+            : sentenceEnd +
+              contrast[0].length +
+              contrastedEnd.index +
+              contrastedEnd[0].length;
+      }
       const parsedReference = match[1].match(
         /^([a-z][a-z0-9]*(?:[.-][a-z0-9]+)+)\.([a-z_]+)$/,
       );
@@ -427,7 +482,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         id: parsedReference[1],
         field: parsedReference[2],
         line: index + 1,
-        text: paragraph.slice(sentenceStart, sentenceEnd),
+        text: paragraph.slice(sentenceStart, linkedEnd),
         marker: match[0],
         source,
       });
@@ -439,14 +494,14 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
       );
     }
 
-    if (trimmedLine !== '```policy-assertions') continue;
+    if (!policyFence) continue;
 
     blockIndex += 1;
     const blockSource = `${source}:policy-assertions#${blockIndex}`;
     const records = [];
     let closed = false;
     for (index += 1; index < lines.length; index += 1) {
-      if (lines[index].trim() === '```') {
+      if (fenceClosing(lines[index], openingFence)) {
         closed = true;
         break;
       }
@@ -700,11 +755,31 @@ function assertionBoundToSkillContent(skillContent, assertionId, field) {
   ) {
     return false;
   }
+  const allowedConsumers = allowedPolicyConsumers(assertionId);
   let content = skillContent;
   if (content.startsWith('file://')) {
+    if (!allowedConsumers.has(content)) return false;
     const file = path.resolve(__dirname, content.slice('file://'.length));
-    if (!fs.existsSync(file)) return false;
+    const policyRoot = path.resolve(__dirname, '../.apm');
+    if (
+      !file.startsWith(`${policyRoot}${path.sep}`) ||
+      !fs.existsSync(file)
+    ) {
+      return false;
+    }
     content = fs.readFileSync(file, 'utf8');
+  } else {
+    const matchesApprovedConsumer = [...allowedConsumers].some((consumer) => {
+      const file = path.resolve(
+        __dirname,
+        consumer.slice('file://'.length),
+      );
+      return (
+        fs.existsSync(file) &&
+        fs.readFileSync(file, 'utf8').trimEnd() === content.trimEnd()
+      );
+    });
+    if (!matchesApprovedConsumer) return false;
   }
   try {
     const parsed = parsePolicyMarkdown(content, 'assertion-bound skill content');

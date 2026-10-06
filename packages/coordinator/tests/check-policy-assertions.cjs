@@ -7,6 +7,9 @@ const {
   compareRegistryIds,
   loadRegistry,
 } = require('./policy-assertions.cjs');
+const {
+  allowedPolicyConsumers,
+} = require('./policy-assertion-consumers.cjs');
 
 const repositoryRoot = path.resolve(__dirname, '../../..');
 const policyRoot = path.join(repositoryRoot, 'packages/coordinator/.apm');
@@ -155,10 +158,29 @@ for (const id of requiredPromptfooIds) {
   const coverage = promptfooTests.find(
     (test) =>
       markers.every((marker) => test.includes(marker)) &&
-      /[&*]policy_(?:route|permission)/.test(test),
+      /[&*]policy_(?:route|permission)/.test(test) &&
+      [...allowedPolicyConsumers(id)].some((consumer) =>
+        test.includes(`skill_content: ${consumer}`),
+      ),
   );
   if (!coverage) {
     console.error(`Promptfoo is missing complete scenario coverage for ${id}`);
+    process.exit(1);
+  }
+}
+for (const test of promptfooTests) {
+  if (!/[&*]policy_(?:route|permission)/.test(test)) continue;
+  const assertionId = test.match(/assertion_id: "([^"]+)"/)?.[1];
+  const consumer = test.match(/skill_content: (file:\/\/\S+)/)?.[1];
+  if (
+    !assertionId ||
+    !consumer ||
+    !allowedPolicyConsumers(assertionId).has(consumer)
+  ) {
+    console.error(
+      `Promptfoo policy scenario has an unapproved consumer binding: ` +
+        `${assertionId || '<missing assertion>'} -> ${consumer || '<missing consumer>'}`,
+    );
     process.exit(1);
   }
 }
