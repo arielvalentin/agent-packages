@@ -10,10 +10,12 @@ description: >
 
 # Consensus Panel
 
-**Single reviewer for trivial scopes, adaptive 2+1 for substantive code.**
-Non-code-only and genuinely tiny changes get exactly one mid- or
-high-capability reviewer. Substantive code changes get two reviewers, plus a
-third only when it can change the answer.
+**Single reviewer for internally selected trivial scopes, adaptive 2+1 for
+substantive code or explicit consensus.** Non-code-only and genuinely tiny
+changes get exactly one mid- or high-capability reviewer when the system
+selected consensus internally. Substantive changes and explicit requests for
+independent verdicts get two reviewers, plus a third only when it can change
+the answer.
 
 ## When to use
 
@@ -27,6 +29,10 @@ Use when the caller has already determined that consensus is warranted:
 Do not insert a consensus panel into routine code changes or simple lookups.
 Those use direct work and, when needed, at most one review gate. After the
 caller selects consensus, classify the scope below before choosing models.
+
+An explicit user request for consensus or multiple independent verdicts always
+uses at least the two-reviewer initial wave. The single-reviewer exemption
+below applies only when the system selected consensus internally.
 
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
@@ -42,7 +48,9 @@ A scope is **fast-path exempt** when either of these holds:
 1. **Non-code change** — every changed file is a text artifact with no
    executable effect: documentation, prose, markdown, comments, changelog,
    license, or similar. No source, config, schema, script, or workflow file is
-   changed.
+   changed. Agent prompts, skills, instructions, governance rules, and other
+   behavior-defining policy are executable configuration, not non-code
+   documentation.
 2. **Tiny change** — at most **10 changed lines** (added + removed, ignoring
    pure-whitespace lines) across at most **2 files**, including one-line
    changes, with no new or materially altered control flow, no new dependency,
@@ -72,6 +80,10 @@ touches any of the following, however small the diff:
 4. A public API contract.
 5. Concurrency, locking, or shared mutable state.
 6. Data migration, deletion, or any other irreversible data operation.
+7. Agent, skill, instruction, orchestration, governance, or safeguard policy.
+8. Human-interaction, attribution, public-posting, permission, approval, or
+   destructive-action controls.
+9. Review requirements or the tests/scripts that enforce these controls.
 
 This list is closed: a scope that touches none of these and meets the size
 threshold is fast-path exempt.
@@ -97,12 +109,13 @@ model, and do not synthesize across models.
 - **Report** — still write the report artifact, recording
   `panel: single-reviewer fast path` and which exemption applied.
 
-This exemption **takes precedence** over any selected consensus workflow in the
-coordinator or `review-fix-loop`. A single
+This exemption **takes precedence** over internally selected consensus
+workflows in the coordinator or `review-fix-loop`; it never overrides an
+explicit user request for consensus or multiple independent verdicts. A single
 `blocker`/`major` finding does not promote a fast-path scope to a panel; only
 re-classification under Step 1 does. The safety argument is the size and
 disqualifier bounds, not the finding: a scope this small that touches none of
-the six disqualified categories has a blast radius one reviewer can hold.
+the disqualified categories has a blast radius one reviewer can hold.
 
 ## Step 2b — Panel selection for substantive code changes
 

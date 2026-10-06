@@ -25,20 +25,25 @@ report. You are single-model — the panel doesn't run on you.
 
 ## Inputs
 
-Read `handoff-envelope` inputs. Required fields:
+For a coordinator handoff, read `handoff-envelope` inputs:
 
 - `goal` — one-line objective
-- `inputs.artifact_paths` — design or root-cause doc (e.g. `01-design.md`)
+- `inputs.artifact_paths` — design or root-cause docs when they exist
 - `constraints` — target files, style, dependencies to add/avoid
 
-If any of those are missing, return 1–3 clarifying questions and stop.
+When invoked directly by the user, derive the goal and constraints from the
+request and treat `inputs.artifact_paths` as empty. Do not require a coordinator
+or an artifact for bounded work.
+
+PR creation is opt-in. Read `create_pr: true|false` from the handoff
+constraints; missing means `false`.
 
 ## Workflow
 
-1. Read every artifact in `inputs.artifact_paths` before touching code.
-2. **Early draft PR**: Follow the `pr-lifecycle` skill — if a draft PR
-   does not already exist for this branch and the work targets a production
-   codebase, open one with a Conventional Commits title from creation:
+1. Read every supplied artifact in `inputs.artifact_paths` before touching code.
+2. **Early draft PR**: Only when `create_pr: true`, follow the `pr-lifecycle`
+   skill. If a draft PR does not already exist, open one with a Conventional
+   Commits title from creation:
    `<type>: <description>` — a required space and a non-empty description
    after the colon (never `WIP: <goal>` and never `<type>:<description>`
    with no space). `<type>` is one of `feat`, `fix`, `docs`, `refactor`,
@@ -46,15 +51,17 @@ If any of those are missing, return 1–3 clarifying questions and stop.
    `(<scope>)` — a non-empty, non-whitespace token — may follow `<type>`
    only when it materially clarifies the change (omit by default), and an
    optional `!` after the type/scope marks a breaking change:
-   `<type>(<scope>)!: <description>`. Skip if the coordinator already
-   opened one or the user said not to.
+   `<type>(<scope>)!: <description>`. Skip when `create_pr` is false or the
+   coordinator already opened one. If `pr-lifecycle` is unavailable, stop
+   before creating public content and report the missing safeguard.
 3. Prefer TDD when tests exist or the change is behavior-visible:
    red → green → refactor. Don't force TDD on trivial edits.
 4. Make surgical changes. Don't touch unrelated code.
 5. Run the smallest targeted test/lint/build command that covers the
    change. Escalate to full-suite only if targeted fails.
-6. **Commit messages**: Use `commit-message-storyteller` to generate
-   narrative commit messages that explain WHY the change was made.
+6. **Commit messages**: When the user requests a commit, use
+   `commit-message-storyteller` when available; otherwise write a repository-
+   compliant Conventional Commit message that explains why.
 
 ## Output
 

@@ -80,6 +80,10 @@ require "$agent" "delegated budget stop condition" \
   'exceeds its time, retry, or context budget'
 require "$agent" "explicit security review first" \
   'invoke `security-review` first'
+require "$agent" "policy changes requiring adversarial review" \
+  'behavior-defining agent, skill, instruction, governance, safeguard, workflow, or contract-check policy.{0,120}run `adversarial-review`'
+require "$agent" "direct commit and push boundary" \
+  'do not commit, push, or publish unless the user explicitly requested'
 
 # --- Initial wave is exactly two reviewers ---
 require "$panel" "initial wave of exactly 2 parallel dispatches" \
@@ -191,6 +195,12 @@ require "$panel" "security-sensitive disqualifiers forcing a panel" \
   'takes the full panel'
 require "$panel" "closed disqualifier list" \
   'this list is closed'
+require "$panel" "behavior-defining policy disqualifier" \
+  'agent, skill, instruction, orchestration, governance, or safeguard policy'
+require "$panel" "public-interaction control disqualifier" \
+  'human-interaction, attribution, public-posting, permission, approval'
+require "$panel" "explicit consensus minimum of two reviewers" \
+  'explicit user request for consensus or multiple independent verdicts always uses at least the two-reviewer initial wave'
 require "$panel" "concurrency listed as a disqualifier" \
   'concurrency, locking, or shared mutable state'
 require "$panel" "irreversible data operations listed as a disqualifier" \

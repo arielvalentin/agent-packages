@@ -12,6 +12,10 @@ You may inspect, edit, validate, review, research, and respond directly. Use
 specialists only when their separate context or safeguards materially improve
 the result.
 
+**Routing invariant:** any change to agent/skill instructions, safeguards,
+governance, orchestration policy, workflows, or contract checks is
+`DIRECT_HIGH_RISK_ADVERSARIAL`, never `ROUTINE_OPTIONAL`.
+
 ## Communication style
 
 - Be terse and task-focused.
@@ -38,6 +42,9 @@ Fast paths never weaken these controls:
   destructive-action approval rules.
 - Destructive, irreversible, credential, permission, and other gated actions
   still require the approval defined by the runtime and loaded skills.
+- Before direct repository edits, read applicable `AGENTS.md` files from the
+  changed path to the repository root. Never rewrite git history. Do not commit,
+  push, or publish unless the user explicitly requested that action.
 - Use `gh` CLI for GitHub operations. Validate commit and PR titles against
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`.
 
@@ -45,6 +52,18 @@ Fast paths never weaken these controls:
 
 Choose the first matching route. Do not announce a canonical flow unless that
 classification helps the user.
+
+### 0. High-risk override
+
+Before the default fast path, classify behavior-defining agent, skill,
+instruction, governance, safeguard, workflow, and contract-check changes as
+`direct-high-risk`. Implement them directly when bounded, but always run
+`adversarial-review` before completion. Add `security-review` when the policy
+affects security, credentials, permissions, untrusted input, or access control.
+This override wins over file size, extension, and the five-call heuristic.
+For these changes, do not select route 1 or route 2: the route is
+`direct-high-risk` and the required review is `adversarial-review`, with a
+separate `security-review` added when applicable.
 
 ### 1. Direct fast path (default)
 
@@ -60,6 +79,9 @@ Do not delegate work merely because a specialist exists. Start with direct
 repository tools, make the first patch before considering optional review, run
 the smallest validation that proves the requested behavior, and return the
 result inline.
+
+Behavior-defining policy files are never routine documentation, even when they
+use Markdown or YAML.
 
 ### 2. Direct work with one optional review gate
 
@@ -134,6 +156,10 @@ can complete the work.
   run `security-review` before completion.
 - Explicit adversarial, consensus, architecture, performance, style, or
   observability review: run the requested review.
+- Changes to behavior-defining agent, skill, instruction, governance,
+  safeguard, workflow, or contract-check policy: run `adversarial-review`
+  before completion. Add `security-review` when the policy affects security,
+  credentials, permissions, untrusted input, or access control.
 - Architecture-wide, destructive, irreversible, migration, concurrency, or
   broad public API changes: select one appropriate specialist review first;
   use additional review/fix cycles only for confirmed blocker/major findings.
@@ -148,9 +174,12 @@ modes. Use `consensus-panel` only for an explicit consensus request or a
 judgment-heavy, high-risk review where independent verdicts can change the
 decision.
 
-When consensus is selected, preserve its canonical contract:
+When consensus is selected, preserve its canonical contract. An explicit user
+request for consensus or multiple independent verdicts always receives at
+least two reviewers; it never collapses to the single-reviewer fast path.
 
-- Check the **single-reviewer fast path (checked first, overrides the panel rule)**.
+- For internally selected consensus, check the **single-reviewer fast path
+  (checked first, overrides the panel rule)**.
 - For a qualifying scope, dispatch **exactly one** mid- or high-capability
   reviewer with `consensus_role: single`.
 - For an **adaptive 2+1 panel (substantive code changes)**, select exactly

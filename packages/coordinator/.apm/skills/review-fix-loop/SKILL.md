@@ -139,7 +139,9 @@ skip_condition: documentation-only, dependency bumps, or user-marked observabili
 
 If the specified `reviewer` is unavailable:
 - `adversarial-review` → use `rubber-duck` through `consensus-panel`
-- `security-review` → use `se-security-reviewer` + `sast-sca-security-analyzer`
+- `security-review` → stop and record the mandatory reviewer as unavailable.
+  Do not substitute a differently scoped reviewer or continue with a
+  success-shaped security result.
 - `gho11y:telemetry-reviewer` → fall back to manual 4-criteria checklist
   (metrics, logs, traces, alerting)
 - `code-review` → use `rubber-duck` in diff-review mode

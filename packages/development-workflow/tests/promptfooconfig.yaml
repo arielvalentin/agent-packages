@@ -65,6 +65,22 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
+  - description: "implementer: PR creation is opt-in"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "The handoff omits create_pr and the user asked only for local code changes. Should I open a draft PR? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "implementer: supports direct user invocation"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "Can I implement a bounded request invoked directly by the user without a coordinator artifact? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
   # --- system-architect agent ---
   - description: "system-architect: produces a design document"
     vars:

@@ -184,6 +184,18 @@ and decides whether to resolve the thread (`USER_WRITES_REPLY_AND_RESOLVES`).
 Separate implementation permission never grants reply or resolution
 permission.
 
+When a caller requests a structured classification plus action decisions,
+return these exact decisions for `HUMAN_STOP`:
+
+```text
+Classification: HUMAN_STOP
+Implement: No
+Reply: No
+Resolve: No
+```
+
+Do not replace the action decisions with reasoning or omit them.
+
 ## AUTOMATION_FLOW
 
 Bot/app-authored feedback may use the normal accept, rebut, clarify,

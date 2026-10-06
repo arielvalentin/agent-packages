@@ -12,8 +12,17 @@ This document is the authoritative inventory of installable packages in this rep
   - Agent: `coordinator`
   - Skills:
     - `acting-on-behalf`
+    - `adversarial-review`
     - `consensus-panel`
     - `handoff-envelope`
+    - `human-interaction-safeguard`
+    - `pr-feedback-review`
+    - `pr-lifecycle`
+    - `pr-review-protocol`
+    - `resolve-github-user`
+    - `review-fix-loop`
+    - `stage-pr`
+    - `tech-research`
 
 ## development-workflow
 
