@@ -369,6 +369,10 @@ require "$loop" "review loop failing closed on panel failure" \
   'EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE`'
 require "$loop" "review loop preserving routine single fallback" \
   'optional routine review may use one bounded `SINGLE_1`'
+require "$loop" "mandatory aggregate correctness gate" \
+  'pass-eligible only when `verdict\.correct` is `yes`'
+require "$loop" "negative aggregate verdict stopping empty findings" \
+  '`correct: no` or `correct: mixed` remains unresolved'
 require "$adversarial" "standalone consuming required persisted intent" \
   'Consume the required persisted `explicit_multi_review` boolean'
 require "$adversarial" "standalone rejecting missing explicit review state" \
@@ -422,6 +426,8 @@ for description in \
   'coordinator: missing panel stops explicit consensus' \
   'coordinator: failed panel load stops literal panel review' \
   'review-fix-loop: failed panel dispatch stops independent verdicts' \
+  'review-fix-loop: negative mandatory verdict cannot pass empty findings' \
+  'review-fix-loop: mixed mandatory verdict cannot pass failed tiebreak' \
   'adversarial-review: insufficient panel stops multi-reviewer request' \
   'coordinator: missing panel allows routine bounded fallback' \
   'consensus-panel: explicit under-capacity stops unavailable' \

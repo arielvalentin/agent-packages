@@ -87,7 +87,12 @@ false from absence.
    invalid review never passes merely because it returned no findings.
    Mandatory or explicitly requested gates stop/escalate on incomplete
    evidence; optional gates may warn only when the caller explicitly allows
-   reduced assurance. Then filter findings by `severity_threshold`.
+   reduced assurance. For a mandatory or explicitly requested gate, a complete
+   aggregate verdict is pass-eligible only when `verdict.correct` is `yes`.
+   `correct: no` or `correct: mixed` remains unresolved even when `findings` is
+   empty. Use actionable findings for the fix cycle when available; otherwise
+   stop/escalate with the unresolved aggregate verdict instead of inventing a
+   finding or reporting pass. Then filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
    - Findings at or above threshold → proceed to fix cycle.
 
@@ -103,7 +108,9 @@ false from absence.
          panel-required scope starts a fresh initial wave of 2.
       Escalate only if that cycle's own responses fire a trigger. A previous
       cycle's escalation does not carry over.
-   c. If no findings at or above threshold → **gate passes**. Record result.
+   c. If no findings at or above threshold and any mandatory or explicitly
+      requested aggregate has `verdict.correct: yes` → **gate passes**. A
+      `correct: no|mixed` aggregate still stops/escalates.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.
 

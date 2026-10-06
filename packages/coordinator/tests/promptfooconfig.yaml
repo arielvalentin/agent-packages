@@ -7,7 +7,7 @@ providers:
     label: skill-under-test
 
 prompts:
-  - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}{% if permission_output %}\n\nOutput contract: your entire response must be exactly Yes or No. Do not use Markdown, labels, or explanation.{% elif assertion_id %}\n\nOutput contract: your entire response must be exactly one bare policy result token. Do not use Markdown, JSON, labels, alternatives, or explanation.{% endif %}"
+  - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}{% if human_stop_actions %}\n\nOutput contract: return exactly six non-empty plain-text lines and nothing else, using this literal label syntax: `Classification: <route>`, `Implement: <Yes|No>`, `Draft: <Yes|No>`, `Post: <Yes|No>`, `Reply: <Yes|No>`, `Resolve: <Yes|No>`. Start with `Classification:` and end with the Resolve decision. Do not add Markdown fences, bullets, introduction, or explanation.{% elif permission_output %}\n\nOutput contract: your entire response must be exactly Yes or No. Do not use Markdown, labels, or explanation.{% elif assertion_id %}\n\nOutput contract: your entire response must be exactly one bare policy result token. Its first and last characters must belong to the token itself. Do not use backticks, Markdown, JSON, labels, alternatives, punctuation, or explanation.{% endif %}"
 
 tests:
   # --- coordinator fast path ---
@@ -571,6 +571,22 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
+  - description: "review-fix-loop: negative mandatory verdict cannot pass empty findings"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "A mandatory review returned a complete valid aggregate with verdict.correct=no and an empty findings array. Did the gate pass? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "review-fix-loop: mixed mandatory verdict cannot pass failed tiebreak"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "A mandatory panel remained verdict.correct=mixed after the requested tiebreaker failed, and findings are empty. Did the gate pass? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
   - description: "review-fix-loop: unresolved mandatory security findings cannot be waived"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
@@ -603,7 +619,8 @@ tests:
   - description: "human-interaction: human payload blocks every automated action"
     vars:
       skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
-      user_input: 'Classify this complete REST thread. Complete exactly four decisions: `Classification=HUMAN_STOP|AUTOMATION_FLOW`; `Implement=Yes|No`; `Reply=Yes|No`; `Resolve=Yes|No`. Payload: [{"user":{"type":"Bot"},"performed_via_github_app":null},{"user":{"type":"User"},"performed_via_github_app":null}]'
+      human_stop_actions: true
+      user_input: 'Classify this complete REST thread. Complete exactly six decisions: `Classification=HUMAN_STOP|AUTOMATION_FLOW`; `Implement=Yes|No`; `Draft=Yes|No`; `Post=Yes|No`; `Reply=Yes|No`; `Resolve=Yes|No`. Payload: [{"user":{"type":"Bot"},"performed_via_github_app":null},{"user":{"type":"User"},"performed_via_github_app":null}]'
     assert:
       - type: javascript
         value: file://assert-human-stop-actions.cjs
@@ -611,7 +628,8 @@ tests:
   - description: "human-interaction: missing metadata blocks every automated action"
     vars:
       skill_content: file://../.apm/skills/human-interaction-safeguard/SKILL.md
-      user_input: 'Classify this complete REST thread. Complete exactly four decisions: `Classification=HUMAN_STOP|AUTOMATION_FLOW`; `Implement=Yes|No`; `Reply=Yes|No`; `Resolve=Yes|No`. Payload: [{"user":{},"performed_via_github_app":null}]'
+      human_stop_actions: true
+      user_input: 'Classify this complete REST thread. Complete exactly six decisions: `Classification=HUMAN_STOP|AUTOMATION_FLOW`; `Implement=Yes|No`; `Draft=Yes|No`; `Post=Yes|No`; `Reply=Yes|No`; `Resolve=Yes|No`. Payload: [{"user":{},"performed_via_github_app":null}]'
     assert:
       - type: javascript
         value: file://assert-human-stop-actions.cjs
@@ -1262,7 +1280,7 @@ tests:
       assertion_id: "consensus.automatic.unavailable"
       expected_result: "ADAPTIVE_RECOVERY"
       expected_allowed: true
-      user_input: 'The valid handoff contains {"explicit_multi_review":false}, and automatic model discovery or capacity is unavailable. Apply the entry decision.'
+      user_input: "Entry validation already succeeded. For explicit_multi_review=false with automatic model discovery or capacity unavailable, which entry-table result applies: ADAPTIVE_RECOVERY or STOP_UNAVAILABLE? Return only the selected token."
     assert:
       - *policy_route
 
@@ -1272,9 +1290,10 @@ tests:
       assertion_id: "consensus.automatic.initial-failure"
       expected_result: "ADAPTIVE_RECOVERY"
       expected_allowed: true
-      user_input: 'The valid handoff contains {"explicit_multi_review":false}, and one automatic initial response remains invalid after retry. Apply the entry decision.'
+      permission_output: true
+      user_input: "Entry validation succeeded with explicit_multi_review=false, but one automatic initial response remains invalid after retry. Should the review enter bounded automatic recovery rather than stop unavailable? Answer exactly one word: Yes or No."
     assert:
-      - *policy_route
+      - *policy_permission
 
   - description: "consensus-panel: automatic tiny scope routes to one reviewer"
     vars:
@@ -1282,7 +1301,17 @@ tests:
       assertion_id: "consensus.automatic.single"
       expected_result: "SINGLE_1"
       expected_allowed: true
-      user_input: 'The handoff field is present as the valid JSON boolean {"explicit_multi_review":false}, and the scope is eligible for the automatic tiny/non-code fast path. Apply the matching entry-table dispatch decision.'
+      user_input: "Entry validation already succeeded. For explicit_multi_review=false with a fast-path-eligible scope, which entry-table result applies: SINGLE_1 or STOP_UNAVAILABLE? Return only the selected token."
+    assert:
+      - *policy_route
+
+  - description: "consensus-panel: automatic panel-required scope routes to panel"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      assertion_id: "consensus.automatic.panel-required"
+      expected_result: "PANEL_2"
+      expected_allowed: true
+      user_input: "Entry validation already succeeded. Parsed facts: explicit_multi_review=false; scope.panel-required=true; capacity.initial-slots=2. Apply the matching entry-table decision and return only its result token."
     assert:
       - *policy_route
 
@@ -1302,7 +1331,7 @@ tests:
       assertion_id: "consensus.explicit.initial-failure"
       expected_result: "STOP_UNAVAILABLE"
       expected_allowed: false
-      user_input: "An explicit multi-review request has two initial slots, but one initial response remains invalid after its allowed retry. Return only the entry result token."
+      user_input: "Entry validation already succeeded. Parsed facts: explicit_multi_review=true; capacity.initial-slots=2; dispatch.initial-successes<2 after the allowed retry. Apply the matching entry-table decision and return only its result token."
     assert:
       - *policy_route
 
@@ -1312,7 +1341,7 @@ tests:
       assertion_id: "consensus.explicit.panel"
       expected_result: "PANEL_2"
       expected_allowed: true
-      user_input: "An explicit multi-review request has two distinct suitable initial reviewer slots. Return only the entry dispatch token."
+      user_input: "Entry validation already succeeded. Parsed facts: explicit_multi_review=true; capacity.initial-slots=2. Apply the matching entry-table decision and return only its result token."
     assert:
       - *policy_route
 

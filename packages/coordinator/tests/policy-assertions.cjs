@@ -85,6 +85,7 @@ const REFERENCE_PATTERN = /\{\{policy:([^}]+)\}\}/g;
 const MUTUALLY_EXCLUSIVE_CONDITION_GROUPS = [
   new Set(['explicit-multi-review.true', 'explicit-multi-review.false']),
   new Set(['source.rest', 'source.graphql']),
+  new Set(['scope.fast-path-eligible', 'scope.panel-required']),
   new Set([
     'capacity.initial-slots.two',
     'capacity.initial-slots.less-than-two',
@@ -506,9 +507,22 @@ function compareRegistryIds(registry, requiredIds) {
   };
 }
 
+function assertionContractSignature(assertion) {
+  return JSON.stringify({
+    contract: assertion.contract,
+    actor: assertion.actor,
+    provenance: assertion.provenance,
+    interaction: assertion.interaction,
+    action: assertion.action,
+    conditions: assertion.conditions,
+    precedence: assertion.precedence,
+  });
+}
+
 module.exports = {
   ENUMS,
   PolicyAssertionError,
+  assertionContractSignature,
   buildRegistry,
   compareRegistryIds,
   loadRegistry,

@@ -64,9 +64,10 @@ When adding or changing an assertion:
    intentionally backward-incompatible and must update that manifest.
 3. Link the owning prose and every downstream policy consumer to the canonical
    record. Do not copy a second assertion record into a consumer.
-4. Add the independently expected `result` and `allowed` values to the manifest.
-   The checker compares those fixed expectations with the policy record, so a
-   registry edit cannot silently redefine its own expected outcome.
+4. Add the independently expected `result`, `allowed`, and contract signature
+   to the manifest. The signature pins contract, actor, provenance,
+   interaction, action, conditions, and precedence, so a registry edit cannot
+   silently redefine either its outcome or the facts that select it.
 5. Add deterministic parser/schema fixtures for new enum, reference,
    precedence, or ambiguity behavior. Scenario-based Promptfoo coverage uses
    `assert-policy-route.cjs` with `assertion_id`, `expected_result`, and

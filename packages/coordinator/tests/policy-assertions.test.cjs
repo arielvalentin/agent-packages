@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const {
   PolicyAssertionError,
+  assertionContractSignature,
   buildRegistry,
   compareRegistryIds,
   parsePolicyMarkdown,
@@ -24,6 +25,28 @@ const assertion = (overrides = {}) => ({
   precedence: [],
   ...overrides,
 });
+
+const humanStopPost = assertion({
+  id: 'human-interaction.action.human-stop.post',
+  contract: 'human-interaction.permissions',
+  actor: 'mixed',
+  provenance: 'complete-chain',
+  interaction: 'public-github',
+  action: 'post',
+  conditions: ['classification.human-stop'],
+  result: 'PROHIBITED',
+  precedence: ['human-interaction.chain.any-human'],
+});
+const humanStopPostSignature =
+  '{"contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"precedence":["human-interaction.chain.any-human"]}';
+assert.equal(assertionContractSignature(humanStopPost), humanStopPostSignature);
+assert.notEqual(
+  assertionContractSignature({
+    ...humanStopPost,
+    conditions: ['classification.automation-flow'],
+  }),
+  humanStopPostSignature,
+);
 
 const markdown = (records, prose = '') =>
   [
@@ -455,8 +478,11 @@ assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext),
 assert.equal(
   assertHumanStopActions(
     [
+      'Based on the complete thread, the decisions are:',
       'Classification: HUMAN_STOP',
       'Implement: No',
+      'Draft: No',
+      'Post: No',
       'Reply: No',
       'Resolve: No',
     ].join('\n'),
@@ -466,8 +492,24 @@ assert.equal(
 assert.equal(
   assertHumanStopActions(
     [
+      'The agent may post: Yes',
+      'Classification: HUMAN_STOP',
+      'Implement: No',
+      'Draft: No',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+  ),
+  false,
+);
+assert.equal(
+  assertHumanStopActions(
+    [
       'Classification: HUMAN_STOP',
       'Implement: Yes',
+      'Draft: Yes',
+      'Post: Yes',
       'Reply: Yes',
       'Resolve: Yes',
     ].join('\n'),
@@ -480,8 +522,37 @@ assert.equal(
       'Classification: HUMAN_STOP',
       'Classification: AUTOMATION_FLOW',
       'Implement: No',
+      'Draft: No',
+      'Post: No',
       'Reply: No',
       'Resolve: No',
+    ].join('\n'),
+  ),
+  false,
+);
+assert.equal(
+  assertHumanStopActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Implement: No',
+      'Draft: Yes',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+  ),
+  false,
+);
+assert.equal(
+  assertHumanStopActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Implement: No',
+      'Draft: No',
+      'Post: No',
+      'Reply: No',
+      'Resolve: No',
+      'The agent will post the reply.',
     ].join('\n'),
   ),
   false,

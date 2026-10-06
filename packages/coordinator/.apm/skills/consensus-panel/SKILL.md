@@ -23,6 +23,7 @@ the answer.
 {"id":"consensus.automatic.unavailable","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"fallback","conditions":["explicit-multi-review.false","automatic-capacity.unavailable"],"result":"ADAPTIVE_RECOVERY","allowed":true,"precedence":[]}
 {"id":"consensus.automatic.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"fallback","conditions":["explicit-multi-review.false","dispatch.initial-response.invalid-after-retry"],"result":"ADAPTIVE_RECOVERY","allowed":true,"precedence":[]}
 {"id":"consensus.automatic.single","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.false","scope.fast-path-eligible"],"result":"SINGLE_1","allowed":true,"precedence":[]}
+{"id":"consensus.automatic.panel-required","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["capacity.initial-slots.two","explicit-multi-review.false","scope.panel-required"],"result":"PANEL_2","allowed":true,"precedence":[]}
 {"id":"consensus.explicit.panel","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.two"],"result":"PANEL_2","allowed":true,"precedence":[]}
 {"id":"consensus.explicit.under-capacity","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.less-than-two"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":[]}
 {"id":"consensus.explicit.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","dispatch.initial-response.invalid-after-retry"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":["consensus.explicit.panel"]}
@@ -38,7 +39,9 @@ response after retry returns
 capacity uses {{policy:consensus.automatic.unavailable.result}}. The automatic
 initial-response failure uses
 {{policy:consensus.automatic.initial-failure.result}}. The automatic tiny/non-code path uses
-{{policy:consensus.automatic.single.result}}.
+{{policy:consensus.automatic.single.result}}, while an automatic panel-required
+scope with capacity dispatches
+{{policy:consensus.automatic.panel-required.result}}.
 
 ## Entry decision table (apply first)
 
@@ -51,6 +54,7 @@ equivalent `explicit_multi_review=true` failures.
 |-------------|-----------------|
 | `explicit_multi_review` missing, null, string, or non-boolean | `STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}) |
 | `explicit_multi_review=false` and scope is automatic fast-path eligible | `SINGLE_1` ({{policy:consensus.automatic.single.result}}) |
+| `explicit_multi_review=false`, scope requires a panel, and 2 initial slots are available | `PANEL_2` ({{policy:consensus.automatic.panel-required.result}}) |
 | `explicit_multi_review=false` and automatic discovery/capacity is unavailable | `ADAPTIVE_RECOVERY` ({{policy:consensus.automatic.unavailable.result}}) |
 | `explicit_multi_review=false` and one initial response remains invalid after retry | `ADAPTIVE_RECOVERY` ({{policy:consensus.automatic.initial-failure.result}}) |
 | `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` ({{policy:consensus.explicit.under-capacity.result}}) |
