@@ -79,6 +79,20 @@ comments, questions, requests, directives, and suggestions.
 Apply this gate before researching, implementing, drafting a reply, posting, or
 resolving a thread in response to an interaction.
 
+## Existing-item content gate
+
+Every comment or review posted on an existing PR or issue invokes this
+safeguard before drafting or posting, including a new top-level comment or
+review that is not a reply.
+
+For new top-level content, the relevant conversation chain is the complete
+existing item context: the PR or issue author plus all existing PR reviews,
+inline review comments and threads, and issue/PR comments. Retrieve every
+applicable surface and exhaust all pagination before classification. The chain
+is `AUTOMATION_FLOW` only when every participant on every retrieved surface is
+authoritatively Bot. Any User, unknown, missing, ambiguous, or incompletely
+retrieved participant makes the existing-item chain `HUMAN_STOP`.
+
 ## Retrieve authoritative author metadata
 
 Do not classify from a login, display name, suffix, comment text, or
@@ -90,6 +104,12 @@ GitHub.
 Use these commands for every relevant surface:
 
 ```bash
+gh api "repos/{owner}/{repo}/pulls/{pull_number}" \
+  --jq '{surface: "pull_request", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
+
+gh api "repos/{owner}/{repo}/issues/{issue_number}" \
+  --jq '{surface: "issue", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
+
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/comments" \
   --jq '.[] | {surface: "pr_review_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 

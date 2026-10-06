@@ -9,6 +9,7 @@ policy="$root/packages/coordinator/.apm/skills/human-interaction-safeguard/SKILL
 acting="$root/packages/coordinator/.apm/skills/acting-on-behalf/SKILL.md"
 feedback="$root/packages/coordinator/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
+pr_review="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
 
@@ -33,6 +34,37 @@ forbid() {
   local file="$1" desc="$2" pattern="$3"
   if normalize "$file" | grep -Eiq -- "$pattern"; then
     echo "ERROR: ${file#"$root/"}: prohibited $desc"
+    errors=$((errors + 1))
+  fi
+}
+
+require_test_assert() {
+  local desc="$1"
+  if ! awk -v desc="$desc" '
+    index($0, "description: \"" desc "\"") { found = 1; in_case = 1; next }
+    in_case && /- description: "/ { in_case = 0 }
+    in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
+    in_case && /^[[:space:]]+value:/ { has_value = 1 }
+    END { exit !(found && has_assert && has_value) }
+  ' "$tests"; then
+    echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assertion block: $desc"
+    errors=$((errors + 1))
+  fi
+}
+
+require_test_exact_token() {
+  local desc="$1" token="$2" direct="^$2[.!]?$" strict="v === '$2'"
+  if ! awk -v desc="$desc" -v direct="$direct" -v strict="$strict" '
+    index($0, "description: \"" desc "\"") { found = 1; in_case = 1 }
+    in_case && found && /- description: "/ && index($0, "description: \"" desc "\"") == 0 { in_case = 0 }
+    in_case { block = block $0 "\n" }
+    END {
+      direct_ok = index(block, direct) > 0
+      strict_ok = index(block, "selected.every") > 0 && index(block, strict) > 0
+      exit !(found && (direct_ok || strict_ok))
+    }
+  ' "$tests"; then
+    echo "ERROR: ${tests#"$root/"}: test lacks exclusive $token assertion: $desc"
     errors=$((errors + 1))
   fi
 }
@@ -70,7 +102,9 @@ classify_chain() {
     def automated:
       if .surface == "graphql"
       then ((.author.__typename? // "") == "Bot")
-      elif (.surface == "pr_review_comment")
+      elif (.surface == "pull_request")
+        or (.surface == "issue")
+        or (.surface == "pr_review_comment")
         or (.surface == "pr_review")
         or (.surface == "issue_or_pr_comment")
       then ((.user.type? // "") == "Bot")
@@ -123,6 +157,10 @@ pagination_gate() {
 }
 
 # --- Canonical policy and authoritative metadata ---
+require "$policy" "REST PR author retrieval" \
+  'gh api "repos/\{owner\}/\{repo\}/pulls/\{pull_number\}"'
+require "$policy" "REST issue author retrieval" \
+  'gh api "repos/\{owner\}/\{repo\}/issues/\{issue_number\}"'
 require "$policy" "REST PR review-comment retrieval" \
   'gh api --paginate "repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/comments"'
 require "$policy" "REST PR review retrieval" \
@@ -179,6 +217,10 @@ require "$policy" "any human item taints entire chain" \
   'any.{0,80}comment or reply maps to `HUMAN_STOP`.{0,100}entire thread/chain'
 require "$policy" "tainted chain blocks automation" \
   'no comment in that chain may trigger implementation, an agent-authored reply, or agent-performed resolution'
+require "$policy" "top-level existing-item content gate" \
+  'Every comment or review posted on an existing PR or issue invokes this safeguard'
+require "$policy" "complete existing-item classification unit" \
+  'PR or issue author plus all existing PR reviews, inline review comments and threads, and issue/PR comments'
 
 # --- No reply/resolve override and no interaction-initiated-change loophole ---
 forbid "$policy" "HUMAN_STOP override" \
@@ -208,6 +250,12 @@ forbid "$agent" "human-thread override" \
 
 require "$acting" "unconditional posting backstop" \
   'HUMAN_STOP.{0,80}unconditionally prohibits'
+require "$acting" "all existing PR and issue content uses human safeguard" \
+  'Every comment or review on an existing PR or issue uses this backstop'
+require "$pr_review" "PR review protocol invokes human safeguard before drafting" \
+  'Before compiling or posting a review on the existing PR, invoke `human-interaction-safeguard`'
+require "$pr_review" "human PR context prevents agent-authored review" \
+  'HUMAN_STOP.{0,100}do not draft or post an agent-authored review'
 require "$feedback" "user-only reply and resolution" \
   'reply and thread resolution remain user-only'
 require "$lifecycle" "separate implementation instruction boundary" \
@@ -301,6 +349,9 @@ assert_eq "implementation_from_interaction=false reply=false resolve=false" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "incomplete all-Bot thread"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"pull_request","user":{"type":"User"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}}]}' | classify_chain)" \
+  "top-level review with human PR author"
 
 # --- Deterministic nested-pagination fixtures ---
 assert_eq "READY_FOR_CLASSIFICATION" \
@@ -331,11 +382,32 @@ for description in \
   'human-interaction: Bot root with unknown reply taints thread' \
   'human-interaction: Bot root with User reply keeps response user-only' \
   'human-interaction: Bot root with unknown reply keeps response user-only' \
+  'human-interaction: top-level review classifies complete existing PR' \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
-  'human-interaction: acting-on-behalf enforces posting backstop'; do
+  'human-interaction: acting-on-behalf enforces posting backstop' \
+  'acting-on-behalf: top-level existing PR review uses human gate' \
+  'pr-review-protocol: existing PR review requires human safeguard' \
+  'pr-review-protocol: human PR context stops agent review'; do
   require "$tests" "Promptfoo regression: $description" "$description"
+  require_test_assert "$description"
+done
+
+for description in \
+  'human-interaction: human directive does not trigger automatic implementation' \
+  'human-interaction: human suggestion stops automation' \
+  'human-interaction: unknown actor fails closed as human' \
+  'human-interaction: bot-like User login fails closed' \
+  'human-interaction: bot-like login with missing metadata fails closed' \
+  'human-interaction: User with REST App association stays human' \
+  'pr-lifecycle: Bot root with User reply stops action' \
+  'pr-lifecycle: Bot root with unknown reply stops action' \
+  'human-interaction: incomplete GraphQL pagination fails closed' \
+  'human-interaction: Bot root with User reply taints thread' \
+  'human-interaction: Bot root with unknown reply taints thread' \
+  'human-interaction: top-level review classifies complete existing PR'; do
+  require_test_exact_token "$description" "HUMAN_STOP"
 done
 
 if [[ $errors -gt 0 ]]; then

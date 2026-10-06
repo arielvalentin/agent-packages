@@ -111,7 +111,15 @@ in the diff.
 
 ## 8. Post one review
 
-Compile steps 3-7 into one review:
+Before compiling or posting a review on the existing PR, invoke
+`human-interaction-safeguard` and classify the complete existing-item
+conversation chain defined there: the PR author, issue/PR comments, reviews,
+inline comments, and complete review threads.
+
+- `HUMAN_STOP` → do not draft or post an agent-authored review. Return the
+  evidence-backed findings privately so the user can write and submit the
+  review.
+- `AUTOMATION_FLOW` → compile steps 3-7 into one review:
 
 1. Intent summary and whether the change achieves it.
 2. Findings ordered by severity: blocking, warning, informational.
@@ -120,9 +128,10 @@ Compile steps 3-7 into one review:
 5. Tooling limitations.
 6. Verdict: approve, request changes, or comment-only, with rationale.
 
-Invoke `acting-on-behalf` before posting. Use `gh pr review` with `--approve`,
-`--request-changes`, or `--comment`, always passing the PR number and
-`--repo <owner/repo>`, and include only the attribution that skill requires.
+Only on `AUTOMATION_FLOW`, invoke `acting-on-behalf` before posting. Use
+`gh pr review` with `--approve`, `--request-changes`, or `--comment`, always
+passing the PR number and `--repo <owner/repo>`, and include only the
+attribution that skill requires.
 
 ## Boundaries
 
@@ -130,3 +139,4 @@ Invoke `acting-on-behalf` before posting. Use `gh pr review` with `--approve`,
 - Do not post unsupported opinions.
 - Do not fan out identical research to build consensus.
 - Do not post multiple fragmented reviews when one synthesized review suffices.
+- Do not draft or post a review when the existing-item chain is `HUMAN_STOP`.

@@ -16,11 +16,17 @@ This skill is mandatory for PR/issue comment posts and replies.
 Before drafting, posting, replying to, or resolving an existing public GitHub
 interaction, invoke `human-interaction-safeguard`.
 
+- Every comment or review on an existing PR or issue uses this backstop,
+  including a new top-level comment or review. The canonical safeguard defines
+  the complete existing-item conversation chain that must be retrieved before
+  drafting or posting.
 - `HUMAN_STOP` unconditionally prohibits an agent-authored reply and
   agent-performed thread resolution. The user writes the reply and controls
   resolution.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
+
+`EXISTING_PR_OR_ISSUE_CONTENT_GATE = HUMAN_INTERACTION_THEN_ACTING`.
 
 ## Disclaimer decision
 
@@ -32,6 +38,8 @@ A disclaimer is required when either condition is true:
 - Bot, app, or service credentials plus explicit user attribution: **Yes**.
 - Bot, app, or service credentials with no user attribution: **No**.
 - Unknown credential/account provenance: **Pause and ask before posting**.
+
+`UNATTRIBUTED_BOT_APP_SERVICE_DISCLAIMER = NO`.
 
 Never infer **No** from service credentials alone. Explicit user attribution
 overrides the service identity. Attribution includes the user's username or
@@ -88,12 +96,13 @@ provider solely to render the disclaimer.
     If mandatory `security-review` is unavailable, stop before PR creation or
     posting and report the unavailable safeguard.
 
-## PR/issue comment rule
+## Existing PR/issue content rule
 
-Before posting or replying to a PR/issue comment:
+Before posting any comment or review on an existing PR or issue, including new
+top-level content:
 
-1. Apply `human-interaction-safeguard` when the action responds to an existing
-   interaction. Never draft, post, or resolve on `HUMAN_STOP`.
+1. Apply `human-interaction-safeguard` to the complete existing-item
+   conversation chain. Never draft, post, or resolve on `HUMAN_STOP`.
 2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.

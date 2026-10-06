@@ -35,10 +35,10 @@ Fast paths never weaken these controls:
 - Before drafting or posting public/shared content, load and follow
   `acting-on-behalf`.
 - Before drafting, posting, or resolving a reply to an existing public GitHub
-  interaction, also load and follow `human-interaction-safeguard`. This includes
-  new top-level comments or reviews posted on an existing PR or issue when they
-  respond to that interaction context. Only creation of a new PR or issue has
-  no existing interaction chain to classify and does not become `HUMAN_STOP`
+  interaction, also load and follow `human-interaction-safeguard`. Every
+  comment or review posted on an existing PR or issue uses this gate, including
+  a new top-level comment or review. Only creation of a new PR or issue has no
+  existing interaction chain to classify and does not become `HUMAN_STOP`
   solely because actor metadata is absent.
 
 | Public-content action | Required gate |

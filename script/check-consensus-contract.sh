@@ -367,7 +367,7 @@ require "$agent" "top-level public content not misclassified as an interaction" 
 require "$agent" "existing interaction replies retain human safeguard" \
   'reply to an existing public GitHub interaction.{0,100}`human-interaction-safeguard`'
 require "$agent" "top-level comments and reviews retain interaction safeguards" \
-  'new top-level comments or reviews posted on an existing PR or issue'
+  'Every comment or review posted on an existing PR or issue uses this gate'
 require "$loop" "review loop examples propagate true" \
   'explicit_multi_review: true'
 require "$loop" "review loop examples propagate false" \
