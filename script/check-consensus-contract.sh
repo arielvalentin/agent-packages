@@ -65,12 +65,16 @@ require_test_assert() {
 
 # require_test_exact_token <description> <token>
 require_test_exact_token() {
-  local desc="$1" token="$2" direct="l === '$2'" selected="m[1].toUpperCase() === '$2'"
-  if ! awk -v desc="$desc" -v direct="$direct" -v selected="$selected" '
+  local desc="$1" token="$2" direct="l === '$2'" strict="v === '$2'"
+  if ! awk -v desc="$desc" -v direct="$direct" -v strict="$strict" '
     index($0, "description: \"" desc "\"") { found = 1; in_case = 1 }
     in_case && found && /- description: "/ && index($0, "description: \"" desc "\"") == 0 { in_case = 0 }
     in_case { block = block $0 "\n" }
-    END { exit !(found && (index(block, direct) > 0 || index(block, selected) > 0)) }
+    END {
+      direct_ok = index(block, direct) > 0
+      strict_ok = index(block, "selected.every") > 0 && index(block, strict) > 0
+      exit !(found && (direct_ok || strict_ok))
+    }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks exact $token assertion: $desc"
     errors=$((errors + 1))
@@ -359,9 +363,11 @@ require "$agent" "five-call prohibition limited to routine ungated work" \
 require "$agent" "coordinator review handoff checklist requires explicit state" \
   'Required `explicit_multi_review: true\|false` on every review handoff'
 require "$agent" "top-level public content not misclassified as an interaction" \
-  'New top-level PRs, issues, and PR reviews have no existing interaction chain'
+  'Only creation of a new PR or issue has no existing interaction chain'
 require "$agent" "existing interaction replies retain human safeguard" \
   'reply to an existing public GitHub interaction.{0,100}`human-interaction-safeguard`'
+require "$agent" "top-level comments and reviews retain interaction safeguards" \
+  'new top-level comments or reviews posted on an existing PR or issue'
 require "$loop" "review loop examples propagate true" \
   'explicit_multi_review: true'
 require "$loop" "review loop examples propagate false" \
@@ -413,6 +419,8 @@ for description in \
   'coordinator: new PR uses top-level posting gate' \
   'coordinator: new issue uses top-level posting gate' \
   'coordinator: top-level PR review uses posting gate' \
+  'coordinator: top-level PR comment keeps interaction gate' \
+  'coordinator: top-level issue comment keeps interaction gate' \
   'coordinator: existing unknown reply remains human stop'; do
   require "$tests" "Promptfoo regression: $description" "$description"
   require_test_assert "$description"
@@ -440,6 +448,12 @@ require_test_exact_token \
   'review-fix-loop: failed panel dispatch stops independent verdicts' 'STOP_UNAVAILABLE'
 require_test_exact_token \
   'adversarial-review: insufficient panel stops multi-reviewer request' 'STOP_UNAVAILABLE'
+require_test_exact_token \
+  'coordinator: new PR uses top-level posting gate' 'ACTING_ONLY'
+require_test_exact_token \
+  'coordinator: new issue uses top-level posting gate' 'ACTING_ONLY'
+require_test_exact_token \
+  'coordinator: existing unknown reply remains human stop' 'HUMAN_STOP'
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \

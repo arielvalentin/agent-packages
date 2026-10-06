@@ -15,6 +15,7 @@ the result.
 **Routing invariant:** any change to agent/skill instructions, safeguards,
 governance, orchestration policy, workflows, or contract checks is
 `DIRECT_HIGH_RISK_ADVERSARIAL`, never `ROUTINE_OPTIONAL`.
+`SAFEGUARD_POLICY_CHANGE = DIRECT_HIGH_RISK_ADVERSARIAL`.
 
 ## Communication style
 
@@ -34,15 +35,19 @@ Fast paths never weaken these controls:
 - Before drafting or posting public/shared content, load and follow
   `acting-on-behalf`.
 - Before drafting, posting, or resolving a reply to an existing public GitHub
-  interaction, also load and follow `human-interaction-safeguard`. New
-  top-level PRs, issues, and PR reviews have no existing interaction chain to
-  classify and do not become `HUMAN_STOP` solely because actor metadata is
-  absent.
+  interaction, also load and follow `human-interaction-safeguard`. This includes
+  new top-level comments or reviews posted on an existing PR or issue when they
+  respond to that interaction context. Only creation of a new PR or issue has
+  no existing interaction chain to classify and does not become `HUMAN_STOP`
+  solely because actor metadata is absent.
 
 | Public-content action | Required gate |
 |-----------------------|---------------|
-| New top-level PR, issue, or PR review | `ACTING_ONLY` |
-| Reply or resolution on an existing interaction | `HUMAN_INTERACTION_THEN_ACTING` |
+| Create a new PR or issue | `ACTING_ONLY` |
+| Comment, review, reply, or resolution on an existing PR or issue | `HUMAN_INTERACTION_THEN_ACTING` |
+
+`NEW_PR_OR_ISSUE_GATE = ACTING_ONLY`.
+`EXISTING_PR_OR_ISSUE_CONTENT_GATE = HUMAN_INTERACTION_THEN_ACTING`.
 
   `HUMAN_STOP` returns control to the user without an agent-authored reply,
   thread resolution, or repository change triggered by that interaction.
