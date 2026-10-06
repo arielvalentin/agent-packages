@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const yaml = require('js-yaml');
 const {
   assertionContractSignature,
   compareRegistryIds,
@@ -110,126 +111,88 @@ const requiredIds = [...expectedAssertions.keys()];
 
 const requiredPromptfooIds = requiredIds;
 
-function parseYamlScalar(value) {
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  if (trimmed === 'true') return true;
-  if (trimmed === 'false') return false;
-  return trimmed;
-}
-
 function parsePromptfooPolicyTests(source) {
-  const lines = source.split(/\r?\n/);
-  const testsIndex = lines.findIndex((line) => /^tests:\s*$/.test(line));
-  if (testsIndex < 0) return [];
-  const tests = [];
-  let itemIndent = null;
-  let current = null;
-  let section = null;
-  let sectionIndent = null;
-  let sectionChildIndent = null;
-  let blockScalarIndent = null;
-  for (let index = testsIndex + 1; index < lines.length; index += 1) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    const indent = line.length - line.trimStart().length;
-    if (blockScalarIndent !== null) {
-      if (trimmed === '' || indent > blockScalarIndent) continue;
-      blockScalarIndent = null;
+  let document;
+  try {
+    document = yaml.load(source);
+  } catch (error) {
+    throw new Error(`Promptfoo YAML is invalid: ${error.message}`);
+  }
+  if (!document || !Object.hasOwn(document, 'tests')) return [];
+  if (!Array.isArray(document.tests)) {
+    throw new Error('Promptfoo "tests" must be an array');
+  }
+  return document.tests.map((test, index) => {
+    if (!test || Array.isArray(test) || typeof test !== 'object') {
+      throw new Error(`Promptfoo test ${index + 1} must be an object`);
     }
-    if (
-      /:\s*[|>](?:(?:[1-9][+-]?)|(?:[+-][1-9]?))?\s*(?:#.*)?$/.test(
-        line,
-      )
-    ) {
-      blockScalarIndent = indent;
+    const vars =
+      test.vars && !Array.isArray(test.vars) && typeof test.vars === 'object'
+        ? test.vars
+        : {};
+    if (Object.hasOwn(test, 'vars') && vars !== test.vars) {
+      throw new Error(`Promptfoo test ${index + 1} "vars" must be an object`);
     }
-    const description = line.match(/^(\s*)-\s+description:\s*(.+)$/);
-    if (description) {
-      const descriptionIndent = description[1].length;
-      itemIndent ??= descriptionIndent;
-      if (descriptionIndent === itemIndent) {
-        current = {
-          description: parseYamlScalar(description[2]),
-          vars: {},
-          assertions: new Set(),
-        };
-        section = null;
-        sectionIndent = null;
-        sectionChildIndent = null;
-        tests.push(current);
+    const assertionList = Object.hasOwn(test, 'assert') ? test.assert : [];
+    if (!Array.isArray(assertionList)) {
+      throw new Error(`Promptfoo test ${index + 1} "assert" must be an array`);
+    }
+    const assertions = new Set();
+    for (const assertion of assertionList) {
+      if (!assertion || Array.isArray(assertion) || typeof assertion !== 'object') {
         continue;
       }
-    }
-    if (!current) continue;
-    if (trimmed !== '' && indent <= itemIndent) {
-      current = null;
-      section = null;
-      sectionIndent = null;
-      sectionChildIndent = null;
-      continue;
-    }
-    const sectionMatch = line.match(/^(\s*)(vars|assert):\s*$/);
-    if (sectionMatch && sectionMatch[1].length > itemIndent) {
-      section = sectionMatch[2];
-      sectionIndent = sectionMatch[1].length;
-      sectionChildIndent = null;
-      continue;
-    }
-    if (section && trimmed !== '' && indent <= sectionIndent) {
-      section = null;
-      sectionIndent = null;
-      sectionChildIndent = null;
-    }
-    if (
-      section &&
-      trimmed !== '' &&
-      !trimmed.startsWith('#') &&
-      indent > sectionIndent
-    ) {
-      sectionChildIndent ??= indent;
-    }
-    if (section === 'vars') {
-      const variable = line.match(
-        /^(\s+)(skill_content|assertion_id|expected_result|expected_allowed):\s*(.+)$/,
-      );
-      if (variable && variable[1].length === sectionChildIndent) {
-        current.vars[variable[2]] = parseYamlScalar(variable[3]);
+      if (
+        assertion.type === 'javascript' &&
+        assertion.value === 'file://assert-policy-route.cjs'
+      ) {
+        assertions.add('policy_route');
+      }
+      if (
+        assertion.type === 'javascript' &&
+        assertion.value === 'file://assert-policy-permission.cjs'
+      ) {
+        assertions.add('policy_permission');
       }
     }
-    if (section === 'assert') {
-      const assertion = line.match(
-        /^(\s*)-\s+[&*](policy_route|policy_permission)\s*$/,
-      );
-      if (assertion && assertion[1].length === sectionChildIndent) {
-        current.assertions.add(assertion[2]);
-      }
-    }
-  }
-  return tests;
+    return {
+      description:
+        typeof test.description === 'string' ? test.description : '',
+      vars,
+      assertions,
+    };
+  });
 }
 
 const parserFixture = parsePromptfooPolicyTests([
   'tests:',
-  "    - description: 'alternate formatting'",
-  '      vars:',
-  '        skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
-  "        assertion_id: 'consensus.automatic.single'",
-  "        expected_result: 'SINGLE_1'",
-  '        expected_allowed: true',
-  '      assert:',
-  '        - *policy_route',
+  '  - vars:',
+  '      skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+  '      assertion_id: consensus.automatic.single',
+  '      expected_result: SINGLE_1',
+  '      expected_allowed: true',
+  "    description: 'alternate formatting'",
+  '    assert:',
+  '      - type: javascript',
+  '        value: file://assert-policy-route.cjs',
+  '  -',
+  "    description: 'bare list item'",
+  '    vars:',
+  '      skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+  '      assertion_id: consensus.automatic.single',
+  '      expected_result: SINGLE_1',
+  '      expected_allowed: true',
+  '    assert:',
+  '      - type: javascript',
+  '        value: file://assert-policy-route.cjs',
 ].join('\n'));
 if (
-  parserFixture.length !== 1 ||
+  parserFixture.length !== 2 ||
   parserFixture[0].description !== 'alternate formatting' ||
   parserFixture[0].vars.assertion_id !== 'consensus.automatic.single' ||
-  !parserFixture[0].assertions.has('policy_route')
+  !parserFixture[0].assertions.has('policy_route') ||
+  parserFixture[1].description !== 'bare list item' ||
+  !parserFixture[1].assertions.has('policy_route')
 ) {
   console.error('Promptfoo policy test parser is formatting-sensitive');
   process.exit(1);
@@ -248,7 +211,7 @@ const blockScalarDecoy = parsePromptfooPolicyTests([
 ].join('\n'));
 if (
   blockScalarDecoy.length !== 1 ||
-  Object.keys(blockScalarDecoy[0].vars).length !== 0 ||
+  Object.hasOwn(blockScalarDecoy[0].vars, 'assertion_id') ||
   blockScalarDecoy[0].assertions.size !== 0
 ) {
   console.error('Promptfoo policy test parser accepts block-scalar decoys');
@@ -258,15 +221,15 @@ if (
 const nestedMappingDecoy = parsePromptfooPolicyTests([
   'tests:',
   '  - description: nested mapping decoy',
-  '    vars:',
-  '      user_input:',
+  '    metadata:',
+  '      vars:',
   '        skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
   '        assertion_id: consensus.automatic.single',
   '        expected_result: SINGLE_1',
   '        expected_allowed: true',
-  '    assert:',
-  '      wrapper:',
-  '        - *policy_route',
+  '      assert:',
+  '        - type: javascript',
+  '          value: file://assert-policy-route.cjs',
 ].join('\n'));
 if (
   nestedMappingDecoy.length !== 1 ||
@@ -362,13 +325,19 @@ for (const id of requiredPromptfooIds) {
   }
 }
 for (const test of promptfooTests) {
-  if (test.assertions.size === 0) continue;
+  const hasPolicyVars = Object.hasOwn(test.vars, 'assertion_id');
+  if (!hasPolicyVars && test.assertions.size === 0) continue;
   const assertionId = test.vars.assertion_id;
   const consumer = test.vars.skill_content;
+  const expectedHelper =
+    test.vars.permission_output === true
+      ? 'policy_permission'
+      : 'policy_route';
   if (
     !assertionId ||
     !consumer ||
-    !allowedPolicyConsumers(assertionId).has(consumer)
+    !allowedPolicyConsumers(assertionId).has(consumer) ||
+    !test.assertions.has(expectedHelper)
   ) {
     console.error(
       `Promptfoo policy scenario has an unapproved consumer binding: ` +

@@ -178,6 +178,10 @@ for (const structuralContradiction of [
     '   but AUTOMATION_FLOW after all.',
   ].join('\n'),
   [
+    '1) Route {{policy:test.actor.user.result}}',
+    '   but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
     '> Route {{policy:test.actor.user.result}}',
     '> but AUTOMATION_FLOW after all.',
   ].join('\n'),
@@ -187,6 +191,10 @@ for (const structuralContradiction of [
   ].join('\n'),
   [
     '1. Route AUTOMATION_FLOW but the canonical result is',
+    '   {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '1) Route AUTOMATION_FLOW but the canonical result is',
     '   {{policy:test.actor.user.result}}.',
   ].join('\n'),
   [
@@ -214,6 +222,11 @@ for (const structuralContradiction of [
     '1. Route AUTOMATION_FLOW but the canonical result is',
     '',
     '   {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '1) Route {{policy:test.actor.user.result}}.',
+    '',
+    '   But route AUTOMATION_FLOW now.',
   ].join('\n'),
   [
     '- Route {{policy:test.actor.user.result}}',
@@ -262,6 +275,18 @@ for (const nestedListContinuation of [
     '  - Inner:',
     '      Use {{policy:test.actor.user.result}}.',
   ].join('\n'),
+  [
+    '1) Instruction:',
+    '    Use {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '> 1) Instruction:',
+    '>     Use {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    'Instruction:',
+    '    Use {{policy:test.actor.user.result}}.',
+  ].join('\n'),
 ]) {
   assert.equal(
     parsePolicyMarkdown(
@@ -271,6 +296,22 @@ for (const nestedListContinuation of [
     1,
   );
 }
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'unknown-indented-paragraph-reference',
+        markdown: markdown(
+          [assertion()],
+          [
+            'Instruction:',
+            '    Use {{policy:test.actor.missing.result}}.',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
 assert.throws(
   () =>
     buildRegistry([

@@ -282,15 +282,15 @@ function stripBlockquotePrefixes(line) {
 
 function semanticMarkdownLine(line) {
   let semantic = stripBlockquotePrefixes(line);
-  while (/^\s*(?:[-*+]|\d+\.)\s+/.test(semantic)) {
-    semantic = semantic.replace(/^\s*(?:[-*+]|\d+\.)\s+/, '');
+  while (/^\s*(?:[-*+]|\d+[.)])\s+/.test(semantic)) {
+    semantic = semantic.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, '');
   }
   return semantic;
 }
 
 function listItemContentIndent(line) {
   const unquoted = stripBlockquotePrefixes(line);
-  const match = unquoted.match(/^([ \t]*)(?:[-*+]|\d+\.)[ \t]+/);
+  const match = unquoted.match(/^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+/);
   return match ? match[0].replace(/\t/g, '    ').length : null;
 }
 
@@ -306,7 +306,7 @@ function nthIndexOf(text, needle, occurrence) {
 }
 
 function listBlockEnd(lines, start) {
-  const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  const listLead = /^(?:[-*+]\s|\d+[.)]\s)/;
   const listContinuation = /^(?: {2,}|\t)\S/;
   const startLine = stripBlockquotePrefixes(lines[start]);
   const startIndent = indentationWidth(startLine);
@@ -321,7 +321,7 @@ function listBlockEnd(lines, start) {
       const nextLine = stripBlockquotePrefixes(lines[next] || '');
       const nestedContainer =
         indentationWidth(nextLine) > startIndent &&
-        /^(?:[-*+]\s|\d+\.\s|>)/.test(nextLine.trim());
+        /^(?:[-*+]\s|\d+[.)]\s|>)/.test(nextLine.trim());
       const explicitContrast = /^(?:But|However|Instead|Yet)\b/i.test(
         semanticMarkdownLine(nextLine).trim(),
       );
@@ -356,7 +356,7 @@ function listBlockEnd(lines, start) {
 }
 
 function logicalListSpan(lines, index) {
-  const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  const listLead = /^(?:[-*+]\s|\d+[.)]\s)/;
   for (let start = index; start >= 0; start -= 1) {
     if (!listLead.test(stripBlockquotePrefixes(lines[start]).trim())) continue;
     const end = listBlockEnd(lines, start);
@@ -372,7 +372,7 @@ function logicalListSpan(lines, index) {
 }
 
 function blockquoteEnd(lines, start) {
-  const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  const listLead = /^(?:[-*+]\s|\d+[.)]\s)/;
   let end = start;
   for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
     const trimmed = lines[cursor].trim();
@@ -418,6 +418,19 @@ function logicalBlockquoteSpan(lines, index) {
   return containingSpan;
 }
 
+function isIndentedParagraphContinuation(lines, index) {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const line = stripBlockquotePrefixes(lines[cursor]);
+    const trimmed = line.trim();
+    if (trimmed === '') return false;
+    if (/^(?: {4,}|\t)\S/.test(line)) continue;
+    return !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+[.)]\s|>|[|])/.test(
+      trimmed,
+    );
+  }
+  return false;
+}
+
 function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   const assertions = [];
   const references = [];
@@ -429,10 +442,13 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
     const containerLine = stripBlockquotePrefixes(line);
     const listSpanForLine = logicalListSpan(lines, index);
     const lineIndent = indentationWidth(containerLine);
+    const paragraphContinuation =
+      !listSpanForLine && isIndentedParagraphContinuation(lines, index);
     if (
       (/^(?: {4,}|\t)\S/.test(containerLine) &&
         (!listSpanForLine ||
-          lineIndent >= listSpanForLine.contentIndent + 4))
+          lineIndent >= listSpanForLine.contentIndent + 4) &&
+        !paragraphContinuation)
     ) {
       continue;
     }
@@ -488,7 +504,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         while (
           paragraphStart > 0 &&
           lines[paragraphStart - 1].trim() !== '' &&
-          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
+          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+[.)]\s|>|[|])/.test(
             lines[paragraphStart - 1].trim(),
           )
         ) {
@@ -497,7 +513,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         while (
           paragraphEnd + 1 < lines.length &&
           lines[paragraphEnd + 1].trim() !== '' &&
-          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
+          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+[.)]\s|>|[|])/.test(
             lines[paragraphEnd + 1].trim(),
           )
         ) {
