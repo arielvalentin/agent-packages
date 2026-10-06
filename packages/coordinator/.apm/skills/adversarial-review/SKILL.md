@@ -61,6 +61,9 @@ skill never derives false from absence.
 `consensus_role: panel-member` initial envelopes. It never permits
 `SINGLE_1`.
 
+That route is {{policy:consensus.explicit.panel.result}}. An invalid persisted
+value returns {{policy:consensus.handoff.invalid.result}}.
+
 ### 2. Delegate standalone orchestration to `consensus-panel`
 
 For standalone use, invoke `consensus-panel` first. It is the single source of
@@ -117,6 +120,10 @@ produce the two requested initial reviewers:
 - A mandatory high-risk review → stop unavailable.
 - Otherwise, for a non-explicit routine review, perform exactly one bounded
   direct adversarial review as `SINGLE_1`.
+
+The explicit unavailable route is
+{{policy:consensus.explicit.under-capacity.result}}; the non-explicit automatic
+fallback follows {{policy:consensus.automatic.unavailable.result}}.
 
 After successful panel loading, model-discovery or reviewer-output failures use
 the panel's bounded retry/failure rules. If those rules still cannot satisfy an

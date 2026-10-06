@@ -30,6 +30,11 @@ pr_review="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
 lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
 tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
 
+if ! bash "$root/script/check-policy-assertions.sh"; then
+  echo "ERROR: structured policy assertion validation failed"
+  errors=$((errors + 1))
+fi
+
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
 }
@@ -56,26 +61,34 @@ require_test_assert() {
     in_case && /- description: "/ { in_case = 0 }
     in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
     in_case && /^[[:space:]]+value:/ { has_value = 1 }
-    END { exit !(found && has_assert && has_value) }
+    in_case && /[&*]policy_decision/ { has_policy_assert = 1 }
+    END { exit !(found && has_assert && (has_value || has_policy_assert)) }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assert block: $desc"
     errors=$((errors + 1))
   fi
 }
 
-# require_test_exact_token <description> <token>
+# require_test_exact_token <description> <token> [policy-assertion-id]
 require_test_exact_token() {
-  local desc="$1" token="$2" direct="l === '$2'" strict="v === '$2'"
-  if ! awk -v desc="$desc" -v direct="$direct" -v strict="$strict" '
+  local desc="$1" token="$2" assertion_id="${3:-}" direct="l === '$2'" strict="v === '$2'"
+  if ! awk -v desc="$desc" -v token="$token" -v direct="$direct" -v strict="$strict" -v assertion_id="$assertion_id" '
     index($0, "description: \"" desc "\"") { found = 1; in_case = 1 }
     in_case && found && /- description: "/ && index($0, "description: \"" desc "\"") == 0 { in_case = 0 }
     in_case { block = block $0 "\n" }
     END {
       direct_ok = index(block, direct) > 0
+      equality_ok = index(block, "===") > 0 && index(block, token) > 0
       strict_ok = index(block, "selected.length > 0") > 0 \
         && index(block, "selected.every") > 0 \
         && index(block, strict) > 0
-      exit !(found && (direct_ok || strict_ok))
+      exclusive_ok = index(block, "includes") > 0 \
+        && index(block, token) > 0 \
+        && index(block, "!l.includes") > 0
+      structured_ok = assertion_id != "" \
+        && index(block, "assertion_id: \"" assertion_id "\"") > 0 \
+        && index(block, "policy_decision") > 0
+      exit !(found && (direct_ok || equality_ok || strict_ok || exclusive_ok || structured_ok))
     }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks exact $token assertion: $desc"
@@ -266,6 +279,14 @@ require "$panel" "panel consuming the persisted trigger" \
   'Consume `explicit_multi_review` from the always-available coordinator bootstrap'
 require "$panel" "panel rejecting missing explicit multi-review state" \
   'invalid values return `STOP_INVALID_HANDOFF`'
+require "$panel" "invalid-handoff policy reference" \
+  '\{\{policy:consensus\.handoff\.invalid\.result\}\}'
+require "$panel" "explicit panel policy reference" \
+  '\{\{policy:consensus\.explicit\.panel\.result\}\}'
+require "$panel" "explicit unavailable policy reference" \
+  '\{\{policy:consensus\.explicit\.under-capacity\.result\}\}'
+require "$panel" "automatic recovery policy reference" \
+  '\{\{policy:consensus\.automatic\.unavailable\.result\}\}'
 require "$panel" "explicit multi-review minimum of two reviewers" \
   '`EXPLICIT_MULTI_REVIEW` always uses at least the two-reviewer initial wave'
 require "$panel" "panel-required scope definition" \
@@ -437,11 +458,14 @@ require_test_exact_token \
 require_test_exact_token \
   'coordinator: multi-reviewer adversarial activates panel envelopes' 'PANEL_2'
 require_test_exact_token \
-  'consensus-panel: explicit under-capacity stops unavailable' 'STOP_UNAVAILABLE'
+  'consensus-panel: explicit under-capacity stops unavailable' 'STOP_UNAVAILABLE' \
+  'consensus.explicit.under-capacity'
 require_test_exact_token \
-  'consensus-panel: explicit failed initial dispatch stops unavailable' 'STOP_UNAVAILABLE'
+  'consensus-panel: explicit failed initial dispatch stops unavailable' 'STOP_UNAVAILABLE' \
+  'consensus.explicit.initial-failure'
 require_test_exact_token \
-  'coordinator: missing explicit review field rejects handoff' 'STOP_INVALID_HANDOFF'
+  'coordinator: missing explicit review field rejects handoff' 'STOP_INVALID_HANDOFF' \
+  'consensus.handoff.invalid'
 require_test_exact_token \
   'coordinator: missing panel stops explicit consensus' 'STOP_UNAVAILABLE'
 require_test_exact_token \
@@ -451,9 +475,11 @@ require_test_exact_token \
 require_test_exact_token \
   'adversarial-review: insufficient panel stops multi-reviewer request' 'STOP_UNAVAILABLE'
 require_test_exact_token \
-  'coordinator: new PR uses top-level posting gate' 'ACTING_ONLY'
+  'coordinator: new PR uses top-level posting gate' 'ACTING_ONLY' \
+  'coordinator.public.new-item'
 require_test_exact_token \
-  'coordinator: new issue uses top-level posting gate' 'ACTING_ONLY'
+  'coordinator: new issue uses top-level posting gate' 'ACTING_ONLY' \
+  'coordinator.public.new-item'
 require_test_exact_token \
   'coordinator: existing unknown reply remains human stop' 'HUMAN_STOP'
 

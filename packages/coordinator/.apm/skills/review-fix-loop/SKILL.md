@@ -26,6 +26,13 @@ and every post-fix re-review as `PANEL_2`: two
 `consensus_role: panel-member` initial envelopes. `SINGLE_1` is valid only for
 an internally selected, fast-path-eligible review.
 
+Initial and post-fix explicit review use
+{{policy:consensus.explicit.panel.result}}. Invalid handoffs use
+{{policy:consensus.handoff.invalid.result}}. Explicit panel unavailability uses
+{{policy:consensus.explicit.under-capacity.result}} rather than a single-review
+fallback. Non-explicit bounded fallback follows
+{{policy:consensus.automatic.unavailable.result}}.
+
 The parameter is required and must be a JSON boolean. This loop never infers
 false from absence.
 

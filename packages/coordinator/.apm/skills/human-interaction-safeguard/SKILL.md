@@ -5,6 +5,56 @@ description: Canonical policy for handling human, unknown, bot, and app-authored
 
 # Human Interaction Safeguard
 
+The fenced registry below is the authoritative machine-readable contract.
+Prose explains the contract but does not redefine it.
+
+```policy-assertions
+{"format":"policy-assertions","version":1}
+{"id":"human-interaction.actor.rest-user","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.rest-bot","contract":"human-interaction.routing","actor":"rest-bot","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.actor.rest-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.missing-or-unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.graphql-bot","contract":"human-interaction.routing","actor":"graphql-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.actor.graphql-non-bot","contract":"human-interaction.routing","actor":"graphql-non-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.not-bot"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.provenance.user-with-app","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.user","app.association.present"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
+{"id":"human-interaction.chain.all-bot","contract":"human-interaction.chain","actor":"all-bot","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.every-actor.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.chain.any-human","contract":"human-interaction.chain","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
+{"id":"human-interaction.chain.any-unknown","contract":"human-interaction.chain","actor":"unknown","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-unknown"]}
+{"id":"human-interaction.chain.incomplete","contract":"human-interaction.chain","actor":"unknown","provenance":"incomplete-chain","interaction":"public-github","action":"classify","conditions":["chain.incomplete"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.existing-item.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
+{"id":"human-interaction.existing-item.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.action.human-stop.implement","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"implement","conditions":["classification.human-stop","trigger.interaction"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.action.human-stop.draft","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"draft","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.action.human-stop.post","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.action.human-stop.reply","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"reply","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.action.human-stop.resolve","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"resolve","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.ownership.human-stop","contract":"human-interaction.permissions","actor":"rest-user","provenance":"complete-chain","interaction":"public-github","action":"ownership","conditions":["classification.human-stop"],"result":"USER_WRITES_REPLY_AND_RESOLVES","allowed":true,"precedence":["human-interaction.action.human-stop.reply","human-interaction.action.human-stop.resolve"]}
+```
+
+| Policy case | Authoritative result |
+|-------------|----------------------|
+| REST User | {{policy:human-interaction.actor.rest-user.result}} |
+| REST Bot | {{policy:human-interaction.actor.rest-bot.result}} |
+| REST missing/unknown | {{policy:human-interaction.actor.rest-unknown.result}} |
+| GraphQL Bot | {{policy:human-interaction.actor.graphql-bot.result}} |
+| GraphQL non-Bot | {{policy:human-interaction.actor.graphql-non-bot.result}} |
+| User with app association | {{policy:human-interaction.provenance.user-with-app.result}} |
+| Complete all-Bot chain | {{policy:human-interaction.chain.all-bot.result}} |
+| Chain with a human | {{policy:human-interaction.chain.any-human.result}} |
+| Chain with an unknown actor | {{policy:human-interaction.chain.any-unknown.result}} |
+| Incomplete chain retrieval | {{policy:human-interaction.chain.incomplete.result}} |
+| Existing item with all-Bot context | {{policy:human-interaction.existing-item.all-bot.result}} |
+| Existing item with a human participant | {{policy:human-interaction.existing-item.any-human.result}} |
+
+For a tainted interaction, implementation
+allowed={{policy:human-interaction.action.human-stop.implement.allowed}},
+drafting allowed={{policy:human-interaction.action.human-stop.draft.allowed}},
+posting allowed={{policy:human-interaction.action.human-stop.post.allowed}},
+replying allowed={{policy:human-interaction.action.human-stop.reply.allowed}},
+and resolution
+allowed={{policy:human-interaction.action.human-stop.resolve.allowed}}. Response
+ownership is
+{{policy:human-interaction.ownership.human-stop.result}}.
+
 **Response routing invariant:** a question asking who writes the reply and
 resolves a tainted or `HUMAN_STOP` thread always returns
 `USER_WRITES_REPLY_AND_RESOLVES`, even when the scenario mentions actor

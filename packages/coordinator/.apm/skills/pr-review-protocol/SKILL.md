@@ -116,6 +116,10 @@ Before compiling or posting a review on the existing PR, invoke
 conversation chain defined there: the PR author, issue/PR comments, reviews,
 inline comments, and complete review threads.
 
+The existing-item all-Bot case follows
+{{policy:human-interaction.existing-item.all-bot.result}}. Any human participant
+follows {{policy:human-interaction.existing-item.any-human.result}}.
+
 - `HUMAN_STOP` → do not draft or post an agent-authored review. Return the
   evidence-backed findings privately so the user can write and submit the
   review.
@@ -132,6 +136,9 @@ Only on `AUTOMATION_FLOW`, invoke `acting-on-behalf` before posting. Use
 `gh pr review` with `--approve`, `--request-changes`, or `--comment`, always
 passing the PR number and `--repo <owner/repo>`, and include only the
 attribution that skill requires.
+
+For a tainted chain, posting is
+allowed={{policy:human-interaction.action.human-stop.post.allowed}}.
 
 ## Boundaries
 

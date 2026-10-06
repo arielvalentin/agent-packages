@@ -26,6 +26,13 @@ interaction, invoke `human-interaction-safeguard`.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
 
+The canonical tainted-chain result is
+{{policy:human-interaction.chain.any-human.result}}. Agent replying is
+allowed={{policy:human-interaction.action.human-stop.reply.allowed}}, thread
+resolution is
+allowed={{policy:human-interaction.action.human-stop.resolve.allowed}}, and the
+owner is {{policy:human-interaction.ownership.human-stop.result}}.
+
 `EXISTING_PR_OR_ISSUE_CONTENT_GATE = HUMAN_INTERACTION_THEN_ACTING`.
 
 ## Disclaimer decision

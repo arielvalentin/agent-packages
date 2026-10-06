@@ -43,6 +43,34 @@ When personal credentials or explicit user attribution require disclosure,
 append a blank line and `> _AI Assisted._` after the supplied body. The
 disclaimer needs no username, model, or provider lookup.
 
+## Structured policy assertions
+
+Behavior-defining routing and permission decisions use authoritative
+`policy-assertions` JSONL fences in the owning Markdown skill or agent. Prose
+remains the human explanation. Stable references such as
+`{{policy:human-interaction.chain.any-human.result}}` link that prose and
+downstream skills to the canonical record without duplicating policy.
+
+Each fence starts with the version header and then one JSON object per
+assertion:
+
+```policy-assertions
+{"format":"policy-assertions","version":1}
+{"id":"example.routing.case","contract":"example.routing","actor":"system","provenance":"policy-scope","interaction":"policy-change","action":"route","conditions":["example.condition"],"result":"CONTINUE","allowed":true,"precedence":[]}
+```
+
+`conditions` contains stable condition IDs. `precedence` lists canonical
+assertion IDs that must be established earlier for this assertion to apply.
+
+The checker fails closed on malformed JSON, duplicate keys or IDs, missing or
+unknown fields, unknown enum values, unresolved precedence, unresolved
+references, unreferenced assertions, and deterministic contradictions on a
+linked marker line. It does not infer route or permission semantics from
+unrestricted prose.
+
+Run `bash script/check-policy-assertions.sh` from the repository root after
+adding or changing an assertion.
+
 ## Optional companion agents
 
 The coordinator package remains usable on its own. When

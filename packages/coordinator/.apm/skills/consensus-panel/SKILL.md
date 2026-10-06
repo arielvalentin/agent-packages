@@ -17,6 +17,27 @@ selected consensus internally. Substantive changes and explicit requests for
 independent verdicts get two reviewers, plus a third only when it can change
 the answer.
 
+```policy-assertions
+{"format":"policy-assertions","version":1}
+{"id":"consensus.handoff.invalid","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"route","conditions":["explicit-multi-review.missing-or-invalid"],"result":"STOP_INVALID_HANDOFF","allowed":false,"precedence":[]}
+{"id":"consensus.explicit.panel","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.two"],"result":"PANEL_2","allowed":true,"precedence":[]}
+{"id":"consensus.explicit.under-capacity","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.less-than-two"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":[]}
+{"id":"consensus.explicit.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","dispatch.initial-response.invalid-after-retry"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":["consensus.explicit.panel"]}
+{"id":"consensus.automatic.unavailable","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"fallback","conditions":["explicit-multi-review.false","automatic-capacity.unavailable"],"result":"ADAPTIVE_RECOVERY","allowed":true,"precedence":[]}
+{"id":"consensus.automatic.single","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.false","scope.fast-path-eligible"],"result":"SINGLE_1","allowed":true,"precedence":[]}
+```
+
+Invalid handoffs return
+{{policy:consensus.handoff.invalid.result}}. Explicit requests with capacity
+dispatch {{policy:consensus.explicit.panel.result}}. Explicit requests with
+insufficient capacity return
+{{policy:consensus.explicit.under-capacity.result}}, and a failed initial
+response after retry returns
+{{policy:consensus.explicit.initial-failure.result}}. Non-explicit unavailable
+capacity uses {{policy:consensus.automatic.unavailable.result}}. The automatic
+tiny/non-code path uses
+{{policy:consensus.automatic.single.result}}.
+
 ## Entry decision table (apply first)
 
 `AUTOMATIC_FALSE_FALLBACK = ADAPTIVE_RECOVERY`.

@@ -38,6 +38,10 @@ into their complete relevant thread or conversation chain. For each chain:
 
 Do not skim or assume. Classify the actor before any research or action.
 
+The authoritative tainted-chain result is
+{{policy:human-interaction.chain.any-human.result}}; the complete all-Bot result
+is {{policy:human-interaction.chain.all-bot.result}}.
+
 ### Step 2: Stop for Human or Unknown Actors
 
 For every thread/chain classified `HUMAN_STOP`, follow
@@ -53,6 +57,11 @@ For every thread/chain classified `HUMAN_STOP`, follow
 If the user later gives a separate, explicit implementation instruction that
 identifies the concern, the requested code/config/test work may proceed as a
 new user instruction. The reply and thread resolution remain user-only.
+
+For interaction-triggered work, implementation is
+allowed={{policy:human-interaction.action.human-stop.implement.allowed}} and
+drafting is
+allowed={{policy:human-interaction.action.human-stop.draft.allowed}}.
 
 Only completely retrieved threads/chains whose every item is
 `AUTOMATION_FLOW` continue to Step 3.

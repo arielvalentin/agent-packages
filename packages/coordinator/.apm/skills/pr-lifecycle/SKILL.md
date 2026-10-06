@@ -189,12 +189,20 @@ pages. Do not classify, implement, invoke `pr-feedback-review` or
 retrieval is verified. Incomplete, failed, or unverifiable retrieval makes the
 relevant chain `HUMAN_STOP` before any action.
 
+The authoritative incomplete-retrieval result is
+{{policy:human-interaction.chain.incomplete.result}}.
+
 Only after complete retrieval, apply the thread/chain taint rule:
 `AUTOMATION_FLOW` requires every root comment and reply to have authoritative
 Bot metadata. Any User, unknown, missing, ambiguous, other, or unverified
 participant makes the entire relevant chain `HUMAN_STOP`, so no comment in it
 may trigger implementation, an agent reply, or agent resolution.
 Any `HUMAN_STOP` item taints the entire chain.
+
+The complete all-Bot case follows
+{{policy:human-interaction.chain.all-bot.result}}; any human participant follows
+{{policy:human-interaction.chain.any-human.result}}, and any unknown participant
+follows {{policy:human-interaction.chain.any-unknown.result}}.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:

@@ -12,6 +12,21 @@ You may inspect, edit, validate, review, research, and respond directly. Use
 specialists only when their separate context or safeguards materially improve
 the result.
 
+```policy-assertions
+{"format":"policy-assertions","version":1}
+{"id":"coordinator.public.new-item","contract":"coordinator.public-routing","actor":"system","provenance":"public-item","interaction":"public-github","action":"route","conditions":["item.new","action.create"],"result":"ACTING_ONLY","allowed":true,"precedence":[]}
+{"id":"coordinator.public.existing-item","contract":"coordinator.public-routing","actor":"system","provenance":"public-item","interaction":"public-github","action":"route","conditions":["item.existing","action.comment-review-reply-or-resolve"],"result":"HUMAN_INTERACTION_THEN_ACTING","allowed":true,"precedence":[]}
+{"id":"coordinator.security.explicit-vulnerability","contract":"coordinator.review-routing","actor":"system","provenance":"user-intent","interaction":"security-review","action":"dispatch","conditions":["user.explicit-vulnerability-review"],"result":"SECURITY_REVIEW_FIRST","allowed":true,"precedence":[]}
+{"id":"coordinator.policy.high-risk","contract":"coordinator.review-routing","actor":"system","provenance":"policy-scope","interaction":"policy-change","action":"dispatch","conditions":["scope.behavior-defining-policy"],"result":"DIRECT_HIGH_RISK_ADVERSARIAL","allowed":true,"precedence":[]}
+```
+
+New public items use
+{{policy:coordinator.public.new-item.result}}. Existing-item public actions use
+{{policy:coordinator.public.existing-item.result}}. Explicit vulnerability
+review uses
+{{policy:coordinator.security.explicit-vulnerability.result}}. Behavior-defining
+policy uses {{policy:coordinator.policy.high-risk.result}}.
+
 **Routing invariant:** any change to agent/skill instructions, safeguards,
 governance, orchestration policy, workflows, or contract checks is
 `DIRECT_HIGH_RISK_ADVERSARIAL`, never `ROUTINE_OPTIONAL`.

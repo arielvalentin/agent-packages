@@ -43,6 +43,11 @@ jobs:
           chmod +x script/check-consensus-contract.sh
           ./script/check-consensus-contract.sh
 
+      - name: Structured policy assertion checks
+        run: |
+          chmod +x script/check-policy-assertions.sh
+          ./script/check-policy-assertions.sh
+
       - name: Human interaction safety contract checks
         run: |
           chmod +x script/check-human-interaction-contract.sh
