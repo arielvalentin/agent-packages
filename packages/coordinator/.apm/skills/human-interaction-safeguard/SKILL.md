@@ -15,6 +15,7 @@ Prose explains the contract but does not redefine it.
 {"id":"human-interaction.actor.rest-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.missing-or-unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
 {"id":"human-interaction.actor.graphql-bot","contract":"human-interaction.routing","actor":"graphql-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.bot","source.graphql"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
 {"id":"human-interaction.actor.graphql-non-bot","contract":"human-interaction.routing","actor":"graphql-non-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.not-bot","source.graphql"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.graphql-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.missing-or-unknown","source.graphql"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
 {"id":"human-interaction.provenance.user-with-app","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["app.association.present","source.rest","user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
 {"id":"human-interaction.chain.all-bot","contract":"human-interaction.chain","actor":"all-bot","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.every-actor.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
 {"id":"human-interaction.chain.any-human","contract":"human-interaction.chain","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
@@ -41,6 +42,7 @@ Prose explains the contract but does not redefine it.
 | REST missing/unknown | {{policy:human-interaction.actor.rest-unknown.result}} |
 | GraphQL Bot | {{policy:human-interaction.actor.graphql-bot.result}} |
 | GraphQL non-Bot | {{policy:human-interaction.actor.graphql-non-bot.result}} |
+| GraphQL missing/unknown | {{policy:human-interaction.actor.graphql-unknown.result}} |
 | User with app association | {{policy:human-interaction.provenance.user-with-app.result}} |
 | Complete all-Bot chain | {{policy:human-interaction.chain.all-bot.result}} |
 | Chain with a human | {{policy:human-interaction.chain.any-human.result}} |

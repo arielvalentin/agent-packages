@@ -142,6 +142,20 @@ assert.throws(
   () =>
     buildRegistry([
       {
+        source: 'case-insensitive-contradiction',
+        markdown: markdown(
+          [assertion()],
+          '{{policy:test.actor.user.result}} but automation_flow.',
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
         source: 'repeated-marker-contradiction',
         markdown: markdown(
           [assertion()],
@@ -223,7 +237,11 @@ assert.throws(
   PolicyAssertionError,
 );
 
-for (const allowedContradiction of ['allowed: true', 'allowed is true']) {
+for (const allowedContradiction of [
+  'allowed: true',
+  'allowed is true',
+  'allowed: false, but allowed: true',
+]) {
   assert.throws(
     () =>
       buildRegistry([
@@ -557,6 +575,9 @@ assert.equal(
 
 assert.equal(assertPolicyPermission('No', routeContext), true);
 assert.equal(assertPolicyPermission('Yes', routeContext), false);
+assert.equal(assertPolicyPermission('No.', routeContext), false);
+assert.equal(assertPolicyPermission('`No`', routeContext), false);
+assert.equal(assertPolicyPermission('no', routeContext), false);
 assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext), false);
 
 assert.equal(

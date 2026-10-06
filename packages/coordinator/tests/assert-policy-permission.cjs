@@ -29,10 +29,5 @@ module.exports = (output, context) => {
     return false;
   }
 
-  const normalized = String(output)
-    .trim()
-    .replace(/^`|`$/g, '')
-    .replace(/[.!]$/, '')
-    .toLowerCase();
-  return normalized === (expectedAllowed ? 'yes' : 'no');
+  return String(output) === (expectedAllowed ? 'Yes' : 'No');
 };

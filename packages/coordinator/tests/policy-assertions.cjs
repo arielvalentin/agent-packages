@@ -93,7 +93,11 @@ const MUTUALLY_EXCLUSIVE_CONDITION_GROUPS = [
     'capacity.initial-slots.less-than-two',
   ]),
   new Set(['user.type.user', 'user.type.bot', 'user.type.missing-or-unknown']),
-  new Set(['author.typename.bot', 'author.typename.not-bot']),
+  new Set([
+    'author.typename.bot',
+    'author.typename.not-bot',
+    'author.missing-or-unknown',
+  ]),
   new Set(['chain.complete', 'chain.incomplete']),
   new Set(['chain.every-actor.bot', 'chain.any-actor.user']),
   new Set(['chain.every-actor.bot', 'chain.any-actor.unknown']),
@@ -385,7 +389,7 @@ function detectLinkedContradiction(reference, assertion) {
   const remainder = reference.text.replace(reference.marker, '');
   if (reference.field === 'result') {
     const mentioned = [...ENUMS.result].filter((value) =>
-      new RegExp(`\\b${value}\\b`).test(remainder),
+      new RegExp(`\\b${value}\\b`, 'i').test(remainder),
     );
     const conflicts = mentioned.filter((value) => value !== assertion.result);
     if (conflicts.length > 0) {
@@ -396,10 +400,16 @@ function detectLinkedContradiction(reference, assertion) {
     }
   }
   if (reference.field === 'allowed') {
-    const match = remainder.match(
-      /\ballowed\s*(?:=|:|\bis\b)\s*(true|false)\b/i,
-    );
-    if (match && (match[1].toLowerCase() === 'true') !== assertion.allowed) {
+    const matches = [
+      ...remainder.matchAll(
+        /\ballowed\s*(?:=|:|\bis\b)\s*(true|false)\b/gi,
+      ),
+    ];
+    if (
+      matches.some(
+        (match) => (match[1].toLowerCase() === 'true') !== assertion.allowed,
+      )
+    ) {
       throw new PolicyAssertionError(
         `linked allowed value contradicts "${reference.id}"`,
         `${reference.source}:line ${reference.line}`,

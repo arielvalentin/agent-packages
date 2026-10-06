@@ -415,6 +415,9 @@ for description in \
   'human-interaction: authoritative REST Bot uses normal flow' \
   'human-interaction: User with REST App association stays human' \
   'human-interaction: authoritative GraphQL Bot uses normal flow' \
+  'human-interaction: GraphQL missing author fails closed' \
+  'human-interaction: incomplete chain emits fail-closed structured actions' \
+  'human-interaction: all-Bot chain emits structured automation actions' \
   'human-interaction: GraphQL uses nested thread and comment cursors' \
   'human-interaction: incomplete GraphQL pagination fails closed' \
   'human-interaction: Bot root with User reply taints thread' \
@@ -447,6 +450,8 @@ require "$policy" "Yes/No HUMAN_STOP permission response" \
 require "$root/packages/coordinator/tests/policy-assertions.test.cjs" \
   "structured action helper unit coverage" \
   'assert-structured-actions\.cjs'
+require "$tests" "structured action Promptfoo helper coverage" \
+  'file://assert-structured-actions\.cjs'
 require "$tests" "shared structured policy assertion anchor" \
   '&policy_route'
 require "$tests" "shared structured policy assertion helper call" \
@@ -469,6 +474,7 @@ for description in \
   'human-interaction: bot-like User login fails closed' \
   'human-interaction: bot-like login with missing metadata fails closed' \
   'human-interaction: User with REST App association stays human' \
+  'human-interaction: GraphQL missing author fails closed' \
   'human-interaction: incomplete GraphQL pagination fails closed' \
   'human-interaction: Bot root with User reply taints thread' \
   'human-interaction: Bot root with unknown reply taints thread' \
@@ -481,6 +487,9 @@ for description in \
       ;;
     'human-interaction: User with REST App association stays human')
       assertion_id='human-interaction.provenance.user-with-app'
+      ;;
+    'human-interaction: GraphQL missing author fails closed')
+      assertion_id='human-interaction.actor.graphql-unknown'
       ;;
     'pr-lifecycle: Bot root with unknown reply stops action'|'human-interaction: Bot root with unknown reply taints thread')
       assertion_id='human-interaction.chain.any-unknown'
