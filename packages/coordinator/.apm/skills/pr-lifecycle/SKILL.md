@@ -165,14 +165,17 @@ After CI passes, check for automated Copilot review:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
-  --jq '[.[] | select((.user.type == "Bot" or .performed_via_github_app != null) and ((.user.login // "") | startswith("copilot-pull-request-reviewer")))]'
+  --jq '[.[] | select(.user.type == "Bot" and ((.user.login // "") | startswith("copilot-pull-request-reviewer")))]'
 ```
 
-- The login prefix identifies Copilot only after authoritative Bot/App metadata
-  establishes `AUTOMATION_FLOW`; it never classifies the actor.
+- Exact Bot actor metadata establishes `AUTOMATION_FLOW`; app provenance is
+  audit context only and cannot change `user.type == "User"` or unknown
+  metadata. The login prefix identifies Copilot only after the Bot check; it
+  never classifies the actor.
 - Poll every 30s, timeout after 10 minutes.
-- If findings: categorize by severity, feed actionable ones into
-  `review-fix-loop`.
+- Before acting on findings, apply `human-interaction-safeguard` to the review
+  metadata. Only `AUTOMATION_FLOW` findings may enter `review-fix-loop`;
+  `HUMAN_STOP` returns control to the user.
 - If no findings or timeout: proceed.
 - If repo doesn't use Copilot review: skip and note.
 

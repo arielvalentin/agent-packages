@@ -41,10 +41,12 @@ review result exists.
 2. **Dispatch reviewer** — use one reviewer by default. Route through
    `consensus-panel` only when the user explicitly requested consensus, the
    review is judgment-heavy and high-risk, or another loaded skill requires the
-   panel. When consensus is selected, `consensus-panel` classifies the scope
-   first: non-code and tiny scopes take the single-reviewer fast path, and
-   substantive code changes take the adaptive 2+1 panel. Send `scope` and
-   `context`; if `focus` is provided, include it as explicit instructions.
+   panel. Preserve why consensus was selected. An explicit user request for
+   consensus or multiple independent verdicts always dispatches the
+   two-reviewer initial wave, even for tiny or non-code scope. Only
+   system-selected consensus may let `consensus-panel` classify non-code or
+   tiny scope into the single-reviewer fast path. Send `scope` and `context`;
+   if `focus` is provided, include it as explicit instructions.
 
 3. **Evaluate review completion, then findings** — first verify the reviewer
    or panel returned a complete, valid outcome. An incomplete, timed-out, or
@@ -58,11 +60,13 @@ review result exists.
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
    b. Re-run `reviewer` through the same single-reviewer or selected panel
-      policy against the updated `scope`. Re-classify the scope each cycle: a
-      scope that is still non-code or tiny stays on the single-reviewer fast
-      path, and a panelled scope starts a **fresh initial wave of 2** reviewers,
-      escalating to a tiebreaker only if that cycle's own responses fire an
-      escalation trigger. A previous cycle's escalation does not carry over.
+      policy against the updated `scope`. Preserve an explicit-consensus request
+      across every cycle; it always starts a **fresh initial wave of 2**.
+      Otherwise re-classify the scope each cycle: system-selected non-code or
+      tiny scope stays on the single-reviewer fast path, and a panelled scope
+      starts a fresh initial wave of 2, escalating only if that cycle's own
+      responses fire a trigger. A previous cycle's escalation does not carry
+      over.
    c. If no findings at or above threshold → **gate passes**. Record result.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.

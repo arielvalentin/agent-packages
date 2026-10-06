@@ -187,6 +187,12 @@ forbid "$policy" "phantom GraphQL app classification" \
   'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
 forbid "$feedback" "human feedback override or solely loophole" 'override|solely'
 forbid "$lifecycle" "lifecycle override or solely loophole" 'override|solely'
+forbid "$lifecycle" "Phase 5 app-only automation selector" \
+  'user\.type == "Bot" or \.performed_via_github_app != null'
+require "$lifecycle" "Phase 5 exact Bot selector" \
+  'select\(\.user\.type == "Bot" and'
+require "$lifecycle" "Phase 5 safeguard gate before findings" \
+  'Before acting on findings, apply `human-interaction-safeguard`'
 forbid "$acting" "HUMAN_STOP posting override" \
   'HUMAN_STOP.{0,180}(unless|override)|override.{0,180}HUMAN_STOP'
 forbid "$agent" "human-thread override" \

@@ -19,6 +19,14 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
+  - description: "coordinator: mandatory security dispatch overrides five-call heuristic"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "A request explicitly asks to find exploitable vulnerabilities and is otherwise tiny. Choose exactly one routing token: SECURITY_REVIEW_FIRST or DIRECT_FIVE_CALL."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toUpperCase().replace(/[*#]/g, '').split(String.fromCharCode(96)).join(''); l === 'SECURITY_REVIEW_FIRST'"
+
   - description: "review-fix-loop: mandatory adversarial exhaustion cannot warn"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
@@ -437,6 +445,14 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
+  - description: "review-fix-loop: explicit consensus keeps two reviewers for tiny scope"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "The user explicitly requests consensus on a one-line documentation change. How many reviewers are in the initial wave? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
   - description: "review-fix-loop: routine default retry budget is one"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
@@ -565,6 +581,14 @@ tests:
     assert:
       - type: javascript
         value: "const upper = output.toUpperCase(); upper.lastIndexOf('HUMAN_STOP') > upper.lastIndexOf('AUTOMATION_FLOW')"
+
+  - description: "pr-lifecycle: Phase 5 rejects User with App provenance"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A Copilot-shaped review has user.type User and non-null performed_via_github_app. May Phase 5 treat it as AUTOMATION_FLOW and send findings to review-fix-loop? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "human-interaction: authoritative GraphQL Bot uses normal flow"
     vars:

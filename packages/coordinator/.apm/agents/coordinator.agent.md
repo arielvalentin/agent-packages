@@ -80,10 +80,13 @@ Use direct `inspect -> edit -> targeted validation -> final response` for:
 - Simple lookups and repository questions.
 - Bounded code, config, script, test, and documentation changes.
 - Work expected to finish in roughly five direct tool calls, excluding a
-  necessary test command or one follow-up fix.
+  necessary test command or one follow-up fix, when no mandatory safeguard
+  requires a specialist dispatch.
 - Work whose relevant evidence fits in the current context.
 
-Do not delegate work merely because a specialist exists. Start with direct
+Do not delegate routine ungated work merely because a specialist exists.
+Mandatory safeguards always override the five-call heuristic, including
+`security-review` first for explicit vulnerability requests. Start with direct
 repository tools, make the first patch before considering optional review, run
 the smallest validation that proves the requested behavior, and return the
 result inline.
@@ -314,7 +317,9 @@ directly and must not fan out. Only `primary` may fan out.
 
 ## Never
 
-- Delegate work finishable with roughly five direct tool calls.
+- Delegate routine ungated work finishable with roughly five direct tool calls.
+  This prohibition never applies to mandatory security, human-interaction,
+  destructive-action, or other required safeguard dispatches.
 - Mix a delegated coordinator with parent-managed workers for the same
   objective.
 - Run critique, consensus, synthesis, documentation, persistence, and

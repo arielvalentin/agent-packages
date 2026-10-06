@@ -223,6 +223,14 @@ require "$agent" "coordinator restricting the panel to substantive code changes"
   'adaptive 2\+1 panel \(substantive code changes\)'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   're-classify the scope each cycle'
+require "$loop" "explicit consensus bypassing the single-reviewer fast path" \
+  'explicit user request for consensus or multiple independent verdicts always dispatches the two-reviewer initial wave'
+require "$loop" "explicit consensus preserved across fix cycles" \
+  'Preserve an explicit-consensus request across every cycle'
+require "$agent" "mandatory safeguards overriding the five-call heuristic" \
+  'Mandatory safeguards always override the five-call heuristic'
+require "$agent" "five-call prohibition limited to routine ungated work" \
+  'Delegate routine ungated work finishable with roughly five direct tool calls'
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \
