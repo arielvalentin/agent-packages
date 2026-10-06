@@ -341,6 +341,13 @@ directly and must not fan out. Only `primary` may fan out.
   panel route, degrading to `SINGLE_1`, or improvising a panel. When false, an
   optional routine review returns the bounded `SINGLE_1` fallback; mandatory
   safety reviews still stop unavailable.
+
+| Persisted state and review kind | Missing-panel result |
+|---------------------------------|----------------------|
+| `EXPLICIT_MULTI_REVIEW=true` | `STOP_UNAVAILABLE` |
+| `EXPLICIT_MULTI_REVIEW=false`, optional routine review | `SINGLE_1` |
+| mandatory safety review | `STOP_UNAVAILABLE` |
+
 - Missing `handoff-envelope`: pass complete bounded context inline and require
   an inline result.
 - Missing `pr-review-protocol`: do not post a PR review; return the gathered

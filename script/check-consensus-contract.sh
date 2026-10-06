@@ -48,6 +48,35 @@ require() {
   fi
 }
 
+# require_test_assert <description>
+require_test_assert() {
+  local desc="$1"
+  if ! awk -v desc="$desc" '
+    index($0, "description: \"" desc "\"") { found = 1; in_case = 1; next }
+    in_case && /- description: "/ { in_case = 0 }
+    in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
+    in_case && /^[[:space:]]+value:/ { has_value = 1 }
+    END { exit !(found && has_assert && has_value) }
+  ' "$tests"; then
+    echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assert block: $desc"
+    errors=$((errors + 1))
+  fi
+}
+
+# require_test_exact_token <description> <token>
+require_test_exact_token() {
+  local desc="$1" token="$2" direct="l === '$2'" selected="m[1].toUpperCase() === '$2'"
+  if ! awk -v desc="$desc" -v direct="$direct" -v selected="$selected" '
+    index($0, "description: \"" desc "\"") { found = 1; in_case = 1 }
+    in_case && found && /- description: "/ && index($0, "description: \"" desc "\"") == 0 { in_case = 0 }
+    in_case { block = block $0 "\n" }
+    END { exit !(found && (index(block, direct) > 0 || index(block, selected) > 0)) }
+  ' "$tests"; then
+    echo "ERROR: ${tests#"$root/"}: test lacks exact $token assertion: $desc"
+    errors=$((errors + 1))
+  fi
+}
+
 # forbid <file> <description> <extended-regex>
 forbid() {
   local file="$1" desc="$2" pattern="$3"
@@ -251,6 +280,14 @@ require "$panel" "explicit panel stopping before tiebreak salvage" \
   'return `STOP_UNAVAILABLE`.{0,120}do not replace it, dispatch the tiebreaker'
 require "$panel" "automatic panel retaining adaptive recovery" \
   'EXPLICIT_MULTI_REVIEW=false` with fewer than 2 valid initial responses.{0,100}`ADAPTIVE_RECOVERY`'
+require "$panel" "single envelope propagating explicit false" \
+  'set `explicit_multi_review: false` and `consensus_role: single`'
+require "$panel" "panel envelopes propagating persisted explicit state" \
+  'Set `explicit_multi_review: EXPLICIT_MULTI_REVIEW`'
+require "$panel" "tiebreak envelope remaining a panel member" \
+  '`consensus_role: panel-member`, `model_index: 3`'
+require "$panel" "automatic fallback omitting model overrides" \
+  'issue both calls without model overrides'
 require "$panel" "concurrency listed as a disqualifier" \
   'concurrency, locking, or shared mutable state'
 require "$panel" "irreversible data operations listed as a disqualifier" \
@@ -361,9 +398,30 @@ for description in \
   'acting-on-behalf: propagates true explicit review field' \
   'acting-on-behalf: propagates false explicit review field' \
   'pr-review-protocol: propagates true explicit review field' \
-  'pr-review-protocol: propagates false explicit review field'; do
+  'pr-review-protocol: propagates false explicit review field' \
+  'consensus-panel: single envelope propagates false' \
+  'consensus-panel: initial envelope propagates true' \
+  'consensus-panel: retry envelope preserves true' \
+  'consensus-panel: tiebreak envelope stays panel member' \
+  'consensus-panel: automatic discovery fallback omits model overrides'; do
   require "$tests" "Promptfoo regression: $description" "$description"
+  require_test_assert "$description"
 done
+
+require_test_exact_token \
+  'coordinator: explicit consensus activates panel envelopes' 'PANEL_2'
+require_test_exact_token \
+  'coordinator: literal panel review activates panel envelopes' 'PANEL_2'
+require_test_exact_token \
+  'coordinator: multiple independent verdicts activate panel envelopes' 'PANEL_2'
+require_test_exact_token \
+  'coordinator: multi-reviewer adversarial activates panel envelopes' 'PANEL_2'
+require_test_exact_token \
+  'consensus-panel: explicit under-capacity stops unavailable' 'STOP_UNAVAILABLE'
+require_test_exact_token \
+  'consensus-panel: explicit failed initial dispatch stops unavailable' 'STOP_UNAVAILABLE'
+require_test_exact_token \
+  'coordinator: missing explicit review field rejects handoff' 'STOP_INVALID_HANDOFF'
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \

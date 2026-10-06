@@ -19,13 +19,15 @@ the answer.
 
 ## Entry decision table (apply first)
 
+`AUTOMATIC_FALSE_FALLBACK = ADAPTIVE_RECOVERY`.
+
 | Input/state | Required result |
 |-------------|-----------------|
 | `explicit_multi_review` missing, null, string, or non-boolean | `STOP_INVALID_HANDOFF` |
-| `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` |
-| `explicit_multi_review=true` and either initial slot still fails after its one same-slot retry | `STOP_UNAVAILABLE` |
 | `explicit_multi_review=false` and automatic discovery/capacity is unavailable | `ADAPTIVE_RECOVERY` |
 | `explicit_multi_review=false` and one initial response remains invalid after retry | `ADAPTIVE_RECOVERY` |
+| `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` |
+| `explicit_multi_review=true` and either initial slot still fails after its one same-slot retry | `STOP_UNAVAILABLE` |
 
 This table overrides the fast-path, escalation, synthesis, and generic failure
 rules below. Explicit under-capacity never becomes a single-reviewer path.
@@ -33,6 +35,9 @@ For a missing field, the only valid answer is `STOP_INVALID_HANDOFF`. For an
 optional automatic panel with `explicit_multi_review=false` and one invalid
 initial response, the immediate routing answer is `ADAPTIVE_RECOVERY`, not
 `STOP_UNAVAILABLE`; a later incomplete outcome remains non-passing.
+When model discovery or automatic capacity is unavailable and
+`explicit_multi_review=false`, the immediate routing answer is likewise
+`ADAPTIVE_RECOVERY`, never `STOP_UNAVAILABLE`.
 
 ## Persisted explicit multi-review input
 
@@ -150,10 +155,11 @@ a panel, do not select a second model, and do not synthesize across models.
   mechanical tiny edits); a high-capability model when the tiny change is
   semantically subtle — a boundary or off-by-one condition, a regex, a format
   string, or an arithmetic/units change. Never a fast/light model.
-- **Envelope** — set `consensus_role: single`. Omit `model_index` and
-  `panel_wave`. Like `panel-member`, this value tells a panel-aware specialist
-  it is already dispatched, so it reviews directly instead of selecting or
-  dispatching reviewers of its own.
+- **Envelope** — set `explicit_multi_review: false` and
+  `consensus_role: single`. Omit `model_index` and `panel_wave`. Like
+  `panel-member`, this value tells a panel-aware specialist it is already
+  dispatched, so it reviews directly instead of selecting or dispatching
+  reviewers of its own.
 - **Output** — the reviewer returns the same JSON verdict schema below, so
   downstream gates are unchanged.
 - **Report** — still write the report artifact, recording
@@ -195,13 +201,22 @@ Select panelists from models available in the current runtime/session:
 
 ### Wave 1 — always exactly 2, in parallel
 
-Fire exactly 2 parallel `task` calls to the **same specialist agent**, each with
-a different selected `model` override. Never dispatch a third reviewer in this
-wave. Set `consensus_role: panel-member`, `model_index: 1` and `2`, and
-`panel_wave: initial` in every handoff envelope so panel-aware specialists do
-not recursively dispatch their own reviewers. Include the JSON verdict schema
-below in every panelist prompt so the panelist can return structured output even
-if it doesn't load this skill.
+Fire exactly 2 parallel `task` calls to the **same specialist agent**. When
+model discovery succeeded, give them different selected `model` overrides.
+When discovery is unavailable and `EXPLICIT_MULTI_REVIEW=false`, issue both
+calls without model overrides and record reduced model-distinctness assurance;
+this automatic fallback is prohibited when `EXPLICIT_MULTI_REVIEW=true`.
+Never dispatch a third reviewer in this wave.
+
+Set `explicit_multi_review: EXPLICIT_MULTI_REVIEW`,
+`consensus_role: panel-member`, `model_index: 1` and `2`, and
+`panel_wave: initial` in every handoff envelope. Retry envelopes preserve all
+four fields unchanged, including the originally assigned model when one was
+selected. These values tell panel-aware specialists they are already
+dispatched, so they review directly instead of selecting or dispatching their
+own reviewers. Include the JSON verdict schema below in every panelist prompt
+so the panelist can return structured output even if it doesn't load this
+skill.
 
 For `EXPLICIT_MULTI_REVIEW=true`, both assigned initial slots must dispatch and
 return valid responses. Retry a failed/invalid initial slot once with the same
@@ -216,8 +231,10 @@ Evaluate the escalation triggers below against the wave-1 responses.
 - **No trigger fires** → synthesize immediately from the two agreeing
   responses. Do not dispatch a third reviewer.
 - **Any trigger fires** → fire exactly **one** additional `task` call to the
-  same specialist with the reserved high-capability model, `model_index: 3`,
-  and `panel_wave: tiebreak`.
+  same specialist with the reserved high-capability model and a handoff that
+  sets `explicit_multi_review: EXPLICIT_MULTI_REVIEW`,
+  `consensus_role: panel-member`, `model_index: 3`, and
+  `panel_wave: tiebreak`.
 
 The tiebreaker receives the same scope and context as wave 1 and must **not**
 receive the wave-1 verdicts or findings — its value depends on reviewing

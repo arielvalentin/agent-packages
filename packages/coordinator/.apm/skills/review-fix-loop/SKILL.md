@@ -134,7 +134,18 @@ a finding the fixer cannot resolve.
 
 ## Usage examples
 
-### Adversarial review gate
+### Ordinary adversarial review gate
+```
+reviewer: adversarial-review
+scope: full context (design doc + all diffs + stage review findings)
+context: design doc, implementation summary, rubber-duck findings
+explicit_multi_review: false
+max_retries: 2
+severity_threshold: blocker,major
+on_exhaust: escalate
+```
+
+### Explicit multi-review adversarial gate
 ```
 reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)

@@ -31,6 +31,11 @@ teeth", "what could go wrong here", "find the regression", "argue against
 this plan", "second opinion on this diff", "stress-test this design",
 "is there a simpler approach I'm missing".
 
+These trigger phrases activate the always-available coordinator bootstrap
+first. "Standalone" below means the skill is not already a dispatched reviewer;
+it does not mean an unbootstrapped direct entrypoint. The coordinator derives
+and persists `explicit_multi_review` before loading this skill.
+
 ## Protocol
 
 ### Dispatched mode
