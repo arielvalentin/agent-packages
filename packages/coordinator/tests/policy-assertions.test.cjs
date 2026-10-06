@@ -401,6 +401,38 @@ assert.doesNotThrow(() =>
     },
   ]),
 );
+assert.doesNotThrow(() =>
+  buildRegistry([
+    {
+      source: 'table-cell-isolation',
+      markdown: markdown(
+        [assertion()],
+        [
+          '| Route | Alternate note | Repeated route |',
+          '|---|---|---|',
+          '| {{policy:test.actor.user.result}} | AUTOMATION_FLOW example | {{policy:test.actor.user.result}} |',
+        ].join('\n'),
+      ),
+    },
+  ]),
+);
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'table-cell-contradiction',
+        markdown: markdown(
+          [assertion()],
+          [
+            '| Route | Note |',
+            '|---|---|',
+            '| {{policy:test.actor.user.result}} but AUTOMATION_FLOW | independent |',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
 
 assert.throws(
   () =>

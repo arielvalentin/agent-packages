@@ -89,14 +89,18 @@ When adding or changing an assertion:
    scenarios use `assert-policy-permission.cjs` and an exact Yes/No response,
    while still verifying the canonical result and allowed state. Do not ask the
    model to read the assertion record back or infer policy from unrestricted
-   free-form prose. The checker parses Promptfoo YAML with `js-yaml`; only
+   free-form prose. The checker parses Promptfoo YAML nodes with `yaml`; only
    direct test-level `vars` and `assert` fields count, regardless of mapping
-   order or list-item formatting. If conflicting decisions are mutually
-   exclusive, represent that with an existing condition group or extend the
-   validator's reviewed mutually exclusive condition groups. The coordinator
-   suite uses the completion provider by default and a filtered chat provider
-   plus `tests/prompt.cjs` for exact multiline or permission output contracts;
-   keep those provider/prompt filters local to the scenarios that require them.
+   order or list-item formatting. Merge keys and aliases cannot supply those
+   fields or their policy values; aliases are accepted only for helper entries
+   inside a direct `assert` list. Every assertion requires an exact route-token
+   scenario, while permission scenarios additionally verify Yes/No behavior.
+   If conflicting decisions are mutually exclusive, represent that with an
+   existing condition group or extend the validator's reviewed mutually
+   exclusive condition groups. The coordinator suite uses the completion
+   provider by default and a filtered chat provider plus `tests/prompt.cjs` for
+   exact multiline or permission output contracts; keep those provider/prompt
+   filters local to the scenarios that require them.
 6. Run:
 
    ```bash

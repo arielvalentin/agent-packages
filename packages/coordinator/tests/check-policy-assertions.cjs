@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const yaml = require('js-yaml');
+const YAML = require('yaml');
 const {
   assertionContractSignature,
   compareRegistryIds,
@@ -112,33 +112,74 @@ const requiredIds = [...expectedAssertions.keys()];
 const requiredPromptfooIds = requiredIds;
 
 function parsePromptfooPolicyTests(source) {
-  let document;
-  try {
-    document = yaml.load(source);
-  } catch (error) {
-    throw new Error(`Promptfoo YAML is invalid: ${error.message}`);
+  const document = YAML.parseDocument(source, {
+    merge: false,
+    uniqueKeys: true,
+  });
+  if (document.errors.length > 0) {
+    throw new Error(`Promptfoo YAML is invalid: ${document.errors[0].message}`);
   }
-  if (!document || !Object.hasOwn(document, 'tests')) return [];
-  if (!Array.isArray(document.tests)) {
+  const testsNode = document.get('tests', true);
+  if (testsNode === undefined) return [];
+  if (!YAML.isSeq(testsNode)) {
     throw new Error('Promptfoo "tests" must be an array');
   }
-  return document.tests.map((test, index) => {
-    if (!test || Array.isArray(test) || typeof test !== 'object') {
-      throw new Error(`Promptfoo test ${index + 1} must be an object`);
+
+  return testsNode.items.map((testNode, index) => {
+    if (!YAML.isMap(testNode)) {
+      throw new Error(
+        `Promptfoo test ${index + 1} must be a direct mapping, not an alias`,
+      );
     }
-    const vars =
-      test.vars && !Array.isArray(test.vars) && typeof test.vars === 'object'
-        ? test.vars
-        : {};
-    if (Object.hasOwn(test, 'vars') && vars !== test.vars) {
+    if (testNode.has('<<')) {
+      throw new Error(
+        `Promptfoo test ${index + 1} must not inherit fields with YAML merge keys`,
+      );
+    }
+    const varsNode = testNode.get('vars', true);
+    if (YAML.isAlias(varsNode)) {
+      throw new Error(
+        `Promptfoo test ${index + 1} "vars" must be a direct mapping`,
+      );
+    }
+    if (varsNode !== undefined && !YAML.isMap(varsNode)) {
       throw new Error(`Promptfoo test ${index + 1} "vars" must be an object`);
     }
-    const assertionList = Object.hasOwn(test, 'assert') ? test.assert : [];
-    if (!Array.isArray(assertionList)) {
+    if (varsNode?.has('<<')) {
+      throw new Error(
+        `Promptfoo test ${index + 1} "vars" must not use YAML merge keys`,
+      );
+    }
+    const vars = varsNode ? varsNode.toJSON() : {};
+    for (const field of [
+      'skill_content',
+      'assertion_id',
+      'expected_result',
+      'expected_allowed',
+      'permission_output',
+    ]) {
+      if (YAML.isAlias(varsNode?.get(field, true))) {
+        throw new Error(
+          `Promptfoo test ${index + 1} "${field}" must be a direct value`,
+        );
+      }
+    }
+
+    const assertionNode = testNode.get('assert', true);
+    if (YAML.isAlias(assertionNode)) {
+      throw new Error(
+        `Promptfoo test ${index + 1} "assert" must be a direct array`,
+      );
+    }
+    if (assertionNode !== undefined && !YAML.isSeq(assertionNode)) {
       throw new Error(`Promptfoo test ${index + 1} "assert" must be an array`);
     }
     const assertions = new Set();
-    for (const assertion of assertionList) {
+    for (const assertionNodeItem of assertionNode?.items || []) {
+      const resolvedAssertion = YAML.isAlias(assertionNodeItem)
+        ? assertionNodeItem.resolve(document)
+        : assertionNodeItem;
+      const assertion = resolvedAssertion?.toJSON();
       if (!assertion || Array.isArray(assertion) || typeof assertion !== 'object') {
         continue;
       }
@@ -156,8 +197,7 @@ function parsePromptfooPolicyTests(source) {
       }
     }
     return {
-      description:
-        typeof test.description === 'string' ? test.description : '',
+      description: testNode.get('description') || '',
       vars,
       assertions,
     };
@@ -240,6 +280,61 @@ if (
   process.exit(1);
 }
 
+for (const inheritedPolicyCase of [
+  [
+    'covered: &covered',
+    '  description: merged test',
+    '  vars:',
+    '    skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+    '    assertion_id: consensus.automatic.single',
+    '    expected_result: SINGLE_1',
+    '    expected_allowed: true',
+    '  assert:',
+    '    - type: javascript',
+    '      value: file://assert-policy-route.cjs',
+    'tests:',
+    '  - <<: *covered',
+  ].join('\n'),
+  [
+    'covered: &covered',
+    '  description: aliased test',
+    '  vars:',
+    '    skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+    '    assertion_id: consensus.automatic.single',
+    '    expected_result: SINGLE_1',
+    '    expected_allowed: true',
+    '  assert:',
+    '    - type: javascript',
+    '      value: file://assert-policy-route.cjs',
+    'tests:',
+    '  - *covered',
+  ].join('\n'),
+  [
+    'covered_vars: &covered_vars',
+    '  skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+    '  assertion_id: consensus.automatic.single',
+    '  expected_result: SINGLE_1',
+    '  expected_allowed: true',
+    'tests:',
+    '  - description: aliased vars',
+    '    vars: *covered_vars',
+    '    assert:',
+    '      - type: javascript',
+    '        value: file://assert-policy-route.cjs',
+  ].join('\n'),
+]) {
+  let rejected = false;
+  try {
+    parsePromptfooPolicyTests(inheritedPolicyCase);
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) {
+    console.error('Promptfoo policy parser accepts inherited policy bindings');
+    process.exit(1);
+  }
+}
+
 const registry = loadRegistry(policyRoot);
 const { missing, unexpected } = compareRegistryIds(registry, requiredIds);
 
@@ -316,7 +411,7 @@ for (const id of requiredPromptfooIds) {
       test.vars.assertion_id === id &&
       test.vars.expected_result === expectedResult &&
       test.vars.expected_allowed === expectedAllowed &&
-      test.assertions.size > 0 &&
+      test.assertions.has('policy_route') &&
       allowedPolicyConsumers(id).has(test.vars.skill_content),
   );
   if (!coverage) {

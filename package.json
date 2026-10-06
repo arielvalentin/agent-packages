@@ -8,9 +8,9 @@
     "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml"
   },
   "devDependencies": {
-    "js-yaml": "^4.3.2",
     "markdown-it": "^15.0.2",
-    "promptfoo": "^0.123.0"
+    "promptfoo": "^0.123.0",
+    "yaml": "^2.9.1"
   },
   "engines": {
     "node": ">=22"

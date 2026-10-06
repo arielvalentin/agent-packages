@@ -333,6 +333,54 @@ function uniqueTextRanges(tokens) {
     });
 }
 
+function tableCellsByLine(tokens) {
+  const rows = new Map();
+  let rowLine = null;
+  let cells = null;
+  let inCell = false;
+  for (const token of tokens) {
+    if (token.type === 'tr_open') {
+      rowLine = token.map?.[0] ?? null;
+      cells = [];
+      continue;
+    }
+    if (['th_open', 'td_open'].includes(token.type)) {
+      inCell = true;
+      continue;
+    }
+    if (inCell && token.type === 'inline') {
+      cells.push(token.content);
+      continue;
+    }
+    if (['th_close', 'td_close'].includes(token.type)) {
+      inCell = false;
+      continue;
+    }
+    if (token.type === 'tr_close' && rowLine !== null) {
+      rows.set(rowLine, cells);
+      rowLine = null;
+      cells = null;
+      inCell = false;
+    }
+  }
+  return rows;
+}
+
+function tableCellReference(cells, marker, occurrence) {
+  let seen = 0;
+  for (const cell of cells || []) {
+    let withinCell = 0;
+    for (;;) {
+      const markerIndex = nthIndexOf(cell, marker, withinCell);
+      if (markerIndex < 0) break;
+      if (seen === occurrence) return { text: cell, markerIndex };
+      seen += 1;
+      withinCell += 1;
+    }
+  }
+  return null;
+}
+
 function linkedTextRange(tokens, textRanges, lines, line) {
   const base =
     textRanges.find((range) => rangeContains([range.start, range.end], line)) ||
@@ -400,6 +448,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   const lines = markdown.split(/\r?\n/);
   const tokens = MARKDOWN.parse(markdown, {});
   const textRanges = uniqueTextRanges(tokens);
+  const tableRows = tableCellsByLine(tokens);
   const codeRanges = tokens
     .filter((token) => token.map && ['fence', 'code_block'].includes(token.type))
     .map((token) => token.map);
@@ -461,25 +510,40 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
     let referencedText = line;
     for (const match of line.matchAll(REFERENCE_PATTERN)) {
       referencedText = referencedText.replace(match[0], '');
-      const linkedRange = linkedTextRange(tokens, textRanges, lines, index);
-      const paragraphStart = linkedRange.start;
-      const paragraphEnd = linkedRange.end - 1;
-      const paragraph = lines
-        .slice(paragraphStart, paragraphEnd + 1)
-        .map(semanticMarkdownLine)
-        .join(' ');
       const markerOccurrence =
         line.slice(0, match.index).split(match[0]).length - 1;
-      const markerIndex =
-        lines
-          .slice(paragraphStart, index)
+      const tableReference = tableCellReference(
+        tableRows.get(index),
+        match[0],
+        markerOccurrence,
+      );
+      let paragraph;
+      let markerIndex;
+      if (tableReference) {
+        paragraph = tableReference.text;
+        markerIndex = tableReference.markerIndex;
+      } else {
+        const linkedRange = linkedTextRange(tokens, textRanges, lines, index);
+        const paragraphStart = linkedRange.start;
+        const paragraphEnd = linkedRange.end - 1;
+        paragraph = lines
+          .slice(paragraphStart, paragraphEnd + 1)
           .map(semanticMarkdownLine)
-          .reduce((offset, paragraphLine) => offset + paragraphLine.length + 1, 0) +
-        nthIndexOf(
-          semanticMarkdownLine(line),
-          match[0],
-          markerOccurrence,
-        );
+          .join(' ');
+        markerIndex =
+          lines
+            .slice(paragraphStart, index)
+            .map(semanticMarkdownLine)
+            .reduce(
+              (offset, paragraphLine) => offset + paragraphLine.length + 1,
+              0,
+            ) +
+          nthIndexOf(
+            semanticMarkdownLine(line),
+            match[0],
+            markerOccurrence,
+          );
+      }
       const beforeMarker = paragraph.slice(0, markerIndex);
       const afterMarker = paragraph.slice(markerIndex + match[0].length);
       let sentenceStart = 0;
