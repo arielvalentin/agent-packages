@@ -26,7 +26,7 @@ the answer.
 {"id":"consensus.automatic.panel-required","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["capacity.initial-slots.two","explicit-multi-review.false","scope.panel-required"],"result":"PANEL_2","allowed":true,"precedence":[]}
 {"id":"consensus.explicit.panel","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.two"],"result":"PANEL_2","allowed":true,"precedence":[]}
 {"id":"consensus.explicit.under-capacity","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","capacity.initial-slots.less-than-two"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":[]}
-{"id":"consensus.explicit.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["explicit-multi-review.true","dispatch.initial-response.invalid-after-retry"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":["consensus.explicit.panel"]}
+{"id":"consensus.explicit.initial-failure","contract":"consensus.entry","actor":"system","provenance":"review-handoff","interaction":"review-handoff","action":"dispatch","conditions":["capacity.initial-slots.two","explicit-multi-review.true","dispatch.initial-response.invalid-after-retry"],"result":"STOP_UNAVAILABLE","allowed":false,"precedence":["consensus.explicit.panel"]}
 ```
 
 Invalid handoffs return
@@ -349,11 +349,13 @@ present with a value from its enum. Anything else — prose, malformed JSON, a
 missing or out-of-enum `confidence` or verdict axis — is invalid after the one
 retry in § Failure modes, and does not count toward trigger 4.
 
-Findings are covered by that rule: every entry in `findings` must carry
-`severity`, `location`, `issue` and `fix`, and `severity` must be one of
-`blocker`, `major`, `minor`, `nit`. A response with any malformed finding entry
-is invalid, so it neither counts toward trigger 4 nor suppresses trigger 3 —
-escalation never depends on a severity the panelist failed to state.
+`findings` must be an array and `notes` must be a string. Every entry in
+`findings` must carry nonempty string values for `severity`, `location`,
+`issue`, and `fix`; `severity` must be one of `blocker`, `major`, `minor`,
+`nit`. A response with a non-array `findings`, a non-string `notes`, or any
+malformed finding entry is invalid, so it neither counts toward trigger 4 nor
+suppresses trigger 3 — escalation never depends on a severity the panelist
+failed to state.
 
 1. Merge `findings`; dedupe by `(location, issue)`. A finding reported by more
    than one panelist is corroborated and keeps the highest severity reported.

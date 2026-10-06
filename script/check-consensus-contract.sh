@@ -373,6 +373,10 @@ require "$loop" "mandatory aggregate correctness gate" \
   'pass-eligible only when `verdict\.correct` is `yes`'
 require "$loop" "negative aggregate verdict stopping empty findings" \
   '`correct: no` or `correct: mixed` remains unresolved'
+require "$loop" "all aggregate correctness gate" \
+  'Every complete aggregate is pass-eligible only when `verdict\.correct` is `yes`'
+require "$loop" "optional negative verdict reduced-assurance rule" \
+  'optional gate may continue with a warning only when its caller explicitly permits reduced assurance'
 require "$adversarial" "standalone consuming required persisted intent" \
   'Consume the required persisted `explicit_multi_review` boolean'
 require "$adversarial" "standalone rejecting missing explicit review state" \
@@ -428,6 +432,7 @@ for description in \
   'review-fix-loop: failed panel dispatch stops independent verdicts' \
   'review-fix-loop: negative mandatory verdict cannot pass empty findings' \
   'review-fix-loop: mixed mandatory verdict cannot pass failed tiebreak' \
+  'review-fix-loop: negative optional verdict cannot pass silently' \
   'adversarial-review: insufficient panel stops multi-reviewer request' \
   'coordinator: missing panel allows routine bounded fallback' \
   'consensus-panel: explicit under-capacity stops unavailable' \

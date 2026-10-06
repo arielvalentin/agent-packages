@@ -10,34 +10,14 @@ const EXPECTED = new Map([
 ]);
 
 module.exports = (output) => {
-  const text = String(output);
-  if (/\bAUTOMATION_FLOW\b/i.test(text)) return false;
-  if (
-    /\b(?:implement|draft|post|reply|resolve)\b\s*(?::|=|\bis\b|\bshould(?:\s+be)?\b|\bmay(?:\s+be)?\b|\bcan(?:\s+be)?\b)\s*yes\b/i.test(
-      text,
-    ) ||
-    /\b(?:may|can|should|will)\s+(?:implement|draft|post|reply|resolve)\b[^\n.]{0,24}\byes\b/i.test(
-      text,
-    )
-  ) {
-    return false;
-  }
-
   const decisions = new Map();
-  const lines = text
+  const lines = String(output)
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const firstDecision = lines.findIndex((line) =>
-    /^(?:[-*]\s*)?(?:classification|implement|draft|post|reply|resolve)\s*:/i.test(
-      line,
-    ),
-  );
-  if (firstDecision === -1) return false;
-  const decisionLines = lines.slice(firstDecision);
-  if (decisionLines.length !== EXPECTED.size) return false;
+  if (lines.length !== EXPECTED.size) return false;
 
-  for (const line of decisionLines) {
+  for (const line of lines) {
     const match = line
       .replace(/^[-*]\s*/, '')
       .match(

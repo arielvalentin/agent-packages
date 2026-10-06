@@ -29,16 +29,16 @@ const assertion = (overrides = {}) => ({
 const humanStopPost = assertion({
   id: 'human-interaction.action.human-stop.post',
   contract: 'human-interaction.permissions',
-  actor: 'mixed',
-  provenance: 'complete-chain',
+  actor: 'human-or-unknown',
+  provenance: 'classification-result',
   interaction: 'public-github',
   action: 'post',
   conditions: ['classification.human-stop'],
   result: 'PROHIBITED',
-  precedence: ['human-interaction.chain.any-human'],
+  precedence: [],
 });
 const humanStopPostSignature =
-  '{"contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"precedence":["human-interaction.chain.any-human"]}';
+  '{"contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"precedence":[]}';
 assert.equal(assertionContractSignature(humanStopPost), humanStopPostSignature);
 assert.notEqual(
   assertionContractSignature({
@@ -134,6 +134,32 @@ assert.throws(
   () =>
     buildRegistry([
       {
+        source: 'unrelated-precedence',
+        markdown: markdown(
+          [
+            assertion({ id: 'test.actor.broad' }),
+            assertion({
+              id: 'test.actor.unrelated',
+              conditions: ['app.association.present'],
+              result: 'AUTOMATION_FLOW',
+              allowed: true,
+              precedence: ['test.actor.broad'],
+            }),
+          ],
+          [
+            '{{policy:test.actor.broad.result}}',
+            '{{policy:test.actor.unrelated.result}}',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
         source: 'non-subset-semantic-conflict',
         markdown: markdown(
           [
@@ -157,6 +183,42 @@ assert.throws(
     ]),
   PolicyAssertionError,
 );
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'multiline-contradiction',
+        markdown: markdown(
+          [assertion()],
+          [
+            'Canonical route {{policy:test.actor.user.result}}',
+            'continues as AUTOMATION_FLOW.',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+
+for (const allowedContradiction of ['allowed: true', 'allowed is true']) {
+  assert.throws(
+    () =>
+      buildRegistry([
+        {
+          source: 'allowed-contradiction',
+          markdown: markdown(
+            [assertion()],
+            [
+              'Canonical permission {{policy:test.actor.user.allowed}}',
+              `${allowedContradiction}.`,
+            ].join('\n'),
+          ),
+        },
+      ]),
+    PolicyAssertionError,
+  );
+}
 
 assert.throws(
   () =>
@@ -478,7 +540,6 @@ assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext),
 assert.equal(
   assertHumanStopActions(
     [
-      'Based on the complete thread, the decisions are:',
       'Classification: HUMAN_STOP',
       'Implement: No',
       'Draft: No',
@@ -492,7 +553,7 @@ assert.equal(
 assert.equal(
   assertHumanStopActions(
     [
-      'The agent may post: Yes',
+      'The agent will resolve this thread.',
       'Classification: HUMAN_STOP',
       'Implement: No',
       'Draft: No',

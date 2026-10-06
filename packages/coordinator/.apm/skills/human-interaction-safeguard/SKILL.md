@@ -26,12 +26,12 @@ Prose explains the contract but does not redefine it.
 {"id":"human-interaction.existing-issue.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
 {"id":"human-interaction.existing-issue.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
 {"id":"human-interaction.existing-issue.any-unknown","contract":"human-interaction.existing-item","actor":"unknown","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.unknown","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-unknown"]}
-{"id":"human-interaction.action.human-stop.implement","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"implement","conditions":["classification.human-stop","trigger.interaction"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
-{"id":"human-interaction.action.human-stop.draft","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"draft","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
-{"id":"human-interaction.action.human-stop.post","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
-{"id":"human-interaction.action.human-stop.reply","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"reply","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
-{"id":"human-interaction.action.human-stop.resolve","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"resolve","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
-{"id":"human-interaction.ownership.human-stop","contract":"human-interaction.permissions","actor":"rest-user","provenance":"complete-chain","interaction":"public-github","action":"ownership","conditions":["classification.human-stop"],"result":"USER_WRITES_REPLY_AND_RESOLVES","allowed":true,"precedence":["human-interaction.action.human-stop.reply","human-interaction.action.human-stop.resolve"]}
+{"id":"human-interaction.action.human-stop.implement","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"implement","conditions":["classification.human-stop","trigger.interaction"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.draft","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"draft","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.post","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.reply","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"reply","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.resolve","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"resolve","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.ownership.human-stop","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"ownership","conditions":["classification.human-stop"],"result":"USER_WRITES_REPLY_AND_RESOLVES","allowed":true,"precedence":["human-interaction.action.human-stop.reply","human-interaction.action.human-stop.resolve"]}
 ```
 
 | Policy case | Authoritative result |
@@ -82,8 +82,8 @@ ownership is
 resolves a tainted or `HUMAN_STOP` thread always returns
 `USER_WRITES_REPLY_AND_RESOLVES`, even when the scenario mentions actor
 classification or a separately authorized implementation. Do not return the
-structured Classification/Implement/Reply/Resolve block unless the caller
-explicitly requests those four action decisions.
+structured Classification/Implement/Draft/Post/Reply/Resolve block unless the
+caller explicitly requests those six decisions.
 
 **Classify REST metadata mechanically before choosing an output format:**
 
@@ -324,20 +324,26 @@ unknown actor to automation. REST Bot and GraphQL Bot metadata are conclusive.
   `AUTOMATION_FLOW`, with no explanation.
 - A request asking who writes the reply and resolves a `HUMAN_STOP` thread
   returns exactly `USER_WRITES_REPLY_AND_RESOLVES`.
-- A structured action-decision request for `HUMAN_STOP` returns:
+- A structured action-decision request for `HUMAN_STOP` returns exactly these
+  six lines, with no preamble or trailing explanation:
 
   ```text
   Classification: HUMAN_STOP
   Implement: No
+  Draft: No
+  Post: No
   Reply: No
   Resolve: No
   ```
 
-- A structured action-decision request for `AUTOMATION_FLOW` returns:
+- A structured action-decision request for `AUTOMATION_FLOW` returns exactly
+  these six lines, with no preamble or trailing explanation:
 
   ```text
   Classification: AUTOMATION_FLOW
   Implement: Allowed
+  Draft: Allowed
+  Post: Allowed
   Reply: Allowed
   Resolve: Allowed
   ```

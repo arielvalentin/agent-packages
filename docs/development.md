@@ -58,7 +58,10 @@ When adding or changing an assertion:
    `contract`, `actor`, `provenance`, `interaction`, `action`, `conditions`,
    `result`, `allowed`, and `precedence`.
    Conditions are stable condition IDs; precedence entries are canonical
-   assertion IDs that must be established earlier.
+   assertion IDs that must be established earlier. When precedence resolves
+   conflicting decisions on the same contract surface, the overriding
+   assertion must contain a strict superset of the overridden assertion's
+   conditions; unrelated precedence links are rejected.
 2. Add the ID to the required manifest in
    `packages/coordinator/tests/check-policy-assertions.cjs`. Removing an ID is
    intentionally backward-incompatible and must update that manifest.
@@ -92,7 +95,9 @@ unknown fields or enums, unresolved or cyclic precedence, ambiguous overlapping
 decisions without precedence, unresolved prose references, unreferenced
 assertions, expected-outcome drift, and deterministic linked-marker
 contradictions. General natural-language contradiction detection is
-deliberately out of scope; the structured record is authoritative.
+deliberately out of scope; linked-marker checks cover the marker's complete
+logical sentence, including wrapped Markdown lines, and the structured record
+remains authoritative.
 
 ## Troubleshooting
 

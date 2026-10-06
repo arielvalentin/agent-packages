@@ -402,6 +402,7 @@ assert_eq "HUMAN_STOP" \
 
 # --- Supplemental Promptfoo coverage must remain present ---
 for description in \
+  'human-interaction: incomplete chain blocks every automated action' \
   'human-interaction: human question stops automation' \
   'human-interaction: unknown actor fails closed as human' \
   'human-interaction: bot-like User login fails closed' \
@@ -432,6 +433,10 @@ for description in \
   require_test_assert "$description"
 done
 
+require "$policy" "six-decision HUMAN_STOP response contract" \
+  'Classification: HUMAN_STOP Implement: No Draft: No Post: No Reply: No Resolve: No'
+require "$policy" "six-decision AUTOMATION_FLOW response contract" \
+  'Classification: AUTOMATION_FLOW Implement: Allowed Draft: Allowed Post: Allowed Reply: Allowed Resolve: Allowed'
 require "$tests" "shared structured policy assertion anchor" \
   '&policy_route'
 require "$tests" "shared structured policy assertion helper call" \

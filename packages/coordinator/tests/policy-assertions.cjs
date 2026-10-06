@@ -25,6 +25,7 @@ const ENUMS = {
     'all-bot',
     'graphql-bot',
     'graphql-non-bot',
+    'human-or-unknown',
     'mixed',
     'rest-bot',
     'rest-user',
@@ -35,6 +36,7 @@ const ENUMS = {
     'complete-chain',
     'graphql-author-type',
     'incomplete-chain',
+    'classification-result',
     'policy-scope',
     'public-item',
     'rest-user-type',
@@ -244,6 +246,52 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
     let referencedText = line;
     for (const match of line.matchAll(REFERENCE_PATTERN)) {
       referencedText = referencedText.replace(match[0], '');
+      const trimmed = line.trim();
+      const structuralLine =
+        trimmed === '' ||
+        /^(?:```|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(trimmed);
+      let paragraphStart = index;
+      let paragraphEnd = index;
+      if (!structuralLine) {
+        while (
+          paragraphStart > 0 &&
+          lines[paragraphStart - 1].trim() !== '' &&
+          !/^(?:```|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
+            lines[paragraphStart - 1].trim(),
+          )
+        ) {
+          paragraphStart -= 1;
+        }
+        while (
+          paragraphEnd + 1 < lines.length &&
+          lines[paragraphEnd + 1].trim() !== '' &&
+          !/^(?:```|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
+            lines[paragraphEnd + 1].trim(),
+          )
+        ) {
+          paragraphEnd += 1;
+        }
+      }
+      const paragraph = lines.slice(paragraphStart, paragraphEnd + 1).join(' ');
+      const markerIndex = paragraph.indexOf(match[0]);
+      const beforeMarker = paragraph.slice(0, markerIndex);
+      const afterMarker = paragraph.slice(markerIndex + match[0].length);
+      const sentenceStart =
+        Math.max(
+          beforeMarker.lastIndexOf('.'),
+          beforeMarker.lastIndexOf('!'),
+          beforeMarker.lastIndexOf('?'),
+        ) + 1;
+      const sentenceEndOffsets = ['.', '!', '?']
+        .map((terminator) => afterMarker.indexOf(terminator))
+        .filter((offset) => offset >= 0);
+      const sentenceEnd =
+        sentenceEndOffsets.length === 0
+          ? paragraph.length
+          : markerIndex +
+            match[0].length +
+            Math.min(...sentenceEndOffsets) +
+            1;
       const parsedReference = match[1].match(
         /^([a-z][a-z0-9]*(?:[.-][a-z0-9]+)+)\.([a-z_]+)$/,
       );
@@ -257,7 +305,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         id: parsedReference[1],
         field: parsedReference[2],
         line: index + 1,
-        text: line,
+        text: paragraph.slice(sentenceStart, sentenceEnd),
         marker: match[0],
         source,
       });
@@ -331,7 +379,9 @@ function detectLinkedContradiction(reference, assertion) {
     }
   }
   if (reference.field === 'allowed') {
-    const match = remainder.match(/\ballowed\s*=\s*(true|false)\b/i);
+    const match = remainder.match(
+      /\ballowed\s*(?:=|:|\bis\b)\s*(true|false)\b/i,
+    );
     if (match && (match[1].toLowerCase() === 'true') !== assertion.allowed) {
       throw new PolicyAssertionError(
         `linked allowed value contradicts "${reference.id}"`,
@@ -398,6 +448,14 @@ function buildRegistry(documents) {
     );
   }
 
+  function isStrictConditionSuperset(assertion, predecessor) {
+    const conditions = new Set(assertion.conditions);
+    return (
+      assertion.conditions.length > predecessor.conditions.length &&
+      predecessor.conditions.every((condition) => conditions.has(condition))
+    );
+  }
+
   const assertions = [...registry.values()];
   for (let leftIndex = 0; leftIndex < assertions.length; leftIndex += 1) {
     for (
@@ -436,11 +494,17 @@ function buildRegistry(documents) {
       if (
         !sameDecision &&
         !mutuallyExclusive &&
-        !precedes(left, right.id) &&
-        !precedes(right, left.id)
+        !(
+          precedes(left, right.id) &&
+          isStrictConditionSuperset(left, right)
+        ) &&
+        !(
+          precedes(right, left.id) &&
+          isStrictConditionSuperset(right, left)
+        )
       ) {
         throw new PolicyAssertionError(
-          `conflicting assertions "${left.id}" and "${right.id}" lack precedence`,
+          `conflicting assertions "${left.id}" and "${right.id}" lack valid specific-over-broad precedence`,
           right.source,
         );
       }
