@@ -461,6 +461,30 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
 
+  - description: "review-fix-loop: literal panel review starts with panel envelopes"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "The user literally requests a panel review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
+  - description: "review-fix-loop: literal panel review re-review keeps panel envelopes"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "After a fix, the user's literal panel review request is still active and the scope is tiny. How many consensus_role panel-member initial envelopes must the re-review dispatch? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
+  - description: "review-fix-loop: multi-reviewer adversarial re-review keeps panel envelopes"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "After a fix, the user's multi-reviewer adversarial review request is still active and the scope is tiny. How many consensus_role panel-member initial envelopes must the re-review dispatch? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
   - description: "review-fix-loop: routine default retry budget is one"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
@@ -917,6 +941,38 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /(^|\\D)(?:2|two)(\\D|$)/.test(l)"
 
+  - description: "consensus-panel: literal panel review starts with panel envelopes"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The user literally requests a panel review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
+  - description: "consensus-panel: multi-reviewer adversarial starts with panel envelopes"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "The user requests a multi-reviewer adversarial review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
+  - description: "coordinator: missing panel stops literal panel review"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "consensus-panel is unavailable and the user literally requested a panel review. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toUpperCase().replace(/[*#]/g, '').split(String.fromCharCode(96)).join(''); l === 'STOP_UNAVAILABLE'"
+
+  - description: "coordinator: missing panel stops multi-reviewer adversarial review"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "consensus-panel is unavailable and the user requested a multi-reviewer adversarial review. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toUpperCase().replace(/[*#]/g, '').split(String.fromCharCode(96)).join(''); l === 'STOP_UNAVAILABLE'"
+
   - description: "consensus-panel: policy markdown is not fast-path exempt"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
@@ -1016,7 +1072,7 @@ tests:
   - description: "consensus-panel: docs-only change takes a single reviewer"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "The diff changes only markdown documentation files. How many reviewers do I dispatch? Answer with exactly one number."
+      user_input: "The system selected consensus internally; the user did not request multi-review. The diff changes only markdown documentation files. How many reviewers do I dispatch? Answer with exactly one number."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:1|one)\\b/.test(l)"
@@ -1024,7 +1080,7 @@ tests:
   - description: "consensus-panel: one-line change takes a single reviewer"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "The diff is a one-line typo fix in a single source file, with no new control flow and no API change. How many reviewers do I dispatch? Answer with exactly one number."
+      user_input: "The system selected consensus internally; the user did not request multi-review. The diff is a one-line typo fix in a single source file, with no new control flow and no API change. How many reviewers do I dispatch? Answer with exactly one number."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:1|one)\\b/.test(l)"

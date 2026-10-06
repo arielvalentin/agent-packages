@@ -183,14 +183,13 @@ can complete the work.
 
 Use `adversarial-review` only when the user requests hostile critique or the
 work is high-risk enough that a normal review cannot cover systemic failure
-modes. Use `consensus-panel` only for an explicit consensus request or a
-judgment-heavy, high-risk review where independent verdicts can change the
-decision.
+modes. Use `EXPLICIT_MULTI_REVIEW` exactly as defined in `consensus-panel`.
+Route through `consensus-panel` when `EXPLICIT_MULTI_REVIEW` is true or a
+judgment-heavy, high-risk review needs independent verdicts.
 
-When consensus is selected, preserve its canonical contract. An explicit user
-request for consensus, a panel, or a multi-reviewer adversarial review always
-receives at least two reviewers; it never collapses to the single-reviewer fast
-path.
+When consensus is selected, preserve its canonical contract.
+`EXPLICIT_MULTI_REVIEW` always receives at least two reviewers; it never
+collapses to the single-reviewer fast path.
 
 - For internally selected consensus, check the **single-reviewer fast path
   (checked first, overrides the panel rule)**.
@@ -309,9 +308,10 @@ directly and must not fan out. Only `primary` may fan out.
 - Missing `acting-on-behalf`: do not post public/shared content.
 - Missing `security-review` for an explicit or security-sensitive review:
   stop and report the unavailable mandatory safeguard.
-- Missing `consensus-panel`: use one reviewer unless the user explicitly
-  requested consensus; for explicit consensus, report that the requested
-  assurance is unavailable rather than improvising an unbounded panel.
+- Missing `consensus-panel`: use one reviewer only when
+  `EXPLICIT_MULTI_REVIEW` is false. When it is true, return
+  `STOP_UNAVAILABLE`; report that the requested assurance is unavailable
+  rather than degrading to `SINGLE_1` or improvising an unbounded panel.
 - Missing `handoff-envelope`: pass complete bounded context inline and require
   an inline result.
 - Missing `pr-review-protocol`: do not post a PR review; return the gathered

@@ -45,6 +45,15 @@ require() {
   fi
 }
 
+# forbid <file> <description> <extended-regex>
+forbid() {
+  local file="$1" desc="$2" pattern="$3"
+  if normalize "$file" | grep -Eiq -- "$pattern"; then
+    echo "ERROR: ${file#"$root/"}: prohibited $desc"
+    errors=$((errors + 1))
+  fi
+}
+
 # forbid_in_packages <description> <extended-regex>
 forbid_in_packages() {
   local desc="$1" pattern="$2" file hits=""
@@ -199,10 +208,22 @@ require "$panel" "behavior-defining policy disqualifier" \
   'agent, skill, instruction, orchestration, governance, or safeguard policy'
 require "$panel" "public-interaction control disqualifier" \
   'human-interaction, attribution, public-posting, permission, approval'
-require "$panel" "explicit consensus minimum of two reviewers" \
-  'explicit user request for consensus or multiple independent verdicts always uses at least the two-reviewer initial wave'
+require "$panel" "canonical explicit multi-review trigger definition" \
+  '`EXPLICIT_MULTI_REVIEW` is true'
+require "$panel" "canonical consensus intent" \
+  'equivalent multi-review intent.{0,120}consensus'
+require "$panel" "canonical panel-review intent" \
+  'a panel review'
+require "$panel" "canonical multiple-verdicts intent" \
+  'multiple independent verdicts'
+require "$panel" "canonical adversarial multi-review intent" \
+  'a multi-reviewer adversarial review'
+require "$panel" "canonical trigger required across every route" \
+  'Every activation, reviewer-selection, re-review, retry, missing-skill fallback'
+require "$panel" "explicit multi-review minimum of two reviewers" \
+  '`EXPLICIT_MULTI_REVIEW` always uses at least the two-reviewer initial wave'
 require "$panel" "panel-required scope definition" \
-  'scope is \*\*panel-required\*\*.{0,220}explicitly requested consensus, a panel, or a multi-reviewer adversarial review'
+  'scope is \*\*panel-required\*\*.{0,160}`EXPLICIT_MULTI_REVIEW` is true'
 require "$panel" "panel selection applying to every panel-required scope" \
   'panel selection for panel-required scopes'
 require "$panel" "panel dispatch applying to every panel-required scope" \
@@ -238,7 +259,7 @@ require "$agent" "coordinator applying the panel to panel-required scopes" \
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   'Otherwise, re-classify the updated `scope`'
 require "$loop" "explicit consensus bypassing the single-reviewer fast path" \
-  'explicit user request for consensus, a panel, or a multi-reviewer adversarial review always dispatches two'
+  '`EXPLICIT_MULTI_REVIEW` always dispatches two'
 require "$loop" "explicit consensus preserved across fix cycles" \
   'every post-fix re-review as `PANEL_2`'
 require "$loop" "explicit re-review using panel-member envelopes" \
@@ -247,6 +268,18 @@ require "$loop" "explicit review never using a single envelope" \
   'never.{0,40}consensus_role: single'
 require "$agent" "expanded security-sensitive review categories" \
   'privacy or sensitive-data exposure, unsafe code or command execution'
+require "$agent" "coordinator activating canonical explicit multi-review" \
+  'Route through `consensus-panel` when `EXPLICIT_MULTI_REVIEW` is true'
+require "$agent" "missing panel failing closed for explicit multi-review" \
+  'When it is true, return `STOP_UNAVAILABLE`'
+require "$loop" "review loop selecting canonical explicit multi-review" \
+  'Route through `consensus-panel` when `EXPLICIT_MULTI_REVIEW` is true'
+forbid "$panel" "narrow explicit consensus alias" \
+  'explicit user request for consensus or multiple independent verdicts'
+forbid "$agent" "narrow explicit consensus activation or fallback" \
+  'explicit consensus request|requested consensus; for explicit consensus'
+forbid "$loop" "narrow explicit consensus reviewer selection" \
+  'user explicitly requested consensus'
 require "$agent" "mandatory safeguards overriding the five-call heuristic" \
   'Mandatory safeguards always override the five-call heuristic'
 require "$agent" "five-call prohibition limited to routine ungated work" \

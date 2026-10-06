@@ -4,24 +4,47 @@ description: >
   Dispatch a specialist review to two distinct suitable GPT model IDs in parallel,
   then add a distinct high-capability GPT model ID only as a conditional tiebreaker,
   and synthesize a consensus verdict (simple/correct/pragmatic/beneficial). Use for
-  explicit consensus requests and judgment-heavy high-risk reviews; never duplicate
+  explicit multi-review requests and judgment-heavy high-risk reviews; never duplicate
   identical fact-finding research across models to manufacture consensus.
 ---
 
 # Consensus Panel
 
 **Single reviewer for internally selected trivial scopes, adaptive 2+1 for
-substantive code or explicit consensus.** Non-code-only and genuinely tiny
+substantive code or `EXPLICIT_MULTI_REVIEW`.** Non-code-only and genuinely tiny
 changes get exactly one mid- or high-capability reviewer when the system
 selected consensus internally. Substantive changes and explicit requests for
 independent verdicts get two reviewers, plus a third only when it can change
 the answer.
 
+## Canonical explicit multi-review trigger
+
+`EXPLICIT_MULTI_REVIEW` is true when the user explicitly requests any
+equivalent multi-review intent:
+
+- consensus;
+- a panel review;
+- multiple independent verdicts; or
+- a multi-reviewer adversarial review.
+
+Routing invariant:
+
+- A literal "panel review" sets `EXPLICIT_MULTI_REVIEW=true`.
+- `EXPLICIT_MULTI_REVIEW=true` routes to `PANEL_2`: two
+  `consensus_role: panel-member` initial envelopes, even for tiny or non-code
+  scope.
+- The single-reviewer path is available only when
+  `EXPLICIT_MULTI_REVIEW=false`.
+
+Every activation, reviewer-selection, re-review, retry, missing-skill fallback,
+and downstream panel-required decision must use `EXPLICIT_MULTI_REVIEW`. Do not
+replace it with a narrower alias.
+
 ## When to use
 
 Use when the caller has already determined that consensus is warranted:
 
-- The user explicitly requests consensus or multiple independent verdicts.
+- `EXPLICIT_MULTI_REVIEW` is true.
 - A judgment-heavy, high-risk review needs independent verdicts to resolve
   uncertainty.
 - Another loaded skill explicitly requires this panel.
@@ -30,9 +53,9 @@ Do not insert a consensus panel into routine code changes or simple lookups.
 Those use direct work and, when needed, at most one review gate. After the
 caller selects consensus, classify the scope below before choosing models.
 
-An explicit user request for consensus or multiple independent verdicts always
-uses at least the two-reviewer initial wave. The single-reviewer exemption
-below applies only when the system selected consensus internally.
+`EXPLICIT_MULTI_REVIEW` always uses at least the two-reviewer initial wave. The
+single-reviewer exemption below applies only when the system selected consensus
+internally.
 
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
@@ -96,17 +119,15 @@ This list is closed: a scope that touches none of these and meets the size
 threshold is fast-path eligible.
 
 A scope is **panel-required** when it is not fast-path eligible, is disqualified
-above, or the user explicitly requested consensus, a panel, or a multi-reviewer
-adversarial review. Only an internally selected, fast-path-eligible scope uses
-the single-reviewer path. Every panel-required scope takes the adaptive 2+1
-panel.
+above, or `EXPLICIT_MULTI_REVIEW` is true. Only an internally selected,
+fast-path-eligible scope uses the single-reviewer path. Every panel-required
+scope takes the adaptive 2+1 panel.
 
 ## Step 2a — Single-reviewer fast path (internally selected scopes only)
 
-Use this path only when the scope is fast-path eligible and the user did not
-explicitly request consensus, a panel, or a multi-reviewer adversarial review.
-Dispatch **exactly one** reviewer. Do not run a panel, do not select a second
-model, and do not synthesize across models.
+Use this path only when the scope is fast-path eligible and
+`EXPLICIT_MULTI_REVIEW` is false. Dispatch **exactly one** reviewer. Do not run
+a panel, do not select a second model, and do not synthesize across models.
 
 - **Model tier** — a mid-tier model by default (documentation, prose, and
   mechanical tiny edits); a high-capability model when the tiny change is
@@ -122,12 +143,12 @@ model, and do not synthesize across models.
   `panel: single-reviewer fast path` and which exemption applied.
 
 This exemption **takes precedence** over internally selected consensus
-workflows in the coordinator or `review-fix-loop`; it never overrides an
-explicit user request for consensus or multiple independent verdicts. A single
-`blocker`/`major` finding does not promote a fast-path scope to a panel; only
-re-classification under Step 1 does. The safety argument is the size and
-disqualifier bounds, not the finding: a scope this small that touches none of
-the disqualified categories has a blast radius one reviewer can hold.
+workflows in the coordinator or `review-fix-loop`; it never overrides
+`EXPLICIT_MULTI_REVIEW`. A single `blocker`/`major` finding does not promote a
+fast-path scope to a panel; only re-classification under Step 1 does. The safety
+argument is the size and disqualifier bounds, not the finding: a scope this
+small that touches none of the disqualified categories has a blast radius one
+reviewer can hold.
 
 ## Step 2b — Panel selection for panel-required scopes
 
@@ -176,10 +197,10 @@ independently. Never dispatch a fourth reviewer for a single panel.
 
 ## Escalation triggers
 
-Escalation triggers apply to every panel-required scope, including an explicit
-consensus, panel, or multi-reviewer adversarial request on tiny or non-code
-work. An internally selected single-reviewer scope never escalates to a panel;
-it is complete after its single reviewer.
+Escalation triggers apply to every panel-required scope, including
+`EXPLICIT_MULTI_REVIEW` on tiny or non-code work. An internally selected
+single-reviewer scope never escalates to a panel; it is complete after its
+single reviewer.
 
 Dispatch the tiebreaker when **any** of these hold:
 
