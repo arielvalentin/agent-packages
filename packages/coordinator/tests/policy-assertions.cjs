@@ -252,6 +252,85 @@ function validateAssertion(record, source) {
   }
 }
 
+function fenceOpening(trimmedLine) {
+  const match = trimmedLine.match(/^(`{3,}|~{3,})/);
+  if (!match) return null;
+  return { delimiter: match[1][0], length: match[1].length };
+}
+
+function fenceClosing(trimmedLine, opening) {
+  const escaped = opening.delimiter === '`' ? '`' : '~';
+  return new RegExp(`^${escaped}{${opening.length},}\\s*$`).test(trimmedLine);
+}
+
+function listBlockEnd(lines, start) {
+  const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  const listContinuation = /^(?: {2,}|\t)\S/;
+  let end = start;
+  for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
+    const trimmed = lines[cursor].trim();
+    if (trimmed === '') {
+      let next = cursor + 1;
+      while (next < lines.length && lines[next].trim() === '') next += 1;
+      if (next < lines.length && listContinuation.test(lines[next])) {
+        end = next;
+        cursor = next;
+        continue;
+      }
+      break;
+    }
+    if (
+      listLead.test(trimmed) ||
+      /^(?:```|~~~|#{1,6}\s|>|[|])/.test(trimmed)
+    ) {
+      break;
+    }
+    end = cursor;
+  }
+  return end;
+}
+
+function logicalListSpan(lines, index) {
+  const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  for (let start = index; start >= 0; start -= 1) {
+    if (!listLead.test(lines[start].trim())) continue;
+    const end = listBlockEnd(lines, start);
+    return index <= end ? { start, end } : null;
+  }
+  return null;
+}
+
+function blockquoteEnd(lines, start) {
+  const listLead = /^(?:[-*+]\s|\d+\.\s)/;
+  let end = start;
+  for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
+    const trimmed = lines[cursor].trim();
+    if (
+      trimmed === '' ||
+      listLead.test(trimmed) ||
+      /^(?:```|~~~|#{1,6}\s|[|])/.test(trimmed)
+    ) {
+      break;
+    }
+    end = cursor;
+  }
+  return end;
+}
+
+function logicalBlockquoteSpan(lines, index) {
+  let containingSpan = null;
+  for (let start = index; start >= 0; start -= 1) {
+    if (!/^>/.test(lines[start].trim())) continue;
+    const end = blockquoteEnd(lines, start);
+    if (index <= end) {
+      containingSpan = { start, end };
+      continue;
+    }
+    if (containingSpan) break;
+  }
+  return containingSpan;
+}
+
 function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   const assertions = [];
   const references = [];
@@ -261,9 +340,20 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const trimmedLine = line.trim();
-    if (trimmedLine.startsWith('```') && trimmedLine !== '```policy-assertions') {
+    const openingFence = fenceOpening(trimmedLine);
+    if (openingFence && trimmedLine !== '```policy-assertions') {
+      let closed = false;
       for (index += 1; index < lines.length; index += 1) {
-        if (lines[index].trim() === '```') break;
+        if (fenceClosing(lines[index].trim(), openingFence)) {
+          closed = true;
+          break;
+        }
+      }
+      if (!closed) {
+        throw new PolicyAssertionError(
+          'unclosed non-policy fence',
+          `${source}:line ${index + 1}`,
+        );
       }
       continue;
     }
@@ -273,50 +363,22 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
       const trimmed = line.trim();
       let paragraphStart = index;
       let paragraphEnd = index;
-      const listLead = /^(?:[-*+]\s|\d+\.\s)/;
-      const listContinuation = /^(?: {2,}|\t)\S/;
-      if (listLead.test(trimmed) || listContinuation.test(line)) {
-        if (listContinuation.test(line)) {
-          while (
-            paragraphStart > 0 &&
-            listContinuation.test(lines[paragraphStart])
-          ) {
-            paragraphStart -= 1;
-          }
-          if (!listLead.test(lines[paragraphStart].trim())) {
-            paragraphStart = index;
-          }
-        }
-        if (listLead.test(lines[paragraphStart].trim())) {
-          paragraphEnd = paragraphStart;
-          while (
-            paragraphEnd + 1 < lines.length &&
-            listContinuation.test(lines[paragraphEnd + 1])
-          ) {
-            paragraphEnd += 1;
-          }
-        }
-      } else if (/^>/.test(trimmed)) {
-        while (
-          paragraphStart > 0 &&
-          /^>/.test(lines[paragraphStart - 1].trim())
-        ) {
-          paragraphStart -= 1;
-        }
-        while (
-          paragraphEnd + 1 < lines.length &&
-          /^>/.test(lines[paragraphEnd + 1].trim())
-        ) {
-          paragraphEnd += 1;
-        }
+      const listSpan = logicalListSpan(lines, index);
+      const blockquoteSpan = logicalBlockquoteSpan(lines, index);
+      if (listSpan) {
+        paragraphStart = listSpan.start;
+        paragraphEnd = listSpan.end;
+      } else if (blockquoteSpan) {
+        paragraphStart = blockquoteSpan.start;
+        paragraphEnd = blockquoteSpan.end;
       } else if (
         trimmed !== '' &&
-        !/^(?:```|#{1,6}\s|[|])/.test(trimmed)
+        !/^(?:```|~~~|#{1,6}\s|[|])/.test(trimmed)
       ) {
         while (
           paragraphStart > 0 &&
           lines[paragraphStart - 1].trim() !== '' &&
-          !/^(?:```|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
+          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
             lines[paragraphStart - 1].trim(),
           )
         ) {
@@ -325,7 +387,7 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         while (
           paragraphEnd + 1 < lines.length &&
           lines[paragraphEnd + 1].trim() !== '' &&
-          !/^(?:```|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
+          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+\.\s|>|[|])/.test(
             lines[paragraphEnd + 1].trim(),
           )
         ) {
@@ -630,6 +692,35 @@ function loadRegistry(directory) {
   return buildRegistry(documents);
 }
 
+function assertionBoundToSkillContent(skillContent, assertionId, field) {
+  if (
+    typeof skillContent !== 'string' ||
+    typeof assertionId !== 'string' ||
+    !REFERENCE_FIELDS.has(field)
+  ) {
+    return false;
+  }
+  let content = skillContent;
+  if (content.startsWith('file://')) {
+    const file = path.resolve(__dirname, content.slice('file://'.length));
+    if (!fs.existsSync(file)) return false;
+    content = fs.readFileSync(file, 'utf8');
+  }
+  try {
+    const parsed = parsePolicyMarkdown(content, 'assertion-bound skill content');
+    return (
+      parsed.assertions.some((assertion) => assertion.id === assertionId) ||
+      parsed.references.some(
+        (reference) =>
+          reference.id === assertionId && reference.field === field,
+      )
+    );
+  } catch (error) {
+    if (error instanceof PolicyAssertionError) return false;
+    throw error;
+  }
+}
+
 function compareRegistryIds(registry, requiredIds) {
   const actualIds = [...registry.keys()].sort();
   return {
@@ -653,6 +744,7 @@ function assertionContractSignature(assertion) {
 module.exports = {
   ENUMS,
   PolicyAssertionError,
+  assertionBoundToSkillContent,
   assertionContractSignature,
   buildRegistry,
   compareRegistryIds,

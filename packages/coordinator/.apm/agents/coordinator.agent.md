@@ -199,7 +199,8 @@ Otherwise EXPLICIT_MULTI_REVIEW=false.
 Persist the boolean as `explicit_multi_review` in review state and every review
 handoff. Once true, it remains true through retries and post-fix re-reviews.
 Skill availability, scope size, and later paraphrasing never change it.
-`EXPLICIT_MULTI_REVIEW=true` routes to `PANEL_2`; false permits `SINGLE_1`
+`EXPLICIT_MULTI_REVIEW=true` routes to
+{{policy:consensus.explicit.panel.result}}. A false value permits `SINGLE_1`
 only for optional routine review.
 When `consensus-panel` is available and can satisfy two reviewers, a true value
 returns `PANEL_2`, never `STOP_UNAVAILABLE`.
@@ -355,7 +356,8 @@ Load `handoff-envelope` for structured agent-to-agent handoffs. Include:
 
 Any review handoff that reaches the coordinator with a missing, null, string,
 or otherwise invalid `explicit_multi_review` value returns
-`STOP_INVALID_HANDOFF`. Only the initial user-intent bootstrap derives it.
+`STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}). Only the
+initial user-intent bootstrap derives it.
 
 If a delegated task is already a `panel-member` or `single`, it reviews
 directly and must not fan out. Only `primary` may fan out.

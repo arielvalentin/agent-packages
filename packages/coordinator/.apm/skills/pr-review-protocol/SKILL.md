@@ -13,9 +13,10 @@ someone else. The goal is a thorough, context-aware review, not just a diff
 scan.
 
 **Review-handoff validation:** missing, null, string, or non-boolean
-`explicit_multi_review` returns exactly `STOP_INVALID_HANDOFF`. Pass a valid
-boolean unchanged to every panel call: true remains true and false remains
-false. Never convert persisted false to true.
+`explicit_multi_review` returns exactly
+`STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}). Pass a
+valid boolean unchanged to every panel call: true remains true and false
+remains false. Never convert persisted false to true.
 
 | Persisted input | Panel handoff output |
 |-----------------|----------------------|

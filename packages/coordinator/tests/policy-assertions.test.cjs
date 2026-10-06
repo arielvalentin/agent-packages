@@ -163,6 +163,28 @@ for (const structuralContradiction of [
     '> Route AUTOMATION_FLOW but the canonical result is',
     '> {{policy:test.actor.user.result}}.',
   ].join('\n'),
+  [
+    '- Route {{policy:test.actor.user.result}}',
+    'but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
+    '1. Route AUTOMATION_FLOW but the canonical result is',
+    '{{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '> Route {{policy:test.actor.user.result}}',
+    'but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
+    '- Route {{policy:test.actor.user.result}}',
+    '',
+    '  but AUTOMATION_FLOW after all.',
+  ].join('\n'),
+  [
+    '1. Route AUTOMATION_FLOW but the canonical result is',
+    '',
+    '   {{policy:test.actor.user.result}}.',
+  ].join('\n'),
 ]) {
   assert.throws(
     () =>
@@ -191,6 +213,33 @@ assert.doesNotThrow(() =>
       ),
     },
   ]),
+);
+for (const nonAuthoritativeFence of [
+  ['~~~text', 'AUTOMATION_FLOW {{policy:test.actor.user.result}}.', '~~~'],
+  ['````text', 'AUTOMATION_FLOW {{policy:test.actor.user.result}}.', '````'],
+]) {
+  assert.doesNotThrow(() =>
+    buildRegistry([
+      {
+        source: 'non-authoritative-fence-variant',
+        markdown: markdown(
+          [assertion()],
+          [
+            ...nonAuthoritativeFence,
+            'Canonical {{policy:test.actor.user.result}}.',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  );
+}
+assert.throws(
+  () =>
+    parsePolicyMarkdown(
+      ['```text', '{{policy:test.actor.user.result}}.'].join('\n'),
+      'unclosed-generic-fence',
+    ),
+  PolicyAssertionError,
 );
 
 for (const identifierContradiction of [
@@ -585,6 +634,8 @@ const routeContext = {
     assertion_id: 'human-interaction.actor.rest-user',
     expected_result: 'HUMAN_STOP',
     expected_allowed: false,
+    skill_content:
+      'file://../.apm/skills/human-interaction-safeguard/SKILL.md',
   },
 };
 assert.equal(assertPolicyRoute('HUMAN_STOP', routeContext), true);
@@ -653,6 +704,24 @@ assert.equal(assertPolicyPermission('No.', routeContext), false);
 assert.equal(assertPolicyPermission('`No`', routeContext), false);
 assert.equal(assertPolicyPermission('no', routeContext), false);
 assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext), false);
+assert.equal(
+  assertPolicyRoute('HUMAN_STOP', {
+    vars: {
+      ...routeContext.vars,
+      skill_content: 'This file does not bind the assertion.',
+    },
+  }),
+  false,
+);
+assert.equal(
+  assertPolicyPermission('No', {
+    vars: {
+      ...routeContext.vars,
+      skill_content: 'This file does not bind the assertion.',
+    },
+  }),
+  false,
+);
 
 assert.equal(
   assertStructuredActions(

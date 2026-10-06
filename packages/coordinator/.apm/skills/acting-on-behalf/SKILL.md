@@ -145,7 +145,7 @@ Use this exact final paragraph when a disclaimer is required:
 
 This review-handoff validation is not a public action: missing, null, string,
 or non-boolean `explicit_multi_review` returns exactly
-`STOP_INVALID_HANDOFF`.
+`STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}).
 
 Before calling `pr-lifecycle` Phase 3 / `gh pr create` for high-risk code
 changes or an explicit adversarial-review request:
