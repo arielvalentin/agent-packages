@@ -35,7 +35,34 @@ second model there would defeat the exemption.
 
 The remaining protocol is for standalone use only.
 
-### 1. Delegate standalone orchestration to `consensus-panel`
+### 1. Bootstrap explicit multi-review intent before panel loading
+
+Consume a persisted `explicit_multi_review` handoff value when present. For a
+direct standalone invocation without that field, derive it before attempting
+to load `consensus-panel` using the coordinator's canonical four intents:
+consensus, a panel review, multiple independent verdicts, or a multi-reviewer
+adversarial review. Persist the result as `EXPLICIT_MULTI_REVIEW` for the whole
+review attempt.
+
+Standalone derivation table:
+
+| User intent | `EXPLICIT_MULTI_REVIEW` |
+|-------------|-------------------------|
+| consensus | `true` |
+| panel review | `true` |
+| multiple independent verdicts | `true` |
+| multi-reviewer adversarial review | `true` |
+| none of the above | `false` |
+
+The phrase "direct standalone invocation" does not change the value.
+Never set the value to false when the request text contains any listed intent.
+Standalone is an execution mode, not a reason to discard explicit intent.
+
+`EXPLICIT_MULTI_REVIEW=true` means `PANEL_2`: two
+`consensus_role: panel-member` initial envelopes. It never permits
+`SINGLE_1`.
+
+### 2. Delegate standalone orchestration to `consensus-panel`
 
 For standalone use, invoke `consensus-panel` first. It is the single source of
 truth for scope classification, GPT-first reviewer selection, dispatch count,
@@ -46,7 +73,7 @@ Do not restate or invent those rules here. In particular, do not replace them
 with a local Markdown verdict, a local severity list, or an
 adversarial-review-specific fallback.
 
-### 2. Review content for each dispatched reviewer
+### 3. Review content for each dispatched reviewer
 
 Every reviewer dispatched through `consensus-panel` uses the same adversarial
 stance:
@@ -83,6 +110,16 @@ then re-runs this skill on the updated result.
 
 ## Fallback
 
-If model discovery, dispatch, or reviewer output fails in standalone use, keep
-routing through `consensus-panel` and apply its fallback and failure rules
-instead of inventing a local adversarial-review path.
+If `consensus-panel` is unavailable, fails to load, fails dispatch, or cannot
+produce the two requested initial reviewers:
+
+- `EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE` immediately. Never
+  retry through the missing panel, degrade to `SINGLE_1`, or report pass.
+- A mandatory high-risk review → stop unavailable.
+- Otherwise, for a non-explicit routine review, perform exactly one bounded
+  direct adversarial review as `SINGLE_1`.
+
+After successful panel loading, model-discovery or reviewer-output failures use
+the panel's bounded retry/failure rules. If those rules still cannot satisfy an
+explicit requested reviewer count, return `STOP_UNAVAILABLE` rather than
+looping back into panel loading.

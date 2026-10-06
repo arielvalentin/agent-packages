@@ -151,6 +151,28 @@ can complete the work.
 
 ## Review policy
 
+### Explicit multi-review bootstrap
+
+Before attempting to load or invoke any review skill, derive and persist
+`EXPLICIT_MULTI_REVIEW` from the user's request:
+
+```text
+EXPLICIT_MULTI_REVIEW=true when the user explicitly requests:
+- consensus;
+- a panel review;
+- multiple independent verdicts; or
+- a multi-reviewer adversarial review.
+Otherwise EXPLICIT_MULTI_REVIEW=false.
+```
+
+Persist the boolean as `explicit_multi_review` in review state and every review
+handoff. Once true, it remains true through retries and post-fix re-reviews.
+Skill availability, scope size, and later paraphrasing never change it.
+`EXPLICIT_MULTI_REVIEW=true` routes to `PANEL_2`; false permits `SINGLE_1`
+only for optional routine review.
+When `consensus-panel` is available and can satisfy two reviewers, a true value
+returns `PANEL_2`, never `STOP_UNAVAILABLE`.
+
 ### Routine changes
 
 - Default to one implementation pass.
@@ -183,7 +205,7 @@ can complete the work.
 
 Use `adversarial-review` only when the user requests hostile critique or the
 work is high-risk enough that a normal review cannot cover systemic failure
-modes. Use `EXPLICIT_MULTI_REVIEW` exactly as defined in `consensus-panel`.
+modes. Use the persisted `EXPLICIT_MULTI_REVIEW` bootstrap value above.
 Route through `consensus-panel` when `EXPLICIT_MULTI_REVIEW` is true or a
 judgment-heavy, high-risk review needs independent verdicts.
 
@@ -308,10 +330,12 @@ directly and must not fan out. Only `primary` may fan out.
 - Missing `acting-on-behalf`: do not post public/shared content.
 - Missing `security-review` for an explicit or security-sensitive review:
   stop and report the unavailable mandatory safeguard.
-- Missing `consensus-panel`: use one reviewer only when
-  `EXPLICIT_MULTI_REVIEW` is false. When it is true, return
-  `STOP_UNAVAILABLE`; report that the requested assurance is unavailable
-  rather than degrading to `SINGLE_1` or improvising an unbounded panel.
+- Missing, unloadable, failed-dispatch, or under-capacity `consensus-panel`:
+  read the already persisted `EXPLICIT_MULTI_REVIEW`; do not ask the missing
+  skill to derive it. When true, return `STOP_UNAVAILABLE` without retrying the
+  panel route, degrading to `SINGLE_1`, or improvising a panel. When false, an
+  optional routine review returns the bounded `SINGLE_1` fallback; mandatory
+  safety reviews still stop unavailable.
 - Missing `handoff-envelope`: pass complete bounded context inline and require
   an inline result.
 - Missing `pr-review-protocol`: do not post a PR review; return the gathered

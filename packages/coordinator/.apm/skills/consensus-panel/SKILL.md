@@ -17,28 +17,22 @@ selected consensus internally. Substantive changes and explicit requests for
 independent verdicts get two reviewers, plus a third only when it can change
 the answer.
 
-## Canonical explicit multi-review trigger
+## Persisted explicit multi-review input
 
-`EXPLICIT_MULTI_REVIEW` is true when the user explicitly requests any
-equivalent multi-review intent:
-
-- consensus;
-- a panel review;
-- multiple independent verdicts; or
-- a multi-reviewer adversarial review.
+Consume `explicit_multi_review` from the always-available coordinator
+bootstrap and expose it as `EXPLICIT_MULTI_REVIEW`. The caller derives and
+persists that boolean before attempting to load this skill.
 
 Routing invariant:
 
-- A literal "panel review" sets `EXPLICIT_MULTI_REVIEW=true`.
 - `EXPLICIT_MULTI_REVIEW=true` routes to `PANEL_2`: two
   `consensus_role: panel-member` initial envelopes, even for tiny or non-code
   scope.
 - The single-reviewer path is available only when
   `EXPLICIT_MULTI_REVIEW=false`.
 
-Every activation, reviewer-selection, re-review, retry, missing-skill fallback,
-and downstream panel-required decision must use `EXPLICIT_MULTI_REVIEW`. Do not
-replace it with a narrower alias.
+Every reviewer-selection, re-review, retry, and downstream panel-required
+decision uses the persisted value. This skill never re-derives or resets it.
 
 ## When to use
 

@@ -208,18 +208,22 @@ require "$panel" "behavior-defining policy disqualifier" \
   'agent, skill, instruction, orchestration, governance, or safeguard policy'
 require "$panel" "public-interaction control disqualifier" \
   'human-interaction, attribution, public-posting, permission, approval'
-require "$panel" "canonical explicit multi-review trigger definition" \
-  '`EXPLICIT_MULTI_REVIEW` is true'
-require "$panel" "canonical consensus intent" \
-  'equivalent multi-review intent.{0,120}consensus'
-require "$panel" "canonical panel-review intent" \
+require "$agent" "canonical explicit multi-review trigger definition" \
+  'Before attempting to load or invoke any review skill, derive and persist'
+require "$agent" "canonical consensus intent" \
+  'EXPLICIT_MULTI_REVIEW=true.{0,160}consensus'
+require "$agent" "canonical panel-review intent" \
   'a panel review'
-require "$panel" "canonical multiple-verdicts intent" \
+require "$agent" "canonical multiple-verdicts intent" \
   'multiple independent verdicts'
-require "$panel" "canonical adversarial multi-review intent" \
+require "$agent" "canonical adversarial multi-review intent" \
   'a multi-reviewer adversarial review'
-require "$panel" "canonical trigger required across every route" \
-  'Every activation, reviewer-selection, re-review, retry, missing-skill fallback'
+require "$agent" "canonical trigger persisted through review cycles" \
+  'Persist the boolean as `explicit_multi_review`.{0,160}retries and post-fix re-reviews'
+require "$envelope" "persisted explicit multi-review handoff field" \
+  '"explicit_multi_review": true'
+require "$panel" "panel consuming the persisted trigger" \
+  'Consume `explicit_multi_review` from the always-available coordinator bootstrap'
 require "$panel" "explicit multi-review minimum of two reviewers" \
   '`EXPLICIT_MULTI_REVIEW` always uses at least the two-reviewer initial wave'
 require "$panel" "panel-required scope definition" \
@@ -271,9 +275,19 @@ require "$agent" "expanded security-sensitive review categories" \
 require "$agent" "coordinator activating canonical explicit multi-review" \
   'Route through `consensus-panel` when `EXPLICIT_MULTI_REVIEW` is true'
 require "$agent" "missing panel failing closed for explicit multi-review" \
-  'When it is true, return `STOP_UNAVAILABLE`'
+  'When true, return `STOP_UNAVAILABLE`'
 require "$loop" "review loop selecting canonical explicit multi-review" \
   'Route through `consensus-panel` when `EXPLICIT_MULTI_REVIEW` is true'
+require "$loop" "review loop failing closed on panel failure" \
+  'EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE`'
+require "$loop" "review loop preserving routine single fallback" \
+  'optional routine review may use one bounded `SINGLE_1`'
+require "$adversarial" "standalone deriving intent before panel loading" \
+  'derive it before attempting to load `consensus-panel`'
+require "$adversarial" "standalone failing closed on panel failure" \
+  'EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE` immediately'
+require "$adversarial" "standalone routine bounded fallback" \
+  'non-explicit routine review, perform exactly one bounded direct adversarial review as `SINGLE_1`'
 forbid "$panel" "narrow explicit consensus alias" \
   'explicit user request for consensus or multiple independent verdicts'
 forbid "$agent" "narrow explicit consensus activation or fallback" \
@@ -284,6 +298,27 @@ require "$agent" "mandatory safeguards overriding the five-call heuristic" \
   'Mandatory safeguards always override the five-call heuristic'
 require "$agent" "five-call prohibition limited to routine ungated work" \
   'Delegate routine ungated work finishable with roughly five direct tool calls'
+
+for description in \
+  'coordinator: explicit consensus activates panel envelopes' \
+  'coordinator: literal panel review activates panel envelopes' \
+  'coordinator: multiple independent verdicts activate panel envelopes' \
+  'coordinator: multi-reviewer adversarial activates panel envelopes' \
+  'review-fix-loop: explicit consensus re-review keeps panel envelopes' \
+  'review-fix-loop: literal panel review re-review keeps panel envelopes' \
+  'review-fix-loop: multiple independent verdicts re-review keeps panel envelopes' \
+  'review-fix-loop: multi-reviewer adversarial re-review keeps panel envelopes' \
+  'adversarial-review: standalone consensus activates panel envelopes' \
+  'adversarial-review: standalone panel review activates panel envelopes' \
+  'adversarial-review: standalone independent verdicts activate panel envelopes' \
+  'adversarial-review: standalone multi-reviewer request activates panel envelopes' \
+  'coordinator: missing panel stops explicit consensus' \
+  'coordinator: failed panel load stops literal panel review' \
+  'review-fix-loop: failed panel dispatch stops independent verdicts' \
+  'adversarial-review: insufficient panel stops multi-reviewer request' \
+  'coordinator: missing panel allows routine bounded fallback'; do
+  require "$tests" "Promptfoo regression: $description" "$description"
+done
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \
@@ -314,7 +349,7 @@ require "$adversarial" "standalone adversarial review requiring the canonical JS
 require "$adversarial" "standalone adversarial review rejecting local prose and informational findings" \
   'do not emit prose, markdown headings, a local summary report, or .informational. findings'
 require "$adversarial" "standalone adversarial review using consensus-panel fallback and failure rules" \
-  'fallback and failure rules'
+  'bounded retry/failure rules'
 require "$tests" "promptfoo regression for consensus-panel source of truth" \
   'adversarial-review: standalone defers to consensus-panel as the source of truth'
 require "$tests" "promptfoo regression requiring consensus-panel JSON instead of markdown prose" \

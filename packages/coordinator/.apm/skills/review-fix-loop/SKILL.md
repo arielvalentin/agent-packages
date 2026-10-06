@@ -16,9 +16,9 @@ responses means `escalated`, not `passed`, even though there are no findings to
 filter. Evaluate "no blocker/major findings" only after a complete, valid
 review result exists.
 
-**Explicit panel invariant:** if `EXPLICIT_MULTI_REVIEW` from
-`consensus-panel` is true, route every initial review and every post-fix
-re-review as `PANEL_2`: two
+**Explicit panel invariant:** consume the persisted `explicit_multi_review`
+handoff field as `EXPLICIT_MULTI_REVIEW`. If true, route every initial review
+and every post-fix re-review as `PANEL_2`: two
 `consensus_role: panel-member` initial envelopes. `SINGLE_1` is valid only for
 an internally selected, fast-path-eligible review.
 
@@ -31,6 +31,7 @@ an internally selected, fast-path-eligible review.
 | `scope` | yes | — | What to review: diff ref, artifact path, or description of review target |
 | `context` | no | — | Additional context for the reviewer (intent summary, design doc, issue body) |
 | `focus` | no | — | Specific review focus or criteria (e.g., "intent-coverage", "exploitable vulnerabilities only") |
+| `explicit_multi_review` | yes | — | Persisted coordinator bootstrap boolean; never re-derived or reset by this loop |
 | `mandatory` | no | `false` | When true, incomplete/unavailable review, unresolved threshold findings, warn, and waiver all fail closed |
 | `max_retries` | no | 1 | Maximum fix-then-re-review cycles before escalation |
 | `severity_threshold` | no | `blocker,major` | Comma-separated severities that trigger a fix cycle |
@@ -54,6 +55,18 @@ an internally selected, fast-path-eligible review.
    `consensus-panel` classify non-code or tiny scope into the single-reviewer
    fast path. Send `scope` and `context`; if `focus` is provided, include it as
    explicit instructions.
+
+   If `consensus-panel` is unavailable, fails to load, fails dispatch, or
+   cannot produce the two requested initial reviewers:
+   - `EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE`. Do not retry
+     through the same panel route, substitute `SINGLE_1`, or report pass.
+   - `EXPLICIT_MULTI_REVIEW=false` and `mandatory=true` → stop unavailable.
+   - Otherwise, an optional routine review may use one bounded `SINGLE_1`
+     reviewer.
+
+   The persisted boolean controls this table. An explicit intent in the user
+   request is already represented as `explicit_multi_review: true`; never
+   re-interpret "multiple independent verdicts" as a routine single review.
 
 3. **Evaluate review completion, then findings** — first verify the reviewer
    or panel returned a complete, valid outcome. An incomplete, timed-out, or
@@ -179,3 +192,8 @@ If the specified `reviewer` is unavailable:
 - `code-review` → use `rubber-duck` in diff-review mode
 
 Record the fallback in the gate outcome.
+
+If `consensus-panel` itself is unavailable or cannot satisfy the requested
+reviewer count, apply the direct dispatch rule in Protocol step 2 before any
+reviewer-specific fallback. It is terminal for `EXPLICIT_MULTI_REVIEW=true`;
+never route back through the unavailable panel.
