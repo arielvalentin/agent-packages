@@ -81,6 +81,22 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
 
+  - description: "implementer: create_pr true enables the PR path"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "The user explicitly requested a PR, the handoff says create_pr: true, and no PR exists. Should I enter the guarded draft PR path? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+
+  - description: "implementer: acting-on-behalf precedes PR creation"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "With create_pr: true, which skill must run before pr-lifecycle creates public content? Answer with only the skill name."
+    assert:
+      - type: javascript
+        value: "/^acting-on-behalf[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
   # --- system-architect agent ---
   - description: "system-architect: produces a design document"
     vars:

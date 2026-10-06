@@ -184,6 +184,15 @@ Dispatch the tiebreaker when **any** of these hold:
    `high` > `medium` > `low`, so a `high`+`medium` pair synthesizes to `medium`
    and does not escalate, while any `low` escalates.
 
+**Trigger precedence:** contradictory findings about the same location require
+the tiebreaker even when every verdict axis agrees.
+
+| Initial responses | Tiebreaker? |
+|-------------------|-------------|
+| Verdict axes agree, findings do not conflict, no blocker/major, confidence medium/high | No |
+| Verdict axes agree, but findings contradict at the same location | Yes |
+| Any verdict axis disagrees, blocker/major appears, a response is missing/invalid, or confidence is low | Yes |
+
 If none of these hold, the two responses agree and carry no high-risk finding.
 Synthesize immediately; a third reviewer cannot change the outcome.
 

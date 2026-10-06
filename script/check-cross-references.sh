@@ -66,6 +66,10 @@ for pkg_dir in "$root"/packages/*/; do
     echo "ERROR: Package directory missing apm.yml: $pkg_dir"
     errors=$((errors + 1))
   fi
+  if [[ -e "$pkg_dir/apm" || -L "$pkg_dir/apm" ]]; then
+    echo "ERROR: Package contains unsupported legacy apm alias: $pkg_dir/apm"
+    errors=$((errors + 1))
+  fi
 done
 
 # --- Summary ---

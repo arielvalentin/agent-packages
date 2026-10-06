@@ -28,7 +28,9 @@ code-review, and observability review gates.
 ## Protocol
 
 1. **Check skip condition** — if `skip_condition` is defined and matches the
-   current context, skip the gate entirely. Record the skip reason.
+   current context, skip the gate entirely. Record the skip reason. An explicit
+   user-requested review or a mandatory review ignores `skip_condition`; the
+   caller must decide applicability before invoking the mandatory gate.
 
 2. **Dispatch reviewer** — use one reviewer by default. Route through
    `consensus-panel` only when the user explicitly requested consensus, the
@@ -59,6 +61,9 @@ code-review, and observability review gates.
      user for a decision (fix manually, waive, or abort).
    - `on_exhaust: warn` → proceed but record unresolved findings as warnings
      in the final message. Flag as reduced-assurance.
+   - For `security-review`, `on_exhaust: warn` is invalid. Mandatory or
+     explicitly requested security review must stop/escalate with unresolved
+     blocker/major findings.
 
 6. **Record outcome** — regardless of path, record:
    - Gate name (derived from `reviewer`)
@@ -101,7 +106,6 @@ focus: exploitable vulnerabilities only, with severity and confidence
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
-skip_condition: refactor flow unless touching auth, crypto, input validation, or access control
 ```
 
 ### Documentation-only review (single-reviewer fast path)

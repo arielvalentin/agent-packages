@@ -29,8 +29,8 @@ packages/<package-name>/
 ### Primitive paths
 
 `.apm` is the canonical primitive root used by APM package discovery and editing.
-The coordinator package omits the legacy `apm -> .apm` development alias because
-APM 0.32.0 rejects that directory symlink when preparing Git dependencies.
+Packages omit the legacy `apm -> .apm` development alias because APM 0.32.0
+rejects that directory symlink when preparing Git dependencies.
 
 ## Packaging model
 

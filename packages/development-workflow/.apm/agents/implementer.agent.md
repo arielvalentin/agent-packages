@@ -42,8 +42,10 @@ constraints; missing means `false`.
 
 1. Read every supplied artifact in `inputs.artifact_paths` before touching code.
 2. **Early draft PR**: Only when `create_pr: true`, follow the `pr-lifecycle`
-   skill. If a draft PR does not already exist, open one with a Conventional
-   Commits title from creation:
+   skill. Invoke `acting-on-behalf` before `pr-lifecycle` attempts any public
+   PR creation; stop if the posting safeguard is unavailable. If a draft PR
+   does not already exist, open one with a Conventional Commits title from
+   creation:
    `<type>: <description>` — a required space and a non-empty description
    after the colon (never `WIP: <goal>` and never `<type>:<description>`
    with no space). `<type>` is one of `feat`, `fix`, `docs`, `refactor`,

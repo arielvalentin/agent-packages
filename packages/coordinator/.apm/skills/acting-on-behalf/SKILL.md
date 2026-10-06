@@ -83,6 +83,8 @@ provider solely to render the disclaimer.
     requests hostile critique, run `adversarial-review` before PR creation.
     Routine changes rely on targeted validation and at most one optional review
     gate. Security-sensitive changes still require `security-review`.
+    If mandatory `security-review` is unavailable, stop before PR creation or
+    posting and report the unavailable safeguard.
 
 ## PR/issue comment rule
 
@@ -126,16 +128,16 @@ Use this exact final paragraph when a disclaimer is required:
 Before calling `pr-lifecycle` Phase 3 / `gh pr create` for high-risk code
 changes or an explicit adversarial-review request:
 
-1. Run `adversarial-review`.
-2. Address high-confidence blocker/major findings.
-3. Re-run `adversarial-review` after fixes and repeat until blocker/major
-   findings are satisfied.
-4. If the same blocker/major concern is raised twice and still unsatisfied,
-   stop and escalate to the user with unresolved items.
-5. Keep changes scoped to the original request/task list; avoid unrelated edits.
-6. Validate final results against the original request/task list before PR
+1. Run `adversarial-review` through `review-fix-loop` with
+   `max_retries: 2`, `severity_threshold: blocker,major`, and
+   `on_exhaust: escalate`.
+2. Stop after two total fix/re-review cycles, even when each cycle reports a
+   different finding. Do not create a new review wave to extend the budget.
+3. If blocker/major findings remain, stop and escalate to the user.
+4. Keep changes scoped to the original request/task list; avoid unrelated edits.
+5. Validate final results against the original request/task list before PR
    creation.
-7. If the user explicitly says to skip a non-mandatory adversarial review,
+6. If the user explicitly says to skip a non-mandatory adversarial review,
    proceed and note the waiver in the PR body or handoff summary. Do not treat
    this as a waiver of mandatory security review or posting safeguards.
 
@@ -162,12 +164,15 @@ For changes that modify agent policy/config behavior, include a compact
 
 ## Skill-availability fallbacks
 
-If companion skills are unavailable, do not block progress. Use:
+If companion skills are unavailable, do not block routine progress. Mandatory
+security and posting safeguards still fail closed. Use:
 
 1. `adversarial-review` missing during a high-risk or explicitly requested
    hostile review -> report reduced assurance. Use one bounded `rubber-duck`
    review unless the user explicitly requested consensus.
-2. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
+2. `security-review` missing when the review is mandatory -> stop before PR
+   creation or posting. Do not substitute another reviewer or report success.
+3. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
    draft PR exists, create it non-interactively with one `gh pr create --draft`
    command, a real Conventional title substituted in (never emit `<type>` or
    `<description>` literally), and a non-empty body:

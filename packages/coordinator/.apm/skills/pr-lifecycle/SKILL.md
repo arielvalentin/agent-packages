@@ -21,11 +21,30 @@ Single source of truth for every phase of a pull request.
 
 ---
 
+## Entry routing
+
+Select the current lifecycle state before entering a phase:
+
+- If no PR exists and the user requested PR creation, enter Phase 1.
+- If a PR already exists and the user just pushed, asks about CI/checks, or
+  asks when it will be green, jump directly to Phase 4. Do not re-enter Phase
+  1 or suggest `gh pr create`.
+- If the user asks about review feedback, enter Phase 6.
+- If the user asks to finalize an existing draft after gates pass, enter Phase
+  3.
+
+When the user asks for one concrete `gh pr create` command, the command must
+contain `--draft`, a validated Conventional `--title`, and a non-empty `--body`
+in that same command.
+
 ## Phase 1 — Early draft PR
 
-For `feature`, `bugfix`, and `refactor` flows:
+Only when no PR exists and the user explicitly requested PR creation:
 
-1. As soon as a branch exists, open a **draft PR** with a Conventional
+1. Invoke `acting-on-behalf` immediately before creating the PR. It must
+   determine credential provenance and any required final disclaimer. If it is
+   unavailable or provenance remains unknown, stop before posting.
+2. Open a **draft PR** with a Conventional
    Commits title from the start — never a placeholder like `WIP: <goal>`:
    ```bash
    gh pr create --draft --title "<type>: <description>" --body "<issue ref + placeholder>"
@@ -36,7 +55,8 @@ For `feature`, `bugfix`, and `refactor` flows:
      initial change is clearly `docs`, `test`, `chore`, `ci`, `perf`,
      `build`, or `revert` work, use that type instead.
    - Validate the title against § Title format before creating the PR.
-2. Skip for `research` flows or when the user explicitly declines.
+3. Skip for `research` flows, when the user did not request a PR, or when a PR
+   already exists.
 
 ## Phase 2 — Implementation & gates
 
@@ -63,6 +83,8 @@ When implementation is complete and gates pass:
    ```bash
    gh pr edit <number> --title "<validated-conventional-title>"
    ```
+   Never describe Phase 3 as converting or renaming the title into
+   Conventional Commits format for the first time.
 3. Rewrite body to include:
    - **Intent** — why the change exists
    - **Changes** — key decisions/tradeoffs
