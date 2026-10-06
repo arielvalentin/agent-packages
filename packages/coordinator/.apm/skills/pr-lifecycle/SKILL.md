@@ -204,7 +204,9 @@ actor classification and behavior:
   explicit implementation instruction may authorize code/config/test work;
   reply and resolution remain user-only.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`; only its accepted actionable
-  findings may then enter `review-fix-loop`.
+  findings may then enter `review-fix-loop` with the required persisted
+  `explicit_multi_review: true|false`. Missing or invalid values stop as
+  `STOP_INVALID_HANDOFF`.
 
 After pushing fixes:
 ```bash

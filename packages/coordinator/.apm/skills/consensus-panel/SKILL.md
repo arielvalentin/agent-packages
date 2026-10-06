@@ -17,11 +17,34 @@ selected consensus internally. Substantive changes and explicit requests for
 independent verdicts get two reviewers, plus a third only when it can change
 the answer.
 
+## Entry decision table (apply first)
+
+| Input/state | Required result |
+|-------------|-----------------|
+| `explicit_multi_review` missing, null, string, or non-boolean | `STOP_INVALID_HANDOFF` |
+| `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` |
+| `explicit_multi_review=true` and either initial slot still fails after its one same-slot retry | `STOP_UNAVAILABLE` |
+| `explicit_multi_review=false` and automatic discovery/capacity is unavailable | `ADAPTIVE_RECOVERY` |
+| `explicit_multi_review=false` and one initial response remains invalid after retry | `ADAPTIVE_RECOVERY` |
+
+This table overrides the fast-path, escalation, synthesis, and generic failure
+rules below. Explicit under-capacity never becomes a single-reviewer path.
+For a missing field, the only valid answer is `STOP_INVALID_HANDOFF`. For an
+optional automatic panel with `explicit_multi_review=false` and one invalid
+initial response, the immediate routing answer is `ADAPTIVE_RECOVERY`, not
+`STOP_UNAVAILABLE`; a later incomplete outcome remains non-passing.
+
 ## Persisted explicit multi-review input
 
 Consume `explicit_multi_review` from the always-available coordinator
 bootstrap and expose it as `EXPLICIT_MULTI_REVIEW`. The caller derives and
 persists that boolean before attempting to load this skill.
+
+The field is required and must be a JSON boolean. Missing, null, string, or
+otherwise invalid values return `STOP_INVALID_HANDOFF`; this skill never infers
+false from absence. Boolean `false` is valid and must not be treated as
+missing, empty, or invalid. The persisted boolean is authoritative; do not
+re-derive it from quoted user wording downstream.
 
 Routing invariant:
 
@@ -160,8 +183,13 @@ Select panelists from models available in the current runtime/session:
    diversity: when enough suitable GPT choices exist, all three model slots are
    GPT. Do not introduce a non-GPT model for diversity. Note any non-GPT
    fallback in the report.
-5. If explicit model discovery is unavailable, dispatch without model
-   overrides (runtime auto-selection) and record that fallback in the report.
+5. If `EXPLICIT_MULTI_REVIEW=true`, select two distinct suitable initial model
+   slots before dispatch. If discovery is unavailable or two distinct suitable
+   slots cannot be proven, return `STOP_UNAVAILABLE`; runtime auto-selection
+   and replacement reviewers do not satisfy explicit capacity.
+6. If `EXPLICIT_MULTI_REVIEW=false` and explicit discovery is unavailable,
+   dispatch without model overrides (runtime auto-selection) and record that
+   bounded automatic fallback in the report.
 
 ## Dispatch (panel-required scopes only)
 
@@ -174,6 +202,12 @@ wave. Set `consensus_role: panel-member`, `model_index: 1` and `2`, and
 not recursively dispatch their own reviewers. Include the JSON verdict schema
 below in every panelist prompt so the panelist can return structured output even
 if it doesn't load this skill.
+
+For `EXPLICIT_MULTI_REVIEW=true`, both assigned initial slots must dispatch and
+return valid responses. Retry a failed/invalid initial slot once with the same
+assigned model and envelope. If either slot still fails, return
+`STOP_UNAVAILABLE`; do not replace it, dispatch the tiebreaker, or synthesize
+success from one initial reviewer plus another wave.
 
 ### Wave 2 — exactly 1, only on escalation
 
@@ -191,10 +225,10 @@ independently. Never dispatch a fourth reviewer for a single panel.
 
 ## Escalation triggers
 
-Escalation triggers apply to every panel-required scope, including
-`EXPLICIT_MULTI_REVIEW` on tiny or non-code work. An internally selected
-single-reviewer scope never escalates to a panel; it is complete after its
-single reviewer.
+Escalation triggers apply only after the required initial wave is complete.
+For `EXPLICIT_MULTI_REVIEW`, that means two valid initial responses. An
+internally selected single-reviewer scope never escalates to a panel; it is
+complete after its single reviewer.
 
 Dispatch the tiebreaker when **any** of these hold:
 
@@ -206,8 +240,8 @@ Dispatch the tiebreaker when **any** of these hold:
    asserts correct.
 3. **High-risk finding** — either response reports a finding with severity
    `blocker` or `major`.
-4. **Insufficient responses** — fewer than 2 valid responses remain after the
-   retry policy in § Failure modes.
+4. **Insufficient responses** — for `EXPLICIT_MULTI_REVIEW=false`, fewer than
+   2 valid responses remain after the retry policy in § Failure modes.
 5. **Low confidence** — the synthesized confidence is `low`. Confidence merges
    deterministically as the **lower** of the two reported values, ordered
    `high` > `medium` > `low`, so a `high`+`medium` pair synthesizes to `medium`
@@ -304,7 +338,11 @@ escalation never depends on a severity the panelist failed to state.
   response as invalid for trigger 4, and note it.
 - Fast-path reviewer fails to return after the retry → dispatch one replacement
   reviewer at the same or higher tier. Do not silently open a panel.
-- Fewer than 2 valid initial responses → escalate under trigger 4, surface which
+- `EXPLICIT_MULTI_REVIEW=true` with fewer than 2 valid initial responses after
+  the one same-slot retry → return `STOP_UNAVAILABLE`. Do not use a replacement
+  model, tiebreaker, or automatic selection to satisfy the requested count.
+- `EXPLICIT_MULTI_REVIEW=false` with fewer than 2 valid initial responses →
+  use bounded `ADAPTIVE_RECOVERY`: escalate under trigger 4, surface which
   model(s) failed, and flag the result as reduced-confidence.
 - Fewer than 2 valid responses in total after escalation → mark the panel
   `incomplete`, surface any advisory result, and stop mandatory or explicitly

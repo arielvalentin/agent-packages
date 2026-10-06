@@ -12,6 +12,16 @@ Use this protocol whenever the user asks to review a pull request authored by
 someone else. The goal is a thorough, context-aware review, not just a diff
 scan.
 
+**Review-handoff validation:** missing, null, string, or non-boolean
+`explicit_multi_review` returns exactly `STOP_INVALID_HANDOFF`. Pass a valid
+boolean unchanged to every panel call: true remains true and false remains
+false. Never convert persisted false to true.
+
+| Persisted input | Panel handoff output |
+|-----------------|----------------------|
+| `true` | `true` |
+| `false` | `false` |
+
 Resolve the canonical `owner/repo` and PR number or URL once. Pass both through
 every command and handoff; never rely on the current working directory to select
 the repository.
@@ -44,7 +54,9 @@ Understand why the change exists before reviewing its implementation:
 ## 3. Diff-scoped review
 
 Run `code-review` against the saved PR diff through `consensus-panel`. Pass
-artifact paths to each panel member and instruct them not to refetch PR context:
+the required persisted `explicit_multi_review: true|false`, artifact paths to
+each panel member, and instruct them not to refetch PR context. Missing or
+invalid values stop as `STOP_INVALID_HANDOFF`:
 
 - Focus on high-confidence bugs, security vulnerabilities, and logic errors.
 - Flag broken contracts, missing error handling, and edge cases.
@@ -55,8 +67,10 @@ artifact paths to each panel member and instruct them not to refetch PR context:
 ## 4. Adversarial intent coverage
 
 Run `adversarial-review` through `consensus-panel` with the saved intent
-summary, linked issue context, and diff artifacts. Instruct panel members not
-to refetch PR context. Ask them to determine:
+summary, linked issue context, diff artifacts, and the same required persisted
+`explicit_multi_review: true|false`. Instruct panel members not to refetch PR
+context. Missing or invalid values stop as `STOP_INVALID_HANDOFF`. Ask them to
+determine:
 
 1. Whether the diff fully implements the stated intent and acceptance criteria.
 2. Whether claimed scenarios, edge cases, error paths, concurrency, or rollback

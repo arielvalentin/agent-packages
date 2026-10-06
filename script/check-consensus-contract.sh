@@ -25,6 +25,9 @@ agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/coordinator/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/coordinator/.apm/skills/handoff-envelope/SKILL.md"
 adversarial="$root/packages/coordinator/.apm/skills/adversarial-review/SKILL.md"
+acting="$root/packages/coordinator/.apm/skills/acting-on-behalf/SKILL.md"
+pr_review="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
+lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
 tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
 
 normalize() {
@@ -221,9 +224,13 @@ require "$agent" "canonical adversarial multi-review intent" \
 require "$agent" "canonical trigger persisted through review cycles" \
   'Persist the boolean as `explicit_multi_review`.{0,160}retries and post-fix re-reviews'
 require "$envelope" "persisted explicit multi-review handoff field" \
-  '"explicit_multi_review": true'
+  '"explicit_multi_review": false'
+require "$envelope" "explicit multi-review required boolean contract" \
+  '`explicit_multi_review` is a required JSON boolean'
 require "$panel" "panel consuming the persisted trigger" \
   'Consume `explicit_multi_review` from the always-available coordinator bootstrap'
+require "$panel" "panel rejecting missing explicit multi-review state" \
+  'invalid values return `STOP_INVALID_HANDOFF`'
 require "$panel" "explicit multi-review minimum of two reviewers" \
   '`EXPLICIT_MULTI_REVIEW` always uses at least the two-reviewer initial wave'
 require "$panel" "panel-required scope definition" \
@@ -232,8 +239,18 @@ require "$panel" "panel selection applying to every panel-required scope" \
   'panel selection for panel-required scopes'
 require "$panel" "panel dispatch applying to every panel-required scope" \
   'dispatch \(panel-required scopes only\)'
-require "$panel" "explicit tiny panels using escalation triggers" \
-  'escalation triggers apply to every panel-required scope'
+require "$panel" "panel escalation requiring a complete initial wave" \
+  'Escalation triggers apply only after the required initial wave is complete'
+require "$panel" "explicit panel proving two distinct initial slots" \
+  'select two distinct suitable initial model slots before dispatch'
+require "$panel" "explicit panel rejecting automatic capacity fallback" \
+  'runtime auto-selection and replacement reviewers do not satisfy explicit capacity'
+require "$panel" "explicit panel requiring two valid initial responses" \
+  'both assigned initial slots must dispatch and return valid responses'
+require "$panel" "explicit panel stopping before tiebreak salvage" \
+  'return `STOP_UNAVAILABLE`.{0,120}do not replace it, dispatch the tiebreaker'
+require "$panel" "automatic panel retaining adaptive recovery" \
+  'EXPLICIT_MULTI_REVIEW=false` with fewer than 2 valid initial responses.{0,100}`ADAPTIVE_RECOVERY`'
 require "$panel" "concurrency listed as a disqualifier" \
   'concurrency, locking, or shared mutable state'
 require "$panel" "irreversible data operations listed as a disqualifier" \
@@ -282,8 +299,10 @@ require "$loop" "review loop failing closed on panel failure" \
   'EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE`'
 require "$loop" "review loop preserving routine single fallback" \
   'optional routine review may use one bounded `SINGLE_1`'
-require "$adversarial" "standalone deriving intent before panel loading" \
-  'derive it before attempting to load `consensus-panel`'
+require "$adversarial" "standalone consuming required persisted intent" \
+  'Consume the required persisted `explicit_multi_review` boolean'
+require "$adversarial" "standalone rejecting missing explicit review state" \
+  'invalid values return `STOP_INVALID_HANDOFF`'
 require "$adversarial" "standalone failing closed on panel failure" \
   'EXPLICIT_MULTI_REVIEW=true` → return `STOP_UNAVAILABLE` immediately'
 require "$adversarial" "standalone routine bounded fallback" \
@@ -298,6 +317,18 @@ require "$agent" "mandatory safeguards overriding the five-call heuristic" \
   'Mandatory safeguards always override the five-call heuristic'
 require "$agent" "five-call prohibition limited to routine ungated work" \
   'Delegate routine ungated work finishable with roughly five direct tool calls'
+require "$agent" "coordinator review handoff checklist requires explicit state" \
+  'Required `explicit_multi_review: true\|false` on every review handoff'
+require "$loop" "review loop examples propagate true" \
+  'explicit_multi_review: true'
+require "$loop" "review loop examples propagate false" \
+  'explicit_multi_review: false'
+require "$acting" "acting-on-behalf propagates explicit review state" \
+  'persisted `explicit_multi_review: true\|false`'
+require "$pr_review" "PR review propagates explicit review state" \
+  'persisted `explicit_multi_review: true\|false`'
+require "$lifecycle" "PR lifecycle propagates explicit review state" \
+  'persisted `explicit_multi_review: true\|false`'
 
 for description in \
   'coordinator: explicit consensus activates panel envelopes' \
@@ -316,7 +347,21 @@ for description in \
   'coordinator: failed panel load stops literal panel review' \
   'review-fix-loop: failed panel dispatch stops independent verdicts' \
   'adversarial-review: insufficient panel stops multi-reviewer request' \
-  'coordinator: missing panel allows routine bounded fallback'; do
+  'coordinator: missing panel allows routine bounded fallback' \
+  'consensus-panel: explicit under-capacity stops unavailable' \
+  'consensus-panel: explicit failed initial dispatch stops unavailable' \
+  'consensus-panel: automatic under-capacity keeps bounded recovery' \
+  'consensus-panel: automatic initial failure keeps bounded recovery' \
+  'coordinator: missing explicit review field rejects handoff' \
+  'review-fix-loop: invalid explicit review field rejects handoff' \
+  'adversarial-review: invalid explicit review field rejects handoff' \
+  'consensus-panel: missing explicit review field rejects handoff' \
+  'acting-on-behalf: missing explicit review field rejects gate' \
+  'pr-review-protocol: invalid explicit review field rejects panel' \
+  'acting-on-behalf: propagates true explicit review field' \
+  'acting-on-behalf: propagates false explicit review field' \
+  'pr-review-protocol: propagates true explicit review field' \
+  'pr-review-protocol: propagates false explicit review field'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
 

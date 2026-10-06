@@ -127,12 +127,20 @@ Use this exact final paragraph when a disclaimer is required:
 
 ## Conditional PR safety gate
 
+This review-handoff validation is not a public action: missing, null, string,
+or non-boolean `explicit_multi_review` returns exactly
+`STOP_INVALID_HANDOFF`.
+
 Before calling `pr-lifecycle` Phase 3 / `gh pr create` for high-risk code
 changes or an explicit adversarial-review request:
 
 1. Run `adversarial-review` through `review-fix-loop` with
+   the required persisted `explicit_multi_review: true|false`,
    `max_retries: 2`, `severity_threshold: blocker,major`, and
    `on_exhaust: escalate`.
+   Missing or invalid `explicit_multi_review` stops as `STOP_INVALID_HANDOFF`.
+   Pass the persisted boolean unchanged: true remains true and false remains
+   false.
 2. Stop after two total fix/re-review cycles, even when each cycle reports a
    different finding. Do not create a new review wave to extend the budget.
 3. If blocker/major findings remain, stop and escalate to the user.

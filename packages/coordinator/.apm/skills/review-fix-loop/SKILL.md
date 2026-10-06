@@ -11,6 +11,10 @@ description: >
 A parameterized gate that eliminates repeated prose for adversarial, security,
 code-review, and observability review gates.
 
+**Entry validation:** missing, null, string, or non-boolean
+`explicit_multi_review` returns exactly `STOP_INVALID_HANDOFF` before skip,
+dispatch, fallback, or review logic.
+
 **Incomplete review evidence never passes a gate.** Zero valid reviewer
 responses means `escalated`, not `passed`, even though there are no findings to
 filter. Evaluate "no blocker/major findings" only after a complete, valid
@@ -21,6 +25,9 @@ handoff field as `EXPLICIT_MULTI_REVIEW`. If true, route every initial review
 and every post-fix re-review as `PANEL_2`: two
 `consensus_role: panel-member` initial envelopes. `SINGLE_1` is valid only for
 an internally selected, fast-path-eligible review.
+
+The parameter is required and must be a JSON boolean. This loop never infers
+false from absence.
 
 ## Parameters
 
@@ -132,6 +139,7 @@ a finding the fixer cannot resolve.
 reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)
 context: design doc, implementation summary, rubber-duck findings
+explicit_multi_review: true
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -142,6 +150,7 @@ on_exhaust: escalate
 reviewer: security-review
 scope: cumulative diff (branch vs base)
 focus: exploitable vulnerabilities only, with severity and confidence
+explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -151,6 +160,7 @@ on_exhaust: escalate
 ```
 reviewer: code-review
 scope: docs-only diff (branch vs base)
+explicit_multi_review: false
 max_retries: 1
 severity_threshold: blocker,major
 on_exhaust: warn
@@ -162,6 +172,7 @@ mid-tier reviewer — no panel.
 ```
 reviewer: code-review
 scope: step diff
+explicit_multi_review: false
 max_retries: 1
 severity_threshold: blocker
 on_exhaust: warn
@@ -172,6 +183,7 @@ on_exhaust: warn
 reviewer: gho11y:telemetry-reviewer
 scope: cumulative diff (branch vs base)
 focus: metrics, logs, traces, alerting/SLO coverage
+explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate

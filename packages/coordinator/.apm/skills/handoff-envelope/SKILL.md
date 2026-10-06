@@ -27,16 +27,18 @@ Load at the start of any subagent turn where the prompt begins with a
     "summary": "<=200 chars"
   },
   "constraints": ["..."],
-  "explicit_multi_review": true,
+  "explicit_multi_review": false,
   "consensus_role": "primary|panel-member|single",
   "model_index": "1|2|3",
   "panel_wave": "initial|tiebreak"
 }
 ```
 
-For review phases, the coordinator derives `explicit_multi_review` before
-loading review skills and persists it in every initial, retry, and post-fix
-handoff. Review skills consume this boolean; they do not narrow or reset it.
+For review phases, `explicit_multi_review` is a required JSON boolean (`true`
+or `false`). The coordinator derives it before loading review skills and
+persists it in every initial, retry, and post-fix handoff. Review skills consume
+this boolean; they do not narrow or reset it. Missing, null, string, or other
+invalid values make the review handoff invalid and must stop fail-closed.
 
 `model_index` `1` and `2` are the initial panel wave; `3` is the conditional
 tiebreaker (see `consensus-panel` skill). `panel_wave` is optional and additive

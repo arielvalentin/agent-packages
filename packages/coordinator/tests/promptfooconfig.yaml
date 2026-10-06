@@ -448,7 +448,7 @@ tests:
   - description: "review-fix-loop: explicit consensus keeps two reviewers for tiny scope"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
-      user_input: "The user explicitly requests consensus on a one-line documentation change. How many reviewers are in the initial wave? Answer with exactly one number."
+      user_input: "The persisted explicit_multi_review field is true because the user requested consensus on a one-line documentation change. How many reviewers are in the initial wave? Answer with exactly one number."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
@@ -464,7 +464,7 @@ tests:
   - description: "review-fix-loop: literal panel review starts with panel envelopes"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
-      user_input: "The user literally requests a panel review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
+      user_input: "The persisted explicit_multi_review field is true because the user requested a literal panel review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
@@ -480,7 +480,7 @@ tests:
   - description: "review-fix-loop: multiple independent verdicts starts with panel envelopes"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
-      user_input: "The user requests multiple independent verdicts on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
+      user_input: "The persisted explicit_multi_review field is true because the user requested multiple independent verdicts on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
@@ -496,7 +496,7 @@ tests:
   - description: "review-fix-loop: multi-reviewer adversarial starts with panel envelopes"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
-      user_input: "The user requests a multi-reviewer adversarial review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
+      user_input: "The persisted explicit_multi_review field is true because the user requested a multi-reviewer adversarial review on one documentation line. How many consensus_role panel-member initial envelopes must be dispatched? Answer with exactly one number."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
@@ -992,34 +992,34 @@ tests:
   - description: "adversarial-review: standalone consensus activates panel envelopes"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "In standalone mode, the request text explicitly says: 'Run consensus.' According to the standalone derivation table, how many consensus_role panel-member initial envelopes are required? Answer with exactly one number."
+      user_input: "Routing-only contract check, not a review task. Review handoff: {\"explicit_multi_review\": true}. The original user intent was 'Run consensus.' Do not reclassify it downstream. How many initial panel-member envelopes are required? Answer with exactly one number."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); /\\b(?:2|two)\\b/.test(l) && !/answer is:?\\s*(?:1|one)\\b/.test(l)"
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join('').trim(); (/^(?:2|two)\\b/.test(l) || /\\b(?:answer|response)\\s*(?:is|:)?\\s*(?:2|two)\\b/.test(l) || /\\b(?:2|two)\\s+panel-member envelopes? (?:are|is) required\\b/.test(l)) && !l.includes('stopinvalidhandoff')"
 
   - description: "adversarial-review: standalone panel review activates panel envelopes"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "In standalone mode, the request text explicitly says: 'Run a panel review.' According to the standalone derivation table, how many consensus_role panel-member initial envelopes are required? Answer with exactly one number."
+      user_input: "Routing-only contract check, not a review task. Review handoff: {\"explicit_multi_review\": true}. The original user intent was 'Run a panel review.' Do not reclassify it downstream. How many initial panel-member envelopes are required? Answer with exactly one number."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); /\\b(?:2|two)\\b/.test(l) && !/answer is:?\\s*(?:1|one)\\b/.test(l)"
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join('').trim(); (/^(?:2|two)\\b/.test(l) || /\\b(?:answer|response)\\s*(?:is|:)?\\s*(?:2|two)\\b/.test(l) || /\\b(?:2|two)\\s+panel-member envelopes? (?:are|is) required\\b/.test(l)) && !l.includes('stopinvalidhandoff')"
 
   - description: "adversarial-review: standalone independent verdicts activate panel envelopes"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "In standalone mode, the request text explicitly says: 'Give multiple independent verdicts.' According to the standalone derivation table, how many consensus_role panel-member initial envelopes are required? Answer with exactly one number."
+      user_input: "Routing-only contract check, not a review task. Review handoff: {\"explicit_multi_review\": true}. The original user intent was 'Give multiple independent verdicts.' Do not reclassify it downstream. How many initial panel-member envelopes are required? Answer with exactly one number."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); /\\b(?:2|two)\\b/.test(l) && !/answer is:?\\s*(?:1|one)\\b/.test(l)"
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join('').trim(); (/^(?:2|two)\\b/.test(l) || /\\b(?:answer|response)\\s*(?:is|:)?\\s*(?:2|two)\\b/.test(l) || /\\b(?:2|two)\\s+panel-member envelopes? (?:are|is) required\\b/.test(l)) && !l.includes('stopinvalidhandoff')"
 
   - description: "adversarial-review: standalone multi-reviewer request activates panel envelopes"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "In standalone mode, the request text explicitly says: 'Run a multi-reviewer adversarial review.' According to the standalone derivation table, how many consensus_role panel-member initial envelopes are required? Answer with exactly one number."
+      user_input: "Routing-only contract check, not a review task. Review handoff: {\"explicit_multi_review\": true}. The original user intent was 'Run a multi-reviewer adversarial review.' Do not reclassify it downstream. How many initial panel-member envelopes are required? Answer with exactly one number."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); /\\b(?:2|two)\\b/.test(l) && !/answer is:?\\s*(?:1|one)\\b/.test(l)"
+        value: "const l = output.toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join('').trim(); (/^(?:2|two)\\b/.test(l) || /\\b(?:answer|response)\\s*(?:is|:)?\\s*(?:2|two)\\b/.test(l) || /\\b(?:2|two)\\s+panel-member envelopes? (?:are|is) required\\b/.test(l)) && !l.includes('stopinvalidhandoff')"
 
   - description: "coordinator: missing panel stops explicit consensus"
     vars:
@@ -1048,10 +1048,10 @@ tests:
   - description: "adversarial-review: insufficient panel stops multi-reviewer request"
     vars:
       skill_content: file://../.apm/skills/adversarial-review/SKILL.md
-      user_input: "Standalone multi-reviewer adversarial review: consensus-panel cannot produce two initial reviewers. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
+      user_input: "Review handoff: {\"explicit_multi_review\": true}. For this multi-reviewer adversarial review, consensus-panel cannot produce two initial reviewers. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
     assert:
       - type: javascript
-        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_UNAVAILABLE') > l.lastIndexOf('SINGLE_1')"
+        value: "const l = output; /(?:Response|answer|token)\\s*(?:is|:)?\\s*STOP_UNAVAILABLE/i.test(l) || /^\\s*STOP_UNAVAILABLE\\s*$/i.test(l)"
 
   - description: "coordinator: missing panel allows routine bounded fallback"
     vars:
@@ -1060,6 +1060,118 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.toUpperCase(); l.lastIndexOf('SINGLE_1') > l.lastIndexOf('STOP_UNAVAILABLE')"
+
+  - description: "consensus-panel: explicit under-capacity stops unavailable"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "According to the entry decision table: explicit_multi_review=true, but only one distinct suitable initial reviewer slot can be selected. Choose exactly one token: STOP_UNAVAILABLE or ADAPTIVE_RECOVERY."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_UNAVAILABLE') > l.lastIndexOf('ADAPTIVE_RECOVERY')"
+
+  - description: "consensus-panel: explicit failed initial dispatch stops unavailable"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "explicit_multi_review=true. One assigned initial reviewer still fails dispatch or valid response after its one allowed same-slot retry. Choose exactly one token: STOP_UNAVAILABLE or ADAPTIVE_RECOVERY."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_UNAVAILABLE') > l.lastIndexOf('ADAPTIVE_RECOVERY')"
+
+  - description: "consensus-panel: automatic under-capacity keeps bounded recovery"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "explicit_multi_review=false for an optional automatic panel. Explicit model discovery is unavailable. Choose exactly one token: STOP_UNAVAILABLE or ADAPTIVE_RECOVERY."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase().replace(/_/g, ' '); /\\b(dispatch|use|choose|answer|routing)\\b[^.]*\\badaptive recovery\\b/.test(l)"
+
+  - description: "consensus-panel: automatic initial failure keeps bounded recovery"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "What immediate routing token does the entry decision table require when explicit_multi_review=false for an optional automatic panel and one initial response remains invalid after retry? Answer exactly STOP_UNAVAILABLE or ADAPTIVE_RECOVERY."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('ADAPTIVE_RECOVERY') > l.lastIndexOf('STOP_UNAVAILABLE')"
+
+  - description: "coordinator: missing explicit review field rejects handoff"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "A review handoff reaches the coordinator without explicit_multi_review. Choose exactly one token: STOP_INVALID_HANDOFF or CONTINUE."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_INVALID_HANDOFF') > l.lastIndexOf('CONTINUE')"
+
+  - description: "review-fix-loop: invalid explicit review field rejects handoff"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "Apply entry validation: a review-fix-loop invocation has explicit_multi_review=null. Choose exactly one token: STOP_INVALID_HANDOFF or CONTINUE."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_INVALID_HANDOFF') > l.lastIndexOf('CONTINUE')"
+
+  - description: "adversarial-review: invalid explicit review field rejects handoff"
+    vars:
+      skill_content: file://../.apm/skills/adversarial-review/SKILL.md
+      user_input: "Under Entry validation, what exact token is required when explicit_multi_review is the string false instead of a boolean? Answer exactly STOP_INVALID_HANDOFF or CONTINUE."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_INVALID_HANDOFF') > l.lastIndexOf('CONTINUE')"
+
+  - description: "consensus-panel: missing explicit review field rejects handoff"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "What exact token does the first row of the entry decision table require when explicit_multi_review is omitted? Answer exactly STOP_INVALID_HANDOFF or CONTINUE."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_INVALID_HANDOFF') > l.lastIndexOf('CONTINUE')"
+
+  - description: "acting-on-behalf: missing explicit review field rejects gate"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Apply review-handoff validation, not public posting policy: the conditional PR safety gate is invoked without explicit_multi_review. Choose exactly one token: STOP_INVALID_HANDOFF or CONTINUE."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_INVALID_HANDOFF') > l.lastIndexOf('CONTINUE')"
+
+  - description: "pr-review-protocol: invalid explicit review field rejects panel"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "A PR review panel invocation has explicit_multi_review='false' as a string. Choose exactly one token: STOP_INVALID_HANDOFF or CONTINUE."
+    assert:
+      - type: javascript
+        value: "const l = output.toUpperCase(); l.lastIndexOf('STOP_INVALID_HANDOFF') > l.lastIndexOf('CONTINUE')"
+
+  - description: "acting-on-behalf: propagates true explicit review field"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The persisted review state has explicit_multi_review=true. What boolean must the conditional PR safety gate pass to review-fix-loop? Answer exactly true or false."
+    assert:
+      - type: javascript
+        value: "/^true[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "acting-on-behalf: propagates false explicit review field"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The persisted review state has explicit_multi_review=false. What boolean must the conditional PR safety gate pass to review-fix-loop? Answer exactly true or false."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''); l.lastIndexOf('false') > l.lastIndexOf('true')"
+
+  - description: "pr-review-protocol: propagates true explicit review field"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "The persisted review state has explicit_multi_review=true. What boolean must both PR review panel calls pass? Answer exactly true or false."
+    assert:
+      - type: javascript
+        value: "/^true[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "pr-review-protocol: propagates false explicit review field"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "Look up the Panel handoff output in the table row whose Persisted input is false. What exact boolean must both panel calls pass? Answer exactly true or false."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''); l.lastIndexOf('false') > l.lastIndexOf('true')"
 
   - description: "consensus-panel: policy markdown is not fast-path exempt"
     vars:
@@ -1224,10 +1336,10 @@ tests:
   - description: "consensus-panel: insufficient responses is an escalation trigger"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "Escalation trigger 4 is named insufficient responses. What condition does it describe?"
+      user_input: "Review handoff: {\"explicit_multi_review\": false}. Escalation trigger 4 is named insufficient responses. What condition does it describe?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); (l.includes('fewer than 2') || l.includes('fewer than two')) && l.includes('valid response')"
+        value: "const l = output.toLowerCase(); (l.includes('fewer than 2') || l.includes('fewer than two') || l.includes('less than 2') || l.includes('less than two')) && l.includes('valid response')"
 
   - description: "consensus-panel: zero valid responses is incomplete, not passed"
     vars:
@@ -1288,10 +1400,10 @@ tests:
   - description: "consensus-panel: never duplicates research for consensus"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "Should I send three agents to search the same GitHub repository for the same facts?"
+      user_input: "Routing-only contract check, not a review task. Review handoff: {\"explicit_multi_review\": false}. Boolean false is valid. Should identical fact-finding in one GitHub repository be duplicated across reviewers? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); (l.includes('not') || l.includes('never') || l.includes('do not') || l.includes(\"don't\")) && (l.includes('one') || l.includes('single') || l.includes('duplicate') || l.includes('identical'))"
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   # --- stage-pr ---
   - description: "stage-pr: creates a preview environment"

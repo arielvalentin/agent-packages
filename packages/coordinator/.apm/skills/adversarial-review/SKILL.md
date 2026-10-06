@@ -15,6 +15,15 @@ Standalone use defers to `consensus-panel` for the canonical review
 contract: scope classification, dispatch, JSON verdict schema, synthesis,
 reporting, and failure handling.
 
+**Entry validation:** missing, null, string, or non-boolean
+`explicit_multi_review` returns exactly `STOP_INVALID_HANDOFF` before
+dispatched-mode or standalone review logic.
+For example, the string `"false"` returns `STOP_INVALID_HANDOFF`; it is not the
+boolean `false` and review must not continue.
+A valid boolean is authoritative downstream: boolean `false` is valid, and
+quoted original user wording is context only. Do not reclassify or invalidate a
+valid persisted boolean from that wording.
+
 ## When to use
 
 Trigger phrases: "give this an adversarial review", "rubber-duck this with
@@ -37,26 +46,11 @@ The remaining protocol is for standalone use only.
 
 ### 1. Bootstrap explicit multi-review intent before panel loading
 
-Consume a persisted `explicit_multi_review` handoff value when present. For a
-direct standalone invocation without that field, derive it before attempting
-to load `consensus-panel` using the coordinator's canonical four intents:
-consensus, a panel review, multiple independent verdicts, or a multi-reviewer
-adversarial review. Persist the result as `EXPLICIT_MULTI_REVIEW` for the whole
-review attempt.
-
-Standalone derivation table:
-
-| User intent | `EXPLICIT_MULTI_REVIEW` |
-|-------------|-------------------------|
-| consensus | `true` |
-| panel review | `true` |
-| multiple independent verdicts | `true` |
-| multi-reviewer adversarial review | `true` |
-| none of the above | `false` |
-
-The phrase "direct standalone invocation" does not change the value.
-Never set the value to false when the request text contains any listed intent.
-Standalone is an execution mode, not a reason to discard explicit intent.
+Consume the required persisted `explicit_multi_review` boolean and expose it as
+`EXPLICIT_MULTI_REVIEW`. The always-available coordinator bootstrap derives it
+before this skill is invoked, including direct standalone requests. Missing,
+null, string, or otherwise invalid values return `STOP_INVALID_HANDOFF`; this
+skill never derives false from absence.
 
 `EXPLICIT_MULTI_REVIEW=true` means `PANEL_2`: two
 `consensus_role: panel-member` initial envelopes. It never permits

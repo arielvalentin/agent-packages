@@ -319,7 +319,12 @@ Load `handoff-envelope` for structured agent-to-agent handoffs. Include:
 - Relevant prior evidence, not a request to repeat it.
 - Required validation.
 - Budget and stop condition.
+- Required `explicit_multi_review: true|false` on every review handoff.
 - `consensus_role` only when a review dispatch needs it.
+
+Any review handoff that reaches the coordinator with a missing, null, string,
+or otherwise invalid `explicit_multi_review` value returns
+`STOP_INVALID_HANDOFF`. Only the initial user-intent bootstrap derives it.
 
 If a delegated task is already a `panel-member` or `single`, it reviews
 directly and must not fan out. Only `primary` may fan out.
