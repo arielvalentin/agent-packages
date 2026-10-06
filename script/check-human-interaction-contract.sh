@@ -189,10 +189,18 @@ forbid "$feedback" "human feedback override or solely loophole" 'override|solely
 forbid "$lifecycle" "lifecycle override or solely loophole" 'override|solely'
 forbid "$lifecycle" "Phase 5 app-only automation selector" \
   'user\.type == "Bot" or \.performed_via_github_app != null'
-require "$lifecycle" "Phase 5 exact Bot selector" \
-  'select\(\.user\.type == "Bot" and'
-require "$lifecycle" "Phase 5 safeguard gate before findings" \
-  'Before acting on findings, apply `human-interaction-safeguard`'
+require "$lifecycle" "Phase 5 detection-only boundary" \
+  'This is candidate detection only'
+require "$lifecycle" "Phase 5 deferral to Phase 6" \
+  'proceed to Phase 6'
+require "$lifecycle" "complete retrieval before classification or action" \
+  'Before any classification or action, retrieve PR review comments'
+require "$lifecycle" "incomplete lifecycle retrieval failing closed" \
+  'Incomplete, failed, or unverifiable retrieval makes the relevant chain `HUMAN_STOP`'
+require "$lifecycle" "complete chain taint before review handling" \
+  'Only after complete retrieval, apply the thread/chain taint rule'
+require "$lifecycle" "feedback protocol before fix loop" \
+  'use `pr-feedback-review`.{0,100}may then enter `review-fix-loop`'
 forbid "$acting" "HUMAN_STOP posting override" \
   'HUMAN_STOP.{0,180}(unless|override)|override.{0,180}HUMAN_STOP'
 forbid "$agent" "human-thread override" \

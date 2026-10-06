@@ -16,6 +16,12 @@ responses means `escalated`, not `passed`, even though there are no findings to
 filter. Evaluate "no blocker/major findings" only after a complete, valid
 review result exists.
 
+**Explicit panel invariant:** if the user explicitly requested consensus, a
+panel, or a multi-reviewer adversarial review, route every initial review and
+every post-fix re-review as `PANEL_2`: two
+`consensus_role: panel-member` initial envelopes. `SINGLE_1` is valid only for
+an internally selected, fast-path-eligible review.
+
 ## Parameters
 
 | Parameter | Required | Default | Description |
@@ -42,11 +48,13 @@ review result exists.
    `consensus-panel` only when the user explicitly requested consensus, the
    review is judgment-heavy and high-risk, or another loaded skill requires the
    panel. Preserve why consensus was selected. An explicit user request for
-   consensus or multiple independent verdicts always dispatches the
-   two-reviewer initial wave, even for tiny or non-code scope. Only
-   system-selected consensus may let `consensus-panel` classify non-code or
-   tiny scope into the single-reviewer fast path. Send `scope` and `context`;
-   if `focus` is provided, include it as explicit instructions.
+   consensus, a panel, or a multi-reviewer adversarial review always dispatches
+   two `consensus_role: panel-member` initial envelopes with `model_index: 1`
+   and `2`, even for tiny or non-code scope; it never sends a
+   `consensus_role: single` envelope. Only system-selected consensus may let
+   `consensus-panel` classify non-code or tiny scope into the single-reviewer
+   fast path. Send `scope` and `context`; if `focus` is provided, include it as
+   explicit instructions.
 
 3. **Evaluate review completion, then findings** — first verify the reviewer
    or panel returned a complete, valid outcome. An incomplete, timed-out, or
@@ -59,14 +67,17 @@ review result exists.
 
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
-   b. Re-run `reviewer` through the same single-reviewer or selected panel
-      policy against the updated `scope`. Preserve an explicit-consensus request
-      across every cycle; it always starts a **fresh initial wave of 2**.
-      Otherwise re-classify the scope each cycle: system-selected non-code or
-      tiny scope stays on the single-reviewer fast path, and a panelled scope
-      starts a fresh initial wave of 2, escalating only if that cycle's own
-      responses fire a trigger. A previous cycle's escalation does not carry
-      over.
+   b. Choose the re-review route in this order:
+      1. If the user explicitly requested consensus, a panel, or a
+         multi-reviewer adversarial review, return `PANEL_2`. Start a **fresh
+         initial wave of 2** with two `consensus_role: panel-member` envelopes.
+         Do not re-classify this request into the fast path and do not send
+         `consensus_role: single`.
+      2. Otherwise, re-classify the updated `scope`: system-selected non-code
+         or tiny scope stays on the single-reviewer fast path, while a
+         panel-required scope starts a fresh initial wave of 2.
+      Escalate only if that cycle's own responses fire a trigger. A previous
+      cycle's escalation does not carry over.
    c. If no findings at or above threshold → **gate passes**. Record result.
    d. If same finding is raised again after a fix attempt, increment a
       per-finding repeat counter.

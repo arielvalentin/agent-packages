@@ -43,7 +43,7 @@ consensus.
 Classify the review scope **before** selecting any model. Re-classify at the
 start of every review cycle; a fix that grows the scope also changes its class.
 
-A scope is **fast-path exempt** when either of these holds:
+A scope is **fast-path eligible** when either of these holds:
 
 1. **Non-code change** — every changed file is a text artifact with no
    executable effect: documentation, prose, markdown, comments, changelog,
@@ -71,7 +71,7 @@ Operational definitions, so two agents classify the same diff identically:
   and the like). Importing another symbol from a package the repository already
   declares is not a new dependency; adding the manifest entry is.
 
-A fast-path scope is **disqualified** — and takes the full panel — when it
+A fast-path-eligible scope is **disqualified** — and takes the full panel — when it
 touches any of the following, however small the diff:
 
 1. Authentication, authorization, or access control.
@@ -86,15 +86,25 @@ touches any of the following, however small the diff:
 9. Review requirements or the tests/scripts that enforce these controls.
 10. CI, deployment, runtime, or permission-affecting executable configuration,
     workflows, and scripts.
+11. Privacy, personal data, sensitive-data exposure, or data-redaction controls.
+12. Unsafe code execution, command execution, shell execution, or executable
+    content handling.
+13. Trust-boundary changes, including network access, filesystem access, or
+    crossing from untrusted to trusted execution.
 
 This list is closed: a scope that touches none of these and meets the size
-threshold is fast-path exempt.
+threshold is fast-path eligible.
 
-Everything else is a **substantive code change** and takes the adaptive 2+1
+A scope is **panel-required** when it is not fast-path eligible, is disqualified
+above, or the user explicitly requested consensus, a panel, or a multi-reviewer
+adversarial review. Only an internally selected, fast-path-eligible scope uses
+the single-reviewer path. Every panel-required scope takes the adaptive 2+1
 panel.
 
-## Step 2a — Single-reviewer fast path (fast-path exempt scopes)
+## Step 2a — Single-reviewer fast path (internally selected scopes only)
 
+Use this path only when the scope is fast-path eligible and the user did not
+explicitly request consensus, a panel, or a multi-reviewer adversarial review.
 Dispatch **exactly one** reviewer. Do not run a panel, do not select a second
 model, and do not synthesize across models.
 
@@ -119,7 +129,7 @@ re-classification under Step 1 does. The safety argument is the size and
 disqualifier bounds, not the finding: a scope this small that touches none of
 the disqualified categories has a blast radius one reviewer can hold.
 
-## Step 2b — Panel selection for substantive code changes
+## Step 2b — Panel selection for panel-required scopes
 
 Select panelists from models available in the current runtime/session:
 
@@ -138,7 +148,7 @@ Select panelists from models available in the current runtime/session:
 5. If explicit model discovery is unavailable, dispatch without model
    overrides (runtime auto-selection) and record that fallback in the report.
 
-## Dispatch (substantive code changes only)
+## Dispatch (panel-required scopes only)
 
 ### Wave 1 — always exactly 2, in parallel
 
@@ -166,8 +176,10 @@ independently. Never dispatch a fourth reviewer for a single panel.
 
 ## Escalation triggers
 
-Escalation triggers apply only to substantive code changes. A fast-path scope
-never escalates to a panel — it is complete after its single reviewer.
+Escalation triggers apply to every panel-required scope, including an explicit
+consensus, panel, or multi-reviewer adversarial request on tiny or non-code
+work. An internally selected single-reviewer scope never escalates to a panel;
+it is complete after its single reviewer.
 
 Dispatch the tiebreaker when **any** of these hold:
 

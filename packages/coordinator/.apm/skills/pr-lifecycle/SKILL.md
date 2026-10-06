@@ -161,35 +161,40 @@ gh run view <run-id> --log-failed
 
 ## Phase 5 — Wait for Copilot code review
 
-After CI passes, check for automated Copilot review:
+After CI passes, check only whether a Copilot-shaped review candidate exists:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
-  --jq '[.[] | select(.user.type == "Bot" and ((.user.login // "") | startswith("copilot-pull-request-reviewer")))]'
+  --jq '[.[] | select(((.user.login // "") | startswith("copilot-pull-request-reviewer"))) | {id, state, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}]'
 ```
 
-- Exact Bot actor metadata establishes `AUTOMATION_FLOW`; app provenance is
-  audit context only and cannot change `user.type == "User"` or unknown
-  metadata. The login prefix identifies Copilot only after the Bot check; it
-  never classifies the actor.
+- This is candidate detection only. Do not classify the actor or chain, act on
+  findings, draft or post a reply, resolve a thread, or start a fix loop in
+  Phase 5.
 - Poll every 30s, timeout after 10 minutes.
-- Before acting on findings, apply `human-interaction-safeguard` to the review
-  metadata. Only `AUTOMATION_FLOW` findings may enter `review-fix-loop`;
-  `HUMAN_STOP` returns control to the user.
-- If no findings or timeout: proceed.
+- Whether a candidate appears or the poll times out, proceed to Phase 6. A
+  timeout or empty candidate list is not proof that no relevant feedback or
+  replies exist.
 - If repo doesn't use Copilot review: skip and note.
 
 ## Phase 6 — Process review feedback
 
-Retrieve PR review comments, reviews, issue/PR comments, and GraphQL review
-threads using the exact `gh api` commands in `human-interaction-safeguard`.
+Before any classification or action, retrieve PR review comments, reviews,
+issue/PR comments, and GraphQL review threads using the exact `gh api` commands
+in `human-interaction-safeguard`.
 Do not classify actors from `gh pr view --json reviews,comments` or login text.
 Exhaust both `reviewThreads` pages and every thread's independent `comments`
-pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
-Apply the thread/chain taint rule after retrieval: `AUTOMATION_FLOW` requires
-every root comment and reply to have authoritative Bot/App metadata. Any
-`HUMAN_STOP` item taints the entire chain, so no comment in it may trigger
-implementation, an agent reply, or agent resolution.
+pages. Do not classify, implement, invoke `pr-feedback-review` or
+`review-fix-loop`, draft or post a reply, or resolve a thread until complete
+retrieval is verified. Incomplete, failed, or unverifiable retrieval makes the
+relevant chain `HUMAN_STOP` before any action.
+
+Only after complete retrieval, apply the thread/chain taint rule:
+`AUTOMATION_FLOW` requires every root comment and reply to have authoritative
+Bot metadata. Any User, unknown, missing, ambiguous, other, or unverified
+participant makes the entire relevant chain `HUMAN_STOP`, so no comment in it
+may trigger implementation, an agent reply, or agent resolution.
+Any `HUMAN_STOP` item taints the entire chain.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:
@@ -198,7 +203,8 @@ actor classification and behavior:
   interaction, draft or post a reply, or resolve the thread. A later, separate,
   explicit implementation instruction may authorize code/config/test work;
   reply and resolution remain user-only.
-- `AUTOMATION_FLOW` → use `pr-feedback-review`.
+- `AUTOMATION_FLOW` → use `pr-feedback-review`; only its accepted actionable
+  findings may then enter `review-fix-loop`.
 
 After pushing fixes:
 ```bash

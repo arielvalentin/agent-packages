@@ -163,8 +163,10 @@ can complete the work.
 
 - Explicit security/vulnerability request: `security-review` first.
 - Security-sensitive changes involving authentication, authorization, access
-  control, cryptography, secrets, untrusted input, or credential handling:
-  run `security-review` before completion.
+  control, cryptography, secrets, untrusted input, credential handling,
+  privacy or sensitive-data exposure, unsafe code or command execution, or
+  trust-boundary changes such as network/filesystem access: run
+  `security-review` before completion.
 - Explicit adversarial, consensus, architecture, performance, style, or
   observability review: run the requested review.
 - Changes to behavior-defining agent, skill, instruction, governance,
@@ -186,15 +188,17 @@ judgment-heavy, high-risk review where independent verdicts can change the
 decision.
 
 When consensus is selected, preserve its canonical contract. An explicit user
-request for consensus or multiple independent verdicts always receives at
-least two reviewers; it never collapses to the single-reviewer fast path.
+request for consensus, a panel, or a multi-reviewer adversarial review always
+receives at least two reviewers; it never collapses to the single-reviewer fast
+path.
 
 - For internally selected consensus, check the **single-reviewer fast path
   (checked first, overrides the panel rule)**.
 - For a qualifying scope, dispatch **exactly one** mid- or high-capability
   reviewer with `consensus_role: single`.
-- For an **adaptive 2+1 panel (substantive code changes)**, select exactly
-  **2 panel models**, then fire **2 parallel** review calls.
+- For an **adaptive 2+1 panel (panel-required scopes)**, including explicit
+  panel requests on tiny or non-code work, select exactly **2 panel models**,
+  then fire **2 parallel** review calls.
 - Never dispatch a third reviewer unconditionally. Escalate to exactly 1
   tiebreaker, preferably a high-capability GPT model independent of the initial
   wave, only when the skill's trigger fires.

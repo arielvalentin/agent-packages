@@ -201,10 +201,24 @@ require "$panel" "public-interaction control disqualifier" \
   'human-interaction, attribution, public-posting, permission, approval'
 require "$panel" "explicit consensus minimum of two reviewers" \
   'explicit user request for consensus or multiple independent verdicts always uses at least the two-reviewer initial wave'
+require "$panel" "panel-required scope definition" \
+  'scope is \*\*panel-required\*\*.{0,220}explicitly requested consensus, a panel, or a multi-reviewer adversarial review'
+require "$panel" "panel selection applying to every panel-required scope" \
+  'panel selection for panel-required scopes'
+require "$panel" "panel dispatch applying to every panel-required scope" \
+  'dispatch \(panel-required scopes only\)'
+require "$panel" "explicit tiny panels using escalation triggers" \
+  'escalation triggers apply to every panel-required scope'
 require "$panel" "concurrency listed as a disqualifier" \
   'concurrency, locking, or shared mutable state'
 require "$panel" "irreversible data operations listed as a disqualifier" \
   'irreversible data operation'
+require "$panel" "privacy and data exposure disqualifier" \
+  'privacy, personal data, sensitive-data exposure'
+require "$panel" "unsafe execution disqualifier" \
+  'unsafe code execution, command execution, shell execution'
+require "$panel" "trust-boundary disqualifier" \
+  'trust-boundary changes, including network access, filesystem access'
 require "$panel" "operational definition of a pure-whitespace line" \
   '\*\*pure-whitespace line\*\*'
 require "$panel" "operational definition of altered control flow" \
@@ -219,14 +233,20 @@ require "$agent" "coordinator single-reviewer fast path section" \
   'single-reviewer fast path \(checked first, overrides the panel rule\)'
 require "$agent" "coordinator dispatching exactly one fast-path reviewer" \
   'exactly one\*\* mid- or high-capability reviewer'
-require "$agent" "coordinator restricting the panel to substantive code changes" \
-  'adaptive 2\+1 panel \(substantive code changes\)'
+require "$agent" "coordinator applying the panel to panel-required scopes" \
+  'adaptive 2\+1 panel \(panel-required scopes\)'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
-  're-classify the scope each cycle'
+  'Otherwise, re-classify the updated `scope`'
 require "$loop" "explicit consensus bypassing the single-reviewer fast path" \
-  'explicit user request for consensus or multiple independent verdicts always dispatches the two-reviewer initial wave'
+  'explicit user request for consensus, a panel, or a multi-reviewer adversarial review always dispatches two'
 require "$loop" "explicit consensus preserved across fix cycles" \
-  'Preserve an explicit-consensus request across every cycle'
+  'every post-fix re-review as `PANEL_2`'
+require "$loop" "explicit re-review using panel-member envelopes" \
+  'initial wave of 2\*\* with two `consensus_role: panel-member` envelopes'
+require "$loop" "explicit review never using a single envelope" \
+  'never.{0,40}consensus_role: single'
+require "$agent" "expanded security-sensitive review categories" \
+  'privacy or sensitive-data exposure, unsafe code or command execution'
 require "$agent" "mandatory safeguards overriding the five-call heuristic" \
   'Mandatory safeguards always override the five-call heuristic'
 require "$agent" "five-call prohibition limited to routine ungated work" \

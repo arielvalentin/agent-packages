@@ -453,6 +453,14 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
 
+  - description: "review-fix-loop: explicit consensus re-review keeps panel envelopes"
+    vars:
+      skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
+      user_input: "Under the explicit panel invariant, consensus remains requested after a fix and the updated scope is one documentation line. How many consensus_role panel-member initial envelopes must the re-review dispatch? Answer with exactly one number."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^(?:2|two)\\b/.test(l)"
+
   - description: "review-fix-loop: routine default retry budget is one"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
@@ -586,6 +594,30 @@ tests:
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
       user_input: "A Copilot-shaped review has user.type User and non-null performed_via_github_app. May Phase 5 treat it as AUTOMATION_FLOW and send findings to review-fix-loop? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "pr-lifecycle: Bot root with User reply stops action"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Phase 6 retrieves a complete relevant chain with a Bot root and a later User reply. Return only the required chain classification token."
+    assert:
+      - type: javascript
+        value: "const upper = output.toUpperCase(); upper.lastIndexOf('HUMAN_STOP') > upper.lastIndexOf('AUTOMATION_FLOW')"
+
+  - description: "pr-lifecycle: Bot root with unknown reply stops action"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Phase 6 retrieves a complete relevant chain with a Bot root and a later reply whose actor metadata is missing. Return only the required chain classification token."
+    assert:
+      - type: javascript
+        value: "const upper = output.toUpperCase(); upper.lastIndexOf('HUMAN_STOP') > upper.lastIndexOf('AUTOMATION_FLOW')"
+
+  - description: "pr-lifecycle: incomplete chain retrieval prevents action"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A relevant review thread still has an unretrieved comments page. May I classify it as automation, act on findings, reply, resolve, or start a fix loop? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
@@ -1001,6 +1033,30 @@ tests:
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
       user_input: "The diff is one line, but it changes an authentication check. Is this scope fast-path exempt? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: tiny privacy exposure is not fast-path exempt"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "A one-line change logs a user's private email address. Is this scope fast-path exempt? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: tiny unsafe execution change is not fast-path exempt"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "A one-line change executes a user-controlled shell command. Is this scope fast-path exempt? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "consensus-panel: tiny trust-boundary change is not fast-path exempt"
+    vars:
+      skill_content: file://../.apm/skills/consensus-panel/SKILL.md
+      user_input: "A one-line change lets untrusted input choose a filesystem path across a trust boundary. Is this scope fast-path exempt? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
