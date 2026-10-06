@@ -84,6 +84,8 @@ touches any of the following, however small the diff:
 8. Human-interaction, attribution, public-posting, permission, approval, or
    destructive-action controls.
 9. Review requirements or the tests/scripts that enforce these controls.
+10. CI, deployment, runtime, or permission-affecting executable configuration,
+    workflows, and scripts.
 
 This list is closed: a scope that touches none of these and meets the size
 threshold is fast-path exempt.
@@ -238,8 +240,9 @@ escalation never depends on a severity the panelist failed to state.
    - **Escalated with only 2 valid responses** — when the two agree on an axis
      that value stands; when they differ (including the trigger-1 disagreement
      that caused the escalation) the axis is `mixed`. Flag reduced confidence.
-   - **Escalated with fewer than 2 valid responses** — use the valid responses
-     that returned, `mixed` when no majority, and flag reduced confidence.
+   - **Escalated with fewer than 2 valid responses** — mark the panel
+     `incomplete`; do not produce a passing review outcome from partial or
+     missing evidence. Any available verdict is advisory only.
 3. Confidence, in every case: the majority value when one exists, otherwise the
    **lowest** value among the valid responses (`high` > `medium` > `low`). This
    is total — it covers the fast path's single value, the non-escalated pair
@@ -263,6 +266,9 @@ escalation never depends on a severity the panelist failed to state.
 - Consolidated findings, sorted by severity, with corroboration noted.
 - Confidence line: the synthesized confidence per synthesis rule 3 (majority,
   otherwise the lowest valid value).
+- Completion line: `complete` only when the required response count is met;
+  otherwise `incomplete`. A substantive panel requires at least 2 valid
+  responses. Callers must not interpret `incomplete` as a passed review.
 
 ## Failure modes
 
@@ -273,8 +279,9 @@ escalation never depends on a severity the panelist failed to state.
   reviewer at the same or higher tier. Do not silently open a panel.
 - Fewer than 2 valid initial responses → escalate under trigger 4, surface which
   model(s) failed, and flag the result as reduced-confidence.
-- Fewer than 2 valid responses in total after escalation → proceed with whatever
-  returned and flag as reduced-confidence.
+- Fewer than 2 valid responses in total after escalation → mark the panel
+  `incomplete`, surface any advisory result, and stop mandatory or explicitly
+  requested review gates. Never convert absent findings into a pass.
 - Tiebreaker fails to return → proceed with the 2 initial responses under the
   "escalated with only 2 valid responses" rule above, and flag as
   reduced-confidence.

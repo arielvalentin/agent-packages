@@ -189,9 +189,8 @@ security and posting safeguards still fail closed. Use:
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-   before creating, updating, or readying a PR title — whether through the
-   built-in `create_pull_request`/`update_pull_request` tools or
-   `gh pr create`, `gh pr edit --title`, `gh pr ready`. Also use
+   before creating, updating, or readying a PR title through
+   `gh pr create`, `gh pr edit --title`, or `gh pr ready`. Also use
    `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
    `gh run view|watch`.
 3. `stage-pr` missing -> report staging as unavailable and proceed without

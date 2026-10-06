@@ -11,12 +11,17 @@ description: >
 A parameterized gate that eliminates repeated prose for adversarial, security,
 code-review, and observability review gates.
 
+**Incomplete review evidence never passes a gate.** Zero valid reviewer
+responses means `escalated`, not `passed`, even though there are no findings to
+filter. Evaluate "no blocker/major findings" only after a complete, valid
+review result exists.
+
 ## Parameters
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `reviewer` | yes | — | Agent or skill to dispatch for review (e.g., `adversarial-review`, `security-review`, `code-review`, `gho11y:telemetry-reviewer`) |
-| `fixer` | no | `implementer` | Agent dispatched to address findings |
+| `fixer` | no | `arielvalentin: implementer` | Agent dispatched to address findings when the companion development-workflow package is installed; otherwise the orchestration owner fixes directly |
 | `scope` | yes | — | What to review: diff ref, artifact path, or description of review target |
 | `context` | no | — | Additional context for the reviewer (intent summary, design doc, issue body) |
 | `focus` | no | — | Specific review focus or criteria (e.g., "intent-coverage", "exploitable vulnerabilities only") |
@@ -40,7 +45,12 @@ code-review, and observability review gates.
    substantive code changes take the adaptive 2+1 panel. Send `scope` and
    `context`; if `focus` is provided, include it as explicit instructions.
 
-3. **Evaluate findings** — filter findings by `severity_threshold`.
+3. **Evaluate review completion, then findings** — first verify the reviewer
+   or panel returned a complete, valid outcome. An incomplete, timed-out, or
+   invalid review never passes merely because it returned no findings.
+   Mandatory or explicitly requested gates stop/escalate on incomplete
+   evidence; optional gates may warn only when the caller explicitly allows
+   reduced assurance. Then filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
    - Findings at or above threshold → proceed to fix cycle.
 
@@ -64,6 +74,9 @@ code-review, and observability review gates.
    - For `security-review`, `on_exhaust: warn` is invalid. Mandatory or
      explicitly requested security review must stop/escalate with unresolved
      blocker/major findings.
+   - For mandatory or explicitly requested `security-review`, waiver is also
+     invalid. The only user decisions are fix/retry or abort; never proceed
+     with unresolved blocker/major security findings.
 
 6. **Record outcome** — regardless of path, record:
    - Gate name (derived from `reviewer`)

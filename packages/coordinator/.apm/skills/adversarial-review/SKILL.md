@@ -77,8 +77,9 @@ the schema fields that `consensus-panel` defines.
 ## Integration with review-fix-loop
 
 When used as the `reviewer` in a `review-fix-loop`, the loop dispatches
-`implementer` to fix blocker/major findings and re-runs this skill on
-the updated result.
+`arielvalentin: implementer` when the companion development-workflow package
+is installed, or keeps the fix with the current orchestration owner otherwise,
+then re-runs this skill on the updated result.
 
 ## Fallback
 

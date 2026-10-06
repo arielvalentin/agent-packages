@@ -72,6 +72,13 @@ for pkg_dir in "$root"/packages/*/; do
   fi
 done
 
+# --- Reject stale coordinator dispatch identifiers ---
+if grep -REn '`(implementer|system-architect|se-technical-writer)`' \
+  "$root/packages/coordinator/.apm" >/dev/null; then
+  echo "ERROR: Coordinator contains an unsupported or ambiguous agent identifier."
+  errors=$((errors + 1))
+fi
+
 # --- Summary ---
 if [[ $errors -gt 0 ]]; then
   echo ""

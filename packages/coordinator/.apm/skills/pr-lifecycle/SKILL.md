@@ -37,6 +37,10 @@ When the user asks for one concrete `gh pr create` command, the command must
 contain `--draft`, a validated Conventional `--title`, and a non-empty `--body`
 in that same command.
 
+**Scope invariant:** a Conventional Commit scope is optional and permitted only
+when it materially clarifies the affected package or area. It is never always
+allowed and must be omitted by default.
+
 ## Phase 1 — Early draft PR
 
 Only when no PR exists and the user explicitly requested PR creation:
@@ -60,7 +64,9 @@ Only when no PR exists and the user explicitly requested PR creation:
 
 ## Phase 2 — Implementation & gates
 
-Work proceeds via `implementer` and review gates (`review-fix-loop`).
+Work proceeds via `arielvalentin: implementer` when the companion
+development-workflow package is installed, or directly through the current
+orchestration owner otherwise, plus review gates (`review-fix-loop`).
 The PR remains in draft until all gates pass.
 
 ## Phase 3 — Finalize PR
@@ -123,9 +129,8 @@ Phase 3), and mirrors the commit-subject policy in `AGENTS.md`.
   current release-please configuration and pre-1.0 package versions, it
   requests a `1.0.0` major release and therefore requires explicit human
   approval.
-- Validate before creating, updating, or readying a PR title — whether
-  through the built-in `create_pull_request`/`update_pull_request` tools
-  or the `gh pr create`, `gh pr edit --title`, `gh pr ready` commands:
+- Validate before creating, updating, or readying a PR title through the
+  `gh pr create`, `gh pr edit --title`, or `gh pr ready` commands:
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
 
 ## Phase 4 — Monitor CI
@@ -141,7 +146,8 @@ gh pr checks <number> --watch --fail-fast
 gh run view <run-id> --log-failed
 ```
 - Categorize: test error, lint, build, timeout, flaky
-- Dispatch `implementer` with failure context
+- Dispatch `arielvalentin: implementer` with failure context when available;
+  otherwise keep the bounded fix with the current orchestration owner
 - Re-run affected gates, push fix, re-watch
 
 **On success:** proceed to Phase 5.
@@ -218,7 +224,6 @@ After the PR is **merged**:
 
 | Missing tool | Fallback |
 |-------------|----------|
-| `create_pull_request` (built-in) | `gh pr create --draft --title "<type>: <description>" --body "<issue ref + placeholder>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
 | `gh pr checks --watch` | `gh run watch <run-id>` |
 | `stage-pr` | Report staging unavailable |
 

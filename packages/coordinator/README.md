@@ -41,3 +41,12 @@ posting backstop.
 When personal credentials or explicit user attribution require disclosure,
 append a blank line and `> _AI Assisted._` after the supplied body. The
 disclaimer needs no username, model, or provider lookup.
+
+## Optional companion agents
+
+The coordinator package remains usable on its own. When
+`packages/development-workflow` is also installed, conditional architecture and
+implementation handoffs use `arielvalentin: system-architect` and
+`arielvalentin: implementer`. Without that companion package, the coordinator
+keeps bounded work directly. `SE: Tech Writer` is optional; when unavailable,
+requested documentation is written directly rather than failing dispatch.

@@ -86,10 +86,10 @@ Use these commands for every relevant surface:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/comments" \
-  --jq '.[] | {surface: "pr_review_comment", id, body, user: {login: .user.login, type: .user.type}}'
+  --jq '.[] | {surface: "pr_review_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/reviews" \
-  --jq '.[] | {surface: "pr_review", id, body, state, user: {login: .user.login, type: .user.type}}'
+  --jq '.[] | {surface: "pr_review", id, body, state, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 
 gh api --paginate "repos/{owner}/{repo}/issues/{issue_number}/comments" \
   --jq '.[] | {surface: "issue_or_pr_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'

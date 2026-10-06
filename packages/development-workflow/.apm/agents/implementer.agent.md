@@ -35,8 +35,29 @@ When invoked directly by the user, derive the goal and constraints from the
 request and treat `inputs.artifact_paths` as empty. Do not require a coordinator
 or an artifact for bounded work.
 
+### Direct-invocation safeguard boundary
+
+Direct invocation does not waive mandatory gates. If the request is itself a
+security/vulnerability review, unguarded public-posting action,
+destructive/irreversible operation, architecture decision, or
+agent/governance/safeguard policy change, stop and route it to the coordinator
+or named mandatory safeguard instead of claiming a complete implementation.
+For security-sensitive code implementation, make and validate only the bounded
+patch, then return
+`requires-security-review`; do not create public content or claim completion
+until the mandatory review succeeds.
+
+The guarded PR exception is explicit `create_pr: true`: when the user requested
+the PR and both `acting-on-behalf` and `pr-lifecycle` are available, enter that
+guarded draft path. Do not treat this approved path as an unguarded posting
+request.
+
 PR creation is opt-in. Read `create_pr: true|false` from the handoff
 constraints; missing means `false`.
+
+When producing a requested `gh pr create` command for a bug fix, the title must
+start with a valid type such as `fix: `; a plain title without the type prefix
+is invalid.
 
 ## Workflow
 
@@ -92,7 +113,8 @@ a useful inline response. In that case return
   codebase but are outside the current task scope, do NOT implement them.
   Instead, report them back to the coordinator with enough detail (files,
   rationale, suggested approach) for it to file a follow-up issue.
-- Never bypass user gates — the coordinator handles those.
+- Never bypass user gates. In coordinator mode the coordinator handles them;
+  in direct mode apply the safeguard boundary above and fail closed.
 - Do not launch coordinators, reviewers, or documentation agents. Return the
   bounded implementation result to the orchestration owner.
 - Never commit or push. That is the user's call.

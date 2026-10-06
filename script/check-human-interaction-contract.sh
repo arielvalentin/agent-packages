@@ -131,6 +131,12 @@ require "$policy" "REST issue/PR comment retrieval" \
   'gh api --paginate "repos/\{owner\}/\{repo\}/issues/\{issue_number\}/comments"'
 require "$policy" "canonical REST App projection field" \
   'performed_via_github_app: \.performed_via_github_app'
+require "$policy" "PR review-comment App projection" \
+  'surface: "pr_review_comment".{0,240}performed_via_github_app: \.performed_via_github_app'
+require "$policy" "PR review App projection" \
+  'surface: "pr_review".{0,240}performed_via_github_app: \.performed_via_github_app'
+require "$policy" "issue/PR comment App projection" \
+  'surface: "issue_or_pr_comment".{0,240}performed_via_github_app: \.performed_via_github_app'
 forbid "$policy" "aliased REST App projection field" \
   '(^|[,{[:space:]])app: \.performed_via_github_app'
 require "$policy" "GraphQL review-thread retrieval" \

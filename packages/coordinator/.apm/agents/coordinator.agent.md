@@ -209,10 +209,13 @@ For delegated research:
 - Synthesize once.
 - Challenge assumptions only when the decision is costly, ambiguous, or
   high-risk, or when the user asks for critique.
-- Route to `system-architect` only when an architecture deliverable is
-  requested or required by high-risk scope.
-- Route to `se-technical-writer` only when the user requests polished
+- Route to `arielvalentin: system-architect` only when the companion
+  development-workflow package is installed and an architecture deliverable is
+  requested or required by high-risk scope. Otherwise produce the bounded
+  architecture decision directly.
+- Route to an installed `SE: Tech Writer` only when the user requests polished
   documentation or the deliverable is a substantial standalone document.
+  Otherwise write the requested document directly without another agent pass.
 
 ## Artifact policy
 

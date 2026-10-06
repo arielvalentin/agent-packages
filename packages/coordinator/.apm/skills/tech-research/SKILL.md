@@ -105,8 +105,8 @@ are for judgment-heavy reviews, not fact collection.
 | Deliverable | Destination |
 |-------------|-------------|
 | Short factual answer with no durable artifact | Return inline |
-| Design or architectural decision input | `system-architect` |
-| User-requested polished documentation, report, or tutorial | `se-technical-writer` |
+| Design or architectural decision input | `arielvalentin: system-architect` when installed; otherwise return the bounded decision to the orchestration owner |
+| User-requested polished documentation, report, or tutorial | installed `SE: Tech Writer`; otherwise write it directly |
 | Large or reusable findings needed by a later handoff | Persist as a research artifact and return its path |
 
 When handing research to another agent, write the synthesized findings as an
