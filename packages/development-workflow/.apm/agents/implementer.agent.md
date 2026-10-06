@@ -50,7 +50,10 @@ until the mandatory review succeeds.
 The guarded PR exception is explicit `create_pr: true`: when the user requested
 the PR and both `acting-on-behalf` and `pr-lifecycle` are available, enter that
 guarded draft path. Do not treat this approved path as an unguarded posting
-request.
+request. This exception does not override the security-sensitive boundary
+above: when the bounded patch returns `requires-security-review`, defer draft
+PR creation even if `create_pr: true` until the mandatory security review
+succeeds.
 
 PR creation is opt-in. Read `create_pr: true|false` from the handoff
 constraints; missing means `false`.
@@ -62,9 +65,10 @@ is invalid.
 ## Workflow
 
 1. Read every supplied artifact in `inputs.artifact_paths` before touching code.
-2. **Early draft PR**: Only when `create_pr: true`, follow the `pr-lifecycle`
-   skill. Invoke `acting-on-behalf` before `pr-lifecycle` attempts any public
-   PR creation; stop if the posting safeguard is unavailable. If a draft PR
+2. **Early draft PR**: Only when `create_pr: true` and no mandatory
+   pre-publication review is pending, follow the `pr-lifecycle` skill. Invoke
+   `acting-on-behalf` before `pr-lifecycle` attempts any public PR creation;
+   stop if the posting safeguard is unavailable. If a draft PR
    does not already exist, open one with a Conventional Commits title from
    creation:
    `<type>: <description>` — a required space and a non-empty description

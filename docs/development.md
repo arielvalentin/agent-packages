@@ -70,8 +70,10 @@ When adding or changing an assertion:
 5. Add deterministic parser/schema fixtures for new enum, reference,
    precedence, or ambiguity behavior. Scenario-based Promptfoo coverage uses
    `assert-policy-route.cjs` with `assertion_id`, `expected_result`, and
-   `expected_allowed`; the model must return the exact result token. Do not ask
-   the model to read the assertion record back or infer policy from unrestricted
+   `expected_allowed`; the model must return the exact result token. Permission
+   scenarios use `assert-policy-permission.cjs` and an exact Yes/No response,
+   while still verifying the canonical result and allowed state. Do not ask the
+   model to read the assertion record back or infer policy from unrestricted
    free-form prose. If conflicting decisions are mutually exclusive, represent
    that with an existing condition group or extend the validator's reviewed
    mutually exclusive condition groups.

@@ -49,8 +49,10 @@ const expectedAssertions = new Map(
     'human-interaction.chain.incomplete': ['HUMAN_STOP', false],
     'human-interaction.existing-issue.all-bot': ['AUTOMATION_FLOW', true],
     'human-interaction.existing-issue.any-human': ['HUMAN_STOP', false],
+    'human-interaction.existing-issue.any-unknown': ['HUMAN_STOP', false],
     'human-interaction.existing-item.all-bot': ['AUTOMATION_FLOW', true],
     'human-interaction.existing-item.any-human': ['HUMAN_STOP', false],
+    'human-interaction.existing-item.any-unknown': ['HUMAN_STOP', false],
     'human-interaction.ownership.human-stop': [
       'USER_WRITES_REPLY_AND_RESOLVES',
       true,
@@ -60,29 +62,7 @@ const expectedAssertions = new Map(
 );
 const requiredIds = [...expectedAssertions.keys()];
 
-const requiredPromptfooIds = [
-  'consensus.explicit.initial-failure',
-  'consensus.explicit.panel',
-  'consensus.explicit.under-capacity',
-  'consensus.handoff.invalid',
-  'coordinator.policy.high-risk',
-  'coordinator.public.existing-item',
-  'coordinator.public.new-item',
-  'coordinator.security.explicit-vulnerability',
-  'human-interaction.actor.graphql-bot',
-  'human-interaction.actor.rest-bot',
-  'human-interaction.actor.rest-unknown',
-  'human-interaction.actor.rest-user',
-  'human-interaction.action.human-stop.draft',
-  'human-interaction.chain.any-human',
-  'human-interaction.chain.any-unknown',
-  'human-interaction.chain.incomplete',
-  'human-interaction.existing-issue.all-bot',
-  'human-interaction.existing-issue.any-human',
-  'human-interaction.existing-item.all-bot',
-  'human-interaction.existing-item.any-human',
-  'human-interaction.provenance.user-with-app',
-];
+const requiredPromptfooIds = requiredIds;
 
 const registry = loadRegistry(policyRoot);
 const { missing, unexpected } = compareRegistryIds(registry, requiredIds);
@@ -114,21 +94,30 @@ for (const [id, [expectedResult, expectedAllowed]] of expectedAssertions) {
 }
 
 const promptfoo = fs.readFileSync(promptfooConfig, 'utf8');
+const promptfooTests = promptfoo.split(/\n(?=  - description: ")/);
 for (const id of requiredPromptfooIds) {
   const [expectedResult, expectedAllowed] = expectedAssertions.get(id);
-  for (const marker of [
+  const markers = [
     `assertion_id: "${id}"`,
     `expected_result: "${expectedResult}"`,
     `expected_allowed: ${expectedAllowed}`,
-  ]) {
-    if (!promptfoo.includes(marker)) {
-      console.error(`Promptfoo is missing policy coverage marker: ${marker}`);
-      process.exit(1);
-    }
+  ];
+  const coverage = promptfooTests.find(
+    (test) =>
+      markers.every((marker) => test.includes(marker)) &&
+      /[&*]policy_(?:route|permission)/.test(test),
+  );
+  if (!coverage) {
+    console.error(`Promptfoo is missing complete scenario coverage for ${id}`);
+    process.exit(1);
   }
 }
 if (!promptfoo.includes('file://assert-policy-route.cjs')) {
   console.error('Promptfoo is missing the bounded policy route helper');
+  process.exit(1);
+}
+if (!promptfoo.includes('file://assert-policy-permission.cjs')) {
+  console.error('Promptfoo is missing the bounded policy permission helper');
   process.exit(1);
 }
 if (

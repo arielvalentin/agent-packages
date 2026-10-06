@@ -10,20 +10,22 @@ Prose explains the contract but does not redefine it.
 
 ```policy-assertions
 {"format":"policy-assertions","version":1}
-{"id":"human-interaction.actor.rest-user","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
-{"id":"human-interaction.actor.rest-bot","contract":"human-interaction.routing","actor":"rest-bot","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
-{"id":"human-interaction.actor.rest-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.missing-or-unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
-{"id":"human-interaction.actor.graphql-bot","contract":"human-interaction.routing","actor":"graphql-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
-{"id":"human-interaction.actor.graphql-non-bot","contract":"human-interaction.routing","actor":"graphql-non-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.not-bot"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
-{"id":"human-interaction.provenance.user-with-app","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["user.type.user","app.association.present"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
+{"id":"human-interaction.actor.rest-user","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.rest-bot","contract":"human-interaction.routing","actor":"rest-bot","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.actor.rest-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.missing-or-unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.graphql-bot","contract":"human-interaction.routing","actor":"graphql-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.bot","source.graphql"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.actor.graphql-non-bot","contract":"human-interaction.routing","actor":"graphql-non-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.not-bot","source.graphql"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.provenance.user-with-app","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["app.association.present","source.rest","user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
 {"id":"human-interaction.chain.all-bot","contract":"human-interaction.chain","actor":"all-bot","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.every-actor.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
 {"id":"human-interaction.chain.any-human","contract":"human-interaction.chain","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
 {"id":"human-interaction.chain.any-unknown","contract":"human-interaction.chain","actor":"unknown","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-unknown"]}
 {"id":"human-interaction.chain.incomplete","contract":"human-interaction.chain","actor":"unknown","provenance":"incomplete-chain","interaction":"public-github","action":"classify","conditions":["chain.incomplete"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
 {"id":"human-interaction.existing-item.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
 {"id":"human-interaction.existing-item.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.existing-item.any-unknown","contract":"human-interaction.existing-item","actor":"unknown","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.any-participant.unknown","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-unknown"]}
 {"id":"human-interaction.existing-issue.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
 {"id":"human-interaction.existing-issue.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.existing-issue.any-unknown","contract":"human-interaction.existing-item","actor":"unknown","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.unknown","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-unknown"]}
 {"id":"human-interaction.action.human-stop.implement","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"implement","conditions":["classification.human-stop","trigger.interaction"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
 {"id":"human-interaction.action.human-stop.draft","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"draft","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
 {"id":"human-interaction.action.human-stop.post","contract":"human-interaction.permissions","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":["human-interaction.chain.any-human"]}
@@ -46,8 +48,25 @@ Prose explains the contract but does not redefine it.
 | Incomplete chain retrieval | {{policy:human-interaction.chain.incomplete.result}} |
 | Existing item with all-Bot context | {{policy:human-interaction.existing-item.all-bot.result}} |
 | Existing item with a human participant | {{policy:human-interaction.existing-item.any-human.result}} |
+| Existing item with an unknown participant | {{policy:human-interaction.existing-item.any-unknown.result}} |
 | Existing issue with all-Bot context | {{policy:human-interaction.existing-issue.all-bot.result}} |
 | Existing issue with a human participant | {{policy:human-interaction.existing-issue.any-human.result}} |
+| Existing issue with an unknown participant | {{policy:human-interaction.existing-issue.any-unknown.result}} |
+
+| `HUMAN_STOP` decision | Authoritative result |
+|-----------------------|----------------------|
+| Interaction-triggered implementation | `PROHIBITED` ({{policy:human-interaction.action.human-stop.implement.result}}) |
+| Drafting a public response | `PROHIBITED` ({{policy:human-interaction.action.human-stop.draft.result}}) |
+| Posting a public response | `PROHIBITED` ({{policy:human-interaction.action.human-stop.post.result}}) |
+| Replying in the thread | `PROHIBITED` ({{policy:human-interaction.action.human-stop.reply.result}}) |
+| Resolving the thread | `PROHIBITED` ({{policy:human-interaction.action.human-stop.resolve.result}}) |
+| Human response ownership | `USER_WRITES_REPLY_AND_RESOLVES` ({{policy:human-interaction.ownership.human-stop.result}}) |
+
+For the agent's own resolve operation,
+`HUMAN_STOP_AGENT_RESOLVE = PROHIBITED`
+({{policy:human-interaction.action.human-stop.resolve.result}}).
+`USER_WRITES_REPLY_AND_RESOLVES` identifies human ownership; it never grants
+the agent permission to resolve.
 
 For a tainted interaction, implementation
 allowed={{policy:human-interaction.action.human-stop.implement.allowed}},

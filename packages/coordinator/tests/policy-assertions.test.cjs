@@ -7,6 +7,8 @@ const {
   compareRegistryIds,
   parsePolicyMarkdown,
 } = require('./policy-assertions.cjs');
+const assertHumanStopActions = require('./assert-human-stop-actions.cjs');
+const assertPolicyPermission = require('./assert-policy-permission.cjs');
 const assertPolicyRoute = require('./assert-policy-route.cjs');
 
 const assertion = (overrides = {}) => ({
@@ -119,6 +121,32 @@ assert.throws(
             assertion({
               id: 'test.actor.second',
               conditions: ['user.type.user', 'request.two'],
+              result: 'AUTOMATION_FLOW',
+              allowed: true,
+            }),
+          ],
+          [
+            '{{policy:test.actor.first.result}}',
+            '{{policy:test.actor.second.result}}',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'descriptive-label-conflict',
+        markdown: markdown(
+          [
+            assertion({ id: 'test.actor.first' }),
+            assertion({
+              id: 'test.actor.second',
+              actor: 'rest-bot',
+              provenance: 'graphql-author-type',
               result: 'AUTOMATION_FLOW',
               allowed: true,
             }),
@@ -364,11 +392,13 @@ const routeContext = {
   },
 };
 assert.equal(assertPolicyRoute('HUMAN_STOP', routeContext), true);
+assert.equal(assertPolicyRoute('`HUMAN_STOP`', routeContext), false);
+assert.equal(assertPolicyRoute('HUMAN_STOP.', routeContext), false);
 assert.equal(
   assertPolicyRoute('Classification: HUMAN_STOP', routeContext),
-  true,
+  false,
 );
-assert.equal(assertPolicyRoute('Route token: HUMAN_STOP', routeContext), true);
+assert.equal(assertPolicyRoute('Route token: HUMAN_STOP', routeContext), false);
 assert.equal(
   assertPolicyRoute('The prose mentions HUMAN_STOP without selecting it.', routeContext),
   false,
@@ -379,6 +409,18 @@ assert.equal(
 );
 assert.equal(
   assertPolicyRoute('HUMAN_STOP\nAUTOMATION_FLOW', routeContext),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('result: HUMAN_STOP or AUTOMATION_FLOW', routeContext),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('route token is HUMAN_STOP or AUTOMATION_FLOW', routeContext),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('HUMAN_STOP\nallowed=true', routeContext),
   false,
 );
 assert.equal(
@@ -403,6 +445,45 @@ assert.equal(
       expected_allowed: true,
     },
   }),
+  false,
+);
+
+assert.equal(assertPolicyPermission('No', routeContext), true);
+assert.equal(assertPolicyPermission('Yes', routeContext), false);
+assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext), false);
+
+assert.equal(
+  assertHumanStopActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Implement: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+  ),
+  true,
+);
+assert.equal(
+  assertHumanStopActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Implement: Yes',
+      'Reply: Yes',
+      'Resolve: Yes',
+    ].join('\n'),
+  ),
+  false,
+);
+assert.equal(
+  assertHumanStopActions(
+    [
+      'Classification: HUMAN_STOP',
+      'Classification: AUTOMATION_FLOW',
+      'Implement: No',
+      'Reply: No',
+      'Resolve: No',
+    ].join('\n'),
+  ),
   false,
 );
 

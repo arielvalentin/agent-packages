@@ -84,6 +84,7 @@ const CONDITION_PATTERN = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/;
 const REFERENCE_PATTERN = /\{\{policy:([^}]+)\}\}/g;
 const MUTUALLY_EXCLUSIVE_CONDITION_GROUPS = [
   new Set(['explicit-multi-review.true', 'explicit-multi-review.false']),
+  new Set(['source.rest', 'source.graphql']),
   new Set([
     'capacity.initial-slots.two',
     'capacity.initial-slots.less-than-two',
@@ -95,6 +96,7 @@ const MUTUALLY_EXCLUSIVE_CONDITION_GROUPS = [
   new Set(['chain.every-actor.bot', 'chain.any-actor.unknown']),
   new Set(['item.new', 'item.existing']),
   new Set(['item.all-participants.bot', 'item.any-participant.user']),
+  new Set(['item.all-participants.bot', 'item.any-participant.unknown']),
 ];
 
 class PolicyAssertionError extends Error {
@@ -404,7 +406,7 @@ function buildRegistry(documents) {
     ) {
       const left = assertions[leftIndex];
       const right = assertions[rightIndex];
-      const sameSurface = ['contract', 'actor', 'provenance', 'interaction', 'action']
+      const sameSurface = ['contract', 'interaction', 'action']
         .every((field) => left[field] === right[field]);
       if (!sameSurface) continue;
 

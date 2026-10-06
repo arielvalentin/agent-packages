@@ -416,9 +416,11 @@ for description in \
   'human-interaction: Bot root with User reply keeps response user-only' \
   'human-interaction: Bot root with unknown reply keeps response user-only' \
   'human-interaction: top-level review classifies complete existing PR' \
+  'human-interaction: unknown existing PR participant stops review flow' \
   'human-interaction: all-Bot existing PR allows top-level review flow' \
   'human-interaction: all-Bot existing issue allows top-level comment flow' \
   'human-interaction: human existing issue stops top-level comment flow' \
+  'human-interaction: unknown existing issue participant stops comment flow' \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: tainted-thread drafting is prohibited' \
@@ -455,7 +457,9 @@ for description in \
   'human-interaction: incomplete GraphQL pagination fails closed' \
   'human-interaction: Bot root with User reply taints thread' \
   'human-interaction: Bot root with unknown reply taints thread' \
-  'human-interaction: top-level review classifies complete existing PR'; do
+  'human-interaction: top-level review classifies complete existing PR' \
+  'human-interaction: unknown existing PR participant stops review flow' \
+  'human-interaction: unknown existing issue participant stops comment flow'; do
   case "$description" in
     'human-interaction: unknown actor fails closed as human'|'human-interaction: bot-like login with missing metadata fails closed')
       assertion_id='human-interaction.actor.rest-unknown'
@@ -471,6 +475,12 @@ for description in \
       ;;
     'human-interaction: top-level review classifies complete existing PR')
       assertion_id='human-interaction.existing-item.any-human'
+      ;;
+    'human-interaction: unknown existing PR participant stops review flow')
+      assertion_id='human-interaction.existing-item.any-unknown'
+      ;;
+    'human-interaction: unknown existing issue participant stops comment flow')
+      assertion_id='human-interaction.existing-issue.any-unknown'
       ;;
     'pr-lifecycle: Bot root with User reply stops action'|'human-interaction: Bot root with User reply taints thread')
       assertion_id='human-interaction.chain.any-human'

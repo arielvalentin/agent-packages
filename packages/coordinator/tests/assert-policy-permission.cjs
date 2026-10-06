@@ -6,12 +6,6 @@ const { ENUMS, loadRegistry } = require('./policy-assertions.cjs');
 const policyRoot = path.resolve(__dirname, '../.apm');
 let cachedRegistry;
 
-function exactResult(output) {
-  const text = String(output).trim();
-  if (text.includes('```') || text.includes('\n')) return null;
-  return ENUMS.result.has(text) ? text : null;
-}
-
 module.exports = (output, context) => {
   const assertionId = context?.vars?.assertion_id;
   const expectedResult = context?.vars?.expected_result;
@@ -35,5 +29,10 @@ module.exports = (output, context) => {
     return false;
   }
 
-  return exactResult(output) === expectedResult;
+  const normalized = String(output)
+    .trim()
+    .replace(/^`|`$/g, '')
+    .replace(/[.!]$/, '')
+    .toLowerCase();
+  return normalized === (expectedAllowed ? 'yes' : 'no');
 };

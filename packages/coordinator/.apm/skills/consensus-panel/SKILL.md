@@ -50,6 +50,7 @@ equivalent `explicit_multi_review=true` failures.
 | Input/state | Required result |
 |-------------|-----------------|
 | `explicit_multi_review` missing, null, string, or non-boolean | `STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}) |
+| `explicit_multi_review=false` and scope is automatic fast-path eligible | `SINGLE_1` ({{policy:consensus.automatic.single.result}}) |
 | `explicit_multi_review=false` and automatic discovery/capacity is unavailable | `ADAPTIVE_RECOVERY` ({{policy:consensus.automatic.unavailable.result}}) |
 | `explicit_multi_review=false` and one initial response remains invalid after retry | `ADAPTIVE_RECOVERY` ({{policy:consensus.automatic.initial-failure.result}}) |
 | `explicit_multi_review=true` and fewer than 2 distinct suitable initial slots | `STOP_UNAVAILABLE` ({{policy:consensus.explicit.under-capacity.result}}) |
@@ -71,11 +72,16 @@ Apply this mechanical false-control before reading the generic failure modes:
 if explicit_multi_review == false
 and (automatic capacity is unavailable
      or an initial response remains invalid after retry):
-  return ADAPTIVE_RECOVERY
+  route = ADAPTIVE_RECOVERY
+  continue into the bounded automatic recovery rules
 ```
 
 `STOP_UNAVAILABLE` in this skill's entry contract applies to those capacity or
 initial-response failures only when `explicit_multi_review=true`.
+`ADAPTIVE_RECOVERY` is an intermediate route, not a successful terminal
+verdict: dispatch without model overrides when discovery is unavailable,
+escalate an invalid initial response under the automatic failure rules, and
+still require the resulting review gate to complete before declaring success.
 
 ## Persisted explicit multi-review input
 
