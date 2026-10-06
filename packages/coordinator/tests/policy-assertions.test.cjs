@@ -126,23 +126,25 @@ for (const [name, record] of failures) {
       ]),
     PolicyAssertionError,
   );
-  for (const containerContrast of [
-    [
+}
+
+for (const containerContrast of [
+  [
       '> Route {{policy:test.actor.user.result}}.',
       '> But route AUTOMATION_FLOW now.',
-    ].join('\n'),
-    [
+  ].join('\n'),
+  [
       '- Route {{policy:test.actor.user.result}}.',
       '',
       '    But route AUTOMATION_FLOW now.',
-    ].join('\n'),
-    [
+  ].join('\n'),
+  [
       '> Route {{policy:test.actor.user.result}}.',
       '>',
       '> But route AUTOMATION_FLOW now.',
-    ].join('\n'),
-  ]) {
-    assert.throws(
+  ].join('\n'),
+]) {
+  assert.throws(
       () =>
         buildRegistry([
           {
@@ -151,8 +153,7 @@ for (const [name, record] of failures) {
           },
         ]),
       PolicyAssertionError,
-    );
-  }
+  );
 }
 
 const duplicateKey = [
@@ -222,6 +223,10 @@ for (const structuralContradiction of [
     '- Route {{policy:test.actor.user.result}}',
     '  > but AUTOMATION_FLOW after all.',
   ].join('\n'),
+  [
+    '- Route {{policy:test.actor.user.result}}',
+    '    but AUTOMATION_FLOW after all.',
+  ].join('\n'),
 ]) {
   assert.throws(
     () =>
@@ -234,6 +239,71 @@ for (const structuralContradiction of [
     PolicyAssertionError,
   );
 }
+
+const listContinuationReference = parsePolicyMarkdown(
+  markdown(
+    [assertion()],
+    [
+      '- Instruction:',
+      '    Use {{policy:test.actor.user.result}}.',
+    ].join('\n'),
+  ),
+  'list-continuation-reference',
+);
+assert.equal(listContinuationReference.references.length, 1);
+assert.equal(listContinuationReference.references[0].id, 'test.actor.user');
+for (const nestedListContinuation of [
+  [
+    '> - Instruction:',
+    '>     Use {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+  [
+    '- Outer:',
+    '  - Inner:',
+    '      Use {{policy:test.actor.user.result}}.',
+  ].join('\n'),
+]) {
+  assert.equal(
+    parsePolicyMarkdown(
+      markdown([assertion()], nestedListContinuation),
+      'nested-list-continuation-reference',
+    ).references.length,
+    1,
+  );
+}
+assert.throws(
+  () =>
+    buildRegistry([
+      {
+        source: 'unknown-list-continuation-reference',
+        markdown: markdown(
+          [assertion()],
+          [
+            '- Instruction:',
+            '    Use {{policy:test.actor.missing.result}}.',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  PolicyAssertionError,
+);
+assert.doesNotThrow(() =>
+  buildRegistry([
+    {
+      source: 'list-indented-code-example',
+      markdown: markdown(
+        [assertion()],
+        [
+          'Canonical {{policy:test.actor.user.result}}.',
+          '',
+          '- Example:',
+          '',
+          '      {{policy:test.actor.missing.result}} is example code.',
+        ].join('\n'),
+      ),
+    },
+  ]),
+);
 
 assert.throws(
   () =>

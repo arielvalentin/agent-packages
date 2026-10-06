@@ -50,7 +50,11 @@ apm install
 Coordinator routing and permission contracts use fenced
 `policy-assertions` JSON Lines records. Keep the canonical assertion in the
 skill or agent that owns the policy, then reference it from explanatory prose
-and consumers with `{{policy:<assertion-id>.<field>}}`.
+and consumers with:
+
+```text
+{{policy:<assertion-id>.<field>}}
+```
 
 When adding or changing an assertion:
 
@@ -68,8 +72,10 @@ When adding or changing an assertion:
 3. Link the owning prose and every downstream policy consumer to the canonical
    record. Register each intentional consumer path in
    `packages/coordinator/tests/policy-assertion-consumers.cjs`; model assertions
-   reject unregistered or inline consumer content. Do not copy a second
-   assertion record into a consumer.
+   reject unregistered or inline consumer content. Every literal marker in
+   repository Markdown is treated as a live consumer unless it is inside a
+   non-authoritative generic code fence, so fence documentation examples like
+   the one above. Do not copy a second assertion record into a consumer.
 4. Add the independently expected `result`, `allowed`, and contract signature
    to the manifest. The signature pins contract, actor, provenance,
    interaction, action, conditions, and precedence, so a registry edit cannot

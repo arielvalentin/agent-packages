@@ -288,6 +288,12 @@ function semanticMarkdownLine(line) {
   return semantic;
 }
 
+function listItemContentIndent(line) {
+  const unquoted = stripBlockquotePrefixes(line);
+  const match = unquoted.match(/^([ \t]*)(?:[-*+]|\d+\.)[ \t]+/);
+  return match ? match[0].replace(/\t/g, '    ').length : null;
+}
+
 function nthIndexOf(text, needle, occurrence) {
   let index = -1;
   let from = 0;
@@ -302,15 +308,17 @@ function nthIndexOf(text, needle, occurrence) {
 function listBlockEnd(lines, start) {
   const listLead = /^(?:[-*+]\s|\d+\.\s)/;
   const listContinuation = /^(?: {2,}|\t)\S/;
-  const startIndent = indentationWidth(lines[start]);
+  const startLine = stripBlockquotePrefixes(lines[start]);
+  const startIndent = indentationWidth(startLine);
+  const contentIndent = listItemContentIndent(lines[start]);
   let end = start;
   for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
-    const raw = lines[cursor];
-    const trimmed = lines[cursor].trim();
+    const raw = stripBlockquotePrefixes(lines[cursor]);
+    const trimmed = raw.trim();
     if (trimmed === '') {
       let next = cursor + 1;
       while (next < lines.length && lines[next].trim() === '') next += 1;
-      const nextLine = lines[next] || '';
+      const nextLine = stripBlockquotePrefixes(lines[next] || '');
       const nestedContainer =
         indentationWidth(nextLine) > startIndent &&
         /^(?:[-*+]\s|\d+\.\s|>)/.test(nextLine.trim());
@@ -318,7 +326,7 @@ function listBlockEnd(lines, start) {
         semanticMarkdownLine(nextLine).trim(),
       );
       const indentedCode =
-        indentationWidth(nextLine) >= startIndent + 4 &&
+        indentationWidth(nextLine) >= contentIndent + 4 &&
         !nestedContainer &&
         !explicitContrast;
       if (
@@ -349,17 +357,18 @@ function listBlockEnd(lines, start) {
 
 function logicalListSpan(lines, index) {
   const listLead = /^(?:[-*+]\s|\d+\.\s)/;
-  let containingSpan = null;
   for (let start = index; start >= 0; start -= 1) {
-    if (!listLead.test(lines[start].trim())) continue;
+    if (!listLead.test(stripBlockquotePrefixes(lines[start]).trim())) continue;
     const end = listBlockEnd(lines, start);
     if (index <= end) {
-      containingSpan = { start, end };
-      continue;
+      return {
+        start,
+        end,
+        contentIndent: listItemContentIndent(lines[start]),
+      };
     }
-    if (containingSpan) break;
   }
-  return containingSpan;
+  return null;
 }
 
 function blockquoteEnd(lines, start) {
@@ -417,15 +426,20 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const trimmedLine = line.trim();
     const containerLine = stripBlockquotePrefixes(line);
+    const listSpanForLine = logicalListSpan(lines, index);
+    const lineIndent = indentationWidth(containerLine);
     if (
-      /^(?: {4,}|\t)\S/.test(containerLine) ||
-      /^>\s{4,}\S/.test(trimmedLine)
+      (/^(?: {4,}|\t)\S/.test(containerLine) &&
+        (!listSpanForLine ||
+          lineIndent >= listSpanForLine.contentIndent + 4))
     ) {
       continue;
     }
-    const openingFence = fenceOpening(containerLine);
+    const syntacticLine = listSpanForLine
+      ? containerLine.trimStart()
+      : containerLine;
+    const openingFence = fenceOpening(syntacticLine);
     const policyFence =
       openingFence &&
       openingFence.delimiter === '`' &&
@@ -434,9 +448,10 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
     if (openingFence && !policyFence) {
       let closed = false;
       for (index += 1; index < lines.length; index += 1) {
+        const closingLine = stripBlockquotePrefixes(lines[index]);
         if (
           fenceClosing(
-            stripBlockquotePrefixes(lines[index]),
+            listSpanForLine ? closingLine.trimStart() : closingLine,
             openingFence,
           )
         ) {

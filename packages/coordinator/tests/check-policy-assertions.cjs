@@ -130,33 +130,86 @@ function parsePromptfooPolicyTests(source) {
   const tests = [];
   let itemIndent = null;
   let current = null;
+  let section = null;
+  let sectionIndent = null;
+  let sectionChildIndent = null;
+  let blockScalarIndent = null;
   for (let index = testsIndex + 1; index < lines.length; index += 1) {
     const line = lines[index];
+    const trimmed = line.trim();
+    const indent = line.length - line.trimStart().length;
+    if (blockScalarIndent !== null) {
+      if (trimmed === '' || indent > blockScalarIndent) continue;
+      blockScalarIndent = null;
+    }
+    if (
+      /:\s*[|>](?:(?:[1-9][+-]?)|(?:[+-][1-9]?))?\s*(?:#.*)?$/.test(
+        line,
+      )
+    ) {
+      blockScalarIndent = indent;
+    }
     const description = line.match(/^(\s*)-\s+description:\s*(.+)$/);
     if (description) {
-      const indent = description[1].length;
-      itemIndent ??= indent;
-      if (indent === itemIndent) {
+      const descriptionIndent = description[1].length;
+      itemIndent ??= descriptionIndent;
+      if (descriptionIndent === itemIndent) {
         current = {
           description: parseYamlScalar(description[2]),
           vars: {},
           assertions: new Set(),
         };
+        section = null;
+        sectionIndent = null;
+        sectionChildIndent = null;
         tests.push(current);
         continue;
       }
     }
     if (!current) continue;
-    const variable = line.match(
-      /^\s+(skill_content|assertion_id|expected_result|expected_allowed):\s*(.+)$/,
-    );
-    if (variable) {
-      current.vars[variable[1]] = parseYamlScalar(variable[2]);
+    if (trimmed !== '' && indent <= itemIndent) {
+      current = null;
+      section = null;
+      sectionIndent = null;
+      sectionChildIndent = null;
+      continue;
     }
-    const assertion = line.match(
-      /^\s*-\s+[&*](policy_route|policy_permission)\s*$/,
-    );
-    if (assertion) current.assertions.add(assertion[1]);
+    const sectionMatch = line.match(/^(\s*)(vars|assert):\s*$/);
+    if (sectionMatch && sectionMatch[1].length > itemIndent) {
+      section = sectionMatch[2];
+      sectionIndent = sectionMatch[1].length;
+      sectionChildIndent = null;
+      continue;
+    }
+    if (section && trimmed !== '' && indent <= sectionIndent) {
+      section = null;
+      sectionIndent = null;
+      sectionChildIndent = null;
+    }
+    if (
+      section &&
+      trimmed !== '' &&
+      !trimmed.startsWith('#') &&
+      indent > sectionIndent
+    ) {
+      sectionChildIndent ??= indent;
+    }
+    if (section === 'vars') {
+      const variable = line.match(
+        /^(\s+)(skill_content|assertion_id|expected_result|expected_allowed):\s*(.+)$/,
+      );
+      if (variable && variable[1].length === sectionChildIndent) {
+        current.vars[variable[2]] = parseYamlScalar(variable[3]);
+      }
+    }
+    if (section === 'assert') {
+      const assertion = line.match(
+        /^(\s*)-\s+[&*](policy_route|policy_permission)\s*$/,
+      );
+      if (assertion && assertion[1].length === sectionChildIndent) {
+        current.assertions.add(assertion[2]);
+      }
+    }
   }
   return tests;
 }
@@ -182,6 +235,48 @@ if (
   process.exit(1);
 }
 
+const blockScalarDecoy = parsePromptfooPolicyTests([
+  'tests:',
+  '  - description: block scalar decoy',
+  '    vars:',
+  '      user_input: |',
+  '        skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+  '        assertion_id: consensus.automatic.single',
+  '        expected_result: SINGLE_1',
+  '        expected_allowed: true',
+  '        - *policy_route',
+].join('\n'));
+if (
+  blockScalarDecoy.length !== 1 ||
+  Object.keys(blockScalarDecoy[0].vars).length !== 0 ||
+  blockScalarDecoy[0].assertions.size !== 0
+) {
+  console.error('Promptfoo policy test parser accepts block-scalar decoys');
+  process.exit(1);
+}
+
+const nestedMappingDecoy = parsePromptfooPolicyTests([
+  'tests:',
+  '  - description: nested mapping decoy',
+  '    vars:',
+  '      user_input:',
+  '        skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+  '        assertion_id: consensus.automatic.single',
+  '        expected_result: SINGLE_1',
+  '        expected_allowed: true',
+  '    assert:',
+  '      wrapper:',
+  '        - *policy_route',
+].join('\n'));
+if (
+  nestedMappingDecoy.length !== 1 ||
+  Object.keys(nestedMappingDecoy[0].vars).length !== 0 ||
+  nestedMappingDecoy[0].assertions.size !== 0
+) {
+  console.error('Promptfoo policy test parser accepts nested mapping decoys');
+  process.exit(1);
+}
+
 const registry = loadRegistry(policyRoot);
 const { missing, unexpected } = compareRegistryIds(registry, requiredIds);
 
@@ -199,13 +294,16 @@ if (missing.length > 0 || unexpected.length > 0) {
 
 function collectMarkdownFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory() && ['.git', 'node_modules'].includes(entry.name)) {
+      return [];
+    }
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) return collectMarkdownFiles(file);
     return entry.isFile() && entry.name.endsWith('.md') ? [file] : [];
   });
 }
 
-for (const file of collectMarkdownFiles(policyRoot)) {
+for (const file of collectMarkdownFiles(repositoryRoot)) {
   const consumer = `file://${path
     .relative(__dirname, file)
     .split(path.sep)

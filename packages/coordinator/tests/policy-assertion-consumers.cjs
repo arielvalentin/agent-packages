@@ -29,6 +29,7 @@ const EXTRA_CONSUMERS = {
     'file://../.apm/skills/pr-review-protocol/SKILL.md',
   ],
   'human-interaction.chain.any-human': [
+    'file://../README.md',
     'file://../.apm/skills/acting-on-behalf/SKILL.md',
     'file://../.apm/skills/pr-feedback-review/SKILL.md',
     'file://../.apm/skills/pr-lifecycle/SKILL.md',
