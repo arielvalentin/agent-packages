@@ -45,7 +45,8 @@ require_test_assert() {
     in_case && /- description: "/ { in_case = 0 }
     in_case && /^[[:space:]]+assert:/ { has_assert = 1 }
     in_case && /^[[:space:]]+value:/ { has_value = 1 }
-    END { exit !(found && has_assert && has_value) }
+    in_case && /\*human_stop_exclusive/ { has_shared_assert = 1 }
+    END { exit !(found && has_assert && (has_value || has_shared_assert)) }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks a non-empty assertion block: $desc"
     errors=$((errors + 1))
@@ -54,14 +55,17 @@ require_test_assert() {
 
 require_test_exact_token() {
   local desc="$1" token="$2" direct="^$2[.!]?$" strict="v === '$2'"
-  if ! awk -v desc="$desc" -v direct="$direct" -v strict="$strict" '
+  if ! awk -v desc="$desc" -v token="$token" -v direct="$direct" -v strict="$strict" '
     index($0, "description: \"" desc "\"") { found = 1; in_case = 1 }
     in_case && found && /- description: "/ && index($0, "description: \"" desc "\"") == 0 { in_case = 0 }
     in_case { block = block $0 "\n" }
     END {
       direct_ok = index(block, direct) > 0
-      strict_ok = index(block, "selected.every") > 0 && index(block, strict) > 0
-      exit !(found && (direct_ok || strict_ok))
+      strict_ok = index(block, "selected.length > 0") > 0 \
+        && index(block, "selected.every") > 0 \
+        && index(block, strict) > 0
+      shared_ok = token == "HUMAN_STOP" && index(block, "*human_stop_exclusive") > 0
+      exit !(found && (direct_ok || strict_ok || shared_ok))
     }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks exclusive $token assertion: $desc"
@@ -221,6 +225,10 @@ require "$policy" "top-level existing-item content gate" \
   'Every comment or review posted on an existing PR or issue invokes this safeguard'
 require "$policy" "complete existing-item classification unit" \
   'PR or issue author plus all existing PR reviews, inline review comments and threads, and issue/PR comments'
+require "$root/packages/coordinator/README.md" "README authoritative Bot classification" \
+  'authoritative Bot actor metadata may continue'
+require "$root/packages/coordinator/README.md" "README App metadata non-override" \
+  'GitHub App association alone never overrides a User or unknown actor classification'
 
 # --- No reply/resolve override and no interaction-initiated-change loophole ---
 forbid "$policy" "HUMAN_STOP override" \
@@ -352,6 +360,12 @@ assert_eq "HUMAN_STOP" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"pull_request","user":{"type":"User"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}}]}' | classify_chain)" \
   "top-level review with human PR author"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"pull_request","user":{"type":"Bot"}},{"surface":"pr_review","user":{"type":"Bot"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "all-Bot existing PR context"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"issue","user":{"type":"Bot"}},{"surface":"issue_or_pr_comment","user":{"type":"Bot"}}]}' | classify_chain)" \
+  "all-Bot existing issue context"
 
 # --- Deterministic nested-pagination fixtures ---
 assert_eq "READY_FOR_CLASSIFICATION" \
@@ -383,6 +397,8 @@ for description in \
   'human-interaction: Bot root with User reply keeps response user-only' \
   'human-interaction: Bot root with unknown reply keeps response user-only' \
   'human-interaction: top-level review classifies complete existing PR' \
+  'human-interaction: all-Bot existing PR allows top-level review flow' \
+  'human-interaction: all-Bot existing issue allows top-level comment flow' \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
@@ -393,6 +409,17 @@ for description in \
   require "$tests" "Promptfoo regression: $description" "$description"
   require_test_assert "$description"
 done
+
+require "$tests" "shared HUMAN_STOP assertion anchor" \
+  '&human_stop_exclusive'
+require "$tests" "shared HUMAN_STOP assertion requires a selected result" \
+  'selected\.length > 0 && selected\.every\(v => v === .HUMAN_STOP.\)'
+require "$tests" "shared HUMAN_STOP assertion rejects automation token" \
+  '!/\\\\bAUTOMATION_FLOW\\\\b/i\.test\(s\)'
+require "$tests" "shared HUMAN_STOP assertion rejects agent action permission" \
+  '!permitsAgentAction'
+forbid "$tests" "last-match HUMAN_STOP assertions" \
+  "lastIndexOf\\('HUMAN_STOP'\\)"
 
 for description in \
   'human-interaction: human directive does not trigger automatic implementation' \
@@ -409,6 +436,13 @@ for description in \
   'human-interaction: top-level review classifies complete existing PR'; do
   require_test_exact_token "$description" "HUMAN_STOP"
 done
+
+require_test_exact_token \
+  'human-interaction: all-Bot existing PR allows top-level review flow' \
+  'AUTOMATION_FLOW'
+require_test_exact_token \
+  'human-interaction: all-Bot existing issue allows top-level comment flow' \
+  'AUTOMATION_FLOW'
 
 if [[ $errors -gt 0 ]]; then
   echo ""

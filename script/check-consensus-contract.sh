@@ -72,7 +72,9 @@ require_test_exact_token() {
     in_case { block = block $0 "\n" }
     END {
       direct_ok = index(block, direct) > 0
-      strict_ok = index(block, "selected.every") > 0 && index(block, strict) > 0
+      strict_ok = index(block, "selected.length > 0") > 0 \
+        && index(block, "selected.every") > 0 \
+        && index(block, strict) > 0
       exit !(found && (direct_ok || strict_ok))
     }
   ' "$tests"; then
