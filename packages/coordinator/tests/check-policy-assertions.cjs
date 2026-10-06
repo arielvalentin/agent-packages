@@ -6,6 +6,7 @@ const {
   assertionContractSignature,
   compareRegistryIds,
   loadRegistry,
+  parsePolicyMarkdown,
 } = require('./policy-assertions.cjs');
 const {
   allowedPolicyConsumers,
@@ -109,6 +110,78 @@ const requiredIds = [...expectedAssertions.keys()];
 
 const requiredPromptfooIds = requiredIds;
 
+function parseYamlScalar(value) {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  return trimmed;
+}
+
+function parsePromptfooPolicyTests(source) {
+  const lines = source.split(/\r?\n/);
+  const testsIndex = lines.findIndex((line) => /^tests:\s*$/.test(line));
+  if (testsIndex < 0) return [];
+  const tests = [];
+  let itemIndent = null;
+  let current = null;
+  for (let index = testsIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    const description = line.match(/^(\s*)-\s+description:\s*(.+)$/);
+    if (description) {
+      const indent = description[1].length;
+      itemIndent ??= indent;
+      if (indent === itemIndent) {
+        current = {
+          description: parseYamlScalar(description[2]),
+          vars: {},
+          assertions: new Set(),
+        };
+        tests.push(current);
+        continue;
+      }
+    }
+    if (!current) continue;
+    const variable = line.match(
+      /^\s+(skill_content|assertion_id|expected_result|expected_allowed):\s*(.+)$/,
+    );
+    if (variable) {
+      current.vars[variable[1]] = parseYamlScalar(variable[2]);
+    }
+    const assertion = line.match(
+      /^\s*-\s+[&*](policy_route|policy_permission)\s*$/,
+    );
+    if (assertion) current.assertions.add(assertion[1]);
+  }
+  return tests;
+}
+
+const parserFixture = parsePromptfooPolicyTests([
+  'tests:',
+  "    - description: 'alternate formatting'",
+  '      vars:',
+  '        skill_content: file://../.apm/skills/consensus-panel/SKILL.md',
+  "        assertion_id: 'consensus.automatic.single'",
+  "        expected_result: 'SINGLE_1'",
+  '        expected_allowed: true',
+  '      assert:',
+  '        - *policy_route',
+].join('\n'));
+if (
+  parserFixture.length !== 1 ||
+  parserFixture[0].description !== 'alternate formatting' ||
+  parserFixture[0].vars.assertion_id !== 'consensus.automatic.single' ||
+  !parserFixture[0].assertions.has('policy_route')
+) {
+  console.error('Promptfoo policy test parser is formatting-sensitive');
+  process.exit(1);
+}
+
 const registry = loadRegistry(policyRoot);
 const { missing, unexpected } = compareRegistryIds(registry, requiredIds);
 
@@ -122,6 +195,33 @@ if (missing.length > 0 || unexpected.length > 0) {
     );
   }
   process.exit(1);
+}
+
+function collectMarkdownFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) return collectMarkdownFiles(file);
+    return entry.isFile() && entry.name.endsWith('.md') ? [file] : [];
+  });
+}
+
+for (const file of collectMarkdownFiles(policyRoot)) {
+  const consumer = `file://${path
+    .relative(__dirname, file)
+    .split(path.sep)
+    .join('/')}`;
+  const { references } = parsePolicyMarkdown(
+    fs.readFileSync(file, 'utf8'),
+    file,
+  );
+  for (const reference of references) {
+    if (!allowedPolicyConsumers(reference.id).has(consumer)) {
+      console.error(
+        `Unregistered policy consumer: ${reference.id} -> ${consumer}`,
+      );
+      process.exit(1);
+    }
+  }
 }
 
 for (const [id, [expectedResult, expectedAllowed]] of expectedAssertions) {
@@ -147,21 +247,16 @@ for (const [id, [expectedResult, expectedAllowed]] of expectedAssertions) {
 }
 
 const promptfoo = fs.readFileSync(promptfooConfig, 'utf8');
-const promptfooTests = promptfoo.split(/\n(?=  - description: ")/);
+const promptfooTests = parsePromptfooPolicyTests(promptfoo);
 for (const id of requiredPromptfooIds) {
   const [expectedResult, expectedAllowed] = expectedAssertions.get(id);
-  const markers = [
-    `assertion_id: "${id}"`,
-    `expected_result: "${expectedResult}"`,
-    `expected_allowed: ${expectedAllowed}`,
-  ];
   const coverage = promptfooTests.find(
     (test) =>
-      markers.every((marker) => test.includes(marker)) &&
-      /[&*]policy_(?:route|permission)/.test(test) &&
-      [...allowedPolicyConsumers(id)].some((consumer) =>
-        test.includes(`skill_content: ${consumer}`),
-      ),
+      test.vars.assertion_id === id &&
+      test.vars.expected_result === expectedResult &&
+      test.vars.expected_allowed === expectedAllowed &&
+      test.assertions.size > 0 &&
+      allowedPolicyConsumers(id).has(test.vars.skill_content),
   );
   if (!coverage) {
     console.error(`Promptfoo is missing complete scenario coverage for ${id}`);
@@ -169,9 +264,9 @@ for (const id of requiredPromptfooIds) {
   }
 }
 for (const test of promptfooTests) {
-  if (!/[&*]policy_(?:route|permission)/.test(test)) continue;
-  const assertionId = test.match(/assertion_id: "([^"]+)"/)?.[1];
-  const consumer = test.match(/skill_content: (file:\/\/\S+)/)?.[1];
+  if (test.assertions.size === 0) continue;
+  const assertionId = test.vars.assertion_id;
+  const consumer = test.vars.skill_content;
   if (
     !assertionId ||
     !consumer ||

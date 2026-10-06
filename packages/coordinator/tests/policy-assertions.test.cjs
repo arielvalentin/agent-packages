@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   PolicyAssertionError,
   assertionContractSignature,
@@ -124,6 +126,33 @@ for (const [name, record] of failures) {
       ]),
     PolicyAssertionError,
   );
+  for (const containerContrast of [
+    [
+      '> Route {{policy:test.actor.user.result}}.',
+      '> But route AUTOMATION_FLOW now.',
+    ].join('\n'),
+    [
+      '- Route {{policy:test.actor.user.result}}.',
+      '',
+      '    But route AUTOMATION_FLOW now.',
+    ].join('\n'),
+    [
+      '> Route {{policy:test.actor.user.result}}.',
+      '>',
+      '> But route AUTOMATION_FLOW now.',
+    ].join('\n'),
+  ]) {
+    assert.throws(
+      () =>
+        buildRegistry([
+          {
+            source: 'container-contrast',
+            markdown: markdown([assertion()], containerContrast),
+          },
+        ]),
+      PolicyAssertionError,
+    );
+  }
 }
 
 const duplicateKey = [
@@ -235,6 +264,49 @@ assert.doesNotThrow(() =>
       },
   ]),
 );
+for (const containerFence of [
+  [
+    '- Example:',
+    '  ```policy-assertions',
+    '  {"format":"policy-assertions","version":1}',
+    `  ${JSON.stringify(assertion({ id: 'test.actor.example' }))}`,
+    '  ```',
+  ],
+  [
+    '- Example:',
+    '    ```policy-assertions',
+    '    {"format":"policy-assertions","version":1}',
+    `    ${JSON.stringify(assertion({ id: 'test.actor.example' }))}`,
+    '    ```',
+  ],
+  [
+    '> ```text',
+    '> AUTOMATION_FLOW {{policy:test.actor.user.result}}.',
+    '> ```',
+  ],
+  [
+    '- Example:',
+    '  > ```policy-assertions',
+    '  > {"format":"policy-assertions","version":1}',
+    `  > ${JSON.stringify(assertion({ id: 'test.actor.example' }))}`,
+    '  > ```',
+  ],
+]) {
+  assert.doesNotThrow(() =>
+    buildRegistry([
+      {
+        source: 'container-fence-example',
+        markdown: markdown(
+          [assertion()],
+          [
+            ...containerFence,
+            'Canonical {{policy:test.actor.user.result}}.',
+          ].join('\n'),
+        ),
+      },
+    ]),
+  );
+}
 assert.doesNotThrow(() =>
   buildRegistry([
       {
@@ -718,6 +790,12 @@ const routeContext = {
     skill_content:
       'file://../.apm/skills/human-interaction-safeguard/SKILL.md',
   },
+  test: {
+    vars: {
+      skill_content:
+        'file://../.apm/skills/human-interaction-safeguard/SKILL.md',
+    },
+  },
 };
 assert.equal(assertPolicyRoute('HUMAN_STOP', routeContext), true);
 assert.equal(assertPolicyRoute(' HUMAN_STOP', routeContext), false);
@@ -764,6 +842,26 @@ assert.equal(
       assertion_id: 'human-interaction.actor.rest-user',
       expected_result: 'AUTOMATION_FLOW',
       expected_allowed: false,
+    },
+  }),
+  false,
+);
+assert.equal(
+  assertPolicyRoute('HUMAN_STOP', {
+    vars: {
+      ...routeContext.vars,
+      skill_content: fs.readFileSync(
+        path.resolve(
+          __dirname,
+          '../.apm/skills/human-interaction-safeguard/SKILL.md',
+        ),
+        'utf8',
+      ),
+    },
+    test: {
+      vars: {
+        skill_content: 'inline copied content',
+      },
     },
   }),
   false,

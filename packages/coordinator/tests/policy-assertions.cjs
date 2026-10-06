@@ -272,6 +272,33 @@ function indentationWidth(line) {
   return indentation.replace(/\t/g, '    ').length;
 }
 
+function stripBlockquotePrefixes(line) {
+  let stripped = line;
+  while (/^ {0,3}>\s?/.test(stripped)) {
+    stripped = stripped.replace(/^ {0,3}>\s?/, '');
+  }
+  return stripped;
+}
+
+function semanticMarkdownLine(line) {
+  let semantic = stripBlockquotePrefixes(line);
+  while (/^\s*(?:[-*+]|\d+\.)\s+/.test(semantic)) {
+    semantic = semantic.replace(/^\s*(?:[-*+]|\d+\.)\s+/, '');
+  }
+  return semantic;
+}
+
+function nthIndexOf(text, needle, occurrence) {
+  let index = -1;
+  let from = 0;
+  for (let count = 0; count <= occurrence; count += 1) {
+    index = text.indexOf(needle, from);
+    if (index < 0) return -1;
+    from = index + needle.length;
+  }
+  return index;
+}
+
 function listBlockEnd(lines, start) {
   const listLead = /^(?:[-*+]\s|\d+\.\s)/;
   const listContinuation = /^(?: {2,}|\t)\S/;
@@ -287,8 +314,13 @@ function listBlockEnd(lines, start) {
       const nestedContainer =
         indentationWidth(nextLine) > startIndent &&
         /^(?:[-*+]\s|\d+\.\s|>)/.test(nextLine.trim());
+      const explicitContrast = /^(?:But|However|Instead|Yet)\b/i.test(
+        semanticMarkdownLine(nextLine).trim(),
+      );
       const indentedCode =
-        indentationWidth(nextLine) >= startIndent + 4 && !nestedContainer;
+        indentationWidth(nextLine) >= startIndent + 4 &&
+        !nestedContainer &&
+        !explicitContrast;
       if (
         next < lines.length &&
         listContinuation.test(nextLine) &&
@@ -335,9 +367,23 @@ function blockquoteEnd(lines, start) {
   let end = start;
   for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
     const trimmed = lines[cursor].trim();
+    if (trimmed === '>') {
+      let next = cursor + 1;
+      while (next < lines.length && lines[next].trim() === '>') next += 1;
+      if (
+        next < lines.length &&
+        /^(?:But|However|Instead|Yet)\b/i.test(
+          semanticMarkdownLine(lines[next]).trim(),
+        )
+      ) {
+        end = next;
+        cursor = next;
+        continue;
+      }
+      break;
+    }
     if (
       trimmed === '' ||
-      trimmed === '>' ||
       /^>\s{4,}\S/.test(trimmed) ||
       listLead.test(trimmed) ||
       /^(?:```|~~~|#{1,6}\s|[|])/.test(trimmed)
@@ -372,19 +418,28 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const trimmedLine = line.trim();
-    if (/^(?: {4,}|\t)\S/.test(line) || /^>\s{4,}\S/.test(trimmedLine)) {
+    const containerLine = stripBlockquotePrefixes(line);
+    if (
+      /^(?: {4,}|\t)\S/.test(containerLine) ||
+      /^>\s{4,}\S/.test(trimmedLine)
+    ) {
       continue;
     }
-    const openingFence = fenceOpening(line);
+    const openingFence = fenceOpening(containerLine);
     const policyFence =
       openingFence &&
       openingFence.delimiter === '`' &&
       openingFence.length === 3 &&
-      trimmedLine === '```policy-assertions';
+      line === '```policy-assertions';
     if (openingFence && !policyFence) {
       let closed = false;
       for (index += 1; index < lines.length; index += 1) {
-        if (fenceClosing(lines[index], openingFence)) {
+        if (
+          fenceClosing(
+            stripBlockquotePrefixes(lines[index]),
+            openingFence,
+          )
+        ) {
           closed = true;
           break;
         }
@@ -434,12 +489,22 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
           paragraphEnd += 1;
         }
       }
-      const paragraph = lines.slice(paragraphStart, paragraphEnd + 1).join(' ');
+      const paragraph = lines
+        .slice(paragraphStart, paragraphEnd + 1)
+        .map(semanticMarkdownLine)
+        .join(' ');
+      const markerOccurrence =
+        line.slice(0, match.index).split(match[0]).length - 1;
       const markerIndex =
         lines
           .slice(paragraphStart, index)
+          .map(semanticMarkdownLine)
           .reduce((offset, paragraphLine) => offset + paragraphLine.length + 1, 0) +
-        match.index;
+        nthIndexOf(
+          semanticMarkdownLine(line),
+          match[0],
+          markerOccurrence,
+        );
       const beforeMarker = paragraph.slice(0, markerIndex);
       const afterMarker = paragraph.slice(markerIndex + match[0].length);
       let sentenceStart = 0;
@@ -747,39 +812,40 @@ function loadRegistry(directory) {
   return buildRegistry(documents);
 }
 
-function assertionBoundToSkillContent(skillContent, assertionId, field) {
+function assertionBoundToSkillContent(
+  skillContent,
+  assertionId,
+  field,
+  consumerPath,
+) {
   if (
     typeof skillContent !== 'string' ||
     typeof assertionId !== 'string' ||
-    !REFERENCE_FIELDS.has(field)
+    !REFERENCE_FIELDS.has(field) ||
+    typeof consumerPath !== 'string'
   ) {
     return false;
   }
   const allowedConsumers = allowedPolicyConsumers(assertionId);
+  if (!allowedConsumers.has(consumerPath)) return false;
   let content = skillContent;
+  const file = path.resolve(
+    __dirname,
+    consumerPath.slice('file://'.length),
+  );
+  const policyRoot = path.resolve(__dirname, '../.apm');
+  if (
+    !file.startsWith(`${policyRoot}${path.sep}`) ||
+    !fs.existsSync(file)
+  ) {
+    return false;
+  }
+  const fileContent = fs.readFileSync(file, 'utf8');
   if (content.startsWith('file://')) {
-    if (!allowedConsumers.has(content)) return false;
-    const file = path.resolve(__dirname, content.slice('file://'.length));
-    const policyRoot = path.resolve(__dirname, '../.apm');
-    if (
-      !file.startsWith(`${policyRoot}${path.sep}`) ||
-      !fs.existsSync(file)
-    ) {
-      return false;
-    }
-    content = fs.readFileSync(file, 'utf8');
-  } else {
-    const matchesApprovedConsumer = [...allowedConsumers].some((consumer) => {
-      const file = path.resolve(
-        __dirname,
-        consumer.slice('file://'.length),
-      );
-      return (
-        fs.existsSync(file) &&
-        fs.readFileSync(file, 'utf8').trimEnd() === content.trimEnd()
-      );
-    });
-    if (!matchesApprovedConsumer) return false;
+    if (content !== consumerPath) return false;
+    content = fileContent;
+  } else if (fileContent.trimEnd() !== content.trimEnd()) {
+    return false;
   }
   try {
     const parsed = parsePolicyMarkdown(content, 'assertion-bound skill content');

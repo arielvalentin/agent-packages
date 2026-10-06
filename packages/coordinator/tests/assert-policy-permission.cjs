@@ -15,12 +15,18 @@ module.exports = (output, context) => {
   const expectedResult = context?.vars?.expected_result;
   const expectedAllowed = context?.vars?.expected_allowed;
   const skillContent = context?.vars?.skill_content;
+  const consumerPath = context?.test?.vars?.skill_content;
 
   if (
     typeof assertionId !== 'string' ||
     !ENUMS.result.has(expectedResult) ||
     typeof expectedAllowed !== 'boolean' ||
-    !assertionBoundToSkillContent(skillContent, assertionId, 'allowed')
+    !assertionBoundToSkillContent(
+      skillContent,
+      assertionId,
+      'allowed',
+      consumerPath,
+    )
   ) {
     return false;
   }
