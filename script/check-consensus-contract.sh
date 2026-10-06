@@ -280,6 +280,8 @@ require "$panel" "explicit panel stopping before tiebreak salvage" \
   'return `STOP_UNAVAILABLE`.{0,120}do not replace it, dispatch the tiebreaker'
 require "$panel" "automatic panel retaining adaptive recovery" \
   'EXPLICIT_MULTI_REVIEW=false` with fewer than 2 valid initial responses.{0,100}`ADAPTIVE_RECOVERY`'
+require "$panel" "automatic unavailable decision row" \
+  'explicit_multi_review=false` and automatic discovery/capacity is unavailable.{0,80}`ADAPTIVE_RECOVERY`'
 require "$panel" "single envelope propagating explicit false" \
   'set `explicit_multi_review: false` and `consensus_role: single`'
 require "$panel" "panel envelopes propagating persisted explicit state" \
@@ -356,6 +358,10 @@ require "$agent" "five-call prohibition limited to routine ungated work" \
   'Delegate routine ungated work finishable with roughly five direct tool calls'
 require "$agent" "coordinator review handoff checklist requires explicit state" \
   'Required `explicit_multi_review: true\|false` on every review handoff'
+require "$agent" "top-level public content not misclassified as an interaction" \
+  'New top-level PRs, issues, and PR reviews have no existing interaction chain'
+require "$agent" "existing interaction replies retain human safeguard" \
+  'reply to an existing public GitHub interaction.{0,100}`human-interaction-safeguard`'
 require "$loop" "review loop examples propagate true" \
   'explicit_multi_review: true'
 require "$loop" "review loop examples propagate false" \
@@ -403,7 +409,11 @@ for description in \
   'consensus-panel: initial envelope propagates true' \
   'consensus-panel: retry envelope preserves true' \
   'consensus-panel: tiebreak envelope stays panel member' \
-  'consensus-panel: automatic discovery fallback omits model overrides'; do
+  'consensus-panel: automatic discovery fallback omits model overrides' \
+  'coordinator: new PR uses top-level posting gate' \
+  'coordinator: new issue uses top-level posting gate' \
+  'coordinator: top-level PR review uses posting gate' \
+  'coordinator: existing unknown reply remains human stop'; do
   require "$tests" "Promptfoo regression: $description" "$description"
   require_test_assert "$description"
 done
@@ -422,6 +432,14 @@ require_test_exact_token \
   'consensus-panel: explicit failed initial dispatch stops unavailable' 'STOP_UNAVAILABLE'
 require_test_exact_token \
   'coordinator: missing explicit review field rejects handoff' 'STOP_INVALID_HANDOFF'
+require_test_exact_token \
+  'coordinator: missing panel stops explicit consensus' 'STOP_UNAVAILABLE'
+require_test_exact_token \
+  'coordinator: failed panel load stops literal panel review' 'STOP_UNAVAILABLE'
+require_test_exact_token \
+  'review-fix-loop: failed panel dispatch stops independent verdicts' 'STOP_UNAVAILABLE'
+require_test_exact_token \
+  'adversarial-review: insufficient panel stops multi-reviewer request' 'STOP_UNAVAILABLE'
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \

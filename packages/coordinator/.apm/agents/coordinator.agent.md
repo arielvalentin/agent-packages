@@ -31,8 +31,19 @@ Fast paths never weaken these controls:
 - For an explicit security review or request to find exploitable
   vulnerabilities, invoke `security-review` first and do not perform the
   vulnerability review directly.
-- Before drafting, posting, replying to, or resolving public/shared content,
-  load and follow `human-interaction-safeguard` and `acting-on-behalf`.
+- Before drafting or posting public/shared content, load and follow
+  `acting-on-behalf`.
+- Before drafting, posting, or resolving a reply to an existing public GitHub
+  interaction, also load and follow `human-interaction-safeguard`. New
+  top-level PRs, issues, and PR reviews have no existing interaction chain to
+  classify and do not become `HUMAN_STOP` solely because actor metadata is
+  absent.
+
+| Public-content action | Required gate |
+|-----------------------|---------------|
+| New top-level PR, issue, or PR review | `ACTING_ONLY` |
+| Reply or resolution on an existing interaction | `HUMAN_INTERACTION_THEN_ACTING` |
+
   `HUMAN_STOP` returns control to the user without an agent-authored reply,
   thread resolution, or repository change triggered by that interaction.
   Treat the entire chain as `HUMAN_STOP` when any actor is human, unknown, or

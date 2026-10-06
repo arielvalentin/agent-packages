@@ -1027,7 +1027,7 @@ tests:
       user_input: "consensus-panel is unavailable and the user explicitly requested consensus. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
     assert:
       - type: javascript
-        value: "const l = output.trim().toUpperCase().replace(/[*#]/g, '').split(String.fromCharCode(96)).join(''); l === 'STOP_UNAVAILABLE'"
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:answer|response|fallback token|choose|return|correct fallback token)\\s*(?:is|:)?\\s*(STOP_UNAVAILABLE|SINGLE_1)/i); d === 'STOP_UNAVAILABLE' || (m && m[1].toUpperCase() === 'STOP_UNAVAILABLE')"
 
   - description: "coordinator: failed panel load stops literal panel review"
     vars:
@@ -1035,7 +1035,7 @@ tests:
       user_input: "consensus-panel fails to load and the user literally requested a panel review. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
     assert:
       - type: javascript
-        value: "const l = output.trim().toUpperCase().replace(/[*#]/g, '').split(String.fromCharCode(96)).join(''); l === 'STOP_UNAVAILABLE'"
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:answer|response|fallback token|choose|return|correct fallback token)\\s*(?:is|:)?\\s*(STOP_UNAVAILABLE|SINGLE_1)/i); d === 'STOP_UNAVAILABLE' || (m && m[1].toUpperCase() === 'STOP_UNAVAILABLE')"
 
   - description: "review-fix-loop: failed panel dispatch stops independent verdicts"
     vars:
@@ -1043,7 +1043,7 @@ tests:
       user_input: "The persisted explicit_multi_review field is true because the user requested multiple independent verdicts. consensus-panel dispatch fails. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
     assert:
       - type: javascript
-        value: "const l = output; /(?:Response|answer|token)\\s*(?:is|:)?\\s*STOP_UNAVAILABLE/i.test(l) || /^\\s*STOP_UNAVAILABLE\\s*$/i.test(l)"
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:answer|response|token|choose(?: the token)?|return|fail closed as|correct action)\\s*(?:is)?\\s*:?\\s*(STOP_UNAVAILABLE|SINGLE_1)/i); d === 'STOP_UNAVAILABLE' || (m && m[1].toUpperCase() === 'STOP_UNAVAILABLE')"
 
   - description: "adversarial-review: insufficient panel stops multi-reviewer request"
     vars:
@@ -1051,7 +1051,7 @@ tests:
       user_input: "Review handoff: {\"explicit_multi_review\": true}. For this multi-reviewer adversarial review, consensus-panel cannot produce two initial reviewers. Choose exactly one fallback token: STOP_UNAVAILABLE or SINGLE_1."
     assert:
       - type: javascript
-        value: "const l = output; /(?:Response|answer|token)\\s*(?:is|:)?\\s*STOP_UNAVAILABLE/i.test(l) || /^\\s*STOP_UNAVAILABLE\\s*$/i.test(l)"
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:answer|response|token|choose(?: the token)?|return|fail closed as|correct action)\\s*(?:is)?\\s*:?\\s*(STOP_UNAVAILABLE|SINGLE_1)/i); d === 'STOP_UNAVAILABLE' || (m && m[1].toUpperCase() === 'STOP_UNAVAILABLE')"
 
   - description: "coordinator: missing panel allows routine bounded fallback"
     vars:
@@ -1080,7 +1080,7 @@ tests:
   - description: "consensus-panel: automatic under-capacity keeps bounded recovery"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "What is the exact value of AUTOMATIC_FALSE_FALLBACK? Return only the token."
+      user_input: "Scenario: explicit_multi_review=false and automatic discovery or capacity is unavailable. The contract maps this scenario to AUTOMATIC_FALSE_FALLBACK. What exact token does that equal? Return only the token."
     assert:
       - type: javascript
         value: "const l = output.trim().toUpperCase().replace(/[*#]/g, '').split(String.fromCharCode(96)).join('').replace(/[.!]$/, ''); l === 'ADAPTIVE_RECOVERY'"
@@ -1212,6 +1212,38 @@ tests:
     assert:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+
+  - description: "coordinator: new PR uses top-level posting gate"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "From the Public-content action table, return only the Required gate for a new top-level PR."
+    assert:
+      - type: javascript
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:required gate|gate|answer|response)\\s*(?:is)?\\s*:?\\s*(ACTING_ONLY|HUMAN_STOP)/i); d === 'ACTING_ONLY' || (m && m[1].toUpperCase() === 'ACTING_ONLY')"
+
+  - description: "coordinator: new issue uses top-level posting gate"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "From the Public-content action table, return only the Required gate for a new top-level issue."
+    assert:
+      - type: javascript
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:required gate|gate|answer|response)\\s*(?:is)?\\s*:?\\s*(ACTING_ONLY|HUMAN_STOP)/i); d === 'ACTING_ONLY' || (m && m[1].toUpperCase() === 'ACTING_ONLY')"
+
+  - description: "coordinator: top-level PR review uses posting gate"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "From the Public-content action table, return only the Required gate for a new top-level PR review."
+    assert:
+      - type: javascript
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:required gate|gate|answer|response)\\s*(?:is)?\\s*:?\\s*(ACTING_ONLY|HUMAN_STOP)/i); d === 'ACTING_ONLY' || (m && m[1].toUpperCase() === 'ACTING_ONLY')"
+
+  - description: "coordinator: existing unknown reply remains human stop"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "A reply targets an existing public GitHub interaction whose actor metadata is missing. Choose exactly one gate token: ACTING_ONLY or HUMAN_STOP."
+    assert:
+      - type: javascript
+        value: "const s = output.split(String.fromCharCode(96)).join(''); const d = s.trim().toUpperCase().replace(/[.!]$/, ''); const m = s.match(/(?:gate token|invoke(?: the)?|answer|response)\\s*(?:is|:)?\\s*(ACTING_ONLY|HUMAN_STOP)/i); d === 'HUMAN_STOP' || (m && m[1].toUpperCase() === 'HUMAN_STOP')"
 
   - description: "consensus-panel: policy markdown is not fast-path exempt"
     vars:
