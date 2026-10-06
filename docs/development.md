@@ -74,8 +74,10 @@ When adding or changing an assertion:
    `packages/coordinator/tests/policy-assertion-consumers.cjs`; model assertions
    reject unregistered or inline consumer content. Every literal marker in
    repository Markdown is treated as a live consumer unless it is inside a
-   non-authoritative generic code fence, so fence documentation examples like
-   the one above. Do not copy a second assertion record into a consumer.
+   Markdown code block identified by `markdown-it`, so fence documentation
+   examples like the one above. List, blockquote, and paragraph continuations
+   remain live prose unless the Markdown AST classifies them as code. Do not
+   copy a second assertion record into a consumer.
 4. Add the independently expected `result`, `allowed`, and contract signature
    to the manifest. The signature pins contract, actor, provenance,
    interaction, action, conditions, and precedence, so a registry edit cannot

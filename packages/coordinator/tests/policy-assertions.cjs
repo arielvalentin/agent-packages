@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const MarkdownIt = require('markdown-it');
 const {
   allowedPolicyConsumers,
 } = require('./policy-assertion-consumers.cjs');
@@ -108,6 +109,11 @@ const MUTUALLY_EXCLUSIVE_CONDITION_GROUPS = [
   new Set(['item.all-participants.bot', 'item.any-participant.user']),
   new Set(['item.all-participants.bot', 'item.any-participant.unknown']),
 ];
+const MARKDOWN = new MarkdownIt({
+  html: false,
+  linkify: false,
+  typographer: false,
+});
 
 class PolicyAssertionError extends Error {
   constructor(message, source = 'policy assertions') {
@@ -255,23 +261,6 @@ function validateAssertion(record, source) {
   }
 }
 
-function fenceOpening(line) {
-  const match = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-  if (!match) return null;
-  if (match[1][0] === '`' && match[2].includes('`')) return null;
-  return { delimiter: match[1][0], length: match[1].length };
-}
-
-function fenceClosing(line, opening) {
-  const escaped = opening.delimiter === '`' ? '`' : '~';
-  return new RegExp(`^ {0,3}${escaped}{${opening.length},}\\s*$`).test(line);
-}
-
-function indentationWidth(line) {
-  const indentation = line.match(/^[ \t]*/)[0];
-  return indentation.replace(/\t/g, '    ').length;
-}
-
 function stripBlockquotePrefixes(line) {
   let stripped = line;
   while (/^ {0,3}>\s?/.test(stripped)) {
@@ -288,12 +277,6 @@ function semanticMarkdownLine(line) {
   return semantic;
 }
 
-function listItemContentIndent(line) {
-  const unquoted = stripBlockquotePrefixes(line);
-  const match = unquoted.match(/^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+/);
-  return match ? match[0].replace(/\t/g, '    ').length : null;
-}
-
 function nthIndexOf(text, needle, occurrence) {
   let index = -1;
   let from = 0;
@@ -305,221 +288,182 @@ function nthIndexOf(text, needle, occurrence) {
   return index;
 }
 
-function listBlockEnd(lines, start) {
-  const listLead = /^(?:[-*+]\s|\d+[.)]\s)/;
-  const listContinuation = /^(?: {2,}|\t)\S/;
-  const startLine = stripBlockquotePrefixes(lines[start]);
-  const startIndent = indentationWidth(startLine);
-  const contentIndent = listItemContentIndent(lines[start]);
-  let end = start;
-  for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
-    const raw = stripBlockquotePrefixes(lines[cursor]);
-    const trimmed = raw.trim();
-    if (trimmed === '') {
-      let next = cursor + 1;
-      while (next < lines.length && lines[next].trim() === '') next += 1;
-      const nextLine = stripBlockquotePrefixes(lines[next] || '');
-      const nestedContainer =
-        indentationWidth(nextLine) > startIndent &&
-        /^(?:[-*+]\s|\d+[.)]\s|>)/.test(nextLine.trim());
-      const explicitContrast = /^(?:But|However|Instead|Yet)\b/i.test(
-        semanticMarkdownLine(nextLine).trim(),
-      );
-      const indentedCode =
-        indentationWidth(nextLine) >= contentIndent + 4 &&
-        !nestedContainer &&
-        !explicitContrast;
-      if (
-        next < lines.length &&
-        listContinuation.test(nextLine) &&
-        !indentedCode
-      ) {
-        end = next;
-        cursor = next;
-        continue;
-      }
-      break;
-    }
-    const nestedContainer =
-      indentationWidth(raw) > startIndent &&
-      (listLead.test(trimmed) || /^>/.test(trimmed));
-    if (nestedContainer) {
-      end = cursor;
-      continue;
-    }
-    if (listLead.test(trimmed) || /^(?:```|~~~|#{1,6}\s|>|[|])/.test(trimmed)) {
-      break;
-    }
-    end = cursor;
-  }
-  return end;
+function rangeContains(range, line) {
+  return range && range[0] <= line && line < range[1];
 }
 
-function logicalListSpan(lines, index) {
-  const listLead = /^(?:[-*+]\s|\d+[.)]\s)/;
-  for (let start = index; start >= 0; start -= 1) {
-    if (!listLead.test(stripBlockquotePrefixes(lines[start]).trim())) continue;
-    const end = listBlockEnd(lines, start);
-    if (index <= end) {
-      return {
-        start,
-        end,
-        contentIndent: listItemContentIndent(lines[start]),
-      };
-    }
-  }
-  return null;
+function normalizedFenceLine(line) {
+  return stripBlockquotePrefixes(line).trim();
 }
 
-function blockquoteEnd(lines, start) {
-  const listLead = /^(?:[-*+]\s|\d+[.)]\s)/;
-  let end = start;
-  for (let cursor = start + 1; cursor < lines.length; cursor += 1) {
-    const trimmed = lines[cursor].trim();
-    if (trimmed === '>') {
-      let next = cursor + 1;
-      while (next < lines.length && lines[next].trim() === '>') next += 1;
-      if (
-        next < lines.length &&
-        /^(?:But|However|Instead|Yet)\b/i.test(
-          semanticMarkdownLine(lines[next]).trim(),
-        )
-      ) {
-        end = next;
-        cursor = next;
-        continue;
-      }
-      break;
-    }
-    if (
-      trimmed === '' ||
-      /^>\s{4,}\S/.test(trimmed) ||
-      listLead.test(trimmed) ||
-      /^(?:```|~~~|#{1,6}\s|[|])/.test(trimmed)
-    ) {
-      break;
-    }
-    end = cursor;
-  }
-  return end;
+function fenceIsClosed(token, lines) {
+  if (token.map[1] - token.map[0] < 2) return false;
+  const closing = normalizedFenceLine(lines[token.map[1] - 1] || '');
+  const escaped = token.markup[0] === '`' ? '`' : '~';
+  return new RegExp(`^${escaped}{${token.markup.length},}\\s*$`).test(
+    closing,
+  );
 }
 
-function logicalBlockquoteSpan(lines, index) {
-  let containingSpan = null;
-  for (let start = index; start >= 0; start -= 1) {
-    if (!/^>/.test(lines[start].trim())) continue;
-    const end = blockquoteEnd(lines, start);
-    if (index <= end) {
-      containingSpan = { start, end };
-      continue;
-    }
-    if (containingSpan) break;
-  }
-  return containingSpan;
+function uniqueTextRanges(tokens) {
+  const seen = new Set();
+  return tokens
+    .filter(
+      (token) =>
+        token.map &&
+        !['fence', 'code_block'].includes(token.type) &&
+        !token.type.endsWith('_close'),
+    )
+    .map((token) => ({
+      start: token.map[0],
+      end: token.map[1],
+      inline: token.type === 'inline',
+    }))
+    .sort(
+      (left, right) =>
+        left.end - left.start - (right.end - right.start) ||
+        Number(right.inline) - Number(left.inline) ||
+        left.start - right.start,
+    )
+    .filter((range) => {
+      const key = `${range.start}:${range.end}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
-function isIndentedParagraphContinuation(lines, index) {
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    const line = stripBlockquotePrefixes(lines[cursor]);
-    const trimmed = line.trim();
-    if (trimmed === '') return false;
-    if (/^(?: {4,}|\t)\S/.test(line)) continue;
-    return !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+[.)]\s|>|[|])/.test(
-      trimmed,
-    );
+function linkedTextRange(tokens, textRanges, lines, line) {
+  const base =
+    textRanges.find((range) => rangeContains([range.start, range.end], line)) ||
+    { start: line, end: line + 1 };
+  const container = tokens
+    .filter(
+      (token) =>
+        token.map &&
+        ['list_item_open', 'blockquote_open'].includes(token.type) &&
+        rangeContains(token.map, line),
+    )
+    .sort(
+      (left, right) =>
+        left.map[1] - left.map[0] - (right.map[1] - right.map[0]),
+    )[0];
+  if (!container) return base;
+
+  let linkedStart = base.start;
+  const previous = textRanges
+    .filter(
+      (range) =>
+        range.end <= base.start &&
+        range.start >= container.map[0] &&
+        range.end <= container.map[1],
+    )
+    .sort((left, right) => right.end - left.end)[0];
+  if (
+    previous &&
+    lines
+      .slice(previous.end, base.start)
+      .every((candidate) => semanticMarkdownLine(candidate).trim() === '')
+  ) {
+    linkedStart = previous.start;
   }
-  return false;
+
+  const next = textRanges
+    .filter(
+      (range) =>
+        range.start >= base.end &&
+        range.start < container.map[1] &&
+        range.end <= container.map[1],
+    )
+    .sort((left, right) => left.start - right.start)[0];
+  if (!next) return { start: linkedStart, end: base.end };
+  const betweenIsEmpty = lines
+    .slice(base.end, next.start)
+    .every((candidate) => semanticMarkdownLine(candidate).trim() === '');
+  const nextText = lines
+    .slice(next.start, next.end)
+    .map(semanticMarkdownLine)
+    .join(' ')
+    .trim();
+  if (
+    !betweenIsEmpty ||
+    !/^(?:But|However|Instead|Yet)\b/i.test(nextText)
+  ) {
+    return { start: linkedStart, end: base.end };
+  }
+  return { start: linkedStart, end: next.end };
 }
 
 function parsePolicyMarkdown(markdown, source = 'policy markdown') {
   const assertions = [];
   const references = [];
   const lines = markdown.split(/\r?\n/);
+  const tokens = MARKDOWN.parse(markdown, {});
+  const textRanges = uniqueTextRanges(tokens);
+  const codeRanges = tokens
+    .filter((token) => token.map && ['fence', 'code_block'].includes(token.type))
+    .map((token) => token.map);
   let blockIndex = 0;
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const containerLine = stripBlockquotePrefixes(line);
-    const listSpanForLine = logicalListSpan(lines, index);
-    const lineIndent = indentationWidth(containerLine);
-    const paragraphContinuation =
-      !listSpanForLine && isIndentedParagraphContinuation(lines, index);
-    if (
-      (/^(?: {4,}|\t)\S/.test(containerLine) &&
-        (!listSpanForLine ||
-          lineIndent >= listSpanForLine.contentIndent + 4) &&
-        !paragraphContinuation)
+  for (const token of tokens.filter((candidate) => candidate.type === 'fence')) {
+    if (!fenceIsClosed(token, lines)) {
+      throw new PolicyAssertionError(
+        'unclosed non-policy fence',
+        `${source}:line ${token.map[0] + 1}`,
+      );
+    }
+    if (lines[token.map[0]] !== '```policy-assertions') continue;
+
+    blockIndex += 1;
+    const blockSource = `${source}:policy-assertions#${blockIndex}`;
+    const records = [];
+    for (
+      let recordIndex = token.map[0] + 1;
+      recordIndex < token.map[1] - 1;
+      recordIndex += 1
     ) {
-      continue;
+      if (lines[recordIndex].trim() === '') continue;
+      records.push(
+        parseJsonRecord(
+          lines[recordIndex],
+          `${blockSource}:line ${recordIndex + 1}`,
+        ),
+      );
     }
-    const syntacticLine = listSpanForLine
-      ? containerLine.trimStart()
-      : containerLine;
-    const openingFence = fenceOpening(syntacticLine);
-    const policyFence =
-      openingFence &&
-      openingFence.delimiter === '`' &&
-      openingFence.length === 3 &&
-      line === '```policy-assertions';
-    if (openingFence && !policyFence) {
-      let closed = false;
-      for (index += 1; index < lines.length; index += 1) {
-        const closingLine = stripBlockquotePrefixes(lines[index]);
-        if (
-          fenceClosing(
-            listSpanForLine ? closingLine.trimStart() : closingLine,
-            openingFence,
-          )
-        ) {
-          closed = true;
-          break;
-        }
-      }
-      if (!closed) {
-        throw new PolicyAssertionError(
-          'unclosed non-policy fence',
-          `${source}:line ${index + 1}`,
-        );
-      }
-      continue;
+    if (records.length < 2) {
+      throw new PolicyAssertionError(
+        'block requires one header and at least one assertion',
+        blockSource,
+      );
     }
+
+    const [header, ...blockAssertions] = records;
+    const headerKeys = Object.keys(header).sort().join(',');
+    if (
+      headerKeys !== 'format,version' ||
+      header.format !== FORMAT ||
+      header.version !== VERSION
+    ) {
+      throw new PolicyAssertionError(
+        `header must be {"format":"${FORMAT}","version":${VERSION}}`,
+        blockSource,
+      );
+    }
+    for (const assertion of blockAssertions) {
+      validateAssertion(assertion, blockSource);
+      assertions.push({ ...assertion, source });
+    }
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (codeRanges.some((range) => rangeContains(range, index))) continue;
+    const line = lines[index];
     let referencedText = line;
     for (const match of line.matchAll(REFERENCE_PATTERN)) {
       referencedText = referencedText.replace(match[0], '');
-      const trimmed = line.trim();
-      let paragraphStart = index;
-      let paragraphEnd = index;
-      const listSpan = logicalListSpan(lines, index);
-      const blockquoteSpan = logicalBlockquoteSpan(lines, index);
-      if (listSpan) {
-        paragraphStart = listSpan.start;
-        paragraphEnd = listSpan.end;
-      } else if (blockquoteSpan) {
-        paragraphStart = blockquoteSpan.start;
-        paragraphEnd = blockquoteSpan.end;
-      } else if (
-        trimmed !== '' &&
-        !/^(?:```|~~~|#{1,6}\s|[|])/.test(trimmed)
-      ) {
-        while (
-          paragraphStart > 0 &&
-          lines[paragraphStart - 1].trim() !== '' &&
-          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+[.)]\s|>|[|])/.test(
-            lines[paragraphStart - 1].trim(),
-          )
-        ) {
-          paragraphStart -= 1;
-        }
-        while (
-          paragraphEnd + 1 < lines.length &&
-          lines[paragraphEnd + 1].trim() !== '' &&
-          !/^(?:```|~~~|#{1,6}\s|[-*+]\s|\d+[.)]\s|>|[|])/.test(
-            lines[paragraphEnd + 1].trim(),
-          )
-        ) {
-          paragraphEnd += 1;
-        }
-      }
+      const linkedRange = linkedTextRange(tokens, textRanges, lines, index);
+      const paragraphStart = linkedRange.start;
+      const paragraphEnd = linkedRange.end - 1;
       const paragraph = lines
         .slice(paragraphStart, paragraphEnd + 1)
         .map(semanticMarkdownLine)
@@ -588,49 +532,6 @@ function parsePolicyMarkdown(markdown, source = 'policy markdown') {
         'unterminated policy reference',
         `${source}:line ${index + 1}`,
       );
-    }
-
-    if (!policyFence) continue;
-
-    blockIndex += 1;
-    const blockSource = `${source}:policy-assertions#${blockIndex}`;
-    const records = [];
-    let closed = false;
-    for (index += 1; index < lines.length; index += 1) {
-      if (fenceClosing(lines[index], openingFence)) {
-        closed = true;
-        break;
-      }
-      if (lines[index].trim() === '') continue;
-      records.push(
-        parseJsonRecord(lines[index], `${blockSource}:line ${index + 1}`),
-      );
-    }
-    if (!closed) {
-      throw new PolicyAssertionError('unclosed policy-assertions fence', blockSource);
-    }
-    if (records.length < 2) {
-      throw new PolicyAssertionError(
-        'block requires one header and at least one assertion',
-        blockSource,
-      );
-    }
-
-    const [header, ...blockAssertions] = records;
-    const headerKeys = Object.keys(header).sort().join(',');
-    if (
-      headerKeys !== 'format,version' ||
-      header.format !== FORMAT ||
-      header.version !== VERSION
-    ) {
-      throw new PolicyAssertionError(
-        `header must be {"format":"${FORMAT}","version":${VERSION}}`,
-        blockSource,
-      );
-    }
-    for (const assertion of blockAssertions) {
-      validateAssertion(assertion, blockSource);
-      assertions.push({ ...assertion, source });
     }
   }
 

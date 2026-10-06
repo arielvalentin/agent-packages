@@ -143,6 +143,14 @@ for (const containerContrast of [
       '>',
       '> But route AUTOMATION_FLOW now.',
   ].join('\n'),
+  [
+      '- Route {{policy:test.actor.user.result}}.',
+      '      But route AUTOMATION_FLOW now.',
+  ].join('\n'),
+  [
+      '1) Route {{policy:test.actor.user.result}}.',
+      '       But route AUTOMATION_FLOW now.',
+  ].join('\n'),
 ]) {
   assert.throws(
       () =>
@@ -328,6 +336,35 @@ assert.throws(
     ]),
   PolicyAssertionError,
 );
+for (const overIndentedListReference of [
+  [
+    '- Instruction:',
+    '      Use {{policy:test.actor.missing.result}}.',
+  ].join('\n'),
+  [
+    '1. Instruction:',
+    '       Use {{policy:test.actor.missing.result}}.',
+  ].join('\n'),
+  [
+    '1) Instruction:',
+    '       Use {{policy:test.actor.missing.result}}.',
+  ].join('\n'),
+  [
+    '> - Instruction:',
+    '>       Use {{policy:test.actor.missing.result}}.',
+  ].join('\n'),
+]) {
+  assert.throws(
+    () =>
+      buildRegistry([
+        {
+          source: 'over-indented-list-continuation',
+          markdown: markdown([assertion()], overIndentedListReference),
+        },
+      ]),
+    PolicyAssertionError,
+  );
+}
 assert.doesNotThrow(() =>
   buildRegistry([
     {
@@ -340,6 +377,25 @@ assert.doesNotThrow(() =>
           '- Example:',
           '',
           '      {{policy:test.actor.missing.result}} is example code.',
+        ].join('\n'),
+      ),
+    },
+  ]),
+);
+assert.doesNotThrow(() =>
+  buildRegistry([
+    {
+      source: 'blank-separated-indented-code',
+      markdown: markdown(
+        [assertion()],
+        [
+          'Canonical {{policy:test.actor.user.result}}.',
+          '',
+          '    - {{policy:test.actor.missing.result}} is example code.',
+          '',
+          '- Rule {{policy:test.actor.user.result}}.',
+          '',
+          '      But route AUTOMATION_FLOW in example code.',
         ].join('\n'),
       ),
     },

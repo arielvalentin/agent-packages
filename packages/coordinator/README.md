@@ -69,7 +69,8 @@ unknown fields, unknown enum values, unresolved precedence, unresolved
 references, unreferenced assertions, and deterministic contradictions on a
 linked marker line. It does not infer route or permission semantics from
 unrestricted prose. Every policy marker in repository Markdown is audited as a
-live consumer unless it appears inside a non-authoritative generic code fence.
+live consumer unless `markdown-it` classifies it inside a code block; container
+continuations remain live prose.
 
 Run `bash script/check-policy-assertions.sh` from the repository root after
 adding or changing an assertion.
