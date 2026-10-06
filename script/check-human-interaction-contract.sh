@@ -381,11 +381,19 @@ const acceptedHuman = [
 const rejectedHuman = [
   'Classification: HUMAN_STOP\nImplement: Yes\nReply: No\nResolve: No',
   'Classification: HUMAN_STOP\nReply: Allowed',
+  'Classification: HUMAN_STOP\nPost: Allowed',
+  'Classification: HUMAN_STOP\nDraft: Yes',
   'HUMAN_STOP\nI can implement the requested change.',
   'Classification: HUMAN_STOP. The assistant is permitted to post a reply.',
   'Classification: HUMAN_STOP. Implementation may proceed automatically.',
+  'Classification: HUMAN_STOP. Replying is allowed.',
+  'Classification: HUMAN_STOP. Posting is permitted.',
+  'Classification: HUMAN_STOP. Resolution is allowed.',
+  'Classification: HUMAN_STOP. The reply is allowed.',
   'HUMAN_STOP or AUTOMATION_FLOW',
   'Classification: HUMAN_STOP. AUTOMATION_FLOW could also apply.',
+  'Classification: HUMAN_STOP. Final answer: AUTOMATION_FLOW.',
+  'Classification: HUMAN_STOP. AUTOMATION_FLOW is required.',
 ];
 const acceptedAutomation = [
   'AUTOMATION_FLOW',
@@ -394,7 +402,14 @@ const acceptedAutomation = [
 const rejectedAutomation = [
   'AUTOMATION_FLOW or HUMAN_STOP',
   'Classification: AUTOMATION_FLOW. HUMAN_STOP could also apply.',
+  'Classification: AUTOMATION_FLOW. Final answer: HUMAN_STOP.',
+  'Classification: AUTOMATION_FLOW. HUMAN_STOP is required.',
   'Classification: AUTOMATION_FLOW\nUSER_WRITES_REPLY_AND_RESOLVES',
+  'Classification: AUTOMATION_FLOW\nReply: No',
+  'Classification: AUTOMATION_FLOW\nReply: Prohibited',
+  'Classification: AUTOMATION_FLOW. The agent may not reply or resolve.',
+  'Classification: AUTOMATION_FLOW. Only the user should write and resolve the reply.',
+  'Classification: AUTOMATION_FLOW. The reply must be written by the user.',
 ];
 
 for (const value of acceptedHuman) {
@@ -469,11 +484,15 @@ require "$tests" "shared AUTOMATION_FLOW assertion helper call" \
 require "$routing_assertions" "non-vacuous selected route check" \
   'selected\.length > 0 && selected\.every'
 require "$routing_assertions" "structured action-permission rejection" \
-  'implement\|reply\|resolve.{0,80}yes\|allowed\|true\|permitted'
+  'const structured'
 require "$routing_assertions" "actor action-permission rejection" \
-  'agent\|assistant\|i\|we\|you'
+  'const actorPermission'
 require "$routing_assertions" "passive action-permission rejection" \
-  'implementation\|drafting\|posting\|replying\|resolution'
+  'const passivePermission'
+require "$routing_assertions" "unnegated opposite-route rejection" \
+  'hasUnnegatedRoute'
+require "$routing_assertions" "automation action-denial rejection" \
+  'deniesAutomationAction'
 require "$routing_assertions" "ambiguous disjunction parsing" \
   'disjunction'
 require "$routing_assertions" "hedged alternative parsing" \
