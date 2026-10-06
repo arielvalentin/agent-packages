@@ -73,9 +73,20 @@ for pkg_dir in "$root"/packages/*/; do
 done
 
 # --- Reject stale coordinator dispatch identifiers ---
-if grep -REn '`(implementer|system-architect|se-technical-writer)`' \
-  "$root/packages/coordinator/.apm" >/dev/null; then
+stale_agent_refs="$(
+  grep -REn '\b(implementer|system-architect|se-technical-writer)\b' \
+    "$root/packages/coordinator/.apm" |
+  grep -Ev 'arielvalentin: (implementer|system-architect)' || true
+)"
+if [[ -n "$stale_agent_refs" ]]; then
   echo "ERROR: Coordinator contains an unsupported or ambiguous agent identifier."
+  printf '%s\n' "$stale_agent_refs"
+  errors=$((errors + 1))
+fi
+
+pr_lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
+if ! grep -Eq 'Runtime-native tools and `gh` use the same' "$pr_lifecycle"; then
+  echo "ERROR: PR lifecycle is missing transport-invariant title validation."
   errors=$((errors + 1))
 fi
 

@@ -1,7 +1,7 @@
 ---
 name: review-fix-loop
 description: >
-  Reusable gate pattern: dispatch a reviewer, fix findings with an implementer,
+  Reusable gate pattern: dispatch a reviewer, fix findings with a fixer,
   re-run the reviewer, and escalate after a retry limit. Use only when a review
   gate is explicitly requested or justified by high-risk work.
 ---
@@ -25,6 +25,7 @@ review result exists.
 | `scope` | yes | — | What to review: diff ref, artifact path, or description of review target |
 | `context` | no | — | Additional context for the reviewer (intent summary, design doc, issue body) |
 | `focus` | no | — | Specific review focus or criteria (e.g., "intent-coverage", "exploitable vulnerabilities only") |
+| `mandatory` | no | `false` | When true, incomplete/unavailable review, unresolved threshold findings, warn, and waiver all fail closed |
 | `max_retries` | no | 1 | Maximum fix-then-re-review cycles before escalation |
 | `severity_threshold` | no | `blocker,major` | Comma-separated severities that trigger a fix cycle |
 | `on_exhaust` | no | `escalate` | What to do when retries are exhausted: `escalate` (ask user) or `warn` (proceed with warning) |
@@ -68,15 +69,14 @@ review result exists.
 
 5. **Exhaustion** — if `max_retries` is reached with unresolved findings:
    - `on_exhaust: escalate` → stop and present unresolved findings to the
-     user for a decision (fix manually, waive, or abort).
+     user for a decision. Optional gates may offer fix manually, waive, or
+     abort. Mandatory or explicitly requested gates may offer only fix/retry
+     or abort.
    - `on_exhaust: warn` → proceed but record unresolved findings as warnings
      in the final message. Flag as reduced-assurance.
-   - For `security-review`, `on_exhaust: warn` is invalid. Mandatory or
-     explicitly requested security review must stop/escalate with unresolved
-     blocker/major findings.
-   - For mandatory or explicitly requested `security-review`, waiver is also
-     invalid. The only user decisions are fix/retry or abort; never proceed
-     with unresolved blocker/major security findings.
+   - For any mandatory or explicitly requested gate, `on_exhaust: warn` and
+     waiver are invalid. Stop/escalate with unresolved blocker/major findings.
+     This includes mandatory adversarial and security reviews.
 
 6. **Record outcome** — regardless of path, record:
    - Gate name (derived from `reviewer`)
@@ -155,7 +155,9 @@ skip_condition: documentation-only, dependency bumps, or user-marked observabili
 ## Fallback behavior
 
 If the specified `reviewer` is unavailable:
-- `adversarial-review` → use `rubber-duck` through `consensus-panel`
+- mandatory or explicitly requested reviewer → stop and record the required
+  reviewer as unavailable. Do not substitute another reviewer or report pass.
+- optional `adversarial-review` → use `rubber-duck` through `consensus-panel`
 - `security-review` → stop and record the mandatory reviewer as unavailable.
   Do not substitute a differently scoped reviewer or continue with a
   success-shaped security result.

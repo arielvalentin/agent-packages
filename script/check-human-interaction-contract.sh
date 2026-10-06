@@ -47,8 +47,8 @@ assert_eq() {
 
 classify_rest() {
   jq -r '
-    if (.performed_via_github_app? != null)
-    then "AUTOMATION_FLOW"
+    if ((.user.type? // "") == "User")
+    then "HUMAN_STOP"
     elif ((.user.type? // "") == "Bot")
     then "AUTOMATION_FLOW"
     else "HUMAN_STOP"
@@ -73,7 +73,7 @@ classify_chain() {
       elif (.surface == "pr_review_comment")
         or (.surface == "pr_review")
         or (.surface == "issue_or_pr_comment")
-      then (((.user.type? // "") == "Bot") or (.performed_via_github_app? != null))
+      then ((.user.type? // "") == "Bot")
       else false
       end;
     if (.retrieval_complete != true)
@@ -154,9 +154,9 @@ require "$policy" "incomplete pagination fails closed" \
 require "$policy" "REST Bot classification" \
   '\.user\.type == "Bot".{0,20}`AUTOMATION_FLOW`'
 require "$policy" "GitHub App classification" \
-  'performed_via_github_app.{0,120}`AUTOMATION_FLOW`'
+  'performed_via_github_app.{0,180}(audit context|never overrides|does not change)'
 require "$policy" "ordered login-blind REST algorithm" \
-  'ordered REST classification algorithm.{0,160}Discard `\.user\.login` completely.{0,180}performed_via_github_app.{0,180}\.user\.type == "Bot".{0,180}Else select `HUMAN_STOP`'
+  'ordered REST classification algorithm.{0,160}Discard `\.user\.login` completely.{0,180}\.user\.type == "User".{0,180}\.user\.type == "Bot".{0,180}Else select `HUMAN_STOP`'
 require "$policy" "login cannot override REST algorithm" \
   'must not inspect `\.user\.login` to override or reconsider'
 require "$policy" "REST User remains human despite bot-like login" \
@@ -245,16 +245,19 @@ assert_eq "HUMAN_STOP" \
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"user":{"login":"helper[bot]","type":"Bot"},"performed_via_github_app":null}' | classify_rest)" \
   "REST Bot metadata"
-assert_eq "AUTOMATION_FLOW" \
+assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"user":{"login":"octocat","type":"User"},"performed_via_github_app":{"id":1}}' | classify_rest)" \
-  "REST GitHub App metadata"
+  "REST human user with GitHub App association"
 projected_app_item="$(
   printf '%s' '{"id":7,"body":"automated","user":{"login":"service","type":"User"},"performed_via_github_app":{"id":1}}' |
     project_issue_comment
 )"
-assert_eq "AUTOMATION_FLOW" \
+assert_eq "HUMAN_STOP" \
   "$(printf '%s' "$projected_app_item" | classify_rest)" \
-  "projected REST GitHub App metadata"
+  "projected REST human user with GitHub App association"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"user":{"login":"service[bot]","type":"Bot"},"performed_via_github_app":{"id":1}}' | classify_rest)" \
+  "REST Bot with GitHub App association"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"author":{"__typename":"User","login":"helper[bot]"}}' | classify_graphql)" \
   "GraphQL bot-like User"
@@ -306,7 +309,7 @@ for description in \
   'human-interaction: bot-like User login fails closed' \
   'human-interaction: bot-like login with missing metadata fails closed' \
   'human-interaction: authoritative REST Bot uses normal flow' \
-  'human-interaction: projected REST App payload uses normal flow' \
+  'human-interaction: User with REST App association stays human' \
   'human-interaction: authoritative GraphQL Bot uses normal flow' \
   'human-interaction: GraphQL uses nested thread and comment cursors' \
   'human-interaction: incomplete GraphQL pagination fails closed' \

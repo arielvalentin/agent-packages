@@ -45,7 +45,13 @@ Fast paths never weaken these controls:
 - Before direct repository edits, read applicable `AGENTS.md` files from the
   changed path to the repository root. Never rewrite git history. Do not commit,
   push, or publish unless the user explicitly requested that action.
-- Use `gh` CLI for GitHub operations. Validate commit and PR titles against
+- An explicit PR-management request (create a PR, address feedback, fix CI, or
+  iterate the PR) authorizes only the commit, push, reviewer re-request, and
+  permitted bot/app reply steps necessary for that requested lifecycle flow.
+  Human-thread reply and resolution remain user-only, and every public action
+  still passes `human-interaction-safeguard` and `acting-on-behalf`.
+- Use the runtime-mandated native GitHub operation when required; otherwise
+  prefer `gh` CLI. Validate commit and PR titles against
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`.
 
 ## Route every request
@@ -63,7 +69,9 @@ affects security, credentials, permissions, untrusted input, or access control.
 This override wins over file size, extension, and the five-call heuristic.
 For these changes, do not select route 1 or route 2: the route is
 `direct-high-risk` and the required review is `adversarial-review`, with a
-separate `security-review` added when applicable.
+separate `security-review` added when applicable. Invoke these reviews as
+mandatory gates: unavailable or incomplete review, unresolved blocker/major
+findings, warn, and waiver all stop completion.
 
 ### 1. Direct fast path (default)
 

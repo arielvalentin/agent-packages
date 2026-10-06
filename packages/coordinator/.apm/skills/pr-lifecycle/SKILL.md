@@ -12,6 +12,10 @@ description: >
 
 Single source of truth for every phase of a pull request.
 
+**Transport invariant:** Conventional title validation applies before every PR
+create, update, or ready action. Runtime-native tools and `gh` use the same
+regex and cannot bypass it.
+
 ## Trigger phrases
 
 - "create a PR", "open a draft PR", "push this and open a PR"
@@ -129,8 +133,9 @@ Phase 3), and mirrors the commit-subject policy in `AGENTS.md`.
   current release-please configuration and pre-1.0 package versions, it
   requests a `1.0.0` major release and therefore requires explicit human
   approval.
-- Validate before creating, updating, or readying a PR title through the
-  `gh pr create`, `gh pr edit --title`, or `gh pr ready` commands:
+- Validate before any PR create, update, or ready action, including
+  runtime-native PR tools and the `gh pr create`, `gh pr edit --title`, or
+  `gh pr ready` commands:
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
 
 ## Phase 4 — Monitor CI
@@ -224,6 +229,7 @@ After the PR is **merged**:
 
 | Missing tool | Fallback |
 |-------------|----------|
+| Runtime-native PR creation/update | Use `gh` with the same draft, title, body, attribution, and confirmation requirements |
 | `gh pr checks --watch` | `gh run watch <run-id>` |
 | `stage-pr` | Report staging unavailable |
 

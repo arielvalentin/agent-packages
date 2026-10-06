@@ -72,7 +72,9 @@ provider solely to render the disclaimer.
 7. Tie PRs and non-trivial commits to an issue when the repository supports
    Issues. If Issues are disabled, use the repository's supported tracking
    mechanism or document its absence in the PR body.
-8. Use `gh` CLI for all GitHub operations.
+8. Use the runtime-mandated native GitHub operation when one is required;
+   otherwise prefer `gh` CLI. Apply the same attribution, confirmation,
+   draft, title, body, and human-interaction safeguards across transports.
 9. PR descriptions must include intent and decision-making rationale:
    - why the change exists
    - key decisions/tradeoffs
@@ -167,9 +169,11 @@ For changes that modify agent policy/config behavior, include a compact
 If companion skills are unavailable, do not block routine progress. Mandatory
 security and posting safeguards still fail closed. Use:
 
-1. `adversarial-review` missing during a high-risk or explicitly requested
-   hostile review -> report reduced assurance. Use one bounded `rubber-duck`
-   review unless the user explicitly requested consensus.
+1. `adversarial-review` missing during a mandatory high-risk or explicitly
+   requested hostile review -> stop before completion, PR creation, or posting.
+   Do not substitute another reviewer or report success. For an optional
+   routine adversarial review only, report reduced assurance and use one
+   bounded `rubber-duck` review.
 2. `security-review` missing when the review is mandatory -> stop before PR
    creation or posting. Do not substitute another reviewer or report success.
 3. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
@@ -189,9 +193,9 @@ security and posting safeguards still fail closed. Use:
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-   before creating, updating, or readying a PR title through
-   `gh pr create`, `gh pr edit --title`, or `gh pr ready`. Also use
-   `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
-   `gh run view|watch`.
-3. `stage-pr` missing -> report staging as unavailable and proceed without
+   before any PR create, update, or ready action, including runtime-native PR
+   tools and `gh pr create`, `gh pr edit --title`, or `gh pr ready`. For CLI
+   monitoring, use `gh pr checks --watch`, `gh pr view|edit|comment|checks`,
+   and `gh run view|watch`.
+4. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.

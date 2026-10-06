@@ -5,22 +5,29 @@ description: Canonical policy for handling human, unknown, bot, and app-authored
 
 # Human Interaction Safeguard
 
+**Response routing invariant:** a question asking who writes the reply and
+resolves a tainted or `HUMAN_STOP` thread always returns
+`USER_WRITES_REPLY_AND_RESOLVES`, even when the scenario mentions actor
+classification or a separately authorized implementation. Do not return the
+structured Classification/Implement/Reply/Resolve block unless the caller
+explicitly requests those four action decisions.
+
 **Classify REST metadata mechanically before choosing an output format:**
 
 ```text
-if performed_via_github_app != null: AUTOMATION_FLOW
+if user.type == "User": HUMAN_STOP
 else if user.type == "Bot": AUTOMATION_FLOW
 else: HUMAN_STOP
 ```
 
-The third branch includes `performed_via_github_app == null` plus
-`user.type == "User"`. That combination can never select `AUTOMATION_FLOW`.
-Null app metadata is not a human signal and never overrides
-`user.type == "Bot"`:
+`performed_via_github_app` records app association, not whether the public
+author is human. It never overrides authoritative `user.type`. A user access
+token can produce `user.type == "User"` with non-null app metadata, so that
+combination is always `HUMAN_STOP`:
 
 ```text
-{"user":{"type":"Bot"},"performed_via_github_app":null}
-=> AUTOMATION_FLOW
+{"user":{"type":"User"},"performed_via_github_app":{"id":1}}
+=> HUMAN_STOP
 ```
 
 **Response-mode routing (match the caller's exact ask):**
@@ -43,19 +50,17 @@ particular, a request that says the platform actor type is Bot must return
 `AUTOMATION_FLOW`.
 
 Response mode controls only the output shape; it never selects the
-classification value. Do not substitute one response mode for another. REST
-Bot or non-null GitHub App metadata selects `AUTOMATION_FLOW`; GraphQL Bot
-also selects `AUTOMATION_FLOW`. REST User, GraphQL User, missing, unknown,
-ambiguous, or incomplete metadata selects `HUMAN_STOP`.
+classification value. Do not substitute one response mode for another. App
+association alone never selects automation. REST Bot and GraphQL Bot select
+`AUTOMATION_FLOW`. REST User, GraphQL User, missing, unknown, ambiguous, or
+incomplete actor metadata selects `HUMAN_STOP`.
 A later, separate implementation authorization never permits an agent-authored
 reply or agent-performed resolution.
 
-**REST precedence:** non-null `performed_via_github_app` selects
-`AUTOMATION_FLOW`; otherwise exact `user.type == "Bot"` selects
-`AUTOMATION_FLOW`; every other value selects `HUMAN_STOP`. Therefore
-`user.type == "User"` plus `performed_via_github_app: null` is always
-`HUMAN_STOP`, even when the login looks bot-like. Null app metadata contributes
-no decision; continue to the `user.type` check.
+**REST precedence:** exact `user.type == "User"` selects `HUMAN_STOP`; exact
+`user.type == "Bot"` selects `AUTOMATION_FLOW`; every other value selects
+`HUMAN_STOP`. `performed_via_github_app` is retained for audit context but does
+not change the path.
 
 Worked REST example:
 
@@ -98,11 +103,10 @@ gh api --paginate "repos/{owner}/{repo}/issues/{issue_number}/comments" \
 For each REST item, apply this ordered REST classification algorithm:
 
 1. Discard `.user.login` completely; it is not a classification input.
-2. If `.performed_via_github_app` is non-null, select `AUTOMATION_FLOW`.
+2. If `.user.type == "User"` exactly, select `HUMAN_STOP`, regardless of a
+   bot-like login or `.performed_via_github_app`.
 3. Else if `.user.type == "Bot"` exactly, select `AUTOMATION_FLOW`.
-4. Else select `HUMAN_STOP`. This includes `.user.type == "User"` regardless
-   of a bot-like login, plus missing `user` or missing `type`. A null or
-   missing app field alone does not reach this step when `.user.type == "Bot"`.
+4. Else select `HUMAN_STOP`, including missing `user` or missing `type`.
 
 Agents must not inspect `.user.login` to override or reconsider any step in
 this algorithm.
@@ -214,13 +218,12 @@ reply and resolution remain user-only.
 | Author metadata | Required path |
 |-----------------|---------------|
 | REST `user.type == "Bot"` | `AUTOMATION_FLOW` |
-| REST non-null `performed_via_github_app` | `AUTOMATION_FLOW` |
-| GraphQL `author.__typename == "Bot"` | `AUTOMATION_FLOW` |
-| REST `user.type == "User"` | `HUMAN_STOP` |
+| REST `user.type == "User"` (with null or non-null app metadata) | `HUMAN_STOP` |
 | Unknown, missing, ambiguous, other, or unverified actor type | `HUMAN_STOP` |
+| GraphQL `author.__typename == "Bot"` | `AUTOMATION_FLOW` |
 
-REST Bot/App metadata and GraphQL Bot metadata are conclusive: they are not
-unknown and must select `AUTOMATION_FLOW`, never `HUMAN_STOP`.
+GitHub App association is audit context only and cannot convert a User or
+unknown actor to automation. REST Bot and GraphQL Bot metadata are conclusive.
 
 ## Response contracts
 
