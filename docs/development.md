@@ -115,6 +115,10 @@ The exact-ref APM check performs dry runs, a clean project installation, and
 an isolated user-scope installation for every package.
 CI runs it with both APM 0.32.0, which exposed the symlink regression, and the
 current supported APM 0.33.0 release.
+Copilot user-scope installs currently deploy agents but retain skills in the
+APM module store because APM reports only partial user-scope Copilot support;
+the check validates that exact stored skill inventory as well as deployed
+agents.
 
 The checker rejects malformed records, duplicate JSON keys or assertion IDs,
 unknown fields or enums, unresolved or cyclic precedence, ambiguous overlapping

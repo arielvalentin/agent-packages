@@ -247,6 +247,17 @@ verify_global_install() {
   verify_policy_assertions "$coordinator_skills"
 }
 
+assert_absent() {
+  local context="$1"
+  shift
+  for forbidden_path in "$@"; do
+    if [[ -e "$forbidden_path" || -L "$forbidden_path" ]]; then
+      echo "ERROR: $context unexpectedly created $forbidden_path"
+      exit 1
+    fi
+  done
+}
+
 dry_run_home="$tmpdir/dry-run-home"
 project_home="$tmpdir/project-home"
 consumer="$tmpdir/consumer"
@@ -256,34 +267,66 @@ write_manifest "$consumer/apm.yml"
 (
   cd "$consumer"
   HOME="$dry_run_home" apm install --dry-run
-  for unexpected_path in apm.lock.yaml apm_modules .agents .github; do
-    if [[ -e "$unexpected_path" ]]; then
-      echo "ERROR: APM dry run unexpectedly created $unexpected_path"
-      exit 1
-    fi
-  done
+  assert_absent \
+    "project APM dry run" \
+    apm.lock.yaml \
+    apm_modules \
+    .agents \
+    .github
+  assert_absent \
+    "project APM dry run in HOME" \
+    "$dry_run_home/.copilot" \
+    "$dry_run_home/.agents" \
+    "$dry_run_home/.apm/apm.lock.yaml" \
+    "$dry_run_home/.apm/apm_modules"
   HOME="$project_home" apm install
 )
 verify_project_install "$consumer"
+assert_absent \
+  "project APM install in HOME" \
+  "$project_home/.copilot" \
+  "$project_home/.agents" \
+  "$project_home/.apm/apm.lock.yaml" \
+  "$project_home/.apm/apm_modules"
 
 global_dry_run_home="$tmpdir/global-dry-run-home"
+global_dry_run_work="$tmpdir/global-dry-run-work"
 global_home="$tmpdir/global-home"
-mkdir -p "$global_dry_run_home/.apm" "$global_home/.apm"
+global_work="$tmpdir/global-work"
+mkdir -p \
+  "$global_dry_run_home/.apm" \
+  "$global_dry_run_work" \
+  "$global_home/.apm" \
+  "$global_work"
 write_manifest "$global_dry_run_home/.apm/apm.yml"
-HOME="$global_dry_run_home" apm install -g --dry-run
-for unexpected_path in \
+(
+  cd "$global_dry_run_work"
+  HOME="$global_dry_run_home" apm install -g --dry-run
+)
+assert_absent \
+  "global APM dry run in HOME" \
   "$global_dry_run_home/.copilot" \
   "$global_dry_run_home/.agents" \
   "$global_dry_run_home/.apm/apm.lock.yaml" \
-  "$global_dry_run_home/.apm/apm_modules"; do
-  if [[ -e "$unexpected_path" || -L "$unexpected_path" ]]; then
-    echo "ERROR: global APM dry run unexpectedly created $unexpected_path"
-    exit 1
-  fi
-done
+  "$global_dry_run_home/.apm/apm_modules"
+assert_absent \
+  "global APM dry run in project scope" \
+  "$global_dry_run_work/.github" \
+  "$global_dry_run_work/.agents" \
+  "$global_dry_run_work/apm.lock.yaml" \
+  "$global_dry_run_work/apm_modules"
 
 write_manifest "$global_home/.apm/apm.yml"
-HOME="$global_home" apm install -g
+(
+  cd "$global_work"
+  HOME="$global_home" apm install -g
+)
 verify_global_install "$global_home"
+assert_absent \
+  "global APM install in project scope" \
+  "$global_work/.github" \
+  "$global_work/.agents" \
+  "$global_work/apm.lock.yaml" \
+  "$global_work/apm_modules"
 
 echo "OK: all package project and isolated global APM installs passed for $repository@$ref."
