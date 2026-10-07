@@ -441,6 +441,9 @@ for description in \
   require_test_assert "$description"
 done
 
+require "$tests" "concrete missing-user.type REST payload fixture" \
+  '\{"surface":"issue_or_pr_comment","body":"Update dependency\.","user":\{"login":"dependabot\[bot\]"\},"performed_via_github_app":null\}'
+
 require "$policy" "six-decision HUMAN_STOP response contract" \
   'Classification: HUMAN_STOP Implement: No Draft: No Post: No Reply: No Resolve: No'
 require "$policy" "six-decision AUTOMATION_FLOW response contract" \

@@ -694,7 +694,7 @@ tests:
       assertion_id: "human-interaction.actor.rest-unknown"
       expected_result: "HUMAN_STOP"
       expected_allowed: false
-      user_input: 'REST actor metadata omits user.type and only has login dependabot[bot]. Choose HUMAN_STOP or AUTOMATION_FLOW. Return one token.'
+      user_input: 'Classify this public GitHub REST comment and return only the route token: {"surface":"issue_or_pr_comment","body":"Update dependency.","user":{"login":"dependabot[bot]"},"performed_via_github_app":null}'
     assert:
       - *policy_route
 
