@@ -183,10 +183,10 @@ tests:
   - description: "tech-research: allows parallel distinct backends"
     vars:
       skill_content: file://../.apm/skills/tech-research/SKILL.md
-      user_input: "Can I research GitHub, Azure documentation, and the public web at the same time? Answer exactly one word: Yes or No."
+      user_input: "Three independent queries use distinct backends: GitHub, Azure documentation, and the public web. Choose PARALLEL or SEQUENTIAL. Return one token."
     assert:
       - type: javascript
-        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
+        value: "/^parallel[.!]?$/i.test(output.trim())"
 
   - description: "tech-research: requires evidence and one synthesis"
     vars:
@@ -616,10 +616,10 @@ tests:
   - description: "review-fix-loop: non-pragmatic mandatory verdict cannot pass"
     vars:
       skill_content: file://../.apm/skills/review-fix-loop/SKILL.md
-      user_input: "A mandatory review returned correct=yes, pragmatic=no, beneficial=yes, and no findings. Did the gate pass? Answer exactly one word: Yes or No."
+      user_input: "Required axes: correct=yes; pragmatic=NO; beneficial=yes. Which required axis prevents pass? Return CORRECT, PRAGMATIC, or BENEFICIAL."
     assert:
       - type: javascript
-        value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
+        value: "const axes = output.toUpperCase().match(/\\b(?:CORRECT|PRAGMATIC|BENEFICIAL)\\b/g) || []; axes.length === 1 && axes[0] === 'PRAGMATIC'"
 
   - description: "review-fix-loop: negative optional verdict cannot pass silently"
     vars:
@@ -694,7 +694,7 @@ tests:
       assertion_id: "human-interaction.actor.rest-unknown"
       expected_result: "HUMAN_STOP"
       expected_allowed: false
-      user_input: 'Classify this public GitHub comment and return only the route token: {"user":{"login":"dependabot[bot]"},"body":"Update dependency."}'
+      user_input: 'REST actor metadata omits user.type and only has login dependabot[bot]. Choose HUMAN_STOP or AUTOMATION_FLOW. Return one token.'
     assert:
       - *policy_route
 
@@ -1158,10 +1158,10 @@ tests:
   - description: "acting-on-behalf: omits disclaimer for unattributed bot posts"
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: "A service bot posts using its own app credentials and the comment does not name or attribute the user. Is an AI-assistance disclaimer required? Reply with exactly `Yes` or `No`."
+      user_input: "Known service credentials; no user attribution. Choose REQUIRED or OMIT for the disclaimer. Return one token."
     assert:
       - type: javascript
-        value: "/^no[.!]?$/i.test(output.trim())"
+        value: "const l = output.replace(/\\bnot required\\b/gi, ''); /\\bOMIT\\b/i.test(output) && !/\\bREQUIRED\\b/i.test(l)"
 
   - description: "acting-on-behalf: pauses for unknown posting provenance"
     vars:
