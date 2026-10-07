@@ -524,6 +524,48 @@ try {
     'top-level defaultTest.prompts',
   );
 
+  const testsNode = document.get('tests', true);
+  if (!YAML.isSeq(testsNode)) {
+    fail('"tests" must be a YAML sequence');
+  }
+  const policyRouteAnchors = [];
+  for (const testNode of testsNode.items) {
+    if (!YAML.isMap(testNode)) continue;
+    const assertionsNode = testNode.get('assert', true);
+    if (!YAML.isSeq(assertionsNode)) continue;
+    for (const assertionNode of assertionsNode.items) {
+      if (YAML.isMap(assertionNode) && assertionNode.anchor === 'policy_route') {
+        policyRouteAnchors.push(assertionNode);
+      }
+    }
+  }
+  if (policyRouteAnchors.length !== 1) {
+    fail(
+      `expected exactly one authoritative &policy_route assertion, found ${policyRouteAnchors.length}`,
+    );
+  }
+  const [policyRoute] = policyRouteAnchors;
+  requireExactMapKeys(
+    policyRoute,
+    ['type', 'value'],
+    'authoritative &policy_route',
+  );
+  rejectMergeKeysAndAliases(policyRoute, 'authoritative &policy_route');
+  const policyRouteType = scalarValue(
+    directValue(policyRoute, 'type', 'authoritative &policy_route'),
+    'authoritative &policy_route.type',
+  );
+  const policyRouteValue = scalarValue(
+    directValue(policyRoute, 'value', 'authoritative &policy_route'),
+    'authoritative &policy_route.value',
+  );
+  if (
+    policyRouteType !== 'javascript' ||
+    policyRouteValue !== 'file://assert-policy-route.cjs'
+  ) {
+    fail('authoritative &policy_route must call file://assert-policy-route.cjs');
+  }
+
   const config = runtimeDocument.toJS();
   if (!Array.isArray(config.tests)) {
     fail('"tests" must be an array');
@@ -537,10 +579,6 @@ try {
     );
   }
 
-  const testsNode = document.get('tests', true);
-  if (!YAML.isSeq(testsNode)) {
-    fail('"tests" must be a YAML sequence');
-  }
   const selectedIndex = matchingIndexes[0];
   const selectedNode = testsNode.items[selectedIndex];
   if (!YAML.isMap(selectedNode)) {
@@ -659,31 +697,6 @@ try {
   );
   if (payload.performed_via_github_app !== null) {
     fail('selected test payload performed_via_github_app must be null');
-  }
-
-  const policyRouteAnchors = [];
-  for (const testNode of testsNode.items) {
-    if (!YAML.isMap(testNode)) continue;
-    const assertionsNode = testNode.get('assert', true);
-    if (!YAML.isSeq(assertionsNode)) continue;
-    for (const assertionNode of assertionsNode.items) {
-      if (YAML.isMap(assertionNode) && assertionNode.anchor === 'policy_route') {
-        policyRouteAnchors.push(assertionNode);
-      }
-    }
-  }
-  if (policyRouteAnchors.length !== 1) {
-    fail(
-      `expected exactly one authoritative &policy_route assertion, found ${policyRouteAnchors.length}`,
-    );
-  }
-  const [policyRoute] = policyRouteAnchors;
-  const policyRouteValue = policyRoute.toJSON();
-  if (
-    policyRouteValue?.type !== 'javascript' ||
-    policyRouteValue?.value !== 'file://assert-policy-route.cjs'
-  ) {
-    fail('authoritative &policy_route must call file://assert-policy-route.cjs');
   }
 
   const [policyRouteAlias] = selectedAssertions.items;

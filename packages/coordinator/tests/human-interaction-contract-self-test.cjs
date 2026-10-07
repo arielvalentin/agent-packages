@@ -15,6 +15,11 @@ const suiteCompletion = 'PASS: mutation self-test suite completed';
 const targetDescription =
   'human-interaction: bot-like login with missing metadata fails closed';
 const targetMarker = `  - description: "${targetDescription}"`;
+const policyRouteBlock = [
+  '      - &policy_route',
+  '        type: javascript',
+  '        value: file://assert-policy-route.cjs',
+].join('\n');
 const canonicalSkillContent =
   'file://../.apm/skills/human-interaction-safeguard/SKILL.md';
 const canonicalUserInputPrefix =
@@ -46,6 +51,14 @@ function targetBlock(source) {
 function replaceTargetBlock(source, transform) {
   const { block, end, start } = targetBlock(source);
   return `${source.slice(0, start)}${transform(block)}${source.slice(end)}`;
+}
+
+function replacePolicyRoute(source, replacement) {
+  const start = source.indexOf(policyRouteBlock);
+  if (start < 0 || source.indexOf(policyRouteBlock, start + 1) >= 0) {
+    throw new Error('source config must contain exactly one policy route anchor');
+  }
+  return `${source.slice(0, start)}${replacement}${source.slice(start + policyRouteBlock.length)}`;
 }
 
 function withUserInput(source, userInput) {
@@ -290,6 +303,157 @@ function runMutationSuite() {
       reorderTargetFields(source),
       'yaml-case-field-order-independent',
       true,
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        value: file://assert-policy-route.cjs',
+          '        type: javascript',
+        ].join('\n'),
+      ),
+      'policy-route-key-order-independent',
+      true,
+    );
+
+    for (const field of [
+      'transform',
+      'contextTransform',
+      'provider',
+      'config',
+    ]) {
+      runFixture(
+        scratch,
+        replacePolicyRoute(
+          source,
+          `${policyRouteBlock}\n        ${field}: execution-override`,
+        ),
+        `policy-route-extra-${field}`,
+        false,
+        'authoritative &policy_route must define only type, value',
+      );
+    }
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        value: file://assert-policy-route.cjs',
+        ].join('\n'),
+      ),
+      'policy-route-missing-type',
+      false,
+      'authoritative &policy_route must define only type, value',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        type: JavaScript',
+          '        value: file://assert-policy-route.cjs',
+        ].join('\n'),
+      ),
+      'policy-route-type-case-change',
+      false,
+      'authoritative &policy_route must call file://assert-policy-route.cjs',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        type: javascript',
+          '        value: " file://assert-policy-route.cjs "',
+        ].join('\n'),
+      ),
+      'policy-route-value-whitespace',
+      false,
+      'authoritative &policy_route must call file://assert-policy-route.cjs',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        type: javascript',
+        ].join('\n'),
+      ),
+      'policy-route-missing-value',
+      false,
+      'authoritative &policy_route must define only type, value',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          policyRouteBlock,
+          '        type: javascript',
+        ].join('\n'),
+      ),
+      'policy-route-duplicate-key',
+      false,
+      'invalid YAML: Map keys must be unique',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        <<: &policy_route_defaults',
+          '          type: javascript',
+          '        value: file://assert-policy-route.cjs',
+        ].join('\n'),
+      ),
+      'policy-route-merge-injection',
+      false,
+      'authoritative &policy_route must define only type, value',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        type: &policy_route_type javascript',
+          '        value: *policy_route_type',
+        ].join('\n'),
+      ),
+      'policy-route-alias-value',
+      false,
+      'authoritative &policy_route.value must not use YAML aliases',
+    );
+
+    runFixture(
+      scratch,
+      replacePolicyRoute(
+        source,
+        [
+          '      - &policy_route',
+          '        type:',
+          '          language: javascript',
+          '        value: file://assert-policy-route.cjs',
+        ].join('\n'),
+      ),
+      'policy-route-non-scalar-type',
+      false,
+      'authoritative &policy_route.type must be a direct scalar, not an alias or collection',
     );
 
     runFixture(
