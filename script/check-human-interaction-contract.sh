@@ -11,7 +11,8 @@ feedback="$root/packages/coordinator/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
 pr_review="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
-tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
+# Narrow override used by focused mutation tests for this contract checker.
+tests="${HUMAN_INTERACTION_PROMPTFOO_CONFIG:-"$root/packages/coordinator/tests/promptfooconfig.yaml"}"
 policy_assertions="$root/packages/coordinator/tests/policy-assertions.cjs"
 
 normalize() {
@@ -70,6 +71,206 @@ require_test_policy_assertion() {
     }
   ' "$tests"; then
     echo "ERROR: ${tests#"$root/"}: test lacks structured assertion $assertion_id: $desc"
+    errors=$((errors + 1))
+  fi
+}
+
+require_missing_metadata_promptfoo_case() {
+  if ! node - "$tests" <<'NODE'
+const fs = require('node:fs');
+const YAML = require('yaml');
+
+const configPath = process.argv[2];
+const targetDescription =
+  'human-interaction: bot-like login with missing metadata fails closed';
+
+function fail(message) {
+  throw new Error(`${configPath}: ${message}`);
+}
+
+function findJsonObjectCandidates(text) {
+  const candidates = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (depth === 0) {
+      if (character === '{') {
+        depth = 1;
+        start = index;
+        inString = false;
+        escaped = false;
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      inString = true;
+    } else if (character === '{') {
+      depth += 1;
+    } else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        const source = text.slice(start, index + 1);
+        try {
+          const value = JSON.parse(source);
+          if (
+            value !== null &&
+            typeof value === 'object' &&
+            !Array.isArray(value)
+          ) {
+            candidates.push({ end: index + 1, value });
+          }
+        } catch {
+          // Non-JSON braces are allowed in the prefix.
+        }
+        start = -1;
+      }
+    }
+  }
+
+  return candidates;
+}
+
+try {
+  const source = fs.readFileSync(configPath, 'utf8');
+  const document = YAML.parseDocument(source, {
+    merge: false,
+    uniqueKeys: true,
+  });
+  if (document.errors.length > 0) {
+    fail(`invalid YAML: ${document.errors[0].message}`);
+  }
+
+  const config = document.toJS();
+  if (!Array.isArray(config.tests)) {
+    fail('"tests" must be an array');
+  }
+  const matchingIndexes = config.tests
+    .map((test, index) => (test?.description === targetDescription ? index : -1))
+    .filter((index) => index >= 0);
+  if (matchingIndexes.length !== 1) {
+    fail(
+      `expected exactly one test named "${targetDescription}", found ${matchingIndexes.length}`,
+    );
+  }
+
+  const testsNode = document.get('tests', true);
+  if (!YAML.isSeq(testsNode)) {
+    fail('"tests" must be a YAML sequence');
+  }
+  const selectedIndex = matchingIndexes[0];
+  const selectedNode = testsNode.items[selectedIndex];
+  if (!YAML.isMap(selectedNode)) {
+    fail('selected test must be a direct YAML mapping');
+  }
+
+  const selected = config.tests[selectedIndex];
+  const vars = selected?.vars;
+  if (vars === null || typeof vars !== 'object' || Array.isArray(vars)) {
+    fail('selected test vars must be an object');
+  }
+  if (vars.assertion_id !== 'human-interaction.actor.rest-unknown') {
+    fail('selected test assertion_id must be human-interaction.actor.rest-unknown');
+  }
+  if (vars.expected_result !== 'HUMAN_STOP') {
+    fail('selected test expected_result must be HUMAN_STOP');
+  }
+  if (vars.expected_allowed !== false) {
+    fail('selected test expected_allowed must be false');
+  }
+  if (typeof vars.user_input !== 'string') {
+    fail('selected test vars.user_input must be text');
+  }
+
+  const candidates = findJsonObjectCandidates(vars.user_input);
+  if (candidates.length !== 1) {
+    fail(
+      `selected test vars.user_input must contain exactly one unambiguous JSON object, found ${candidates.length}`,
+    );
+  }
+  const [{ end, value: payload }] = candidates;
+  if (vars.user_input.slice(end).trim() !== '') {
+    fail('selected test vars.user_input has trailing content after its JSON object');
+  }
+  if (payload.surface !== 'issue_or_pr_comment') {
+    fail('selected test payload surface must be issue_or_pr_comment');
+  }
+  if (
+    payload.user === null ||
+    typeof payload.user !== 'object' ||
+    Array.isArray(payload.user)
+  ) {
+    fail('selected test payload user must be a non-array object');
+  }
+  if (payload.user.login !== 'dependabot[bot]') {
+    fail('selected test payload user.login must be dependabot[bot]');
+  }
+  if (Object.prototype.hasOwnProperty.call(payload.user, 'type')) {
+    fail('selected test payload user.type must be absent');
+  }
+  if (payload.performed_via_github_app !== null) {
+    fail('selected test payload performed_via_github_app must be null');
+  }
+
+  const policyRouteAnchors = [];
+  for (const testNode of testsNode.items) {
+    if (!YAML.isMap(testNode)) continue;
+    const assertionsNode = testNode.get('assert', true);
+    if (!YAML.isSeq(assertionsNode)) continue;
+    for (const assertionNode of assertionsNode.items) {
+      if (YAML.isMap(assertionNode) && assertionNode.anchor === 'policy_route') {
+        policyRouteAnchors.push(assertionNode);
+      }
+    }
+  }
+  if (policyRouteAnchors.length !== 1) {
+    fail(
+      `expected exactly one authoritative &policy_route assertion, found ${policyRouteAnchors.length}`,
+    );
+  }
+  const [policyRoute] = policyRouteAnchors;
+  const policyRouteValue = policyRoute.toJSON();
+  if (
+    policyRouteValue?.type !== 'javascript' ||
+    policyRouteValue?.value !== 'file://assert-policy-route.cjs'
+  ) {
+    fail('authoritative &policy_route must call file://assert-policy-route.cjs');
+  }
+
+  const selectedAssertions = selectedNode.get('assert', true);
+  if (!YAML.isSeq(selectedAssertions)) {
+    fail('selected test assert must be a YAML sequence');
+  }
+  const referencesPolicyRoute = selectedAssertions.items.some(
+    (assertionNode) =>
+      YAML.isAlias(assertionNode) &&
+      assertionNode.source === 'policy_route' &&
+      assertionNode.resolve(document) === policyRoute,
+  );
+  if (!referencesPolicyRoute) {
+    fail('selected test must reference the authoritative *policy_route assertion');
+  }
+} catch (error) {
+  console.error(`ERROR: ${error.message}`);
+  process.exit(1);
+}
+NODE
+  then
     errors=$((errors + 1))
   fi
 }
@@ -441,8 +642,7 @@ for description in \
   require_test_assert "$description"
 done
 
-require "$tests" "concrete missing-user.type REST payload fixture" \
-  '\{"surface":"issue_or_pr_comment","body":"Update dependency\.","user":\{"login":"dependabot\[bot\]"\},"performed_via_github_app":null\}'
+require_missing_metadata_promptfoo_case
 
 require "$policy" "six-decision HUMAN_STOP response contract" \
   'Classification: HUMAN_STOP Implement: No Draft: No Post: No Reply: No Resolve: No'
