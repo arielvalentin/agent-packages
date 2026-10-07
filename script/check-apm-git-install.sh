@@ -33,6 +33,7 @@ dependencies:
   apm:
     - $repository/packages/coordinator#$ref
     - $repository/packages/development-workflow#$ref
+    - $repository/packages/code-reviewers#$ref
 YAML
 }
 
@@ -50,10 +51,16 @@ const lock = YAML.parse(fs.readFileSync(lockfile, 'utf8'));
 const expectedPaths = [
   'packages/coordinator',
   'packages/development-workflow',
+  'packages/code-reviewers',
 ];
 
 if (!Array.isArray(lock.dependencies)) {
   throw new Error(`${lockfile}: dependencies must be an array`);
+}
+if (lock.dependencies.length !== expectedPaths.length) {
+  throw new Error(
+    `${lockfile}: expected ${expectedPaths.length} dependencies, found ${lock.dependencies.length}`,
+  );
 }
 
 for (const virtualPath of expectedPaths) {
@@ -94,24 +101,6 @@ compare_git_file() {
   fi
 }
 
-compare_git_tree() {
-  local source_root="$1"
-  local installed_root="$2"
-  local found=false
-
-  while IFS= read -r source_path; do
-    found=true
-    compare_git_file \
-      "$source_path" \
-      "$installed_root/${source_path#"$source_root"/}"
-  done < <(git -C "$repo_root" ls-tree -r --name-only "$ref" -- "$source_root")
-
-  if [[ "$found" != true ]]; then
-    echo "ERROR: $source_root has no tracked files at $ref"
-    exit 1
-  fi
-}
-
 verify_policy_assertions() {
   local skills_root="$1"
 
@@ -139,42 +128,67 @@ NODE
   )
 }
 
-verify_install() {
-  local coordinator="$1"
-  local implementer="$2"
-  local architect="$3"
-  local panel="$4"
-  local lockfile="$5"
-  local coordinator_agents_root
-  local development_agents_root
-  local coordinator_skills_root
-  coordinator_agents_root="$(dirname "$coordinator")"
-  development_agents_root="$(dirname "$implementer")"
-  coordinator_skills_root="$(dirname "$(dirname "$panel")")"
+verify_inventory() {
+  local installed_root="$1"
+  shift
+  local expected_paths
+  local actual_paths
+  local relative_path
+  local source_found
+  expected_paths="$(mktemp "$tmpdir/expected-paths.XXXXXX")"
+  actual_paths="$(mktemp "$tmpdir/actual-paths.XXXXXX")"
 
-  for required_path in \
-    "$coordinator" \
-    "$implementer" \
-    "$architect" \
-    "$panel" \
-    "$lockfile"; do
-    if [[ ! -f "$required_path" ]]; then
-      echo "ERROR: exact-ref APM install did not create $required_path"
+  if [[ ! -d "$installed_root" ]]; then
+    echo "ERROR: exact-ref APM install did not create $installed_root"
+    exit 1
+  fi
+  if [[ -n "$(find "$installed_root" -type l -print -quit)" ]]; then
+    echo "ERROR: exact-ref APM install created a symlink under $installed_root"
+    exit 1
+  fi
+
+  for source_root in "$@"; do
+    if git -C "$repo_root" ls-tree -r "$ref" -- "$source_root" |
+      grep '^120000 ' >/dev/null; then
+      echo "ERROR: $source_root contains a tracked symlink at $ref"
+      exit 1
+    fi
+    source_found=false
+    while IFS= read -r source_path; do
+      source_found=true
+      relative_path="${source_path#"$source_root"/}"
+      printf '%s\n' "$relative_path" >>"$expected_paths"
+      compare_git_file "$source_path" "$installed_root/$relative_path"
+    done < <(
+      git -C "$repo_root" ls-tree -r --name-only "$ref" -- "$source_root"
+    )
+    if [[ "$source_found" != true ]]; then
+      echo "ERROR: $source_root has no tracked files at $ref"
       exit 1
     fi
   done
 
-  verify_lock "$lockfile"
-  compare_git_tree \
-    "packages/coordinator/.apm/agents" \
-    "$coordinator_agents_root"
-  compare_git_tree \
-    "packages/development-workflow/.apm/agents" \
-    "$development_agents_root"
-  compare_git_tree \
-    "packages/coordinator/.apm/skills" \
-    "$coordinator_skills_root"
+  find "$installed_root" -type f -print |
+    while IFS= read -r installed_path; do
+      printf '%s\n' "${installed_path#"$installed_root"/}"
+    done >"$actual_paths"
+  sort -o "$expected_paths" "$expected_paths"
+  sort -o "$actual_paths" "$actual_paths"
 
+  if [[ -n "$(uniq -d "$expected_paths")" ]]; then
+    echo "ERROR: package sources contain conflicting installed paths"
+    uniq -d "$expected_paths"
+    exit 1
+  fi
+  if ! diff -u "$expected_paths" "$actual_paths"; then
+    echo "ERROR: installed inventory does not match $ref"
+    exit 1
+  fi
+}
+
+verify_content_markers() {
+  local coordinator="$1"
+  local implementer="$2"
   if ! grep -Fq 'inspect -> edit -> targeted validation -> final response' "$coordinator"; then
     echo "ERROR: deployed coordinator is missing the direct-work fast path"
     exit 1
@@ -183,7 +197,54 @@ verify_install() {
     echo "ERROR: deployed implementer is missing bounded-work guidance"
     exit 1
   fi
-  verify_policy_assertions "$coordinator_skills_root"
+}
+
+verify_project_install() {
+  local root="$1"
+  local agents_root="$root/.github/agents"
+  local skills_root="$root/.agents/skills"
+  local lockfile="$root/apm.lock.yaml"
+
+  verify_lock "$lockfile"
+  verify_inventory \
+    "$agents_root" \
+    "packages/coordinator/.apm/agents" \
+    "packages/development-workflow/.apm/agents" \
+    "packages/code-reviewers/.apm/agents"
+  verify_inventory \
+    "$skills_root" \
+    "packages/coordinator/.apm/skills" \
+    "packages/code-reviewers/.apm/skills"
+  verify_content_markers \
+    "$agents_root/coordinator.agent.md" \
+    "$agents_root/implementer.agent.md"
+  verify_policy_assertions "$skills_root"
+}
+
+verify_global_install() {
+  local home="$1"
+  local agents_root="$home/.copilot/agents"
+  local modules_root="$home/.apm/apm_modules/$repository/packages"
+  local coordinator_skills="$modules_root/coordinator/.apm/skills"
+  local reviewer_skills="$modules_root/code-reviewers/.apm/skills"
+  local lockfile="$home/.apm/apm.lock.yaml"
+
+  verify_lock "$lockfile"
+  verify_inventory \
+    "$agents_root" \
+    "packages/coordinator/.apm/agents" \
+    "packages/development-workflow/.apm/agents" \
+    "packages/code-reviewers/.apm/agents"
+  verify_inventory \
+    "$coordinator_skills" \
+    "packages/coordinator/.apm/skills"
+  verify_inventory \
+    "$reviewer_skills" \
+    "packages/code-reviewers/.apm/skills"
+  verify_content_markers \
+    "$agents_root/coordinator.agent.md" \
+    "$agents_root/implementer.agent.md"
+  verify_policy_assertions "$coordinator_skills"
 }
 
 dry_run_home="$tmpdir/dry-run-home"
@@ -203,22 +264,26 @@ write_manifest "$consumer/apm.yml"
   done
   HOME="$project_home" apm install
 )
-verify_install \
-  "$consumer/.github/agents/coordinator.agent.md" \
-  "$consumer/.github/agents/implementer.agent.md" \
-  "$consumer/.github/agents/system-architect.agent.md" \
-  "$consumer/.agents/skills/consensus-panel/SKILL.md" \
-  "$consumer/apm.lock.yaml"
+verify_project_install "$consumer"
 
+global_dry_run_home="$tmpdir/global-dry-run-home"
 global_home="$tmpdir/global-home"
-mkdir -p "$global_home/.apm"
+mkdir -p "$global_dry_run_home/.apm" "$global_home/.apm"
+write_manifest "$global_dry_run_home/.apm/apm.yml"
+HOME="$global_dry_run_home" apm install -g --dry-run
+for unexpected_path in \
+  "$global_dry_run_home/.copilot" \
+  "$global_dry_run_home/.agents" \
+  "$global_dry_run_home/.apm/apm.lock.yaml" \
+  "$global_dry_run_home/.apm/apm_modules"; do
+  if [[ -e "$unexpected_path" || -L "$unexpected_path" ]]; then
+    echo "ERROR: global APM dry run unexpectedly created $unexpected_path"
+    exit 1
+  fi
+done
+
 write_manifest "$global_home/.apm/apm.yml"
 HOME="$global_home" apm install -g
-verify_install \
-  "$global_home/.copilot/agents/coordinator.agent.md" \
-  "$global_home/.copilot/agents/implementer.agent.md" \
-  "$global_home/.copilot/agents/system-architect.agent.md" \
-  "$global_home/.apm/apm_modules/$repository/packages/coordinator/.apm/skills/consensus-panel/SKILL.md" \
-  "$global_home/.apm/apm.lock.yaml"
+verify_global_install "$global_home"
 
-echo "OK: project and isolated global APM installs passed for $repository@$ref."
+echo "OK: all package project and isolated global APM installs passed for $repository@$ref."
