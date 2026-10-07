@@ -94,24 +94,46 @@ compare_git_file() {
   fi
 }
 
+compare_git_tree() {
+  local source_root="$1"
+  local installed_root="$2"
+  local found=false
+
+  while IFS= read -r source_path; do
+    found=true
+    compare_git_file \
+      "$source_path" \
+      "$installed_root/${source_path#"$source_root"/}"
+  done < <(git -C "$repo_root" ls-tree -r --name-only "$ref" -- "$source_root")
+
+  if [[ "$found" != true ]]; then
+    echo "ERROR: $source_root has no tracked files at $ref"
+    exit 1
+  fi
+}
+
 verify_policy_assertions() {
-  local panel="$1"
+  local skills_root="$1"
 
   (
     cd "$repo_root"
-    node - "$panel" <<'NODE'
+    node - "$skills_root" <<'NODE'
 const fs = require('node:fs');
+const path = require('node:path');
 const {
   parsePolicyMarkdown,
 } = require('./packages/coordinator/tests/policy-assertions.cjs');
 
-const panel = process.argv[2];
-const parsed = parsePolicyMarkdown(
-  fs.readFileSync(panel, 'utf8'),
-  panel,
-);
-if (parsed.assertions.length === 0) {
-  throw new Error(`${panel}: no structured policy assertions found`);
+const skillsRoot = process.argv[2];
+let assertionCount = 0;
+for (const entry of fs.readdirSync(skillsRoot, { recursive: true })) {
+  const file = path.join(skillsRoot, entry);
+  if (!entry.endsWith('.md') || !fs.statSync(file).isFile()) continue;
+  const parsed = parsePolicyMarkdown(fs.readFileSync(file, 'utf8'), file);
+  assertionCount += parsed.assertions.length;
+}
+if (assertionCount === 0) {
+  throw new Error(`${skillsRoot}: no structured policy assertions found`);
 }
 NODE
   )
@@ -123,6 +145,12 @@ verify_install() {
   local architect="$3"
   local panel="$4"
   local lockfile="$5"
+  local coordinator_agents_root
+  local development_agents_root
+  local coordinator_skills_root
+  coordinator_agents_root="$(dirname "$coordinator")"
+  development_agents_root="$(dirname "$implementer")"
+  coordinator_skills_root="$(dirname "$(dirname "$panel")")"
 
   for required_path in \
     "$coordinator" \
@@ -137,18 +165,15 @@ verify_install() {
   done
 
   verify_lock "$lockfile"
-  compare_git_file \
-    "packages/coordinator/.apm/agents/coordinator.agent.md" \
-    "$coordinator"
-  compare_git_file \
-    "packages/development-workflow/.apm/agents/implementer.agent.md" \
-    "$implementer"
-  compare_git_file \
-    "packages/development-workflow/.apm/agents/system-architect.agent.md" \
-    "$architect"
-  compare_git_file \
-    "packages/coordinator/.apm/skills/consensus-panel/SKILL.md" \
-    "$panel"
+  compare_git_tree \
+    "packages/coordinator/.apm/agents" \
+    "$coordinator_agents_root"
+  compare_git_tree \
+    "packages/development-workflow/.apm/agents" \
+    "$development_agents_root"
+  compare_git_tree \
+    "packages/coordinator/.apm/skills" \
+    "$coordinator_skills_root"
 
   if ! grep -Fq 'inspect -> edit -> targeted validation -> final response' "$coordinator"; then
     echo "ERROR: deployed coordinator is missing the direct-work fast path"
@@ -158,17 +183,24 @@ verify_install() {
     echo "ERROR: deployed implementer is missing bounded-work guidance"
     exit 1
   fi
-  verify_policy_assertions "$panel"
+  verify_policy_assertions "$coordinator_skills_root"
 }
 
+dry_run_home="$tmpdir/dry-run-home"
 project_home="$tmpdir/project-home"
 consumer="$tmpdir/consumer"
-mkdir -p "$project_home" "$consumer"
+mkdir -p "$dry_run_home" "$project_home" "$consumer"
 write_manifest "$consumer/apm.yml"
 
 (
   cd "$consumer"
-  HOME="$project_home" apm install --dry-run
+  HOME="$dry_run_home" apm install --dry-run
+  for unexpected_path in apm.lock.yaml apm_modules .agents .github; do
+    if [[ -e "$unexpected_path" ]]; then
+      echo "ERROR: APM dry run unexpectedly created $unexpected_path"
+      exit 1
+    fi
+  done
   HOME="$project_home" apm install
 )
 verify_install \

@@ -15,19 +15,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
 
+      - name: Pin npm 10
+        run: |
+          npm install --global npm@10.9.4
+          test "$(npm --version)" = "10.9.4"
+
       - name: Validate npm lockfile registry
         run: |
           node <<'NODE'
           const lock = require('./package-lock.json');
           const invalid = Object.entries(lock.packages)
-            .filter(([, metadata]) => metadata.resolved?.startsWith('http'))
-            .filter(([, metadata]) => new URL(metadata.resolved).host !== 'registry.npmjs.org');
+            .filter(([, metadata]) => metadata.resolved)
+            .filter(([, metadata]) =>
+              !metadata.resolved.startsWith('https://registry.npmjs.org/'),
+            );
           if (invalid.length > 0) {
             console.error('Unexpected package registries:', invalid);
             process.exit(1);
