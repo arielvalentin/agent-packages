@@ -346,10 +346,7 @@ verify_global_skills() {
   local skills_root="$1"
 
   case "$expected_apm_version" in
-    0.32.*)
-      verify_global_skill_placeholders "$skills_root"
-      ;;
-    0.33.*)
+    0.32.* | 0.33.*)
       verify_inventory \
         "$skills_root" \
         "packages/coordinator/.apm/skills" \

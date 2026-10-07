@@ -118,9 +118,10 @@ for skill in consensus-panel human-interaction-safeguard review-fix-loop; do
 done
 
 git -C "$repo_root" show "$ref:packages/coordinator/.apm/agents/coordinator.agent.md" |
-  cmp -s - "$agents_root/coordinator.agent.md"
-git -C "$repo_root" show "$ref:packages/coordinator/.apm/agents/coordinator.agent.md" |
   cmp -s - "$module_root/.apm/agents/coordinator.agent.md"
+cmp -s \
+  "$module_root/.apm/agents/coordinator.agent.md" \
+  "$agents_root/coordinator.agent.md"
 git -C "$repo_root" show "$ref:packages/coordinator/.apm/skills/consensus-panel/SKILL.md" |
   cmp -s - "$skills_root/consensus-panel/SKILL.md"
 
