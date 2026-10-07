@@ -1090,6 +1090,21 @@ assert.equal(
   false,
 );
 
+const panelRouteContext = {
+  vars: {
+    assertion_id: 'consensus.explicit.panel',
+    expected_result: 'PANEL_2',
+    expected_allowed: true,
+    skill_content: 'file://../.apm/skills/consensus-panel/SKILL.md',
+  },
+  test: {
+    vars: {
+      skill_content: 'file://../.apm/skills/consensus-panel/SKILL.md',
+    },
+  },
+};
+assert.equal(assertPolicyRoute('PANEL_2', panelRouteContext), true);
+
 assert.equal(assertPolicyPermission('No', routeContext), true);
 assert.equal(assertPolicyPermission('Yes', routeContext), false);
 assert.equal(assertPolicyPermission('No.', routeContext), true);

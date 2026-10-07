@@ -43,7 +43,7 @@ tests:
       assertion_id: "coordinator.security.explicit-vulnerability"
       expected_result: "SECURITY_REVIEW_FIRST"
       expected_allowed: true
-      user_input: "The user explicitly asks to find exploitable vulnerabilities in a five-line change. Return only the coordinator review-routing result identifier, not the reviewer name."
+      user_input: "The user explicitly asks to find exploitable vulnerabilities in a five-line change. Choose SECURITY_REVIEW_FIRST or DIRECT_REVIEW. Return one token."
     assert:
       - &policy_route
         type: javascript

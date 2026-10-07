@@ -12,7 +12,7 @@ let cachedRegistry;
 
 function selectedResult(output) {
   const text = String(output);
-  const results = [...text.matchAll(/\b[A-Z][A-Z_]+\b/g)]
+  const results = [...text.matchAll(/\b[A-Z][A-Z0-9_]+\b/g)]
     .map(([token]) => token)
     .filter((token) => ENUMS.result.has(token));
   const uniqueResults = [...new Set(results)];
