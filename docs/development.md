@@ -113,6 +113,8 @@ When adding or changing an assertion:
 
 The exact-ref APM check performs a dry run, a clean project installation, and
 an isolated user-scope installation for coordinator and development-workflow.
+CI runs it with both APM 0.32.0, which exposed the symlink regression, and the
+current supported APM 0.33.0 release.
 
 The checker rejects malformed records, duplicate JSON keys or assertion IDs,
 unknown fields or enums, unresolved or cyclic precedence, ambiguous overlapping

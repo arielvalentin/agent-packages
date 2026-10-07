@@ -3,14 +3,24 @@ set -euo pipefail
 
 repository="${1:-}"
 ref="${2:-}"
+expected_apm_version="${3:-}"
 
 if [[ -z "$repository" || -z "$ref" ]]; then
-  echo "Usage: $0 <owner/repository> <git-ref>"
+  echo "Usage: $0 <owner/repository> <git-ref> [expected-apm-version]"
   exit 2
 fi
 
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/agent-packages-apm-install.XXXXXX")"
 trap 'rm -rf "$tmpdir"' EXIT
+
+apm_version="$(apm --version)"
+if [[ -n "$expected_apm_version" ]] &&
+  [[ "$apm_version" != *"version $expected_apm_version "* ]]; then
+  echo "ERROR: expected APM $expected_apm_version, got: $apm_version"
+  exit 1
+fi
+echo "Testing with $apm_version"
 
 write_manifest() {
   local manifest="$1"
@@ -24,6 +34,87 @@ dependencies:
     - $repository/packages/coordinator#$ref
     - $repository/packages/development-workflow#$ref
 YAML
+}
+
+verify_lock() {
+  local lockfile="$1"
+
+  (
+    cd "$repo_root"
+    node - "$lockfile" "$repository" "$ref" <<'NODE'
+const fs = require('node:fs');
+const YAML = require('yaml');
+
+const [lockfile, repository, ref] = process.argv.slice(2);
+const lock = YAML.parse(fs.readFileSync(lockfile, 'utf8'));
+const expectedPaths = [
+  'packages/coordinator',
+  'packages/development-workflow',
+];
+
+if (!Array.isArray(lock.dependencies)) {
+  throw new Error(`${lockfile}: dependencies must be an array`);
+}
+
+for (const virtualPath of expectedPaths) {
+  const matches = lock.dependencies.filter(
+    (dependency) =>
+      dependency.repo_url === repository &&
+      dependency.virtual_path === virtualPath,
+  );
+  if (matches.length !== 1) {
+    throw new Error(
+      `${lockfile}: expected one ${repository}/${virtualPath} dependency, found ${matches.length}`,
+    );
+  }
+  const dependency = matches[0];
+  for (const field of ['resolved_commit', 'resolved_ref']) {
+    if (dependency[field] !== ref) {
+      throw new Error(
+        `${lockfile}: ${virtualPath}.${field} is ${dependency[field]}, expected ${ref}`,
+      );
+    }
+  }
+}
+NODE
+  )
+}
+
+compare_git_file() {
+  local source_path="$1"
+  local installed_path="$2"
+
+  if ! git -C "$repo_root" cat-file -e "$ref:$source_path"; then
+    echo "ERROR: $source_path is not tracked at $ref"
+    exit 1
+  fi
+  if ! git -C "$repo_root" show "$ref:$source_path" | cmp -s - "$installed_path"; then
+    echo "ERROR: $installed_path does not match $source_path at $ref"
+    exit 1
+  fi
+}
+
+verify_policy_assertions() {
+  local panel="$1"
+
+  (
+    cd "$repo_root"
+    node - "$panel" <<'NODE'
+const fs = require('node:fs');
+const {
+  parsePolicyMarkdown,
+} = require('./packages/coordinator/tests/policy-assertions.cjs');
+
+const panel = process.argv[2];
+const parsed = parsePolicyMarkdown(
+  fs.readFileSync(panel, 'utf8'),
+  panel,
+);
+if (parsed.assertions.length === 0) {
+  throw new Error(`${panel}: no structured policy assertions found`);
+}
+NODE
+  )
 }
 
 verify_install() {
@@ -45,22 +136,29 @@ verify_install() {
     fi
   done
 
-  if ! grep -Fq "$ref" "$lockfile"; then
-    echo "ERROR: exact-ref APM install lockfile does not pin $ref"
-    exit 1
-  fi
+  verify_lock "$lockfile"
+  compare_git_file \
+    "packages/coordinator/.apm/agents/coordinator.agent.md" \
+    "$coordinator"
+  compare_git_file \
+    "packages/development-workflow/.apm/agents/implementer.agent.md" \
+    "$implementer"
+  compare_git_file \
+    "packages/development-workflow/.apm/agents/system-architect.agent.md" \
+    "$architect"
+  compare_git_file \
+    "packages/coordinator/.apm/skills/consensus-panel/SKILL.md" \
+    "$panel"
+
   if ! grep -Fq 'inspect -> edit -> targeted validation -> final response' "$coordinator"; then
     echo "ERROR: deployed coordinator is missing the direct-work fast path"
-    exit 1
-  fi
-  if ! grep -Fq '```policy-assertions' "$panel"; then
-    echo "ERROR: deployed consensus panel is missing structured policy assertions"
     exit 1
   fi
   if ! grep -Fq 'artifact for bounded work' "$implementer"; then
     echo "ERROR: deployed implementer is missing bounded-work guidance"
     exit 1
   fi
+  verify_policy_assertions "$panel"
 }
 
 project_home="$tmpdir/project-home"
