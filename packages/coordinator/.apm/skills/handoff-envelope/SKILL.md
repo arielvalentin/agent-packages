@@ -27,11 +27,18 @@ Load at the start of any subagent turn where the prompt begins with a
     "summary": "<=200 chars"
   },
   "constraints": ["..."],
+  "explicit_multi_review": false,
   "consensus_role": "primary|panel-member|single",
   "model_index": "1|2|3",
   "panel_wave": "initial|tiebreak"
 }
 ```
+
+For review phases, `explicit_multi_review` is a required JSON boolean (`true`
+or `false`). The coordinator derives it before loading review skills and
+persists it in every initial, retry, and post-fix handoff. Review skills consume
+this boolean; they do not narrow or reset it. Missing, null, string, or other
+invalid values make the review handoff invalid and must stop fail-closed.
 
 `model_index` `1` and `2` are the initial panel wave; `3` is the conditional
 tiebreaker (see `consensus-panel` skill). `panel_wave` is optional and additive
@@ -58,13 +65,23 @@ Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
 ## Write side
 
 - Output ≤2KB and not referenced by later phases → return inline.
-- Output >2KB OR referenced by later phases → write to `${ARTIFACTS_DIR}/NN-<phase>.<ext>`,
-  return `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.
+- Write an artifact only when the user requested one, a later phase needs the
+  content, or the output is too large for a useful inline result.
+- Output >2KB that meets one of those conditions → write to
+  `${ARTIFACTS_DIR}/NN-<phase>.<ext>` and return
+  `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.
 - Panel members (`consensus_role: panel-member`) and fast-path single reviewers
   (`consensus_role: single`) always return the JSON consensus schema (see
   `consensus-panel` skill), never prose. Both values also mean the reviewer is
   already dispatched: it reviews directly and must not select models or
   dispatch reviewers of its own. Only `primary` may fan out.
+
+## Budget and stop condition
+
+Every delegated handoff must include a bounded scope, required validation, and
+a stop condition. If the task exceeds that budget, return partial evidence and
+the narrow remaining objective instead of launching nested or replacement
+orchestration.
 
 ## Ambiguity
 

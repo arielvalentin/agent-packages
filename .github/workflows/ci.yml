@@ -15,9 +15,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
-      - name: Install APM
-        run: curl -sSL https://aka.ms/apm-unix | sh
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install test dependencies
+        run: ./script/npm-ci.sh
+
+      - name: Install APM 0.32.0
+        run: curl -sSL https://aka.ms/apm-unix | sh -s -- @v0.32.0
+
+      - name: Validate coordinator exact-ref package installation
+        env:
+          PACKAGE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          PACKAGE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: ./script/check-coordinator-git-install.sh "$PACKAGE_REPOSITORY" "$PACKAGE_REF"
+
+      - name: Validate exact-ref package installation with APM 0.32.0
+        env:
+          PACKAGE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          PACKAGE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: ./script/check-apm-git-install.sh "$PACKAGE_REPOSITORY" "$PACKAGE_REF" 0.32.0
+
+      - name: Install APM 0.33.0
+        run: curl -sSL https://aka.ms/apm-unix | sh -s -- @v0.33.0
+
+      - name: Validate exact-ref package installation with APM 0.33.0
+        env:
+          PACKAGE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          PACKAGE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: ./script/check-apm-git-install.sh "$PACKAGE_REPOSITORY" "$PACKAGE_REF" 0.33.0
 
       - name: Validate primitives (frontmatter + structure)
         run: |
@@ -42,6 +73,11 @@ jobs:
         run: |
           chmod +x script/check-consensus-contract.sh
           ./script/check-consensus-contract.sh
+
+      - name: Structured policy assertion checks
+        run: |
+          chmod +x script/check-policy-assertions.sh
+          ./script/check-policy-assertions.sh
 
       - name: Human interaction safety contract checks
         run: |

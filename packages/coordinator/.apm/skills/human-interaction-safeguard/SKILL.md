@@ -5,12 +5,170 @@ description: Canonical policy for handling human, unknown, bot, and app-authored
 
 # Human Interaction Safeguard
 
+The fenced registry below is the authoritative machine-readable contract.
+Prose explains the contract but does not redefine it.
+
+```policy-assertions
+{"format":"policy-assertions","version":1}
+{"id":"human-interaction.actor.rest-user","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.rest-bot","contract":"human-interaction.routing","actor":"rest-bot","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.actor.rest-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["source.rest","user.type.missing-or-unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.graphql-bot","contract":"human-interaction.routing","actor":"graphql-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.bot","source.graphql"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.actor.graphql-non-bot","contract":"human-interaction.routing","actor":"graphql-non-bot","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.typename.not-bot","source.graphql"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.actor.graphql-unknown","contract":"human-interaction.routing","actor":"unknown","provenance":"graphql-author-type","interaction":"public-github","action":"classify","conditions":["author.missing-or-unknown","source.graphql"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.provenance.user-with-app","contract":"human-interaction.routing","actor":"rest-user","provenance":"rest-user-type","interaction":"public-github","action":"classify","conditions":["app.association.present","source.rest","user.type.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
+{"id":"human-interaction.chain.all-bot","contract":"human-interaction.chain","actor":"all-bot","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.every-actor.bot"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":[]}
+{"id":"human-interaction.chain.any-human","contract":"human-interaction.chain","actor":"mixed","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.user"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-user"]}
+{"id":"human-interaction.chain.any-unknown","contract":"human-interaction.chain","actor":"unknown","provenance":"complete-chain","interaction":"public-github","action":"classify","conditions":["chain.complete","chain.any-actor.unknown"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.actor.rest-unknown"]}
+{"id":"human-interaction.chain.incomplete","contract":"human-interaction.chain","actor":"unknown","provenance":"incomplete-chain","interaction":"public-github","action":"classify","conditions":["chain.incomplete"],"result":"HUMAN_STOP","allowed":false,"precedence":[]}
+{"id":"human-interaction.existing-item.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
+{"id":"human-interaction.existing-item.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.existing-item.any-unknown","contract":"human-interaction.existing-item","actor":"unknown","provenance":"complete-chain","interaction":"existing-pr","action":"classify","conditions":["item.any-participant.unknown","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-unknown"]}
+{"id":"human-interaction.existing-issue.all-bot","contract":"human-interaction.existing-item","actor":"all-bot","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.author.bot","item.all-participants.bot","retrieval.complete"],"result":"AUTOMATION_FLOW","allowed":true,"precedence":["human-interaction.chain.all-bot"]}
+{"id":"human-interaction.existing-issue.any-human","contract":"human-interaction.existing-item","actor":"mixed","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.user","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-human"]}
+{"id":"human-interaction.existing-issue.any-unknown","contract":"human-interaction.existing-item","actor":"unknown","provenance":"complete-chain","interaction":"existing-issue","action":"classify","conditions":["item.any-participant.unknown","retrieval.complete"],"result":"HUMAN_STOP","allowed":false,"precedence":["human-interaction.chain.any-unknown"]}
+{"id":"human-interaction.action.human-stop.implement","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"implement","conditions":["classification.human-stop","trigger.interaction"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.draft","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"draft","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.post","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"post","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.reply","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"reply","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.action.human-stop.resolve","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"resolve","conditions":["classification.human-stop"],"result":"PROHIBITED","allowed":false,"precedence":[]}
+{"id":"human-interaction.ownership.human-stop","contract":"human-interaction.permissions","actor":"human-or-unknown","provenance":"classification-result","interaction":"public-github","action":"ownership","conditions":["classification.human-stop"],"result":"USER_WRITES_REPLY_AND_RESOLVES","allowed":true,"precedence":["human-interaction.action.human-stop.reply","human-interaction.action.human-stop.resolve"]}
+```
+
+| Policy case | Authoritative result |
+|-------------|----------------------|
+| REST User | {{policy:human-interaction.actor.rest-user.result}} |
+| REST Bot | {{policy:human-interaction.actor.rest-bot.result}} |
+| REST missing/unknown | {{policy:human-interaction.actor.rest-unknown.result}} |
+| GraphQL Bot | {{policy:human-interaction.actor.graphql-bot.result}} |
+| GraphQL non-Bot | {{policy:human-interaction.actor.graphql-non-bot.result}} |
+| GraphQL missing/unknown | {{policy:human-interaction.actor.graphql-unknown.result}} |
+| User with app association | {{policy:human-interaction.provenance.user-with-app.result}} |
+| Complete all-Bot chain | {{policy:human-interaction.chain.all-bot.result}} |
+| Chain with a human | {{policy:human-interaction.chain.any-human.result}} |
+| Chain with an unknown actor | {{policy:human-interaction.chain.any-unknown.result}} |
+| Incomplete chain retrieval | {{policy:human-interaction.chain.incomplete.result}} |
+| Existing item with all-Bot context | {{policy:human-interaction.existing-item.all-bot.result}} |
+| Existing item with a human participant | {{policy:human-interaction.existing-item.any-human.result}} |
+| Existing item with an unknown participant | {{policy:human-interaction.existing-item.any-unknown.result}} |
+| Existing issue with all-Bot context | {{policy:human-interaction.existing-issue.all-bot.result}} |
+| Existing issue with a human participant | {{policy:human-interaction.existing-issue.any-human.result}} |
+| Existing issue with an unknown participant | {{policy:human-interaction.existing-issue.any-unknown.result}} |
+
+| `HUMAN_STOP` decision | Authoritative result |
+|-----------------------|----------------------|
+| Interaction-triggered implementation | `PROHIBITED` ({{policy:human-interaction.action.human-stop.implement.result}}) |
+| Drafting a public response | `PROHIBITED` ({{policy:human-interaction.action.human-stop.draft.result}}) |
+| Posting a public response | `PROHIBITED` ({{policy:human-interaction.action.human-stop.post.result}}) |
+| Replying in the thread | `PROHIBITED` ({{policy:human-interaction.action.human-stop.reply.result}}) |
+| Resolving the thread | `PROHIBITED` ({{policy:human-interaction.action.human-stop.resolve.result}}) |
+| Human response ownership | `USER_WRITES_REPLY_AND_RESOLVES` ({{policy:human-interaction.ownership.human-stop.result}}) |
+
+For the agent's own resolve operation,
+`HUMAN_STOP_AGENT_RESOLVE = PROHIBITED`
+({{policy:human-interaction.action.human-stop.resolve.result}}).
+`USER_WRITES_REPLY_AND_RESOLVES` identifies human ownership; it never grants
+the agent permission to resolve.
+
+For a tainted interaction, implementation
+allowed={{policy:human-interaction.action.human-stop.implement.allowed}},
+drafting allowed={{policy:human-interaction.action.human-stop.draft.allowed}},
+posting allowed={{policy:human-interaction.action.human-stop.post.allowed}},
+replying allowed={{policy:human-interaction.action.human-stop.reply.allowed}},
+and resolution
+allowed={{policy:human-interaction.action.human-stop.resolve.allowed}}. Response
+ownership is
+{{policy:human-interaction.ownership.human-stop.result}}.
+
+**Response routing invariant:** a question asking who writes the reply and
+resolves a tainted or `HUMAN_STOP` thread always returns
+`USER_WRITES_REPLY_AND_RESOLVES`, even when the scenario mentions actor
+classification or a separately authorized implementation. Do not return the
+structured Classification/Implement/Draft/Post/Reply/Resolve block unless the
+caller explicitly requests those six decisions.
+
+**Classify REST metadata mechanically before choosing an output format:**
+
+```text
+if user.type == "User": HUMAN_STOP
+else if user.type == "Bot": AUTOMATION_FLOW
+else: HUMAN_STOP
+```
+
+`performed_via_github_app` records app association, not whether the public
+author is human. It never overrides authoritative `user.type`. A user access
+token can produce `user.type == "User"` with non-null app metadata, so that
+combination is always `HUMAN_STOP`:
+
+```text
+{"user":{"type":"User"},"performed_via_github_app":{"id":1}}
+=> HUMAN_STOP
+```
+
+**Response-mode routing (match the caller's exact ask):**
+
+1. If the caller asks for a classification, required path, or decision-table
+   token, classify the metadata and return exactly `HUMAN_STOP` or
+   `AUTOMATION_FLOW`.
+2. If the caller asks who writes the reply and resolves a `HUMAN_STOP` thread,
+   return exactly `USER_WRITES_REPLY_AND_RESOLVES`. This mode wins even when
+   the request also mentions a later, separately authorized implementation.
+3. If the caller asks for structured classification plus action decisions,
+   return the matching structured block in § Response contracts.
+4. If the caller asks whether interaction-triggered implementation, agent
+   drafting, posting, replying, or resolution is allowed for `HUMAN_STOP`,
+   return exactly `No`. The assertion result remains `PROHIBITED`; permission
+   questions use the Yes/No response shape.
+
+**Classification quick table:** authoritative REST `user.type == "Bot"` means
+`AUTOMATION_FLOW`; authoritative GraphQL `author.__typename == "Bot"` means
+`AUTOMATION_FLOW`; `User` or unknown metadata means `HUMAN_STOP`. In
+particular, a request that says the platform actor type is Bot must return
+`AUTOMATION_FLOW`.
+
+Response mode controls only the output shape; it never selects the
+classification value. Do not substitute one response mode for another. App
+association alone never selects automation. REST Bot and GraphQL Bot select
+`AUTOMATION_FLOW`. REST User, GraphQL User, missing, unknown, ambiguous, or
+incomplete actor metadata selects `HUMAN_STOP`.
+A later, separate implementation authorization never permits an agent-authored
+reply or agent-performed resolution.
+
+**REST precedence:** exact `user.type == "User"` selects `HUMAN_STOP`; exact
+`user.type == "Bot"` selects `AUTOMATION_FLOW`; every other value selects
+`HUMAN_STOP`. `performed_via_github_app` is retained for audit context but does
+not change the path.
+
+Worked REST example:
+
+```text
+{"user":{"login":"dependabot[bot]","type":"User"},"performed_via_github_app":null}
+=> HUMAN_STOP
+```
+
+The bot-like login is discarded. A null `performed_via_github_app` value does
+not mean automation and cannot override `user.type == "User"`.
+
 This skill is the single source of truth for actor classification and behavior
 when processing public GitHub interactions: PR review comments, PR/issue
 comments, questions, requests, directives, and suggestions.
 
 Apply this gate before researching, implementing, drafting a reply, posting, or
 resolving a thread in response to an interaction.
+
+## Existing-item content gate
+
+Every comment or review posted on an existing PR or issue invokes this
+safeguard before drafting or posting, including a new top-level comment or
+review that is not a reply.
+
+For new top-level content, the relevant conversation chain is the complete
+existing item context: the PR or issue author plus all existing PR reviews,
+inline review comments and threads, and issue/PR comments. Retrieve every
+applicable surface and exhaust all pagination before classification. The chain
+is `AUTOMATION_FLOW` only when every participant on every retrieved surface is
+authoritatively Bot. Any User, unknown, missing, ambiguous, or incompletely
+retrieved participant makes the existing-item chain `HUMAN_STOP`.
 
 ## Retrieve authoritative author metadata
 
@@ -23,11 +181,17 @@ GitHub.
 Use these commands for every relevant surface:
 
 ```bash
+gh api "repos/{owner}/{repo}/pulls/{pull_number}" \
+  --jq '{surface: "pull_request", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
+
+gh api "repos/{owner}/{repo}/issues/{issue_number}" \
+  --jq '{surface: "issue", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
+
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/comments" \
-  --jq '.[] | {surface: "pr_review_comment", id, body, user: {login: .user.login, type: .user.type}}'
+  --jq '.[] | {surface: "pr_review_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/reviews" \
-  --jq '.[] | {surface: "pr_review", id, body, state, user: {login: .user.login, type: .user.type}}'
+  --jq '.[] | {surface: "pr_review", id, body, state, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
 
 gh api --paginate "repos/{owner}/{repo}/issues/{issue_number}/comments" \
   --jq '.[] | {surface: "issue_or_pr_comment", id, body, user: {login: .user.login, type: .user.type}, performed_via_github_app: .performed_via_github_app}'
@@ -36,11 +200,10 @@ gh api --paginate "repos/{owner}/{repo}/issues/{issue_number}/comments" \
 For each REST item, apply this ordered REST classification algorithm:
 
 1. Discard `.user.login` completely; it is not a classification input.
-2. If `.performed_via_github_app` is non-null, select `AUTOMATION_FLOW`.
+2. If `.user.type == "User"` exactly, select `HUMAN_STOP`, regardless of a
+   bot-like login or `.performed_via_github_app`.
 3. Else if `.user.type == "Bot"` exactly, select `AUTOMATION_FLOW`.
-4. Else select `HUMAN_STOP`. This includes `.user.type == "User"` regardless
-   of a bot-like login, plus missing `user`, missing `type`, or missing app
-   metadata.
+4. Else select `HUMAN_STOP`, including missing `user` or missing `type`.
 
 Agents must not inspect `.user.login` to override or reconsider any step in
 this algorithm.
@@ -152,13 +315,47 @@ reply and resolution remain user-only.
 | Author metadata | Required path |
 |-----------------|---------------|
 | REST `user.type == "Bot"` | `AUTOMATION_FLOW` |
-| REST non-null `performed_via_github_app` | `AUTOMATION_FLOW` |
-| GraphQL `author.__typename == "Bot"` | `AUTOMATION_FLOW` |
-| REST `user.type == "User"` | `HUMAN_STOP` |
+| REST `user.type == "User"` (with null or non-null app metadata) | `HUMAN_STOP` |
 | Unknown, missing, ambiguous, other, or unverified actor type | `HUMAN_STOP` |
+| GraphQL `author.__typename == "Bot"` | `AUTOMATION_FLOW` |
 
-REST Bot/App metadata and GraphQL Bot metadata are conclusive: they are not
-unknown and must select `AUTOMATION_FLOW`, never `HUMAN_STOP`.
+GitHub App association is audit context only and cannot convert a User or
+unknown actor to automation. REST Bot and GraphQL Bot metadata are conclusive.
+
+## Response contracts
+
+- A token-only classification request returns exactly `HUMAN_STOP` or
+  `AUTOMATION_FLOW`, with no explanation.
+- A request asking who writes the reply and resolves a `HUMAN_STOP` thread
+  returns exactly `USER_WRITES_REPLY_AND_RESOLVES`.
+- A structured action-decision request for `HUMAN_STOP` returns exactly these
+  six lines, with no preamble or trailing explanation:
+
+  ```text
+  Classification: HUMAN_STOP
+  Implement: No
+  Draft: No
+  Post: No
+  Reply: No
+  Resolve: No
+  ```
+
+- A structured action-decision request for `AUTOMATION_FLOW` returns exactly
+  these six lines, with no preamble or trailing explanation:
+
+  ```text
+  Classification: AUTOMATION_FLOW
+  Implement: Allowed
+  Draft: Allowed
+  Post: Allowed
+  Reply: Allowed
+  Resolve: Allowed
+  ```
+
+  `Allowed` means continue through the normal downstream gates, including
+  `acting-on-behalf` before posting; it is not unconditional permission.
+  Never use this block for a `HUMAN_STOP` interaction or a reply-ownership
+  token request.
 
 ## HUMAN_STOP
 
@@ -183,6 +380,8 @@ permitted for `HUMAN_STOP`. The user always writes the human-facing response
 and decides whether to resolve the thread (`USER_WRITES_REPLY_AND_RESOLVES`).
 Separate implementation permission never grants reply or resolution
 permission.
+
+Do not replace requested token-only or structured decisions with reasoning.
 
 ## AUTOMATION_FLOW
 

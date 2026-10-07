@@ -16,11 +16,24 @@ This skill is mandatory for PR/issue comment posts and replies.
 Before drafting, posting, replying to, or resolving an existing public GitHub
 interaction, invoke `human-interaction-safeguard`.
 
+- Every comment or review on an existing PR or issue uses this backstop,
+  including a new top-level comment or review. The canonical safeguard defines
+  the complete existing-item conversation chain that must be retrieved before
+  drafting or posting.
 - `HUMAN_STOP` unconditionally prohibits an agent-authored reply and
   agent-performed thread resolution. The user writes the reply and controls
   resolution.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
+
+The canonical tainted-chain result is
+{{policy:human-interaction.chain.any-human.result}}. Agent replying is
+allowed={{policy:human-interaction.action.human-stop.reply.allowed}}, thread
+resolution is
+allowed={{policy:human-interaction.action.human-stop.resolve.allowed}}, and the
+owner is {{policy:human-interaction.ownership.human-stop.result}}.
+
+`EXISTING_PR_OR_ISSUE_CONTENT_GATE = HUMAN_INTERACTION_THEN_ACTING`.
 
 ## Disclaimer decision
 
@@ -32,6 +45,8 @@ A disclaimer is required when either condition is true:
 - Bot, app, or service credentials plus explicit user attribution: **Yes**.
 - Bot, app, or service credentials with no user attribution: **No**.
 - Unknown credential/account provenance: **Pause and ask before posting**.
+
+`UNATTRIBUTED_BOT_APP_SERVICE_DISCLAIMER = NO`.
 
 Never infer **No** from service credentials alone. Explicit user attribution
 overrides the service identity. Attribution includes the user's username or
@@ -72,25 +87,29 @@ provider solely to render the disclaimer.
 7. Tie PRs and non-trivial commits to an issue when the repository supports
    Issues. If Issues are disabled, use the repository's supported tracking
    mechanism or document its absence in the PR body.
-8. Use `gh` CLI for all GitHub operations.
+8. Use the runtime-mandated native GitHub operation when one is required;
+   otherwise prefer `gh` CLI. Apply the same attribution, confirmation,
+   draft, title, body, and human-interaction safeguards across transports.
 9. PR descriptions must include intent and decision-making rationale:
    - why the change exists
    - key decisions/tradeoffs
    - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
      or the documented absence of issue tracking
    - optional ADR references when relevant
-10. For PRs containing code/config/script changes, run `adversarial-review`
-   before PR creation and continue fix/re-review cycles until blocker/major
-   feedback is satisfied. If the same blocker/major concern is raised twice and
-   still unsatisfied, escalate to the user before proceeding. Skip only on
-   explicit user request.
+10. For PRs containing high-risk code/config/script changes, or when the user
+    requests hostile critique, run `adversarial-review` before PR creation.
+    Routine changes rely on targeted validation and at most one optional review
+    gate. Security-sensitive changes still require `security-review`.
+    If mandatory `security-review` is unavailable, stop before PR creation or
+    posting and report the unavailable safeguard.
 
-## PR/issue comment rule
+## Existing PR/issue content rule
 
-Before posting or replying to a PR/issue comment:
+Before posting any comment or review on an existing PR or issue, including new
+top-level content:
 
-1. Apply `human-interaction-safeguard` when the action responds to an existing
-   interaction. Never draft, post, or resolve on `HUMAN_STOP`.
+1. Apply `human-interaction-safeguard` to the complete existing-item
+   conversation chain. Never draft, post, or resolve on `HUMAN_STOP`.
 2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.
@@ -122,21 +141,31 @@ Use this exact final paragraph when a disclaimer is required:
 
 > _AI Assisted._
 
-## PR safety gate
+## Conditional PR safety gate
 
-Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
+This review-handoff validation is not a public action: missing, null, string,
+or non-boolean `explicit_multi_review` returns exactly
+`STOP_INVALID_HANDOFF` ({{policy:consensus.handoff.invalid.result}}).
 
-1. Run `adversarial-review`.
-2. Address high-confidence blocker/major findings.
-3. Re-run `adversarial-review` after fixes and repeat until blocker/major
-   findings are satisfied.
-4. If the same blocker/major concern is raised twice and still unsatisfied,
-   stop and escalate to the user with unresolved items.
-5. Keep changes scoped to the original request/task list; avoid unrelated edits.
-6. Validate final results against the original request/task list before PR
+Before calling `pr-lifecycle` Phase 3 / `gh pr create` for high-risk code
+changes or an explicit adversarial-review request:
+
+1. Run `adversarial-review` through `review-fix-loop` with
+   the required persisted `explicit_multi_review: true|false`,
+   `max_retries: 2`, `severity_threshold: blocker,major`, and
+   `on_exhaust: escalate`.
+   Missing or invalid `explicit_multi_review` stops as `STOP_INVALID_HANDOFF`.
+   Pass the persisted boolean unchanged: true remains true and false remains
+   false.
+2. Stop after two total fix/re-review cycles, even when each cycle reports a
+   different finding. Do not create a new review wave to extend the budget.
+3. If blocker/major findings remain, stop and escalate to the user.
+4. Keep changes scoped to the original request/task list; avoid unrelated edits.
+5. Validate final results against the original request/task list before PR
    creation.
-7. If the user explicitly says to skip adversarial review, proceed and note the
-   explicit waiver in the PR body or handoff summary.
+6. If the user explicitly says to skip a non-mandatory adversarial review,
+   proceed and note the waiver in the PR body or handoff summary. Do not treat
+   this as a waiver of mandatory security review or posting safeguards.
 
 ## PR description content checklist
 
@@ -161,11 +190,17 @@ For changes that modify agent policy/config behavior, include a compact
 
 ## Skill-availability fallbacks
 
-If companion skills are unavailable, do not block progress. Use:
+If companion skills are unavailable, do not block routine progress. Mandatory
+security and posting safeguards still fail closed. Use:
 
-1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
-   and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
+1. `adversarial-review` missing during a mandatory high-risk or explicitly
+   requested hostile review -> stop before completion, PR creation, or posting.
+   Do not substitute another reviewer or report success. For an optional
+   routine adversarial review only, report reduced assurance and use one
+   bounded `rubber-duck` review.
+2. `security-review` missing when the review is mandatory -> stop before PR
+   creation or posting. Do not substitute another reviewer or report success.
+3. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
    draft PR exists, create it non-interactively with one `gh pr create --draft`
    command, a real Conventional title substituted in (never emit `<type>` or
    `<description>` literally), and a non-empty body:
@@ -182,10 +217,9 @@ If companion skills are unavailable, do not block progress. Use:
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-   before creating, updating, or readying a PR title — whether through the
-   built-in `create_pull_request`/`update_pull_request` tools or
-   `gh pr create`, `gh pr edit --title`, `gh pr ready`. Also use
-   `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
-   `gh run view|watch`.
-3. `stage-pr` missing -> report staging as unavailable and proceed without
+   before any PR create, update, or ready action, including runtime-native PR
+   tools and `gh pr create`, `gh pr edit --title`, or `gh pr ready`. For CLI
+   monitoring, use `gh pr checks --watch`, `gh pr view|edit|comment|checks`,
+   and `gh run view|watch`.
+4. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.

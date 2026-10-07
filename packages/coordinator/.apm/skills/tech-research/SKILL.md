@@ -9,9 +9,10 @@ description: >
 
 # Tech Research
 
-Use this skill for technical fact-finding, option analysis, prior-art searches,
-and evidence gathering. Research is not a consensus exercise: one agent gathers
-facts from each source, and the coordinator synthesizes.
+Use this skill for substantial technical fact-finding, option analysis,
+prior-art searches, and multi-source evidence gathering. Handle simple lookups
+directly. Research is not a consensus exercise: one agent gathers facts from
+each source, and the coordinator synthesizes.
 
 ## 1. Frame the research
 
@@ -25,8 +26,9 @@ Before dispatching:
 4. Ask a clarifying question only when the question or success condition is
    genuinely ambiguous.
 
-Use `rubber-duck` to challenge assumptions in the research plan, not to repeat
-the research itself.
+Use `rubber-duck` to challenge assumptions only when the decision is costly,
+ambiguous, or high-risk, or when the user explicitly requests critique. It must
+not repeat the research itself.
 
 ## 2. Build a source plan
 
@@ -103,14 +105,14 @@ are for judgment-heavy reviews, not fact collection.
 | Deliverable | Destination |
 |-------------|-------------|
 | Short factual answer with no durable artifact | Return inline |
-| Design or architectural decision input | `system-architect` |
-| Documentation, report, or tutorial | `se-technical-writer` |
-| Large or reusable findings | Persist as a research artifact and return its path |
+| Design or architectural decision input | `arielvalentin: system-architect` when installed; otherwise return the bounded decision to the orchestration owner |
+| User-requested polished documentation, report, or tutorial | installed `SE: Tech Writer`; otherwise write it directly |
+| Large or reusable findings needed by a later handoff | Persist as a research artifact and return its path |
 
 When handing research to another agent, write the synthesized findings as an
 artifact, pass it through `handoff-envelope.inputs.artifact_paths`, and instruct
 the recipient not to re-query covered backends unless the coordinator explicitly
-requests additional evidence.
+requests additional evidence. Otherwise return the result inline.
 
 ## Final output
 
@@ -126,6 +128,8 @@ Include:
 
 - Do not open an early draft PR for research-only work.
 - Do not duplicate same-source queries for confidence or consensus.
+- Do not dispatch a researcher for a lookup finishable with direct tools.
+- Do not add an assumption-challenge or Tech Writer pass by default.
 - Do not present inference as fact.
 - Do not hide rate limits, access failures, or stale sources.
 - Do not expand the research scope without user approval.

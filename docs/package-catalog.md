@@ -6,13 +6,23 @@ This document is the authoritative inventory of installable packages in this rep
 
 - Path: `packages/coordinator`
 - Manifest: `packages/coordinator/apm.yml`
-- Purpose: orchestration and governance flow for delegated agent work
+- Purpose: direct-work fast path with conditional orchestration, governance,
+  and high-risk review
 - Primitives:
   - Agent: `coordinator`
   - Skills:
     - `acting-on-behalf`
+    - `adversarial-review`
     - `consensus-panel`
     - `handoff-envelope`
+    - `human-interaction-safeguard`
+    - `pr-feedback-review`
+    - `pr-lifecycle`
+    - `pr-review-protocol`
+    - `resolve-github-user`
+    - `review-fix-loop`
+    - `stage-pr`
+    - `tech-research`
 
 ## development-workflow
 

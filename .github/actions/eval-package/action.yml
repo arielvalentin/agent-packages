@@ -9,6 +9,10 @@ inputs:
     description: "Ollama model to use"
     required: false
     default: "llama3.2:3b"
+  filter-range:
+    description: "Optional zero-based Promptfoo test range"
+    required: false
+    default: ""
   node-version:
     description: "Node.js version"
     required: false
@@ -77,18 +81,25 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: npm ci
+      run: ./script/npm-ci.sh
 
     - name: Run evals
       shell: bash
+      env:
+        FILTER_RANGE: ${{ inputs.filter-range }}
       run: |
         # GitHub invokes this shell with -e, which would abort the step on a
         # failing eval before the summary below can run. Take the exit code
         # ourselves instead.
         set +e
         set -uo pipefail
+        range_args=()
+        if [[ -n "$FILTER_RANGE" ]]; then
+          range_args=(--filter-range "$FILTER_RANGE")
+        fi
         npx promptfoo eval \
           --config packages/${{ inputs.package }}/tests/promptfooconfig.yaml \
+          "${range_args[@]}" \
           --no-cache \
           --output "$RUNNER_TEMP/eval.json"
         status=$?
