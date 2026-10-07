@@ -762,7 +762,7 @@ tests:
       assertion_id: "human-interaction.actor.graphql-bot"
       expected_result: "AUTOMATION_FLOW"
       expected_allowed: true
-      user_input: 'Classify this GraphQL interaction and return only the route token: {"author":{"__typename":"Bot"}}'
+      user_input: 'Classify this GraphQL interaction: {"author":{"__typename":"Bot"}} Choose exactly one route token: AUTOMATION_FLOW or HUMAN_STOP. Return only the selected token.'
     assert:
       - *policy_route
 
@@ -868,7 +868,7 @@ tests:
       assertion_id: "human-interaction.existing-item.any-human"
       expected_result: "HUMAN_STOP"
       expected_allowed: false
-      user_input: "A top-level review targets an existing PR whose completely retrieved participants include a User. Return only the route token."
+      user_input: "A top-level review targets an existing PR whose completely retrieved participants include a User. Choose exactly one route token: AUTOMATION_FLOW or HUMAN_STOP. Return only the selected token."
     assert:
       - *policy_route
 
