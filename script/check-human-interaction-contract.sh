@@ -181,6 +181,18 @@ User: {{user_input}}{% if permission_output %}
 Output contract: your entire response must be exactly Yes or No. Do not use Markdown, labels, or explanation.{% elif assertion_id %}
 
 Output contract: your entire response must be exactly one bare policy result token. Its first and last characters must belong to the token itself. Do not use backticks, Markdown, JSON, labels, alternatives, punctuation, or explanation.{% endif %}`;
+// The top-level prompt renders this scalar verbatim after `User: `. Keep the
+// request prefix byte-exact while allowing only JSON field-order/whitespace
+// variation in the single terminal payload object.
+const canonicalUserInputPrefix =
+  'Classify this public GitHub REST comment and return only the route token: ';
+const canonicalPayloadKeys = [
+  'surface',
+  'body',
+  'user',
+  'performed_via_github_app',
+];
+const canonicalUserKeys = ['login'];
 
 function fail(message) {
   throw new Error(`${configPath}: ${message}`);
@@ -221,6 +233,14 @@ function requireExactMapKeys(mapNode, expectedKeys, context) {
   const expectedSorted = [...expectedKeys].sort();
   if (JSON.stringify(actualSorted) !== JSON.stringify(expectedSorted)) {
     fail(`${context} must define only ${expectedKeys.join(', ')}`);
+  }
+}
+
+function requireExactObjectKeys(value, expectedKeys, context) {
+  const actualSorted = Object.keys(value).sort();
+  const expectedSorted = [...expectedKeys].sort();
+  if (JSON.stringify(actualSorted) !== JSON.stringify(expectedSorted)) {
+    fail(`${context} keys must be exactly ${expectedKeys.join(', ')}`);
   }
 }
 
@@ -340,7 +360,7 @@ function findJsonObjectCandidates(text) {
             typeof value === 'object' &&
             !Array.isArray(value)
           ) {
-            candidates.push({ end: index + 1, value });
+            candidates.push({ end: index + 1, start, value });
           }
         } catch {
           // Non-JSON braces are allowed in the prefix.
@@ -585,6 +605,11 @@ try {
   if (typeof userInput !== 'string') {
     fail('selected test vars.user_input must be text');
   }
+  if (!userInput.startsWith(canonicalUserInputPrefix)) {
+    fail(
+      'selected test vars.user_input must start with the exact canonical request prefix',
+    );
+  }
 
   const candidates = findJsonObjectCandidates(userInput);
   if (candidates.length !== 1) {
@@ -592,12 +617,27 @@ try {
       `selected test vars.user_input must contain exactly one unambiguous JSON object, found ${candidates.length}`,
     );
   }
-  const [{ end, value: payload }] = candidates;
-  if (userInput.slice(end).trim() !== '') {
-    fail('selected test vars.user_input has trailing content after its JSON object');
+  const [{ end, start, value: payload }] = candidates;
+  if (start !== canonicalUserInputPrefix.length) {
+    fail(
+      'selected test vars.user_input JSON object must immediately follow the exact canonical request prefix',
+    );
   }
+  if (end !== userInput.length) {
+    fail(
+      'selected test vars.user_input must end immediately after its JSON object',
+    );
+  }
+  requireExactObjectKeys(
+    payload,
+    canonicalPayloadKeys,
+    'selected test payload',
+  );
   if (payload.surface !== 'issue_or_pr_comment') {
     fail('selected test payload surface must be issue_or_pr_comment');
+  }
+  if (payload.body !== 'Update dependency.') {
+    fail('selected test payload body must be Update dependency.');
   }
   if (
     payload.user === null ||
@@ -612,6 +652,11 @@ try {
   if (Object.prototype.hasOwnProperty.call(payload.user, 'type')) {
     fail('selected test payload user.type must be absent');
   }
+  requireExactObjectKeys(
+    payload.user,
+    canonicalUserKeys,
+    'selected test payload user',
+  );
   if (payload.performed_via_github_app !== null) {
     fail('selected test payload performed_via_github_app must be null');
   }
