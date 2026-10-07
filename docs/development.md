@@ -107,8 +107,12 @@ When adding or changing an assertion:
    bash script/check-policy-assertions.sh
    bash script/check-consensus-contract.sh
    bash script/check-human-interaction-contract.sh
+   bash script/check-apm-git-install.sh arielvalentin/agent-packages <commit-sha>
    npm run test:coordinator
    ```
+
+The exact-ref APM check performs a dry run, a clean project installation, and
+an isolated user-scope installation for coordinator and development-workflow.
 
 The checker rejects malformed records, duplicate JSON keys or assertion IDs,
 unknown fields or enums, unresolved or cyclic precedence, ambiguous overlapping

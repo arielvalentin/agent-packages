@@ -27,6 +27,12 @@ jobs:
       - name: Install APM
         run: curl -sSL https://aka.ms/apm-unix | sh
 
+      - name: Validate exact-ref package installation
+        env:
+          PACKAGE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          PACKAGE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: ./script/check-apm-git-install.sh "$PACKAGE_REPOSITORY" "$PACKAGE_REF"
+
       - name: Validate primitives (frontmatter + structure)
         run: |
           for pkg in packages/*/; do
