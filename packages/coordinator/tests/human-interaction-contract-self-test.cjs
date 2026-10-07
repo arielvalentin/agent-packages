@@ -48,6 +48,7 @@ function runFixture(scratch, source, name, shouldPass, expectedError) {
     encoding: 'utf8',
     env: {
       ...process.env,
+      HUMAN_INTERACTION_CONTRACT_SELF_TEST_CHILD: '1',
       HUMAN_INTERACTION_PROMPTFOO_CONFIG: fixturePath,
     },
   });

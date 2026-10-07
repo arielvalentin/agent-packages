@@ -725,4 +725,8 @@ if [[ $errors -gt 0 ]]; then
   exit 1
 fi
 
+if [[ "${HUMAN_INTERACTION_CONTRACT_SELF_TEST_CHILD:-}" != "1" ]]; then
+  node "$root/packages/coordinator/tests/human-interaction-contract-self-test.cjs"
+fi
+
 echo "OK: human-interaction contract is fail-closed and user-only."
