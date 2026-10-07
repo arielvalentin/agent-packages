@@ -1,7 +1,7 @@
 description: "Coordinator package behavioral tests"
 
 providers:
-  - id: ollama:chat:llama3.2:3b
+  - id: ollama:llama3.2:3b
     config:
       num_ctx: 8192
       seed: 0

@@ -47,6 +47,8 @@ jobs:
         with:
           package: coordinator
           filter-range: ${{ matrix.filter-range }}
+          ollama-version: "0.35.0"
+          ollama-sha256: "1c114a6b220c5efca2ef2b1e5f01d1e535e26f6cd6d1678c8489325d2835e525"
 
   eval:
     name: coordinator
