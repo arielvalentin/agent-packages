@@ -29,6 +29,12 @@ jobs:
       - name: Install APM 0.32.0
         run: curl -sSL https://aka.ms/apm-unix | sh -s -- @v0.32.0
 
+      - name: Validate coordinator exact-ref package installation
+        env:
+          PACKAGE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          PACKAGE_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: ./script/check-coordinator-git-install.sh "$PACKAGE_REPOSITORY" "$PACKAGE_REF"
+
       - name: Validate exact-ref package installation with APM 0.32.0
         env:
           PACKAGE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
