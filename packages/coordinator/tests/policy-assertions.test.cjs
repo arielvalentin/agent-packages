@@ -997,29 +997,37 @@ const routeContext = {
   },
 };
 assert.equal(assertPolicyRoute('HUMAN_STOP', routeContext), true);
-assert.equal(assertPolicyRoute(' HUMAN_STOP', routeContext), true);
-assert.equal(assertPolicyRoute('HUMAN_STOP ', routeContext), true);
-assert.equal(assertPolicyRoute('HUMAN_STOP\n', routeContext), true);
-assert.equal(assertPolicyRoute('`HUMAN_STOP`', routeContext), true);
-assert.equal(assertPolicyRoute('HUMAN_STOP.', routeContext), true);
+assert.equal(assertPolicyRoute(' HUMAN_STOP', routeContext), false);
+assert.equal(assertPolicyRoute('HUMAN_STOP ', routeContext), false);
+assert.equal(assertPolicyRoute('HUMAN_STOP\n', routeContext), false);
+assert.equal(assertPolicyRoute('`HUMAN_STOP`', routeContext), false);
+assert.equal(assertPolicyRoute('"HUMAN_STOP"', routeContext), false);
+assert.equal(assertPolicyRoute('HUMAN_STOP.', routeContext), false);
 assert.equal(
   assertPolicyRoute('Classification: HUMAN_STOP', routeContext),
-  true,
+  false,
 );
-assert.equal(assertPolicyRoute('Route token: HUMAN_STOP', routeContext), true);
+assert.equal(assertPolicyRoute('Route token: HUMAN_STOP', routeContext), false);
 assert.equal(
   assertPolicyRoute(
     'Based on the policy, the response would be:\n\n`HUMAN_STOP`',
     routeContext,
   ),
-  true,
+  false,
 );
 assert.equal(
   assertPolicyRoute(
-    'The agent should respond with the token "HUMAN_STOP".',
+    'Do not respond with the token HUMAN_STOP',
     routeContext,
   ),
-  true,
+  false,
+);
+assert.equal(
+  assertPolicyRoute(
+    'HUMAN_STOP is mentioned incidentally.\nHUMAN_STOP',
+    routeContext,
+  ),
+  false,
 );
 assert.equal(
   assertPolicyRoute('The prose mentions HUMAN_STOP without selecting it.', routeContext),
@@ -1105,12 +1113,36 @@ const panelRouteContext = {
 };
 assert.equal(assertPolicyRoute('PANEL_2', panelRouteContext), true);
 
+const singleRouteContext = {
+  vars: {
+    assertion_id: 'consensus.automatic.single',
+    expected_result: 'SINGLE_1',
+    expected_allowed: true,
+    skill_content: 'file://../.apm/skills/consensus-panel/SKILL.md',
+  },
+  test: {
+    vars: {
+      skill_content: 'file://../.apm/skills/consensus-panel/SKILL.md',
+    },
+  },
+};
+assert.equal(assertPolicyRoute('SINGLE_1', singleRouteContext), true);
+
 assert.equal(assertPolicyPermission('No', routeContext), true);
 assert.equal(assertPolicyPermission('Yes', routeContext), false);
-assert.equal(assertPolicyPermission('No.', routeContext), true);
-assert.equal(assertPolicyPermission('`No`', routeContext), true);
+assert.equal(assertPolicyPermission(' No', routeContext), false);
+assert.equal(assertPolicyPermission('No ', routeContext), false);
+assert.equal(assertPolicyPermission('No.', routeContext), false);
+assert.equal(assertPolicyPermission('`No`', routeContext), false);
+assert.equal(assertPolicyPermission('"No"', routeContext), false);
+assert.equal(assertPolicyPermission('Permission: No', routeContext), false);
 assert.equal(assertPolicyPermission('no', routeContext), false);
-assert.equal(assertPolicyPermission('No, the agent may not act.', routeContext), false);
+assert.equal(
+  assertPolicyPermission('No, the agent may not act.', routeContext),
+  false,
+);
+assert.equal(assertPolicyPermission('Do not answer No', routeContext), false);
+assert.equal(assertPolicyPermission('Yes or No', routeContext), false);
 assert.equal(
   assertPolicyRoute('HUMAN_STOP', {
     vars: {
