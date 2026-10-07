@@ -1457,7 +1457,7 @@ tests:
       expected_result: "ADAPTIVE_RECOVERY"
       expected_allowed: true
       permission_output: true
-      user_input: "Entry validation succeeded with explicit_multi_review=false, but one automatic initial response remains invalid after retry. Should the review enter bounded automatic recovery rather than stop unavailable? Answer exactly one word: Yes or No."
+      user_input: "Entry validation succeeded with explicit_multi_review=false, but one automatic initial response remains invalid after retry. Choose exactly one permission token: Yes or No. Return only the selected token."
     assert:
       - *policy_permission
 
