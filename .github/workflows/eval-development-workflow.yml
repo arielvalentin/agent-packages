@@ -7,6 +7,7 @@ on:
       - "packages/development-workflow/**"
       - "package.json"
       - "package-lock.json"
+      - "script/npm-ci.sh"
       - ".github/workflows/eval-development-workflow.yml"
       - ".github/actions/eval-package/**"
   pull_request:
@@ -15,6 +16,7 @@ on:
       - "packages/development-workflow/**"
       - "package.json"
       - "package-lock.json"
+      - "script/npm-ci.sh"
       - ".github/workflows/eval-development-workflow.yml"
       - ".github/actions/eval-package/**"
 

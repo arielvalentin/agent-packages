@@ -131,8 +131,14 @@ NODE
 verify_inventory() {
   local installed_root="$1"
   shift
+  local allowed_extra=""
+  if [[ "${1:-}" == --allow=* ]]; then
+    allowed_extra="${1#--allow=}"
+    shift
+  fi
   local expected_paths
   local actual_paths
+  local parent_path
   local relative_path
   local source_found
   expected_paths="$(mktemp "$tmpdir/expected-paths.XXXXXX")"
@@ -157,7 +163,16 @@ verify_inventory() {
     while IFS= read -r source_path; do
       source_found=true
       relative_path="${source_path#"$source_root"/}"
-      printf '%s\n' "$relative_path" >>"$expected_paths"
+      printf 'f\t%s\n' "$relative_path" >>"$expected_paths"
+      parent_path="${relative_path%/*}"
+      while [[ -n "$parent_path" && "$parent_path" != "$relative_path" ]]; do
+        printf 'd\t%s\n' "$parent_path" >>"$expected_paths"
+        if [[ "$parent_path" == */* ]]; then
+          parent_path="${parent_path%/*}"
+        else
+          parent_path=""
+        fi
+      done
       compare_git_file "$source_path" "$installed_root/$relative_path"
     done < <(
       git -C "$repo_root" ls-tree -r --name-only "$ref" -- "$source_root"
@@ -170,20 +185,44 @@ verify_inventory() {
 
   find "$installed_root" -type f -print |
     while IFS= read -r installed_path; do
-      printf '%s\n' "${installed_path#"$installed_root"/}"
+      relative_path="${installed_path#"$installed_root"/}"
+      if [[ "$relative_path" != "$allowed_extra" ]]; then
+        printf 'f\t%s\n' "$relative_path"
+      fi
     done >"$actual_paths"
-  sort -o "$expected_paths" "$expected_paths"
-  sort -o "$actual_paths" "$actual_paths"
-
-  if [[ -n "$(uniq -d "$expected_paths")" ]]; then
-    echo "ERROR: package sources contain conflicting installed paths"
-    uniq -d "$expected_paths"
-    exit 1
-  fi
+  find "$installed_root" -mindepth 1 -type d -print |
+    while IFS= read -r installed_path; do
+      printf 'd\t%s\n' "${installed_path#"$installed_root"/}"
+    done >>"$actual_paths"
+  sort -u -o "$expected_paths" "$expected_paths"
+  sort -u -o "$actual_paths" "$actual_paths"
   if ! diff -u "$expected_paths" "$actual_paths"; then
     echo "ERROR: installed inventory does not match $ref"
     exit 1
   fi
+}
+
+verify_module_inventory() {
+  local package="$1"
+  local module_root="$2"
+  local pin="$module_root/.apm-pin"
+
+  if [[ ! -f "$pin" || -L "$pin" ]]; then
+    echo "ERROR: module store is missing regular pin file $pin"
+    exit 1
+  fi
+  node - "$pin" "$ref" <<'NODE'
+const fs = require('node:fs');
+const [pin, ref] = process.argv.slice(2);
+const metadata = JSON.parse(fs.readFileSync(pin, 'utf8'));
+if (metadata.schema_version !== 1 || metadata.resolved_commit !== ref) {
+  throw new Error(`${pin}: invalid module pin for ${ref}`);
+}
+NODE
+  verify_inventory \
+    "$module_root" \
+    --allow=.apm-pin \
+    "packages/$package"
 }
 
 verify_content_markers() {
@@ -203,6 +242,7 @@ verify_project_install() {
   local root="$1"
   local agents_root="$root/.github/agents"
   local skills_root="$root/.agents/skills"
+  local modules_root="$root/apm_modules/$repository/packages"
   local lockfile="$root/apm.lock.yaml"
 
   verify_lock "$lockfile"
@@ -215,6 +255,15 @@ verify_project_install() {
     "$skills_root" \
     "packages/coordinator/.apm/skills" \
     "packages/code-reviewers/.apm/skills"
+  verify_module_inventory \
+    "coordinator" \
+    "$modules_root/coordinator"
+  verify_module_inventory \
+    "development-workflow" \
+    "$modules_root/development-workflow"
+  verify_module_inventory \
+    "code-reviewers" \
+    "$modules_root/code-reviewers"
   verify_content_markers \
     "$agents_root/coordinator.agent.md" \
     "$agents_root/implementer.agent.md"
@@ -226,7 +275,6 @@ verify_global_install() {
   local agents_root="$home/.copilot/agents"
   local modules_root="$home/.apm/apm_modules/$repository/packages"
   local coordinator_skills="$modules_root/coordinator/.apm/skills"
-  local reviewer_skills="$modules_root/code-reviewers/.apm/skills"
   local lockfile="$home/.apm/apm.lock.yaml"
 
   verify_lock "$lockfile"
@@ -235,12 +283,15 @@ verify_global_install() {
     "packages/coordinator/.apm/agents" \
     "packages/development-workflow/.apm/agents" \
     "packages/code-reviewers/.apm/agents"
-  verify_inventory \
-    "$coordinator_skills" \
-    "packages/coordinator/.apm/skills"
-  verify_inventory \
-    "$reviewer_skills" \
-    "packages/code-reviewers/.apm/skills"
+  verify_module_inventory \
+    "coordinator" \
+    "$modules_root/coordinator"
+  verify_module_inventory \
+    "development-workflow" \
+    "$modules_root/development-workflow"
+  verify_module_inventory \
+    "code-reviewers" \
+    "$modules_root/code-reviewers"
   verify_content_markers \
     "$agents_root/coordinator.agent.md" \
     "$agents_root/implementer.agent.md"
@@ -358,6 +409,11 @@ write_manifest "$consumer/apm.yml"
   HOME="$project_home" apm install
 )
 verify_project_install "$consumer"
+assert_absent \
+  "project APM install in project scope" \
+  "$consumer/.copilot" \
+  "$consumer/.apm" \
+  "$consumer/apm"
 assert_absent \
   "project APM install in HOME" \
   "$project_home/.copilot" \
