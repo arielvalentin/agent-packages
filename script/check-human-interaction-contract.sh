@@ -11,9 +11,93 @@ feedback="$root/packages/coordinator/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
 pr_review="$root/packages/coordinator/.apm/skills/pr-review-protocol/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
-# Narrow override used by focused mutation tests for this contract checker.
-tests="${HUMAN_INTERACTION_PROMPTFOO_CONFIG:-"$root/packages/coordinator/tests/promptfooconfig.yaml"}"
+canonical_tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
+tests="$canonical_tests"
 policy_assertions="$root/packages/coordinator/tests/policy-assertions.cjs"
+mutation_child=0
+
+mutation_marker_set=0
+mutation_root_set=0
+mutation_config_set=0
+[[ ${HUMAN_INTERACTION_CONTRACT_SELF_TEST_CHILD+x} ]] && mutation_marker_set=1
+[[ ${HUMAN_INTERACTION_CONTRACT_SELF_TEST_ROOT+x} ]] && mutation_root_set=1
+[[ ${HUMAN_INTERACTION_PROMPTFOO_CONFIG+x} ]] && mutation_config_set=1
+
+if ((mutation_marker_set || mutation_root_set || mutation_config_set)); then
+  if ((mutation_marker_set == 0 || mutation_root_set == 0 || mutation_config_set == 0)); then
+    echo "ERROR: alternate Promptfoo config requires the complete mutation child capability"
+    errors=$((errors + 1))
+  elif [[ "$HUMAN_INTERACTION_CONTRACT_SELF_TEST_CHILD" != "mutation-self-test-child-v1" ]]; then
+    echo "ERROR: alternate Promptfoo config requires the exact mutation child marker"
+    errors=$((errors + 1))
+  elif [[ -z "$HUMAN_INTERACTION_CONTRACT_SELF_TEST_ROOT" || -z "$HUMAN_INTERACTION_PROMPTFOO_CONFIG" ]]; then
+    echo "ERROR: alternate Promptfoo config requires non-empty root and config paths"
+    errors=$((errors + 1))
+  else
+    if resolved_tests="$(
+      node - \
+        "$HUMAN_INTERACTION_CONTRACT_SELF_TEST_ROOT" \
+        "$HUMAN_INTERACTION_PROMPTFOO_CONFIG" 2>&1 <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const [rootPath, configPath] = process.argv.slice(2);
+
+function reject(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+if (/[\r\n]/.test(rootPath) || /[\r\n]/.test(configPath)) {
+  reject('root and config paths must not contain line breaks');
+}
+if (!path.isAbsolute(rootPath)) {
+  reject('mutation root must be absolute');
+}
+if (!path.isAbsolute(configPath)) {
+  reject('alternate Promptfoo config path must be absolute');
+}
+
+let realRoot;
+let realConfig;
+try {
+  realRoot = fs.realpathSync(rootPath);
+} catch {
+  reject('mutation root must exist');
+}
+if (!fs.statSync(realRoot).isDirectory()) {
+  reject('mutation root must be a directory');
+}
+try {
+  realConfig = fs.realpathSync(configPath);
+} catch {
+  reject('alternate Promptfoo config must exist');
+}
+if (!fs.statSync(realConfig).isFile()) {
+  reject('alternate Promptfoo config must be a file');
+}
+
+const relative = path.relative(realRoot, realConfig);
+if (
+  relative === '' ||
+  relative === '..' ||
+  relative.startsWith(`..${path.sep}`) ||
+  path.isAbsolute(relative)
+) {
+  reject('alternate Promptfoo config must be contained by the mutation root');
+}
+
+process.stdout.write(realConfig);
+NODE
+    )"; then
+      tests="$resolved_tests"
+      mutation_child=1
+    else
+      echo "ERROR: alternate Promptfoo config rejected: $resolved_tests"
+      errors=$((errors + 1))
+    fi
+  fi
+fi
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -725,8 +809,9 @@ if [[ $errors -gt 0 ]]; then
   exit 1
 fi
 
-if [[ "${HUMAN_INTERACTION_CONTRACT_SELF_TEST_CHILD:-}" != "1" ]]; then
-  node "$root/packages/coordinator/tests/human-interaction-contract-self-test.cjs"
+if ((mutation_child == 0)); then
+  node "$root/packages/coordinator/tests/human-interaction-contract-self-test.cjs" \
+    --mutation-suite-only
 fi
 
 echo "OK: human-interaction contract is fail-closed and user-only."
