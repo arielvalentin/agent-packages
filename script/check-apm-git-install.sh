@@ -294,15 +294,33 @@ verify_global_skill_placeholders() {
 verify_global_skills() {
   local skills_root="$1"
 
-  if [[ -n "$(find "$skills_root" -type f -print -quit)" ]]; then
-    verify_inventory \
-      "$skills_root" \
-      "packages/coordinator/.apm/skills" \
-      "packages/code-reviewers/.apm/skills"
-    verify_policy_assertions "$skills_root"
-  else
-    verify_global_skill_placeholders "$skills_root"
-  fi
+  case "$expected_apm_version" in
+    0.32.*)
+      verify_global_skill_placeholders "$skills_root"
+      ;;
+    0.33.*)
+      verify_inventory \
+        "$skills_root" \
+        "packages/coordinator/.apm/skills" \
+        "packages/code-reviewers/.apm/skills"
+      verify_policy_assertions "$skills_root"
+      ;;
+    "")
+      if [[ -n "$(find "$skills_root" -type f -print -quit)" ]]; then
+        verify_inventory \
+          "$skills_root" \
+          "packages/coordinator/.apm/skills" \
+          "packages/code-reviewers/.apm/skills"
+        verify_policy_assertions "$skills_root"
+      else
+        verify_global_skill_placeholders "$skills_root"
+      fi
+      ;;
+    *)
+      echo "ERROR: unsupported expected APM version $expected_apm_version"
+      exit 1
+      ;;
+  esac
 }
 
 assert_absent() {
