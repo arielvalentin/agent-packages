@@ -10,6 +10,13 @@ const {
 const policyRoot = path.resolve(__dirname, '../.apm');
 let cachedRegistry;
 
+function exactPermission(output) {
+  return String(output)
+    .trim()
+    .replace(/^([`"'])(Yes|No)\1[.!]?$/, '$2')
+    .replace(/^(Yes|No)[.!]?$/, '$1');
+}
+
 module.exports = (output, context) => {
   const assertionId = context?.vars?.assertion_id;
   const expectedResult = context?.vars?.expected_result;
@@ -41,5 +48,5 @@ module.exports = (output, context) => {
     return false;
   }
 
-  return String(output) === (expectedAllowed ? 'Yes' : 'No');
+  return exactPermission(output) === (expectedAllowed ? 'Yes' : 'No');
 };
