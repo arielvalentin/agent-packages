@@ -247,6 +247,64 @@ verify_global_install() {
   verify_policy_assertions "$coordinator_skills"
 }
 
+verify_global_skill_placeholders() {
+  local skills_root="$1"
+  local expected_skills
+  local actual_skills
+  local relative_path
+  expected_skills="$(mktemp "$tmpdir/expected-skills.XXXXXX")"
+  actual_skills="$(mktemp "$tmpdir/actual-skills.XXXXXX")"
+
+  if [[ ! -d "$skills_root" ]]; then
+    echo "ERROR: global APM install did not create $skills_root"
+    exit 1
+  fi
+  if [[ -n "$(find "$skills_root" \( -type f -o -type l \) -print -quit)" ]]; then
+    echo "ERROR: partial Copilot user scope unexpectedly exposed skill files"
+    exit 1
+  fi
+  if [[ -n "$(find "$skills_root" -mindepth 2 -type d -print -quit)" ]]; then
+    echo "ERROR: partial Copilot user scope created nested skill directories"
+    exit 1
+  fi
+
+  for source_root in \
+    "packages/coordinator/.apm/skills" \
+    "packages/code-reviewers/.apm/skills"; do
+    while IFS= read -r source_path; do
+      relative_path="${source_path#"$source_root"/}"
+      printf '%s\n' "${relative_path%%/*}" >>"$expected_skills"
+    done < <(
+      git -C "$repo_root" ls-tree -r --name-only "$ref" -- "$source_root"
+    )
+  done
+  find "$skills_root" -mindepth 1 -maxdepth 1 -type d -print |
+    while IFS= read -r skill_path; do
+      printf '%s\n' "${skill_path##*/}"
+    done >"$actual_skills"
+  sort -u -o "$expected_skills" "$expected_skills"
+  sort -u -o "$actual_skills" "$actual_skills"
+
+  if ! diff -u "$expected_skills" "$actual_skills"; then
+    echo "ERROR: global skill placeholders do not match $ref"
+    exit 1
+  fi
+}
+
+verify_global_skills() {
+  local skills_root="$1"
+
+  if [[ -n "$(find "$skills_root" -type f -print -quit)" ]]; then
+    verify_inventory \
+      "$skills_root" \
+      "packages/coordinator/.apm/skills" \
+      "packages/code-reviewers/.apm/skills"
+    verify_policy_assertions "$skills_root"
+  else
+    verify_global_skill_placeholders "$skills_root"
+  fi
+}
+
 assert_absent() {
   local context="$1"
   shift
@@ -322,6 +380,10 @@ write_manifest "$global_home/.apm/apm.yml"
   HOME="$global_home" apm install -g
 )
 verify_global_install "$global_home"
+verify_global_skills "$global_home/.agents/skills"
+assert_absent \
+  "global APM install unsupported skill deployment" \
+  "$global_home/.copilot/skills"
 assert_absent \
   "global APM install in project scope" \
   "$global_work/.github" \
