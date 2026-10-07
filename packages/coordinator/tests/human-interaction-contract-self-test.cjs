@@ -15,6 +15,8 @@ const suiteCompletion = 'PASS: mutation self-test suite completed';
 const targetDescription =
   'human-interaction: bot-like login with missing metadata fails closed';
 const targetMarker = `  - description: "${targetDescription}"`;
+const canonicalSkillContent =
+  'file://../.apm/skills/human-interaction-safeguard/SKILL.md';
 const mutationSuiteOnly = process.argv[2] === '--mutation-suite-only';
 
 if (process.argv.length > (mutationSuiteOnly ? 3 : 2)) {
@@ -52,6 +54,48 @@ function withUserInput(source, userInput) {
       throw new Error('target case must contain exactly one user_input');
     }
     return block.replace(pattern, `      user_input: '${userInput}'`);
+  });
+}
+
+function replaceTargetLine(source, field, replacement) {
+  return replaceTargetBlock(source, (block) => {
+    const pattern = new RegExp(`^      ${field}: .*$`, 'gm');
+    const matches = [...block.matchAll(pattern)];
+    if (matches.length !== 1) {
+      throw new Error(`target case must contain exactly one ${field}`);
+    }
+    return block.replace(pattern, replacement);
+  });
+}
+
+function reorderTargetFields(source) {
+  return replaceTargetBlock(source, (block) => {
+    const lines = block.trimEnd().split('\n');
+    const description = lines.find((line) => line.startsWith('  - description:'));
+    const field = (name) =>
+      lines.find((line) => line.startsWith(`      ${name}:`));
+    if (
+      !description ||
+      !field('skill_content') ||
+      !field('assertion_id') ||
+      !field('expected_result') ||
+      !field('expected_allowed') ||
+      !field('user_input')
+    ) {
+      throw new Error('target case fields are incomplete');
+    }
+    return [
+      description,
+      '    assert:',
+      '      - *policy_route',
+      '    vars:',
+      field('expected_allowed'),
+      field('user_input'),
+      field('skill_content'),
+      field('expected_result'),
+      field('assertion_id'),
+      '',
+    ].join('\n');
   });
 }
 
@@ -237,6 +281,119 @@ function runMutationSuite() {
       withUserInput(source, reorderedPayload),
       'field-order-independent',
       true,
+    );
+
+    runFixture(
+      scratch,
+      reorderTargetFields(source),
+      'yaml-case-field-order-independent',
+      true,
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetLine(
+        source,
+        'skill_content',
+        '      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md',
+      ),
+      'wrong-skill-content-path',
+      false,
+      `vars.skill_content must directly reference ${canonicalSkillContent}`,
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetBlock(source, (block) =>
+        block.replace(
+          `      skill_content: ${canonicalSkillContent}\n`,
+          '',
+        ),
+      ),
+      'missing-skill-content-reference',
+      false,
+      'selected test vars must define "skill_content" directly exactly once',
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetBlock(source, (block) =>
+        block.replace(
+          '    vars:\n',
+          [
+            '    provider: echo:HUMAN_STOP',
+            '    vars:',
+            '',
+          ].join('\n'),
+        ),
+      ),
+      'case-local-static-provider-override',
+      false,
+      'case-local "provider" execution overrides are prohibited',
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetBlock(source, (block) =>
+        block.replace(
+          '    vars:\n',
+          [
+            '    prompts:',
+            '      - raw: "HUMAN_STOP"',
+            '    vars:',
+            '',
+          ].join('\n'),
+        ),
+      ),
+      'case-local-static-prompt-override',
+      false,
+      'case-local "prompts" execution overrides are prohibited',
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetBlock(source, (block) =>
+        block.replace(
+          '    vars:\n',
+          ['    providerOutput: "HUMAN_STOP"', '    vars:', ''].join('\n'),
+        ),
+      ),
+      'case-local-canned-provider-output',
+      false,
+      'case-local "provideroutput" execution overrides are prohibited',
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetBlock(source, (block) =>
+        block.replace(
+          '    vars:\n',
+          [
+            '    vars:',
+            '      <<: &injected_case_vars',
+            `        skill_content: ${canonicalSkillContent}`,
+            '',
+          ].join('\n'),
+        ),
+      ),
+      'merge-key-skill-injection',
+      false,
+      'selected test.vars must not use YAML merge keys',
+    );
+
+    runFixture(
+      scratch,
+      replaceTargetLine(
+        source,
+        'skill_content',
+        [
+          `      canonical_skill_reference: &canonical_human_skill ${canonicalSkillContent}`,
+          '      skill_content: *canonical_human_skill',
+        ].join('\n'),
+      ),
+      'alias-based-skill-substitution',
+      false,
+      'vars.skill_content must be a direct scalar, not an alias or collection',
     );
 
     const concreteElsewhere = [
