@@ -66,12 +66,27 @@ When implementation is complete and gates pass:
 3. Rewrite body to include:
    - **Intent** — why the change exists
    - **Changes** — key decisions/tradeoffs
-   - **Testing** — validation performed
+   - **Testing** — a concise validation outcome by default. Omit routine
+     repository validation commands and results unless the repository PR
+     template explicitly requests them; then include only the minimum requested
+     detail. Include procedural steps only when the template requests them or
+     the change requires a new manual or exploratory investigation that
+     reviewers must perform. Preserve any template-required structure and
+     always report meaningful failures, gaps, or unverified behavior.
    - **References** — `Closes`/`Fixes #N`, ADR links (optional)
    - conditional AI attribution via `acting-on-behalf`
    PR-body attribution is not part of feedback processing:
    `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
    sole source of truth for whether a PR body needs AI attribution.
+
+   Apply the validation-detail decision directly:
+   - Routine repository validation: summarize the outcome; omit commands and
+     detailed results.
+   - Template-requested validation: preserve the template and include only the
+     requested commands, results, or procedures.
+   - New reviewer-performed manual or exploratory investigation: include the
+     procedures reviewers must perform.
+   - Failed, incomplete, or unverified validation: report the failure or gap.
 4. Validate the title against § Title format, then mark ready for review:
    ```bash
    gh pr ready <number>

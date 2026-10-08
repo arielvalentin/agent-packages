@@ -178,6 +178,62 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); const stripped = l.replace(/[*_#]/g, '').split(String.fromCharCode(96)).join('').trim(); const leadingDecline = /^false\\b/.test(stripped); const describesCorrection = /\\b(re-derive[sd]?|rederive[sd]?|correct(?:s|ed|ion)?|refine[sd]?|refinement)\\b/.test(l); leadingDecline && describesCorrection"
 
+  - description: "pr-lifecycle: routine validation omits command and result dumps"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Routine repository validation passed. The PR template does not request commands, results, or steps, and reviewers do not need a new manual or exploratory investigation. Should the PR Testing section omit the routine commands and detailed results? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "pr-lifecycle: failed or incomplete validation remains explicit"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Routine validation failed and the affected behavior remains unverified. Must the PR Testing section report these failures and gaps? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "pr-lifecycle: preserves a template that explicitly requests commands and results"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A repository PR template contains a Validation heading and explicitly requests one command and its result. Must the PR description preserve that structure and include only the minimum requested detail? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "pr-lifecycle: reviewer exploratory investigation includes required procedures"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Quote exactly the validation-detail bullet that begins `New reviewer-performed manual or exploratory investigation:`"
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().replace(/\\s+/g, ' ').includes('include the procedures reviewers must perform')"
+
+  - description: "acting-on-behalf: concise validation still reports failures and unverified behavior"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A routine check failed and the affected behavior remains unverified. Must the PR description report these validation failures and gaps? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "acting-on-behalf: template-requested command detail is preserved and minimal"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "A PR template explicitly requests one validation command and its result. Should the description include only that minimum requested detail? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
+  - description: "coordinator: PR readiness preserves validation gaps without routine command dumps"
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "Complete the coordinator rule with exactly one token: `Failed, incomplete, or unverified validation: ___ the failure or gap.` Choose REPORT or OMIT."
+    assert:
+      - type: javascript
+        value: "/^report[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+
   - description: "pr-lifecycle: skips early draft PR for research flows"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md

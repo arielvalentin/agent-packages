@@ -220,6 +220,32 @@ require "$acting" "slash command stays first" \
 require "$acting" "no lookup solely for footer" \
   'Do not look up a username, model, or provider solely to render the disclaimer'
 
+# --- Concise PR validation descriptions ---
+require "$lifecycle" "routine validation summary without command/result dumps" \
+  'Routine repository validation: summarize the outcome; omit commands and detailed results'
+require "$lifecycle" "template-preserving minimum validation detail" \
+  'Template-requested validation: preserve the template and include only the requested commands, results, or procedures'
+require "$lifecycle" "reviewer exploratory procedures" \
+  'New reviewer-performed manual or exploratory investigation: include the procedures reviewers must perform'
+require "$lifecycle" "validation failure and gap reporting" \
+  'Failed, incomplete, or unverified validation: report the failure or gap'
+require "$acting" "acting validation default and template exception" \
+  'summarize the outcome concisely by default.{0,220}Omit routine repository commands and results unless the PR template explicitly requests them'
+require "$acting" "acting preserves template with minimum detail" \
+  'include only the minimum requested detail while preserving the template structure'
+require "$acting" "acting reviewer procedures" \
+  'include procedural steps only when the template requests them or reviewers must perform a new manual or exploratory investigation'
+require "$acting" "acting validation failure and gap reporting" \
+  'always report meaningful failures, gaps, or unverified behavior'
+require "$agent" "coordinator routine validation default" \
+  'Routine validation: use a concise outcome and omit commands/results'
+require "$agent" "coordinator template minimum detail" \
+  'Template-requested validation: preserve the template and include only the minimum requested detail'
+require "$agent" "coordinator reviewer procedures" \
+  'New reviewer-performed manual or exploratory investigation: include the procedures reviewers must perform'
+require "$agent" "coordinator validation failure and gap reporting" \
+  'Failed, incomplete, or unverified validation: report the failure or gap'
+
 # --- Deterministic actor fixtures ---
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"user":{"login":"octocat","type":"User"},"performed_via_github_app":null}' | classify_rest)" \
@@ -311,7 +337,14 @@ for description in \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
-  'human-interaction: acting-on-behalf enforces posting backstop'; do
+  'human-interaction: acting-on-behalf enforces posting backstop' \
+  'pr-lifecycle: routine validation omits command and result dumps' \
+  'pr-lifecycle: failed or incomplete validation remains explicit' \
+  'pr-lifecycle: preserves a template that explicitly requests commands and results' \
+  'pr-lifecycle: reviewer exploratory investigation includes required procedures' \
+  'acting-on-behalf: concise validation still reports failures and unverified behavior' \
+  'acting-on-behalf: template-requested command detail is preserved and minimal' \
+  'coordinator: PR readiness preserves validation gaps without routine command dumps'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
 
