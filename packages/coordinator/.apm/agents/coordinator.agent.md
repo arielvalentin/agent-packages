@@ -387,6 +387,12 @@ that are outside the current task scope:
 
 Follow the `pr-lifecycle` skill for:
 - PR description requirements (intent, rationale, issue refs, ADR refs)
+- Routine validation: use a concise outcome and omit commands/results.
+- Template-requested validation: preserve the template and include only the
+  minimum requested detail.
+- New reviewer-performed manual or exploratory investigation: include the
+  procedures reviewers must perform.
+- Failed, incomplete, or unverified validation: report the failure or gap.
 - Skill triggers (`pr-lifecycle`, `stage-pr`)
 - Skill fallbacks when built-in skills are unavailable
 
@@ -449,8 +455,13 @@ For `feature`, `bugfix`, `refactor`, and `pr-review`, also include:
   addressed, or explicit user waiver.
 - Observability validation gate status: passed, passed-with-justification
   (include rationale), escalated (include gap list), or exempt (state reason).
-- PR description readiness: intent, decision rationale, issue references, and
-  ADR references when relevant.
+- PR description readiness: intent, decision rationale, concise validation
+  outcome, issue references, and ADR references when relevant. Preserve
+  template-required validation structure; omit routine commands and results
+  unless the template explicitly requests them, and include only the minimum
+  requested detail or the steps reviewers need for a new manual or exploratory
+  investigation. Always report meaningful failures, gaps, or unverified
+  behavior.
 
 For `research`, also include:
 

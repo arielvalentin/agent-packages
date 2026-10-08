@@ -76,6 +76,13 @@ provider solely to render the disclaimer.
 9. PR descriptions must include intent and decision-making rationale:
    - why the change exists
    - key decisions/tradeoffs
+   - concise validation outcome by default; omit routine repository commands
+     and results unless the repository PR template explicitly requests them,
+     then include only the minimum requested detail while preserving the
+     template structure; include procedural steps only when the template
+     requests them or reviewers must perform a new manual or exploratory
+     investigation
+   - meaningful validation failures, gaps, and unverified behavior
    - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
      or the documented absence of issue tracking
    - optional ADR references when relevant
@@ -148,6 +155,12 @@ Before opening a PR, ensure the description includes:
    repository supports Issues; otherwise document the tracking alternative or
    absence of issue tracking.
 4. ADR references when an ADR informed the decision (optional).
+5. Validation: summarize the outcome concisely by default. Omit routine
+   repository commands and results unless the PR template explicitly requests
+   them; then include only the minimum requested detail. Preserve the template,
+   include procedural steps only when it requests them or reviewers must
+   perform a new manual or exploratory investigation, and always report
+   meaningful failures, gaps, or unverified behavior.
 
 ## PR evidence requirement for policy/config refactors
 
