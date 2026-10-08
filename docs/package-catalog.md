@@ -23,6 +23,8 @@ This document is the authoritative inventory of installable packages in this rep
   - Agents:
     - `system-architect`
     - `implementer`
+  - Skill:
+    - `fedramp-deployment-approval`
 
 ## code-reviewers
 

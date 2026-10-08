@@ -1,4 +1,4 @@
 name: development-workflow
 version: 0.6.1
-description: Design and implementation agent pair for coordinated development workflows.
+description: Design and implementation agents with an allow-listed, user-confirmed FedRAMP deployment approval skill.
 license: Apache-2.0
