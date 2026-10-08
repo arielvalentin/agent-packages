@@ -64,6 +64,11 @@ unknown, not retried. Each approval needs its own fresh confirmation.
 
 ## Consume through APM
 
+`.apm/` is the canonical package root. The legacy `apm -> .apm` directory
+alias is omitted because APM 0.32.0 rejects it when preparing remote Git
+dependencies. Validate published revisions with a disposable consumer pinned
+to the exact remote commit; a local-path install does not exercise this check.
+
 This skill ships in the existing `development-workflow` package; consumers
 such as dotfiles do not need a local/global skill override or a separate CLI.
 After the change is published, update the consumer's package ref to a release
