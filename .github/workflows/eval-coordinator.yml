@@ -22,9 +22,21 @@ permissions:
   contents: read
 
 jobs:
-  eval:
-    name: coordinator
+  eval-shard:
+    name: coordinator (${{ matrix.shard }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 1/4
+            filter-range: "0:25"
+          - shard: 2/4
+            filter-range: "25:50"
+          - shard: 3/4
+            filter-range: "50:75"
+          - shard: 4/4
+            filter-range: "75:"
     env:
       NODE_OPTIONS: --no-warnings
     steps:
@@ -32,3 +44,19 @@ jobs:
       - uses: ./.github/actions/eval-package
         with:
           package: coordinator
+          filter-range: ${{ matrix.filter-range }}
+
+  eval:
+    name: coordinator
+    if: ${{ always() }}
+    needs: eval-shard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful coordinator shards
+        env:
+          SHARD_RESULT: ${{ needs.eval-shard.result }}
+        run: |
+          if [[ "$SHARD_RESULT" != "success" ]]; then
+            echo "One or more coordinator evaluation shards failed."
+            exit 1
+          fi
