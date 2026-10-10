@@ -8,6 +8,10 @@ The package remains installable for compatibility. Existing consumers can
 continue invoking the legacy agent, and its bundled shared skills are not
 deprecated or removed.
 
+The final published release is
+[`coordinator-v0.14.0`](https://github.com/arielvalentin/agent-packages/releases/tag/coordinator-v0.14.0).
+Coordinator is no longer part of ongoing release automation.
+
 Future shared-skill changes belong in [agent-defaults](../agent-defaults/README.md).
 The copies here are frozen compatibility snapshots, not the canonical source.
 

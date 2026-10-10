@@ -8,13 +8,6 @@
         { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
       ]
     },
-    "packages/coordinator": {
-      "release-type": "simple",
-      "component": "coordinator",
-      "extra-files": [
-        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
-      ]
-    },
     "packages/development-workflow": {
       "release-type": "simple",
       "component": "development-workflow",
