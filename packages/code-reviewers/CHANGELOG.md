@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.3.0...code-reviewers-v0.3.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* preserve companion installs after coordinator retirement ([8ed54a4](https://github.com/arielvalentin/agent-packages/commit/8ed54a4da4bb8fb43021a6fd4a96bf3648a245b8))
+
 ## [0.3.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.2.1...code-reviewers-v0.3.0) (2026-10-10)
 
 
