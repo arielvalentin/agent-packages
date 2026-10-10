@@ -1,5 +1,13 @@
 {
   "packages": {
+    "packages/agent-defaults": {
+      "release-type": "simple",
+      "component": "agent-defaults",
+      "initial-version": "0.1.0",
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
+    },
     "packages/coordinator": {
       "release-type": "simple",
       "component": "coordinator",

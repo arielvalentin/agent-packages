@@ -10,6 +10,22 @@ prompts:
   - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
 
 tests:
+  - description: "implementer: standalone oversized tasks return to the user"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "You are invoked directly by the user, no calling agent exists, and the task bundles unrelated concerns. Who do you ask to decompose it? Reply exactly User."
+    assert:
+      - type: icontains
+        value: "user"
+
+  - description: "system-architect: standalone requirements do not need delegation"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "You were invoked directly with complete user requirements and supplied artifacts. Must a coordinator agent assign a handoff first? Reply exactly No."
+    assert:
+      - type: icontains
+        value: "no"
+
   # --- implementer agent ---
   - description: "implementer: reads handoff-envelope inputs"
     vars:

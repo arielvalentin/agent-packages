@@ -8,7 +8,8 @@ This repository ships independent installable packages so consumers can pick onl
 
 | Package | Purpose | Includes |
 | --- | --- | --- |
-| `packages/coordinator` | Orchestration and gated review flow | `coordinator` agent + `acting-on-behalf`, `consensus-panel`, `handoff-envelope` skills |
+| `packages/agent-defaults` | Shared skills for direct agent execution | [12 reusable skills](packages/agent-defaults/README.md#includes), no coordinator agent |
+| `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Design + implementation workflow | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
 
@@ -26,12 +27,21 @@ agent-packages/
 
 Add one or more packages to a consumer project:
 
+Prefer direct agent execution over mandatory coordinator routing. The
+coordinator package remains available for existing consumers. Shared skills
+are not deprecated: install `agent-defaults` alongside the development and
+review agents that reference them.
+
 ```yaml
 dependencies:
   apm:
-    - arielvalentin/agent-packages/packages/coordinator#v0.1.0
-    - arielvalentin/agent-packages/packages/development-workflow#v0.1.0
+    - arielvalentin/agent-packages/packages/agent-defaults#agent-defaults-v0.1.0
+    - arielvalentin/agent-packages/packages/development-workflow#<development-workflow-tag>
+    - arielvalentin/agent-packages/packages/code-reviewers#<code-reviewers-tag>
 ```
+
+Replace the downstream tag placeholders with their published package tags
+that include direct-agent support. See [releases](https://github.com/arielvalentin/agent-packages/releases).
 
 Then install:
 
@@ -63,6 +73,7 @@ script/setup
 
 # Run tests
 npm test                     # all packages
+npm run test:defaults        # canonical shared skills
 npm run test:coordinator     # single package
 npm run test:reviewers
 npm run test:dev-workflow

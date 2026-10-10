@@ -5,12 +5,12 @@ set -euo pipefail
 errors=0
 root="$(git rev-parse --show-toplevel)"
 
-policy="$root/packages/coordinator/.apm/skills/human-interaction-safeguard/SKILL.md"
-acting="$root/packages/coordinator/.apm/skills/acting-on-behalf/SKILL.md"
-feedback="$root/packages/coordinator/.apm/skills/pr-feedback-review/SKILL.md"
-lifecycle="$root/packages/coordinator/.apm/skills/pr-lifecycle/SKILL.md"
+policy="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/SKILL.md"
+acting="$root/packages/agent-defaults/.apm/skills/acting-on-behalf/SKILL.md"
+feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
+lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
-tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
+tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '

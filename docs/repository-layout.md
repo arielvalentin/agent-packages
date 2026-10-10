@@ -36,7 +36,9 @@ APM 0.32.0 rejects that directory symlink when preparing Git dependencies.
 
 - Package boundaries are explicit and independent.
 - Consumers install package subpaths, not the entire repository.
-- Shared assets should be duplicated intentionally or factored into a dedicated common package if reuse grows.
+- `agent-defaults` is the canonical skills-only common package.
+- Coordinator retains frozen skill snapshots for existing consumers. These
+  intentional compatibility copies do not receive future shared-skill changes.
 
 ## Security and sharing expectations
 

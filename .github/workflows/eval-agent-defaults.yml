@@ -1,23 +1,21 @@
-name: "Eval: development-workflow"
+name: "Eval: agent-defaults"
 
 on:
   push:
     branches: [main]
     paths:
-      - "packages/development-workflow/**"
       - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
-      - ".github/workflows/eval-development-workflow.yml"
+      - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
   pull_request:
     branches: [main]
     paths:
-      - "packages/development-workflow/**"
       - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
-      - ".github/workflows/eval-development-workflow.yml"
+      - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
 
 permissions:
@@ -25,7 +23,7 @@ permissions:
 
 jobs:
   eval:
-    name: development-workflow
+    name: agent-defaults
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: --no-warnings
@@ -33,4 +31,4 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/eval-package
         with:
-          package: development-workflow
+          package: agent-defaults
