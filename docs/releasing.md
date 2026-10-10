@@ -28,6 +28,10 @@ Release Please.
 
 ## Coordinator deprecation rollout
 
+The final deprecation release,
+[`coordinator-v0.14.0`](https://github.com/arielvalentin/agent-packages/releases/tag/coordinator-v0.14.0),
+is published. Coordinator is no longer configured for ongoing releases.
+
 Publish the coordinator deprecation warning before removing its entry from
 release automation. Keep coordinator in both release configuration and the
 release manifest until its final deprecation release is published. Then remove
