@@ -62,6 +62,10 @@ done
 
 # --- Check each package has an apm.yml ---
 for pkg_dir in "$root"/packages/*/; do
+  if [[ -L "$pkg_dir/apm" ]]; then
+    echo "ERROR: Legacy apm directory alias breaks Git installs: $pkg_dir/apm"
+    errors=$((errors + 1))
+  fi
   if [[ ! -f "$pkg_dir/apm.yml" ]]; then
     echo "ERROR: Package directory missing apm.yml: $pkg_dir"
     errors=$((errors + 1))
