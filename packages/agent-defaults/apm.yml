@@ -1,4 +1,6 @@
 name: agent-defaults
-version: 0.0.0
-description: Reusable shared skills for direct agent execution, research, reviews, and safe public interactions.
+version: 0.1.0
+description: >-
+  Reusable shared skills for direct agent execution, research, reviews, and safe
+  public interactions.
 license: Apache-2.0
