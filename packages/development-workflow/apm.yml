@@ -1,4 +1,6 @@
 name: development-workflow
-version: 0.6.1
-description: Design and implementation agents for direct or delegated work. Install alongside agent-defaults.
+version: 0.7.0
+description: >-
+  Design and implementation agents for direct or delegated work. Install
+  alongside agent-defaults.
 license: Apache-2.0

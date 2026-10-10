@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.6.1...development-workflow-v0.7.0) (2026-10-10)
+
+
+### Features
+
+* extract agent-defaults and deprecate coordinator routing ([da6d0b3](https://github.com/arielvalentin/agent-packages/commit/da6d0b30414f1d4d1f49bf03210d4552e1f94d02))
+
 ## [0.6.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.6.0...development-workflow-v0.6.1) (2026-08-26)
 
 
