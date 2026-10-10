@@ -10,6 +10,22 @@ prompts:
   - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
 
 tests:
+  - description: "perf-reviewer: standalone code does not require a handoff artifact"
+    vars:
+      skill_content: file://../.apm/agents/perf-reviewer.agent.md
+      user_input: "You were invoked directly with code to review, not delegated. Must the user supply an implementation-summary artifact first? Reply exactly No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "style-reviewer: standalone diff does not require a handoff artifact"
+    vars:
+      skill_content: file://../.apm/agents/style-reviewer.agent.md
+      user_input: "You were invoked directly with a diff to review, not delegated. Must the user supply an implementation-summary artifact first? Reply exactly No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
   # --- perf-reviewer agent ---
   - description: "perf-reviewer: identifies scaling risks without running live profiles"
     vars:

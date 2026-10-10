@@ -10,7 +10,7 @@
 Use the canonical `.apm/` path while editing:
 
 ```bash
-cd packages/coordinator
+cd packages/agent-defaults
 tree -a .apm
 ```
 
@@ -27,7 +27,7 @@ From a consumer test repository, point at a local path dependency if needed:
 ```yaml
 dependencies:
   apm:
-    - path: /absolute/path/to/agent-packages/packages/coordinator
+    - path: /absolute/path/to/agent-packages/packages/agent-defaults
 ```
 
 Then run:
@@ -37,6 +37,11 @@ apm install
 ```
 
 ## Recommended change workflow
+
+Shared-skill changes belong in `packages/agent-defaults`. Coordinator's skill
+files are frozen compatibility snapshots and must not be edited for new policy.
+`packages/coordinator/skill-snapshots.sha256` and the defaults check enforce
+their frozen contents independently of the canonical defaults inventory.
 
 1. Edit primitives in one package.
 2. Validate in a small consumer project.

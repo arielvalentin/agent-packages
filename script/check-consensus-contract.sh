@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Validates the consensus review contract.
 #
-# The coordinator package must state a deterministic review policy: non-code and
+# The agent-defaults package must state a deterministic review policy: non-code and
 # genuinely tiny scopes take a single mid- or high-capability reviewer, and
 # substantive code changes take a GPT-first adaptive 2+1 panel — an initial wave
 # of exactly two reviewers, plus exactly one high-capability tiebreaker dispatched
@@ -21,12 +21,12 @@ set -euo pipefail
 errors=0
 root="$(git rev-parse --show-toplevel)"
 
-panel="$root/packages/coordinator/.apm/skills/consensus-panel/SKILL.md"
+panel="$root/packages/agent-defaults/.apm/skills/consensus-panel/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
-loop="$root/packages/coordinator/.apm/skills/review-fix-loop/SKILL.md"
-envelope="$root/packages/coordinator/.apm/skills/handoff-envelope/SKILL.md"
-adversarial="$root/packages/coordinator/.apm/skills/adversarial-review/SKILL.md"
-tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
+loop="$root/packages/agent-defaults/.apm/skills/review-fix-loop/SKILL.md"
+envelope="$root/packages/agent-defaults/.apm/skills/handoff-envelope/SKILL.md"
+adversarial="$root/packages/agent-defaults/.apm/skills/adversarial-review/SKILL.md"
+tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '

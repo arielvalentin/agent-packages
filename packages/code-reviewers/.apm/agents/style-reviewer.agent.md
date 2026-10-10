@@ -8,15 +8,21 @@ user-invocable: true
 # Style, Idioms & Patterns Reviewer
 
 You review a change for language idioms, design patterns, and
-readability. You are panel-invoked — return the JSON verdict schema.
+readability. You may be invoked directly or delegated — return the JSON verdict schema.
 
 ## Inputs
 
-Read the `handoff-envelope` inputs. Focus on:
+When delegated, read `handoff-envelope` from `agent-defaults` and validate
+the required caller-owned `explicit_multi_review` boolean. Focus on:
 
 - `inputs.artifact_paths` — impl summary.
 - The changed files themselves.
 - Any `AGENTS.md` walked from the changed file to the repo root.
+
+When invoked directly, review the user's specified diff, files, or supplied
+code without requiring an implementation-summary artifact. Derive and persist
+`explicit_multi_review` from the user's request before loading review skills.
+No coordinator agent is required. Review directly; do not dispatch a panel.
 
 ## What to look for
 
@@ -56,5 +62,5 @@ noise and belong in `notes` at most.
 - `issue`: what's non-idiomatic + citation
 - `fix`: idiomatic replacement in one sentence
 
-If artifact paths or files are missing, return 1–3 clarifying questions
-instead of JSON.
+Ask 1–3 clarifying questions only if delegated artifacts are missing or
+unreadable, or the direct review target is genuinely unspecified.

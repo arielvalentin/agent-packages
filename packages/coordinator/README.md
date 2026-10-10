@@ -1,6 +1,15 @@
 # coordinator
 
-Coordinator workflow package for delegated agent orchestration and gated reviews.
+> **Deprecated:** The coordinator agent and mandatory coordinator routing are
+> no longer recommended. Prefer direct agent execution, delegating only when
+> the task benefits from specialist context.
+
+The package remains installable for compatibility. Existing consumers can
+continue invoking the legacy agent, and its bundled shared skills are not
+deprecated or removed.
+
+Future shared-skill changes belong in [agent-defaults](../agent-defaults/README.md).
+The copies here are frozen compatibility snapshots, not the canonical source.
 
 ## Includes
 
@@ -20,9 +29,19 @@ Coordinator workflow package for delegated agent orchestration and gated reviews
   - `stage-pr`
   - `tech-research`
 
-## Intent
+## Compatibility and migration
 
-Use this package when you want a policy-driven coordinator that dispatches specialist agents, runs consensus review panels, and enforces review gates.
+Remove mandatory coordinator routing from consumer instructions and invoke
+the appropriate agent directly. The agent name and legacy workflow remain
+unchanged for consumers that still select it.
+
+Replace this dependency with the skills-only `agent-defaults` package, then
+remove mandatory coordinator routing. `development-workflow` uses
+`handoff-envelope` and `pr-lifecycle`; `code-reviewers` uses
+`handoff-envelope` and `consensus-panel`. Those packages do not bundle these
+skills themselves. `agent-defaults` supplies all 12 shared skills, including
+the public-interaction safeguards below. Avoid installing both packages unless
+you still need the legacy agent, because the skill names overlap.
 
 `human-interaction-safeguard` is the source of truth for public interaction
 safety: human-authored and unknown-actor GitHub comments stop automation and

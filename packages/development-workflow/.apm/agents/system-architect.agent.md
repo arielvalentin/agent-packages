@@ -25,7 +25,7 @@ review when needed.
 
 ## Inputs
 
-Read the `handoff-envelope` inputs. Required:
+When delegated, read `handoff-envelope` from `agent-defaults`. Required:
 
 - `goal` — problem statement.
 - `constraints` — target language/framework, existing services,
@@ -33,7 +33,9 @@ Read the `handoff-envelope` inputs. Required:
 - `inputs.artifact_paths` — any prior research from `rubber-duck` or
   other upstream reviewers.
 
-If any of those are missing, ask **1–3** clarifying questions and stop.
+If delegated inputs are missing, ask **1–3** clarifying questions and stop.
+When invoked directly, use the user's requirements and supplied artifacts.
+Ask only for genuinely missing constraints.
 
 ## Design deliverable
 
@@ -89,8 +91,9 @@ issue or task request:
 1. Do NOT include them in the implementation plan for this task.
 2. Document them in a separate **"Suggested follow-ups"** section in
    `01-design.md` with: what, why, affected files, and estimated effort.
-3. Notify the coordinator so it can comment on the issue with these
-   suggestions for future work.
+3. Notify the calling agent, or the user when invoked directly, of these
+   suggestions for future work. Public posting still requires the shared
+   interaction and attribution safeguards.
 
 ## Output envelope
 

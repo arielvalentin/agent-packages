@@ -23,13 +23,22 @@ jobs:
         run: |
           for pkg in packages/*/; do
             echo "=== Validating $pkg ==="
-            (cd "$pkg" && apm compile --validate --local-only) || exit 1
+            if [[ "$pkg" == "packages/agent-defaults/" ]]; then
+              # APM compile validates agents/instructions, not skills-only packages.
+              bash script/check-agent-defaults.sh || exit 1
+            else
+              (cd "$pkg" && apm compile --validate --local-only) || exit 1
+            fi
           done
 
       - name: Audit (hidden Unicode + drift)
         run: |
           for pkg in packages/*/; do
             echo "=== Auditing $pkg ==="
+            for primitive in "$pkg".apm/skills/*/SKILL.md "$pkg".apm/agents/*.agent.md; do
+              [[ -f "$primitive" ]] || continue
+              apm audit --file "$primitive" || exit 1
+            done
             (cd "$pkg" && apm audit) || exit 1
           done
 
@@ -47,6 +56,9 @@ jobs:
         run: |
           chmod +x script/check-human-interaction-contract.sh
           ./script/check-human-interaction-contract.sh
+
+      - name: Agent defaults and release compatibility checks
+        run: bash script/check-agent-defaults.sh
 
   release-please-config:
     name: Validate release-please config

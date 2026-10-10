@@ -1,4 +1,5 @@
 {
+  "packages/agent-defaults": "0.0.0",
   "packages/coordinator": "0.13.2",
   "packages/development-workflow": "0.6.1",
   "packages/code-reviewers": "0.2.1"
