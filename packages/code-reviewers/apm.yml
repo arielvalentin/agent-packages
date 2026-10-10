@@ -1,5 +1,5 @@
 name: code-reviewers
-version: 0.3.0
+version: 0.3.1
 description: >-
   Performance and style review agents with Datadog routing. Install alongside
   agent-defaults.

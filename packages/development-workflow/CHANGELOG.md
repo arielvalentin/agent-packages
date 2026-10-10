@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.7.0...development-workflow-v0.7.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* preserve companion installs after coordinator retirement ([8ed54a4](https://github.com/arielvalentin/agent-packages/commit/8ed54a4da4bb8fb43021a6fd4a96bf3648a245b8))
+
 ## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.6.1...development-workflow-v0.7.0) (2026-10-10)
 
 
