@@ -1,5 +1,5 @@
 {
-  "packages/agent-defaults": "0.1.0",
-  "packages/development-workflow": "0.7.1",
-  "packages/code-reviewers": "0.3.1"
+  "packages/agent-defaults": "0.1.1",
+  "packages/development-workflow": "0.7.2",
+  "packages/code-reviewers": "0.3.2"
 }

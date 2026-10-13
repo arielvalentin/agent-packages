@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.7.1...development-workflow-v0.7.2) (2026-10-13)
+
+
+### Bug Fixes
+
+* preserve user voice and evidence in written communication ([b6ed83d](https://github.com/arielvalentin/agent-packages/commit/b6ed83d5cc7089d569baecbaa7750ebb74ab4a99)), closes [#59](https://github.com/arielvalentin/agent-packages/issues/59)
+
 ## [0.7.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.7.0...development-workflow-v0.7.1) (2026-10-10)
 
 
