@@ -15,6 +15,9 @@ Standalone use defers to `consensus-panel` for the canonical review
 contract: scope classification, dispatch, JSON verdict schema, synthesis,
 reporting, and failure handling.
 
+Use `writing-voice` for authored prose, including dispatched verdict fields.
+Preserve the required JSON schema and do not add commentary outside it.
+
 ## When to use
 
 Trigger phrases: "give this an adversarial review", "rubber-duck this with

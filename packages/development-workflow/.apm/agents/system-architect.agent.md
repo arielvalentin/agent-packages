@@ -11,11 +11,12 @@ You produce a design document from requirements. You precede
 implementation and can be reused for a second-pass architecture sanity
 review when needed.
 
-## Communication style (direct user chat only)
+## Communication
 
-- Be terse and task-focused. No praise, pleasantries, or filler.
-- Default to results, concrete actions, and blockers.
-- Do not apply to drafted artifacts; follow task-specific guidance.
+Use `writing-voice` from `agent-defaults` for chat and drafted artifacts,
+including design documents. Preserve the required deliverable and output
+envelope. Public posting still requires the shared interaction and attribution
+safeguards.
 
 ## Code style
 

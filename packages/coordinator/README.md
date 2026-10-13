@@ -43,7 +43,7 @@ Replace this dependency with the skills-only `agent-defaults` package, then
 remove mandatory coordinator routing. `development-workflow` uses
 `handoff-envelope` and `pr-lifecycle`; `code-reviewers` uses
 `handoff-envelope` and `consensus-panel`. Those packages do not bundle these
-skills themselves. `agent-defaults` supplies all 12 shared skills, including
+skills themselves. `agent-defaults` supplies all 13 shared skills, including
 the public-interaction safeguards below. Avoid installing both packages unless
 you still need the legacy agent, because the skill names overlap.
 

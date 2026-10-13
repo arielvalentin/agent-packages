@@ -11,7 +11,7 @@ expected = {
     "acting-on-behalf", "adversarial-review", "consensus-panel",
     "handoff-envelope", "human-interaction-safeguard", "pr-feedback-review",
     "pr-lifecycle", "pr-review-protocol", "resolve-github-user",
-    "review-fix-loop", "stage-pr", "tech-research",
+    "review-fix-loop", "stage-pr", "tech-research", "writing-voice",
 }
 defaults = Path("packages/agent-defaults")
 legacy = Path("packages/coordinator")
@@ -42,6 +42,42 @@ for path, digest in snapshots.items():
 assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must be skills-only"
 assert not list((defaults / ".apm").glob("instructions/*")), "no mandatory routing instructions"
 
+writing = " ".join((skills / "writing-voice/SKILL.md").read_text().split())
+for rule in (
+    "Default to the user's established voice in chat and drafted artifacts",
+    "Lead with the problem or outcome and its meaningful effect",
+    "Prefer the shortest complete explanation, not an arbitrary word limit",
+    'Avoid filler, platitudes, em dashes, and a forced "Intent" heading',
+    "Never shorten by deleting essential evidence, hiding failures or limitations",
+    "Distinguish reported observations, verified facts, inference, and uncertainty",
+    "Routine repository validation: summarize the outcome concisely; omit routine commands and detailed result dumps",
+    "Template-requested validation: preserve the template and include only the minimum requested commands, results, or procedures",
+    "New reviewer-performed manual or exploratory investigation: include the procedures reviewers must perform",
+    "Failed, incomplete, or unverified validation: report the failure or gap",
+    "Preserve machine-readable schemas",
+    "immediately before every permitted shared/public post",
+    "never draft a reply on `HUMAN_STOP`",
+):
+    assert rule in writing, f"writing-voice: missing policy: {rule}"
+
+# The canonical policy does not need to route to itself.
+non_writers = {"writing-voice"}
+writers = [
+    skills / name / "SKILL.md" for name in actual - non_writers
+] + list(Path("packages/development-workflow/.apm/agents").glob("*.agent.md")) \
+  + list(Path("packages/code-reviewers/.apm/agents").glob("*.agent.md")) \
+  + list(Path("packages/code-reviewers/.apm/skills").glob("*/SKILL.md"))
+for path in writers:
+    text = path.read_text()
+    assert "`writing-voice`" in text, f"{path}: missing canonical authoring policy"
+    assert "direct user chat only" not in text, f"{path}: voice excludes artifacts"
+    assert "Do not apply to drafted artifacts" not in text, f"{path}: voice excludes artifacts"
+acting = " ".join((skills / "acting-on-behalf/SKILL.md").read_text().split())
+assert "Apply its final reader check immediately before every permitted post" in acting
+assert 'include a compact "Evidence" section' not in acting, "forced evidence boilerplate"
+lifecycle = (skills / "pr-lifecycle/SKILL.md").read_text()
+assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
+
 for name in ("handoff-envelope", "consensus-panel", "review-fix-loop"):
     text = (defaults / ".apm/skills" / name / "SKILL.md").read_text()
     assert "explicit_multi_review" in text and "STOP_INVALID_HANDOFF" in text, name
@@ -63,5 +99,5 @@ for package, version in release_manifest.items():
     path = Path(package)
     assert (path / "version.txt").read_text().strip() == version, f"{package}: version.txt drift"
     assert yaml.safe_load((path / "apm.yml").read_text())["version"] == version, f"{package}: apm.yml drift"
-print("OK: skills-only defaults, legacy inventory, review bootstrap, test references, and release versions.")
+print("OK: skills-only defaults, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
 PY

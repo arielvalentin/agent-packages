@@ -66,6 +66,9 @@ skill or agent is responsible for formatting (e.g., prepending `@`).
 
 If all sources fail:
 
+Use `writing-voice` for the user-facing question, without changing the plain
+username output contract.
+
 1. Ask the user for their GitHub handle.
 2. Cache the answer in session state for subsequent calls (same memoization
    key as above).

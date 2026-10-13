@@ -12,6 +12,10 @@ description: >
 
 Single source of truth for every phase of a pull request.
 
+For PR titles and bodies, load `writing-voice` for authoring and the final
+pre-post reader check. Use `acting-on-behalf` for posting permission and
+conditional attribution. This applies to early drafts and later updates.
+
 ## Trigger phrases
 
 - "create a PR", "open a draft PR", "push this and open a PR"
@@ -64,12 +68,10 @@ When implementation is complete and gates pass:
    ```bash
    gh pr edit <number> --title "<validated-conventional-title>"
    ```
-3. Rewrite body to include:
-   - **Problem** — why the change exists
-   - **Changes** — key decisions/tradeoffs
-   - **Testing** — validation performed
-   - **References** — `Closes`/`Fixes #N`, ADR links (optional)
-   - conditional AI attribution via `acting-on-behalf`
+3. Rewrite the body using `writing-voice`, including its validation-detail
+   rules. Follow the repository template when present; otherwise use only the
+   structure this change needs. Preserve relevant issue and ADR references
+   and apply conditional AI attribution via `acting-on-behalf`.
    PR-body attribution is not part of feedback processing:
    `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
    sole source of truth for whether a PR body needs AI attribution.
@@ -205,6 +207,7 @@ After the PR is **merged**:
 
 - `human-interaction-safeguard` — source of truth for actor behavior.
 - `acting-on-behalf` — posting and attribution backstop.
+- `writing-voice` — shared authoring and final reader check.
 - `pr-feedback-review` — bot/app feedback handling after actor classification.
 - `review-fix-loop` — for gate iteration.
 - `commit-message-storyteller` — for commit messages during fixes.

@@ -43,8 +43,10 @@ attributing the user, the answer is **No**: no disclaimer is required.
 Never infer **No** from service credentials alone. Explicit user attribution
 overrides the service identity. Attribution includes the user's username or
 handle, display or real name, a byline, or wording such as "by" or "on behalf
-of." For example, a bot comment with `Prepared by Ariel Valentin` or `on behalf
-of @octocat` requires the disclaimer.
+of." A display-name byline without a username still requires the disclaimer:
+**Yes** for a bot/service post saying `Prepared by Ariel Valentin`, even with
+its own credentials and no username shown. Likewise, `on behalf of @octocat`
+requires the disclaimer.
 
 If credential/account provenance cannot be determined confidently, do not
 silently treat the post as an unattributed service post. Pause and ask the user
@@ -80,9 +82,8 @@ provider solely to render the disclaimer.
    Issues. If Issues are disabled, use the repository's supported tracking
    mechanism or document its absence in the PR body.
 8. Use `gh` CLI for all GitHub operations.
-9. PR descriptions must include intent and decision-making rationale:
-   - why the change exists
-   - key decisions/tradeoffs
+9. Apply `writing-voice` to PR descriptions, including its validation-detail
+   rules. Keep required tracking context:
    - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
      or the documented absence of issue tracking
    - optional ADR references when relevant
@@ -145,26 +146,22 @@ Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
 7. If the user explicitly says to skip adversarial review, proceed and note the
    explicit waiver in the PR body or handoff summary.
 
+## Authoring permitted content
+
+After the interaction gate permits drafting, load `writing-voice`. It is the
+single source of truth for voice, evidence, rationale, structure, and validation
+detail across PRs, issues, comments, reviews, and other written communication.
+Apply its final reader check immediately before every permitted post, including
+new PR and issue bodies. Writing guidance never grants permission to post.
+
 ## PR description content checklist
 
-Before opening a PR, ensure the description includes:
-
-1. Intent: what problem/outcome this PR addresses.
-2. Decision process: key choices and tradeoffs made.
-3. Direct issue references using closing syntax (`Closes`/`Fixes`) when the
-   repository supports Issues; otherwise document the tracking alternative or
-   absence of issue tracking.
-4. ADR references when an ADR informed the decision (optional).
-
-## PR evidence requirement for policy/config refactors
-
-For changes that modify agent policy/config behavior, include a compact
-"Evidence" section in the PR body with:
-
-- before/after size metrics
-- preserved guardrail proof
-- extracted section mapping
-- validation/consensus summary
+Before opening or updating a PR body, apply `writing-voice`, including its
+policy/config evidence guidance and final reader check. Preserve direct issue
+references using closing syntax (`Closes`/`Fixes`) when supported; otherwise
+document the tracking alternative or absence of issue tracking. Include ADR
+references when they informed a decision. These are content requirements,
+not mandatory section headings.
 
 ## Skill-availability fallbacks
 

@@ -8,7 +8,7 @@ This repository ships independent installable packages so consumers can pick onl
 
 | Package | Purpose | Includes |
 | --- | --- | --- |
-| `packages/agent-defaults` | Shared skills for direct agent execution | [12 reusable skills](packages/agent-defaults/README.md#includes), no coordinator agent |
+| `packages/agent-defaults` | Shared skills for direct agent execution | [13 reusable skills](packages/agent-defaults/README.md#includes), no coordinator agent |
 | `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Design + implementation workflow | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
@@ -35,13 +35,15 @@ review agents that reference them.
 ```yaml
 dependencies:
   apm:
-    - arielvalentin/agent-packages/packages/agent-defaults#agent-defaults-v0.1.0
+    - arielvalentin/agent-packages/packages/agent-defaults#<agent-defaults-tag>
     - arielvalentin/agent-packages/packages/development-workflow#<development-workflow-tag>
     - arielvalentin/agent-packages/packages/code-reviewers#<code-reviewers-tag>
 ```
 
-Replace the downstream tag placeholders with their published package tags
-that include direct-agent support. See [releases](https://github.com/arielvalentin/agent-packages/releases).
+Replace every tag placeholder with a compatible published package tag.
+The development and review agents require an `agent-defaults` release that
+includes `writing-voice`; `agent-defaults-v0.1.0` does not include it.
+See [releases](https://github.com/arielvalentin/agent-packages/releases).
 
 Then install:
 
