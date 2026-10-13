@@ -57,6 +57,9 @@ new user instruction. The reply and thread resolution remain user-only.
 Only completely retrieved threads/chains whose every item is
 `AUTOMATION_FLOW` continue to Step 3.
 
+For permitted drafts and private summaries, use `writing-voice`. Do not turn a
+private summary of human feedback into a draft reply.
+
 ### Step 3: Research Bot/App Feedback
 
 For each concern, investigate:

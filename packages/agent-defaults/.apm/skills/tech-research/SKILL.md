@@ -114,7 +114,8 @@ requests additional evidence.
 
 ## Final output
 
-Include:
+Use `writing-voice` for the synthesis and any downstream writing handoff.
+Include the following relevant content without forcing a heading for each:
 
 - Research question.
 - Sources/backends consulted.

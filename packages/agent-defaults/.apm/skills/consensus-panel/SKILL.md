@@ -228,6 +228,9 @@ escalation never depends on a severity the panelist failed to state.
 
 ## Report contents
 
+Use `writing-voice` for report prose and JSON prose fields without changing
+the required schema or omitting findings, evidence, or caveats.
+
 - Aggregate verdict block.
 - Review mode line: `panel: single-reviewer fast path` (with the exemption that
   applied) or `panel: adaptive 2+1`.

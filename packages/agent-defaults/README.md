@@ -17,6 +17,7 @@ coordinator agent and requires no mandatory coordinator routing.
 - `review-fix-loop`
 - `stage-pr`
 - `tech-research`
+- `writing-voice`
 
 ## Install and use
 
@@ -35,6 +36,18 @@ boolean in every handoff; missing or invalid values fail closed.
 Install this package alongside `development-workflow` or `code-reviewers`,
 which reference its handoff, lifecycle, and review skills. These agent packages
 do not bundle shared skills themselves.
+
+## Writing
+
+`writing-voice` is the canonical authoring policy for chat and drafted
+artifacts. It defaults to the user's voice while preserving relevant evidence,
+rationale, and uncertainty. It owns template-aware validation detail and the
+final reader check; posting permission and conditional attribution remain in
+the existing safeguard skills.
+
+Consumers that want always-on writing guidance should point their instructions
+to `writing-voice` rather than duplicate its rules. Update `agent-defaults`
+alongside development/review agents that reference this skill.
 
 ## Migration from coordinator
 

@@ -51,6 +51,9 @@ If Codespaces aren't available:
 
 ### 4. Report to user
 
+Use `writing-voice` for the report, retaining the instructions needed to
+validate and tear down the environment.
+
 Provide:
 - The preview URL (Codespace port or local)
 - Instructions for what to validate

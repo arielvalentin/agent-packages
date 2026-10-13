@@ -8,7 +8,7 @@ This repository ships independent installable packages so consumers can pick onl
 
 | Package | Purpose | Includes |
 | --- | --- | --- |
-| `packages/agent-defaults` | Shared skills for direct agent execution | [12 reusable skills](packages/agent-defaults/README.md#includes), no coordinator agent |
+| `packages/agent-defaults` | Shared skills for direct agent execution | [13 reusable skills](packages/agent-defaults/README.md#includes), no coordinator agent |
 | `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Design + implementation workflow | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |

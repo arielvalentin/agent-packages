@@ -52,6 +52,9 @@ No coordinator agent is required. Review directly; do not dispatch a panel.
 
 ## Output
 
+Use `writing-voice` from `agent-defaults` for prose fields, without changing
+the required JSON schema or adding commentary outside it.
+
 Return **only** the JSON verdict schema from `consensus-panel/SKILL.md`.
 Every finding must cite either a language idiom, a design pattern by
 name, or a repo `AGENTS.md` rule (with path). Non-cited findings are

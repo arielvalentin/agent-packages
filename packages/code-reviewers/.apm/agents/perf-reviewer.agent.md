@@ -54,6 +54,9 @@ dispatching an environment-specific live-performance SRE agent for evidence.
 
 ## Output
 
+Use `writing-voice` from `agent-defaults` for prose fields, without changing
+the required JSON schema or adding commentary outside it.
+
 Return **only** the JSON verdict schema from `consensus-panel/SKILL.md`.
 Populate `findings` with:
 

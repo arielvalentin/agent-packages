@@ -97,9 +97,12 @@ in the diff.
 
 ## 8. Post one review
 
-Compile steps 3-7 into one review:
+Apply `human-interaction-safeguard` before drafting a public review; on
+`HUMAN_STOP`, give only a private findings summary, not a draft reply.
+Use `writing-voice` for the permitted review or private summary. Compile
+steps 3-7 with the following relevant content, not forced section headings:
 
-1. Intent summary and whether the change achieves it.
+1. Problem/outcome summary and whether the change achieves it.
 2. Findings ordered by severity: blocking, warning, informational.
 3. System-impact concerns.
 4. Documentation gaps only when supported by repository evidence.

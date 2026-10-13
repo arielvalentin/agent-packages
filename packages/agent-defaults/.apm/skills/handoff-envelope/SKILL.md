@@ -64,6 +64,9 @@ Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
 
 ## Write side
 
+Use `writing-voice` for prose in summaries and artifacts. Preserve the required
+schemas, output limits, and internal evidence; do not add prose outside JSON.
+
 - Output ≤2KB and not referenced by later phases → return inline.
 - Output >2KB OR referenced by later phases → write to `${ARTIFACTS_DIR}/NN-<phase>.<ext>`,
   return `{"path": "...", "summary": "<=200 chars", "verdict": "..."}`.

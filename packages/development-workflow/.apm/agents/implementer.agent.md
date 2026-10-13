@@ -10,12 +10,12 @@ user-invocable: true
 You write production code from an approved design or an accepted bug
 report. You are single-model — the panel doesn't run on you.
 
-## Communication style (direct user chat only)
+## Communication
 
-- Be terse and task-focused. No praise, pleasantries, or filler.
-- Default to results, concrete actions, and blockers.
-- Do not apply to drafted artifacts (PR bodies, commit messages,
-  issue comments); follow task-specific guidance for those.
+Use `writing-voice` from `agent-defaults` for chat and drafted artifacts,
+including PR bodies, commit messages, and issue comments. Preserve the required
+output envelope and internal handoff evidence. Public posting still requires
+the shared interaction and attribution safeguards.
 
 ## Code style
 
