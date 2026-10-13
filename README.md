@@ -35,13 +35,15 @@ review agents that reference them.
 ```yaml
 dependencies:
   apm:
-    - arielvalentin/agent-packages/packages/agent-defaults#agent-defaults-v0.1.0
+    - arielvalentin/agent-packages/packages/agent-defaults#<agent-defaults-tag>
     - arielvalentin/agent-packages/packages/development-workflow#<development-workflow-tag>
     - arielvalentin/agent-packages/packages/code-reviewers#<code-reviewers-tag>
 ```
 
-Replace the downstream tag placeholders with their published package tags
-that include direct-agent support. See [releases](https://github.com/arielvalentin/agent-packages/releases).
+Replace every tag placeholder with a compatible published package tag.
+The development and review agents require an `agent-defaults` release that
+includes `writing-voice`; `agent-defaults-v0.1.0` does not include it.
+See [releases](https://github.com/arielvalentin/agent-packages/releases).
 
 Then install:
 

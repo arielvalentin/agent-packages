@@ -24,9 +24,11 @@ coordinator agent and requires no mandatory coordinator routing.
 ```yaml
 dependencies:
   apm:
-    - arielvalentin/agent-packages/packages/agent-defaults#agent-defaults-v0.1.0
+    - arielvalentin/agent-packages/packages/agent-defaults#<agent-defaults-tag>
 ```
 
+Replace the placeholder with a [published package tag](https://github.com/arielvalentin/agent-packages/releases)
+that includes `writing-voice`; `agent-defaults-v0.1.0` predates this skill.
 Run `apm install`. Invoke the appropriate agent directly and load skills when
 their triggers apply. Delegate only when specialist context helps the task.
 The calling agent owns task scope, review handoffs, synthesis, and user gates.

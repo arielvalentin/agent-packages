@@ -7,7 +7,7 @@ Consumers can install one package or combine multiple packages from this monorep
 ```yaml
 dependencies:
   apm:
-    - arielvalentin/agent-packages/packages/agent-defaults#agent-defaults-v0.1.0
+    - arielvalentin/agent-packages/packages/agent-defaults#<agent-defaults-tag>
 ```
 
 ## Install multiple packages
@@ -15,13 +15,15 @@ dependencies:
 ```yaml
 dependencies:
   apm:
-    - arielvalentin/agent-packages/packages/agent-defaults#agent-defaults-v0.1.0
+    - arielvalentin/agent-packages/packages/agent-defaults#<agent-defaults-tag>
     - arielvalentin/agent-packages/packages/development-workflow#<development-workflow-tag>
     - arielvalentin/agent-packages/packages/code-reviewers#<code-reviewers-tag>
 ```
 
-Replace the downstream placeholders with published package tags that include
-direct-agent support; see [releases](https://github.com/arielvalentin/agent-packages/releases).
+Replace every placeholder with a compatible published package tag. The
+development and review agents require an `agent-defaults` release containing
+`writing-voice`, which is absent from `agent-defaults-v0.1.0`.
+See [releases](https://github.com/arielvalentin/agent-packages/releases).
 
 ## Deprecated coordinator package
 
