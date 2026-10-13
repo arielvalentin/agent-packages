@@ -45,6 +45,11 @@ For each REST item, apply this ordered REST classification algorithm:
 Agents must not inspect `.user.login` to override or reconsider any step in
 this algorithm.
 
+For example, `{"user":{"login":"dependabot[bot]","type":"User"},"performed_via_github_app":null}`
+selects `HUMAN_STOP`: the literal type is `User`, not `Bot`. A familiar bot-like
+login cannot change that field. With the same `User` type, a non-null
+`performed_via_github_app` would instead select `AUTOMATION_FLOW` under step 2.
+
 ### PR review threads
 
 Use GraphQL because REST does not return review-thread resolution state:
