@@ -38,10 +38,10 @@ tests:
   - description: "perf-reviewer: flags N+1 queries"
     vars:
       skill_content: file://../.apm/agents/perf-reviewer.agent.md
-      user_input: "Review this code for performance:\n```ruby\nusers = User.all\nusers.each { |u| puts u.posts.count }\n```"
+      user_input: "Name the database query pattern caused by calling u.posts.count for each user:\n```ruby\nusers = User.all\nusers.each { |u| puts u.posts.count }\n```\nReply with the pattern name only."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('n+1') || l.includes('n + 1') || l.includes('eager') || l.includes('preload') || l.includes('includes(') || l.includes('batch') || l.includes('each user') || l.includes('quadratic') || l.includes('count') || l.includes('loop') || l.includes('query') || l.includes('load') || l.includes('post')"
+        value: "/\\bn\\s*\\+\\s*1\\b/i.test(output)"
 
   # --- style-reviewer agent ---
   - description: "style-reviewer: checks language idioms and patterns"
