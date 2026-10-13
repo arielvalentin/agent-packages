@@ -60,12 +60,13 @@ for rule in (
 ):
     assert rule in writing, f"writing-voice: missing policy: {rule}"
 
-# Identity lookup has no authored deliverable; writing-voice is the policy itself.
-non_writers = {"resolve-github-user", "writing-voice"}
+# The canonical policy does not need to route to itself.
+non_writers = {"writing-voice"}
 writers = [
     skills / name / "SKILL.md" for name in actual - non_writers
 ] + list(Path("packages/development-workflow/.apm/agents").glob("*.agent.md")) \
-  + list(Path("packages/code-reviewers/.apm/agents").glob("*.agent.md"))
+  + list(Path("packages/code-reviewers/.apm/agents").glob("*.agent.md")) \
+  + list(Path("packages/code-reviewers/.apm/skills").glob("*/SKILL.md"))
 for path in writers:
     text = path.read_text()
     assert "`writing-voice`" in text, f"{path}: missing canonical authoring policy"

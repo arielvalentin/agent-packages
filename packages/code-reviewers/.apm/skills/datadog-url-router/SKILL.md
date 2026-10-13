@@ -8,6 +8,9 @@ description: Route Datadog URLs/IDs to the correct dd-* skill and pup command.
 Use this skill when a prompt includes Datadog URLs, IDs, or asks about
 Datadog logs/metrics/traces/audit/incidents.
 
+Use `writing-voice` from `agent-defaults` for user-facing requests and
+explanations. Preserve runnable commands and the fail-closed rules below.
+
 ## Fail-closed behavior
 
 1. Do not use `WebFetch`, browser automation, or `curl` for Datadog app URLs.
