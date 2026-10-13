@@ -12,9 +12,9 @@ description: >
 
 Single source of truth for every phase of a pull request.
 
-For PR titles and bodies, load `writing-voice` for authoring and
-`acting-on-behalf` for posting permission, conditional attribution, and the
-final pre-post reader check. This applies to early drafts and later updates.
+For PR titles and bodies, load `writing-voice` for authoring and the final
+pre-post reader check. Use `acting-on-behalf` for posting permission and
+conditional attribution. This applies to early drafts and later updates.
 
 ## Trigger phrases
 
