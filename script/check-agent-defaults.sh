@@ -60,17 +60,10 @@ for rule in (
 ):
     assert rule in writing, f"writing-voice: missing policy: {rule}"
 
-indirect_writers = {
-    "adversarial-review": "consensus-panel",
-    "review-fix-loop": "consensus-panel",
-}
-for name, delegate in indirect_writers.items():
-    text = (skills / name / "SKILL.md").read_text()
-    assert f"`{delegate}`" in text, f"{name}: missing downstream authoring route"
 # Identity lookup has no authored deliverable; writing-voice is the policy itself.
 non_writers = {"resolve-github-user", "writing-voice"}
 writers = [
-    skills / name / "SKILL.md" for name in actual - indirect_writers.keys() - non_writers
+    skills / name / "SKILL.md" for name in actual - non_writers
 ] + list(Path("packages/development-workflow/.apm/agents").glob("*.agent.md")) \
   + list(Path("packages/code-reviewers/.apm/agents").glob("*.agent.md"))
 for path in writers:

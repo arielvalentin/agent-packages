@@ -67,6 +67,9 @@ owns this gate and user escalation; no coordinator agent is required.
    - `on_exhaust: warn` → proceed but record unresolved findings as warnings
      in the final message. Flag as reduced-assurance.
 
+   Use `writing-voice` for escalations, warnings, and outcome summaries.
+   Preserve the required gate evidence and unresolved findings.
+
 6. **Record outcome** — regardless of path, record:
    - Gate name (derived from `reviewer`)
    - Outcome: `passed`, `passed-after-fixes`, `skipped` (with reason),

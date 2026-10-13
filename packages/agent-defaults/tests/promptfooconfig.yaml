@@ -350,8 +350,12 @@ tests:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
       user_input: "My PR is already open and I just pushed commits. Quote the Phase 4 command for watching CI."
     assert:
-      - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('gh pr checks') || l.includes('gh pr create') || l.includes('ci') || l.includes('check') || l.includes('review') || l.includes('monitor')"
+      - type: contains
+        value: "gh pr checks"
+      - type: contains
+        value: "--watch"
+      - type: contains
+        value: "--fail-fast"
 
   # --- pr-review-protocol ---
   - description: "pr-review-protocol: waits for required CI before review"
