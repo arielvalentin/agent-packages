@@ -1,6 +1,8 @@
 ---
 name: writing-voice
-description: Use for all writing; preserve the user's voice, evidence, and uncertainty.
+description: >-
+  Use for chat, comments, PR descriptions, issues, reviews, commit messages,
+  documentation, and reports. Preserve the user's voice, evidence, and uncertainty.
 ---
 
 # Writing Voice
