@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.1.1...agent-defaults-v0.2.0) (2026-10-17)
+
+
+### Features
+
+* add context-specific writing voice to agent-defaults ([#62](https://github.com/arielvalentin/agent-packages/issues/62)) ([bf19c03](https://github.com/arielvalentin/agent-packages/commit/bf19c032412f70a89bc51b3cb85d5e7bd0b818ed))
+
 ## [0.1.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.1.0...agent-defaults-v0.1.1) (2026-10-13)
 
 
