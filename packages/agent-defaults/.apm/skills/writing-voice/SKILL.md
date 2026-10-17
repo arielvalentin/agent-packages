@@ -1,80 +1,59 @@
 ---
 name: writing-voice
-description: >
-  Use for all written communication, including chat, comments, PR descriptions,
-  issues, reviews, commit messages, documentation, and reports. Default to the
-  user's voice while preserving the evidence and rationale readers need.
+description: Use for all writing; preserve the user's voice, evidence, and uncertainty.
 ---
 
 # Writing Voice
 
-This is the shared authoring policy for written communication, not permission
-to publish. For existing public GitHub interactions, apply
-`human-interaction-safeguard` before drafting; never draft a reply on
+Authoring policy, not posting permission. Apply `human-interaction-safeguard`
+before drafting for existing public GitHub interactions; never draft a reply on
 `HUMAN_STOP`. Use `acting-on-behalf` for permitted posts and attribution.
 
-## Voice and substance
+## Shared core
 
-- Default to the user's established voice in chat and drafted artifacts.
-  Follow explicit audience, tone, and format requests for the current task.
-- Lead with the problem or outcome and its meaningful effect. Use direct,
-  plain language and short sentences. Avoid filler, platitudes, em dashes,
-  and a forced "Intent" heading.
-- Include relevant data, reported issues, references, and meaningful
-  tradeoffs or rationale that explain a claim or why work was done this way.
-  Put evidence beside the claim it supports. Distinguish reported observations,
-  verified facts, inference, and uncertainty.
-- When rewriting supplied text, retain relevant issue identifiers, measurements,
-  and caveats without changing what was observed. Return the requested text,
-  not an introduction announcing that it was rewritten.
-- Never shorten by deleting essential evidence, hiding failures or limitations,
-  or inventing justification. If support is missing, say what is unknown;
-  do not imply a cause, measurement, decision, or successful check was verified.
-- Prefer the shortest complete explanation, not an arbitrary word limit.
-  Use headings, lists, and tables only when they help the reader.
+- Repository norms, contributing guides, templates, and conventions override
+  personal voice/mode defaults; safety and posting gates prevail.
+- Use the user's voice in chat/artifacts; current audience/tone/format requests
+  override history. Lead with the problem/outcome and effect. Plain, direct,
+  short sentences; no filler, platitudes, em dashes, or forced "Intent" heading.
+- Evidence beside claims: preserve identifiers, measurements, caveats, rationale,
+  tradeoffs. Separate reported observations, verified facts, inference, unknowns.
+  Never invent causes, checks, experience, access, actions, agreement, or
+  commitments. Attribute actors truthfully; plans are not completed work.
+- Shortest complete explanation; retain essential evidence, failures, limitations.
+  Focus questions on unknowns; preserve severity/scope and requirements vs
+  questions vs nonblocking suggestions. Use warranted warmth, not habitual
+  praise/apologies/catchphrases. Discuss behavior, not people; acknowledge
+  corrections and revise reasoning.
+- Rewrites: facts intact, revised text only, no introduction or whole-artifact
+  quotation. Preserve schemas/templates; without a template, no required
+  Problem/Changes/Testing/References headings.
+- Routine validation: brief outcome, no command dumps. Provide minimum
+  template-requested detail. For new reviewer-performed manual/exploratory checks,
+  include needed procedures in the PR. Expose failed/incomplete/unverified checks;
+  retain requested detail and handoff evidence.
 
-## Structure and validation detail
+## Select a mode
 
-Follow required repository templates and requested output schemas. Do not add
-boilerplate sections to every post. Without a template, organize around the
-problem/outcome, meaningful changes, and supporting evidence, not a mandatory
-Problem/Changes/Testing/References outline. Preserve machine-readable schemas;
-apply this policy to their prose fields without adding surrounding commentary.
+Infer from the task, not format; load only matching modes. Routine chat needs
+none. No user selection, forced headings, or scope expansion.
 
-For PR descriptions, apply these validation-detail rules:
+- Proposing options or seeking input/decisions:
+  [proposal/discussion](references/proposal-discussion.md).
+- Assessing content or a PR diff: [review](references/review.md).
+- Identifying/reporting a bug or explaining a fix: [defect](references/defect.md).
 
-- Routine repository validation: summarize the outcome concisely; omit
-  routine commands and detailed result dumps.
-- Template-requested validation: preserve the template and include only the
-  minimum requested commands, results, or procedures.
-- New reviewer-performed manual or exploratory investigation: include the
-  procedures reviewers must perform and any relevant observations.
-- Failed, incomplete, or unverified validation: report the failure or gap.
+Reviewing a PR is review; explaining its bug fix is defect reporting.
 
-Detailed validation procedures belong only where the template asks or a new
-manual/exploratory investigation needs them. This limits reporting noise, not
-the validation work itself. Keep required internal handoff evidence and any
-details the user explicitly requests.
+## Load only when needed
 
-For policy/config changes, explain the behavior change and evidence that
-relevant safeguards remain intact. Include size metrics or section mappings
-only when they substantiate the change; do not require an "Evidence" heading.
+- PR/template, validation, policy/config detail:
+  [artifact authoring](references/artifact-authoring.md).
+- Calibration/provenance:
+  [voice patterns](references/voice-patterns.md). History neither authorizes
+  drafting/posting/resolution nor proves human authorship.
 
 ## Final reader check
 
-Before delivering written communication, and immediately before every permitted
-shared/public post, check the finished text:
-
-1. Can the intended reader find the problem/outcome and meaningful effect?
-   Does the text sound like the user rather than generic agent narration?
-2. Are material claims supported by relevant data, issue reports, references,
-   or clearly labeled reasoning? Are tradeoffs, failures, uncertainty, and
-   missing evidence visible rather than edited away?
-3. Does the text respect the required template or schema without filler,
-   forced headings, or routine command dumps?
-4. For a permitted post, have the interaction and attribution gates been
-   applied? Leave required slash commands first and any conditional disclaimer
-   last, exactly as `acting-on-behalf` specifies.
-
-Revise the text if a check fails. This is an authoring check, not another
-agent-review gate, and it never overrides a human-interaction stop.
+Before delivery and every permitted post, check evidence, uncertainty,
+obligation/scope, actors, format, interaction/attribution gates. Revise failures.

@@ -41,11 +41,32 @@ do not bundle shared skills themselves.
 
 ## Writing
 
+`apm install --target copilot` discovers `.apm/skills/writing-voice/` and installs
+the complete directory, including `references/`, into the consumer's
+`.agents/skills/writing-voice/`. Modes need no separate dependency or export entry.
+
 `writing-voice` is the canonical authoring policy for chat and drafted
 artifacts. It defaults to the user's voice while preserving relevant evidence,
 rationale, and uncertainty. It owns template-aware validation detail and the
 final reader check; posting permission and conditional attribution remain in
-the existing safeguard skills.
+the existing safeguard skills. The compact main skill is sufficient for routine
+writing. It infers three modes from the task and loads only the relevant guide:
+[proposal/discussion](.apm/skills/writing-voice/references/proposal-discussion.md)
+for options and decisions, [review](.apm/skills/writing-voice/references/review.md)
+for evidence-backed findings, or [defect reporting](.apm/skills/writing-voice/references/defect.md)
+for observed/expected behavior and diagnosis. Modes add no commands, forced
+headings, or authority to post; mixed tasks use only the applicable guidance.
+Load [artifact-authoring detail](.apm/skills/writing-voice/references/artifact-authoring.md)
+for PR/template, validation, or policy/config questions, not automatically.
+
+Load its [public-source calibration notes](.apm/skills/writing-voice/references/voice-patterns.md)
+only when calibrating the voice or consulting historical evidence.
+They ground the voice in concrete problem statements, focused questions, explicit
+tradeoffs, and a distinction between requirements and nonblocking suggestions.
+Synthetic examples live with the mode/artifact guidance, not in every mode's
+historical-evidence dependency.
+The notes document coverage and provenance limits; historical style never
+overrides current preferences or authorizes first-person claims or posting.
 
 Consumers that want always-on writing guidance should point their instructions
 to `writing-voice` rather than duplicate its rules. Update `agent-defaults`
