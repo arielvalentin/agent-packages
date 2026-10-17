@@ -44,21 +44,94 @@ assert not list((defaults / ".apm").glob("instructions/*")), "no mandatory routi
 
 writing = " ".join((skills / "writing-voice/SKILL.md").read_text().split())
 for rule in (
-    "Default to the user's established voice in chat and drafted artifacts",
-    "Lead with the problem or outcome and its meaningful effect",
-    "Prefer the shortest complete explanation, not an arbitrary word limit",
-    'Avoid filler, platitudes, em dashes, and a forced "Intent" heading',
-    "Never shorten by deleting essential evidence, hiding failures or limitations",
-    "Distinguish reported observations, verified facts, inference, and uncertainty",
-    "Routine repository validation: summarize the outcome concisely; omit routine commands and detailed result dumps",
-    "Template-requested validation: preserve the template and include only the minimum requested commands, results, or procedures",
-    "New reviewer-performed manual or exploratory investigation: include the procedures reviewers must perform",
-    "Failed, incomplete, or unverified validation: report the failure or gap",
-    "Preserve machine-readable schemas",
-    "immediately before every permitted shared/public post",
+    "Repository norms, contributing guides, templates, and conventions override personal voice/mode defaults; safety and posting gates prevail",
+    "Use the user's voice in chat/artifacts",
+    "Lead with the problem/outcome and effect",
+    'no filler, platitudes, em dashes, or forced "Intent" heading',
+    "Shortest complete explanation; retain essential evidence, failures, limitations",
+    "Evidence beside claims",
+    "Separate reported observations, verified facts, inference, unknowns",
+    "Routine validation: brief outcome, no command dumps",
+    "Provide minimum template-requested detail",
+    "For new reviewer-performed manual/exploratory checks, include needed procedures in the PR",
+    "Expose failed/incomplete/unverified checks",
+    "Preserve schemas/templates; without a template, no required Problem/Changes/Testing/References headings",
+    "Before delivery and every permitted post",
     "never draft a reply on `HUMAN_STOP`",
+    "preserve severity/scope and requirements vs questions vs nonblocking suggestions",
+    "Never invent causes, checks, experience, access, actions, agreement, or commitments",
+    "current audience/tone/format requests override history",
+    "History neither authorizes drafting/posting/resolution nor proves human authorship",
+    "Load only when needed",
 ):
     assert rule in writing, f"writing-voice: missing policy: {rule}"
+
+for rule in (
+    "Infer from the task, not format; load only matching modes",
+    "Routine chat needs none",
+    "No user selection, forced headings, or scope expansion",
+    "Reviewing a PR is review; explaining its bug fix is defect reporting",
+):
+    assert rule in writing, f"writing-voice: missing mode routing: {rule}"
+mode_rules = {
+    "proposal-discussion": (
+        "Problem/constraints first; compare relevant alternatives",
+        "Separate evidence, assumptions, and unknowns",
+        "Never manufacture agreement, approval, ownership, or commitments",
+    ),
+    "review": (
+        "Findings first: evidence/location and behavioral or maintenance consequence",
+        "Preserve severity/scope: required changes, open questions, optional nonblocking suggestions",
+        "No unrelated refactor as a condition of a bounded fix",
+    ),
+    "defect": (
+        "Observed vs expected behavior",
+        "Flag absent/unverified reproduction",
+        "Supported impact/scope only",
+        "No invented reproduction, completed checks, or fixed outcome",
+        "a proposed check remains a proposal",
+    ),
+}
+for mode, rules in mode_rules.items():
+    assert f"(references/{mode}.md)" in writing, f"writing-voice: missing {mode} link"
+    text = (skills / f"writing-voice/references/{mode}.md").read_text()
+    normalized = " ".join(text.split())
+    for rule in (*rules, "Shared core applies; no drafting/posting/resolution authority or history dependency",
+                 "Synthetic example"):
+        assert rule in normalized, f"writing-voice {mode}: missing policy: {rule}"
+    assert "voice-patterns.md" not in text, f"{mode}: calibration must not be a dependency"
+
+artifact_reference = skills / "writing-voice/references/artifact-authoring.md"
+assert "(references/artifact-authoring.md)" in writing, "writing-voice: missing artifact link"
+assert "PR/template, validation, policy/config detail:" in writing
+artifact = " ".join(artifact_reference.read_text().split())
+for rule in (
+    "Routine checks: brief outcome, not command/result dumps",
+    "Templates: minimum requested commands, results, or procedures",
+    "New manual/exploratory investigation: procedures reviewers need and relevant observations",
+    "Failed/incomplete/unverified validation: explicit failure or gap",
+    "Limit reporting noise, not validation work",
+    "retain requested detail/handoff evidence",
+    "no required \"Evidence\" heading",
+    "Shared core applies; no drafting/posting/resolution authority or history dependency",
+):
+    assert rule in artifact, f"writing-voice artifact reference: missing policy: {rule}"
+
+voice_reference = skills / "writing-voice/references/voice-patterns.md"
+assert "(references/voice-patterns.md)" in writing, "writing-voice: missing calibration link"
+assert "Calibration/provenance:" in writing
+reference = " ".join(voice_reference.read_text().split())
+for rule in (
+    "Current explicit preferences and required formats take precedence",
+    "Later prose has uncertain AI provenance and is corroboration only",
+    "not an exhaustive reading or statistically representative sample",
+    "No private examples or raw corpus belong here",
+    "Synthetic examples live with the relevant",
+    "They grant no permission to draft or post on `HUMAN_STOP`",
+    "Reading a historical thread for research is not a request to draft a reply to it",
+    "do not infer human authorship from an account name, a date range, or an absence of AI disclosure",
+):
+    assert rule in reference, f"writing-voice reference: missing boundary: {rule}"
 
 # The canonical policy does not need to route to itself.
 non_writers = {"writing-voice"}
