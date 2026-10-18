@@ -11,6 +11,13 @@ disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+Repository guidance owns project conventions such as title/commit format,
+tracking, templates, validation, and release process. The conventions below
+are defaults when the repository is silent, not new repository requirements.
+An issue is required only when repository guidance requires one; never invent
+a tracking gate or reference. Repository conventions do not waive permission,
+human-interaction, attribution, or mandatory review gates.
+
 ## Human-interaction posting backstop
 
 Before drafting, posting, replying to, or resolving an existing public GitHub
@@ -78,14 +85,15 @@ provider solely to render the disclaimer.
    in the comment text (for example: `Fixed in <sha>`) before the disclaimer
    when one is required.
 6. Open PRs in draft mode by default (`gh pr create --draft`).
-7. Tie PRs and non-trivial commits to an issue when the repository supports
-   Issues. If Issues are disabled, use the repository's supported tracking
-   mechanism or document its absence in the PR body.
+7. Follow repository tracking requirements; preserve relevant issue references.
+   If required tracking is unavailable, surface the gate rather than inventing
+   an issue or bypassing it. If Issues are disabled and no alternative exists,
+   document their absence in the PR body.
 8. Use `gh` CLI for all GitHub operations.
 9. Apply `writing-voice` to PR descriptions, including its validation-detail
    rules. Keep required tracking context:
-   - direct issue references (`Closes`/`Fixes owner/repo#N`) when supported,
-     or the documented absence of issue tracking
+   - relevant direct issue references (`Closes`/`Fixes owner/repo#N`), required
+     tracking, or the documented absence of issue tracking
    - optional ADR references when relevant
 10. For PRs containing code/config/script changes, run `adversarial-review`
    before PR creation and continue fix/re-review cycles until blocker/major
@@ -115,14 +123,15 @@ Before posting or replying to a PR/issue comment:
 
 ## If no issue is provided
 
-1. When the repository supports Issues, search for likely existing issues
-   first:
+1. If repository guidance requires an issue, search for likely existing issues
+   first when Issues are available:
    - `gh issue list --search "<keywords>"`
 2. Confirm the candidate with the user before assuming.
-3. If nothing matches, ask whether to open a new issue, then draft/create it
-   before opening a PR.
+3. If nothing matches, ask whether to open a new issue; never create one without
+   authorization. Required tracking blocks publication until resolved.
 4. If Issues are disabled, use the repository's supported tracking mechanism.
-   If none exists, document that in the PR body and proceed.
+   If none exists and none is required, document that in the PR body and proceed.
+5. If the repository does not require an issue, do not add that requirement.
 
 ## Posting template
 
@@ -158,7 +167,7 @@ new PR and issue bodies. Writing guidance never grants permission to post.
 
 Before opening or updating a PR body, apply `writing-voice`, including its
 policy/config evidence guidance and final reader check. Preserve direct issue
-references using closing syntax (`Closes`/`Fixes`) when supported; otherwise
+references using closing syntax (`Closes`/`Fixes`) when applicable; otherwise
 document the tracking alternative or absence of issue tracking. Include ADR
 references when they informed a decision. These are content requirements,
 not mandatory section headings.

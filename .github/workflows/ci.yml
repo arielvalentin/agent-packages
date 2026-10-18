@@ -23,11 +23,10 @@ jobs:
         run: |
           for pkg in packages/*/; do
             echo "=== Validating $pkg ==="
+            (cd "$pkg" && apm compile --validate --local-only) || exit 1
             if [[ "$pkg" == "packages/agent-defaults/" ]]; then
-              # APM compile validates agents/instructions, not skills-only packages.
+              # Skill inventory and policy contracts supplement APM validation.
               bash script/check-agent-defaults.sh || exit 1
-            else
-              (cd "$pkg" && apm compile --validate --local-only) || exit 1
             fi
           done
 
@@ -35,7 +34,7 @@ jobs:
         run: |
           for pkg in packages/*/; do
             echo "=== Auditing $pkg ==="
-            for primitive in "$pkg".apm/skills/*/SKILL.md "$pkg".apm/agents/*.agent.md; do
+            for primitive in "$pkg".apm/skills/*/SKILL.md "$pkg".apm/agents/*.agent.md "$pkg".apm/instructions/*.instructions.md; do
               [[ -f "$primitive" ]] || continue
               apm audit --file "$primitive" || exit 1
             done

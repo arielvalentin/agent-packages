@@ -39,8 +39,52 @@ assert legacy_files == snapshots.keys(), "legacy snapshot inventory changed"
 for path, digest in snapshots.items():
     assert hashlib.sha256((legacy / path).read_bytes()).hexdigest() == digest, \
         f"frozen coordinator snapshot changed: {path}"
-assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must be skills-only"
-assert not list((defaults / ".apm").glob("instructions/*")), "no mandatory routing instructions"
+assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must not install agents"
+instructions = defaults / ".apm/instructions"
+assert {p.name for p in instructions.iterdir()} == {
+    "repository-work.instructions.md", "skill-gates.instructions.md",
+}, "unexpected defaults instruction inventory"
+instruction_texts = {}
+for path in instructions.iterdir():
+    text = path.read_text()
+    metadata = yaml.safe_load(text.split("---", 2)[1])
+    assert set(metadata) == {"description"}, f"{path}: unconditional metadata must omit applyTo"
+    assert isinstance(metadata["description"], str) and metadata["description"].strip(), path
+    instruction_texts[path.stem] = " ".join(text.split())
+work = instruction_texts["repository-work.instructions"]
+for rule in (
+    "Before task actions, read applicable repository agent instructions",
+    "contributing/development guidance",
+    "not safety or permission gates",
+    "Do not impose project requirements the repository does not have",
+    "Own the task directly",
+    "Run the smallest existing check that proves the requested behavior",
+    "never invent results, actions, or access",
+):
+    assert rule in work, f"repository-work: missing policy: {rule}"
+gates = instruction_texts["skill-gates.instructions"]
+for name in (
+    "writing-voice", "human-interaction-safeguard", "acting-on-behalf",
+    "pr-lifecycle", "adversarial-review", "security-review", "consensus-panel",
+    "review-fix-loop", "tech-research", "datadog-url-router",
+):
+    assert f"`{name}`" in gates, f"skill-gates: missing entrypoint: {name}"
+for rule in ("fail closed as `HUMAN_STOP`", "Missing mandatory safeguards block",
+             "behavior-defining configuration", "explicit_multi_review",
+             "Unresolved blocker/major findings"):
+    assert rule in gates, f"skill-gates: missing gate: {rule}"
+
+router = Path("packages/code-reviewers/.apm/skills/datadog-url-router")
+router_text = (router / "SKILL.md").read_text()
+assert "(references/url-map.md)" in router_text, "router: missing bundled map"
+assert (router / "references/url-map.md").is_file(), "router: map not bundled"
+for path in router.rglob("*.md"):
+    text = path.read_text()
+    assert "~/" not in text and ".dotfiles" not in text, f"{path}: local dependency"
+    assert "pup api GET" not in text, f"{path}: unsupported API syntax"
+for rule in ("pup auth status", "pup auth login", "untrusted data",
+             "Never expose API/App keys", "do not guess an API endpoint"):
+    assert rule in router_text, f"router: missing safeguard: {rule}"
 
 writing = " ".join((skills / "writing-voice/SKILL.md").read_text().split())
 for rule in (
@@ -172,5 +216,5 @@ for package, version in release_manifest.items():
     path = Path(package)
     assert (path / "version.txt").read_text().strip() == version, f"{package}: version.txt drift"
     assert yaml.safe_load((path / "apm.yml").read_text())["version"] == version, f"{package}: apm.yml drift"
-print("OK: skills-only defaults, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
+print("OK: unconditional defaults, portable router, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
 PY

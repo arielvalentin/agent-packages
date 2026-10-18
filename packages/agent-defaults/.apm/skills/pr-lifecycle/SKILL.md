@@ -12,6 +12,14 @@ description: >
 
 Single source of truth for every phase of a pull request.
 
+Read repository guidance first. Its title/commit format, tracking, templates,
+validation, review, and release conventions take precedence over project
+defaults below, including Conventional Commits and its title regex when a
+different format is required. Do not impose this producer repository's release
+strategy on consumers.
+Permission, human-interaction, attribution, and mandatory safety/review gates
+still apply.
+
 For PR titles and bodies, load `writing-voice` for authoring and the final
 pre-post reader check. Use `acting-on-behalf` for posting permission and
 conditional attribution. This applies to early drafts and later updates.
@@ -29,8 +37,9 @@ conditional attribution. This applies to early drafts and later updates.
 
 For `feature`, `bugfix`, and `refactor` flows:
 
-1. As soon as a branch exists, open a **draft PR** with a Conventional
-   Commits title from the start — never a placeholder like `WIP: <goal>`:
+1. As soon as a branch exists, open a **draft PR** with a valid title from the
+   start, never a placeholder like `WIP: <goal>`. Follow the repository's
+   required title format. Only if none is specified, use Conventional Commits:
    ```bash
    gh pr create --draft --title "<type>: <description>" --body "<issue ref + placeholder>"
    ```
@@ -56,10 +65,11 @@ When implementation is complete and gates pass:
    - `.github/PULL_REQUEST_TEMPLATE.md` (single)
    - `.github/PULL_REQUEST_TEMPLATE/` (directory)
    - Follow the template structure; write "N/A" for inapplicable sections.
-2. Re-derive and correct the complete Conventional header — `<type>`,
-   optional scope, optional `!`, and wording — from the final diff, not
-   from the Phase 1 goal. The title is already in Conventional Commits
-   format from Phase 1; this step **corrects/refines** that header (the
+2. Follow the repository's title format. For the default Conventional format,
+   re-derive and correct the complete header — `<type>`, optional scope,
+   optional `!`, and wording — from the final diff, not from the Phase 1 goal.
+   The title already follows the chosen format from Phase 1; this step
+   **corrects/refines** that header (the
    flow-default type may no longer fit, or a scope may now materially
    clarify the change) — it is never a deferred WIP-to-Conventional
    conversion. Validate against § Title format, then update using the
@@ -82,8 +92,12 @@ When implementation is complete and gates pass:
 
 ## Title format
 
-Applies to every PR title created or updated by this skill (Phase 1 and
-Phase 3), and mirrors the commit-subject policy in `AGENTS.md`.
+First use the repository's required title format in every phase. If it differs
+from Conventional Commits, validate that format instead of the regex below.
+For example, a repository requiring a ticket prefix keeps that prefix.
+
+Only when the repository supplies no title format, use these Conventional
+Commits defaults for titles created or updated in Phase 1 and Phase 3:
 
 - Default: `<type>: <description>`.
 - `<description>` must be non-empty and separated from the colon by at
@@ -100,14 +114,14 @@ Phase 3), and mirrors the commit-subject policy in `AGENTS.md`.
   `ci`, `perf`, `build`, `revert`.
 - Optional `!` after the type/scope marks a breaking change, unscoped or
   scoped: `<type>!: <description>` or `<type>(<scope>)!: <description>`.
-  Use `!` only for intentionally breaking changes: with this repository's
-  current release-please configuration and pre-1.0 package versions, it
-  requests a `1.0.0` major release and therefore requires explicit human
-  approval.
+  Use `!` only for intentionally breaking changes, following the consuming
+  repository's release and approval rules.
 - Validate before creating, updating, or readying a PR title — whether
   through the built-in `create_pull_request`/`update_pull_request` tools
   or the `gh pr create`, `gh pr edit --title`, `gh pr ready` commands:
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
+  This regex validates only the default Conventional format, not a different
+  repository-required format.
 
 ## Phase 4 — Monitor CI
 

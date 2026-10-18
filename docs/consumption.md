@@ -33,7 +33,7 @@ can keep using the agent; the package remains installable, and its bundled
 shared skills are not deprecated.
 
 Replace the coordinator dependency with `agent-defaults`. It is the canonical,
-skills-only package; the legacy coordinator retains frozen skill snapshots for
+defaults-and-skills package; the legacy coordinator retains frozen skill snapshots for
 compatibility. `development-workflow` uses
 `handoff-envelope` and `pr-lifecycle`, and `code-reviewers` uses
 `handoff-envelope` and `consensus-panel`. All supporting shared skills are
@@ -70,3 +70,8 @@ or in consumer `apm.yml`:
 targets:
   - copilot
 ```
+
+For always-on user-scope defaults, use the
+[verified native deployment contract](../packages/agent-defaults/README.md#unconditional-copilot-deployment).
+Package source files without `applyTo` are unconditional; installation, global
+compilation, native entrypoint discovery, and ownership checks are separate steps.
