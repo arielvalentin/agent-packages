@@ -1,9 +1,22 @@
 # agent-defaults
 
-Skills-only defaults for direct agent execution. This package installs no
-coordinator agent and requires no mandatory coordinator routing.
+Repository-first instructions and shared skills for direct agent execution.
+This package installs no coordinator agent and requires no coordinator routing.
 
 ## Includes
+
+Unconditional instructions in `.apm/instructions/`:
+
+- `repository-work.instructions.md`: repository precedence, task ownership,
+  surgical changes, evidence, and focused validation.
+- `skill-gates.instructions.md`: canonical entrypoints and mandatory interaction,
+  posting, and bounded review gates.
+
+Both use `description` frontmatter with no `applyTo`. They are always-on defaults,
+not file-pattern rules or a substitute for repository guidance. Repository
+conventions prevail; safety and permission gates remain mandatory.
+
+Skills:
 
 - `acting-on-behalf`
 - `adversarial-review`
@@ -29,7 +42,7 @@ dependencies:
 
 Replace the placeholder with a [published package tag](https://github.com/arielvalentin/agent-packages/releases)
 that includes `writing-voice`; `agent-defaults-v0.1.0` predates this skill.
-Run `apm install`. Invoke the appropriate agent directly and load skills when
+Run `apm install --target copilot`. Invoke the appropriate agent directly and load skills when
 their triggers apply. Delegate only when specialist context helps the task.
 The calling agent owns task scope, review handoffs, synthesis, and user gates.
 For review dispatches, the caller records `explicit_multi_review` as a JSON
@@ -38,6 +51,39 @@ boolean in every handoff; missing or invalid values fail closed.
 Install this package alongside `development-workflow` or `code-reviewers`,
 which reference its handoff, lifecycle, and review skills. These agent packages
 do not bundle shared skills themselves.
+
+## Unconditional Copilot deployment
+
+Source metadata is `description` only; there is deliberately no `applyTo`.
+With APM 0.32.0, project install deploys the two individual files under
+`.github/instructions/`. APM reports that omitted `applyTo` applies globally.
+
+For user-scope defaults from the global APM manifest:
+
+```bash
+apm install --global --target copilot
+apm compile --global
+```
+
+Global install combines both instruction bodies into the APM-managed
+`~/.copilot/copilot-instructions.md`. Global compile separately writes
+`~/.copilot/AGENTS.md`; it does not deploy the two source filenames into
+`~/.copilot/instructions/`. The native `copilot-instructions.md` is the
+unconditional Copilot entrypoint. Merely installing skills or compiling a root
+file does not prove that the native entrypoint loaded.
+
+Verify both headings, `Repository work` and `Skill gates`, in the deployed
+native file, then use `copilot instruction list --json` (or `/instructions` in
+an interactive session) to confirm the user-scope Home entrypoint is enabled.
+Start a new or resumed session after changing instructions.
+
+APM preserves an existing unmanaged `copilot-instructions.md` and can return
+success while skipping its deployment. Treat missing canonical content as a
+blocked migration, not success; reconcile ownership without force-overwriting
+authored policy. Keep personal/local overrides in a separate native
+`~/.copilot/instructions/*.instructions.md` module rather than editing APM's
+managed root. This package contains no personal identity, signing-key paths,
+host setup, or private tooling policy.
 
 ## Writing
 
@@ -68,8 +114,8 @@ historical-evidence dependency.
 The notes document coverage and provenance limits; historical style never
 overrides current preferences or authorizes first-person claims or posting.
 
-Consumers that want always-on writing guidance should point their instructions
-to `writing-voice` rather than duplicate its rules. Update `agent-defaults`
+The unconditional skill entrypoints point to `writing-voice` rather than
+duplicate its rules. Update `agent-defaults`
 alongside development/review agents that reference this skill.
 
 ## Migration from coordinator

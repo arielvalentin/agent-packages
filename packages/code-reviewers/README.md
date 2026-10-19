@@ -34,3 +34,11 @@ Invoke reviewers directly with a diff, files, or code to review, or delegate
 with a validated review handoff. No coordinator agent or implementation-summary
 artifact is required for direct invocation. Reviewers preserve the shared JSON
 verdict contract and do not run live profiles.
+
+## Datadog routing
+
+`datadog-url-router` includes its own `references/url-map.md`; APM deploys the
+complete skill directory. It requires no dotfiles or internal skills. Install
+the public `dd-*` skills and `pup` separately when using Datadog. Missing skills
+may use verified read-only `pup` routes, never scraping or guessed endpoints.
+Authentication precedes account-data access; the user performs any needed login.
