@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.3.2...code-reviewers-v0.4.0) (2026-10-19)
+
+
+### Features
+
+* add portable repository-first agent defaults ([9fdb4db](https://github.com/arielvalentin/agent-packages/commit/9fdb4db0a4a162eb0abdf6712e04e9bccdbbe61f))
+
 ## [0.3.2](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.3.1...code-reviewers-v0.3.2) (2026-10-13)
 
 

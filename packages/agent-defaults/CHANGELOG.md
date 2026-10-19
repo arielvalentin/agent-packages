@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.2.0...agent-defaults-v0.3.0) (2026-10-19)
+
+
+### Features
+
+* add portable repository-first agent defaults ([9fdb4db](https://github.com/arielvalentin/agent-packages/commit/9fdb4db0a4a162eb0abdf6712e04e9bccdbbe61f))
+
 ## [0.2.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.1.1...agent-defaults-v0.2.0) (2026-10-17)
 
 
