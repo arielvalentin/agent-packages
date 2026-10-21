@@ -218,7 +218,8 @@ chain can be eligible, and its classification stays `HUMAN_STOP`.
 For an eligible direct request only, load the
 [single-action protocol](references/single-action-attestation.md) before
 issuing a challenge or accepting an attestation. It owns the exact sentence,
-fresh direct-reply verification, and single-use authorization. If the
+the required interactive deterministic verifier, and single-use authorization.
+Do not compare a chat reply yourself or copy it into the verifier. If the
 reference is unavailable, stop without an override. Do not load or run the
 ceremony for ordinary classification or unrequested automation.
 
