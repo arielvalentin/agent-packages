@@ -119,7 +119,15 @@ If the user says "I do not see it" or asks where to type, focus/reopen the SAME
 pending canvas instance with `open_canvas`, its saved `instanceId`, title and
 `placement: {"focus": true}`. Omit the launch command when refocusing an
 existing instance so it is not replayed. Read its real output and inspect
-current invocation state again. Do not create a new challenge, new instance,
+current invocation state again. The Terminal belongs to the originating
+conversation that owns this pending request, not a peer or implementation
+worker's conversation. If the UI is elsewhere, use available native navigation
+to return to that originating conversation, or provide its exact app link
+obtained from `list_sessions_and_chats`; never construct an app URL. A worker's
+non-authorizing probe proves channel availability, not that the original
+prompt is active. Never redirect the user to a worker's probe or transfer
+authorization across sessions.
+Do not create a new challenge, new instance,
 or new authorization, or just echo the sentence. If the helper exited,
 cancelled, failed, or its state is uncertain, do not say it is still waiting
 or reuse its record; apply the completion and invalidation rules below.

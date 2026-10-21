@@ -222,6 +222,12 @@ require "$protocol" "where-is-it focuses same pending instance" \
   'focus/reopen the SAME pending canvas instance'
 require "$protocol" "refocus does not replay launcher" \
   'Omit the launch command when refocusing an existing instance'
+require "$protocol" "originating conversation owns the terminal" \
+  'Terminal belongs to the originating conversation'
+require "$protocol" "native navigation or exact app link" \
+  'native navigation.{0,160}exact app link obtained from `list_sessions_and_chats`'
+require "$protocol" "worker probe is not the original active prompt" \
+  'probe proves channel availability, not that the original prompt is active'
 require "$protocol" "unsupported UI explains concrete inactive blocker" \
   'State the concrete channel/helper failure and that no prompt is active'
 require "$protocol" "agent cannot send attestation or submission key" \
@@ -410,6 +416,7 @@ for description in \
   'attestation-ui: visible Terminal without provenance API launches' \
   'attestation-ui: open canvas requires reading actual startup' \
   'attestation-ui: where is it focuses same instance' \
+  'attestation-ui: originating conversation owns the prompt' \
   'attestation-ui: refocus does not replay launcher' \
   'attestation-ui: missing metadata cannot launch' \
   'attestation-ui: unsupported UI reports no active prompt' \

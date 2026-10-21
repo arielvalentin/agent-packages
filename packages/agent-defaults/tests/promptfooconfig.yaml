@@ -910,7 +910,7 @@ tests:
     prompts: *ceremony_prompts
     vars:
       <<: *terminal_policy
-      user_input: "TEST ONLY: an eligible direct single-action request, complete verified User metadata and valid pending JSON/helper exist. Discovered visible Terminal supports launch/read and user input. No provenance API exists; send-input does. Which canvas tool launches the helper? Return its function name."
+      user_input: "TEST ONLY: all eligibility/metadata checks and pending JSON are valid. Terminal schema discovery is complete. It supports visible launch/read/user input, but no provenance API; send-input exists. Which tool opens Terminal with the launcher command? Return only its function name."
     assert:
       - type: contains
         value: "open_canvas"
@@ -934,6 +934,16 @@ tests:
     assert:
       - type: contains
         value: "pending-17"
+
+  - description: "attestation-ui: originating conversation owns the prompt"
+    providers: *ceremony_providers
+    prompts: *ceremony_prompts
+    vars:
+      <<: *terminal_policy
+      user_input: "TEST ONLY: which conversation owns the pending Terminal: originating or worker? Return one word."
+    assert:
+      - type: javascript
+        value: "/^originating[.!]?$/i.test(output.trim())"
 
   - description: "attestation-ui: refocus does not replay launcher"
     providers: *ceremony_providers

@@ -155,8 +155,11 @@ launch the trusted helper with `open_canvas` and `placement.focus: true`, then
 read its actual pending-input output before claiming a prompt is active.
 Tell the user to type in that named Terminal panel, not chat. If they cannot
 see it, focus/reopen and inspect the same saved canvas instance without
-replaying the command. A preview is not an active challenge. Unsupported
-clients or failed launches remain blocked with a concrete explanation.
+replaying the command. The Terminal is in the originating conversation; use
+native navigation or its exact app link if the user is elsewhere, never a
+worker's probe or another session's authorization. A preview is not an active
+challenge. Unsupported clients or failed launches remain blocked with a concrete
+explanation.
 
 The helper displays and hashes one private pending-request JSON record
 (maximum 16 KiB), not independent action/digest arguments. Its launcher records
