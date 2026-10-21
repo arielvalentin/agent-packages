@@ -482,10 +482,13 @@ The loop runs after PR finalization and iterates until the PR is merged,
 closed, or the 10-iteration cap is reached.
 
 For incoming public GitHub interactions, `human-interaction-safeguard` is the
-single source of truth for actor behavior. `HUMAN_STOP` returns control to the
-user without initiating a repository change, reply drafting/posting, or thread
+single source of truth for actor behavior. By default, `HUMAN_STOP` returns
+control to the user without initiating a repository change, reply drafting/posting, or thread
 resolution. A later, separate, explicit implementation instruction may
 authorize code/config/test work only; reply and resolution remain user-only.
+Defer any single-action exception exclusively to the loaded safeguard's
+canonical policy. Do not reproduce its ceremony or transfer authorization to a
+worker. Classification stays `HUMAN_STOP`; no automated feedback loop follows.
 After complete retrieval, `AUTOMATION_FLOW` may continue through
 `pr-feedback-review` only when every comment/reply in the relevant thread or
 conversation chain has authoritative Bot/App metadata. Any human, unknown, or
@@ -613,7 +616,8 @@ surface it in the final message.
   validation gate (or recording an explicit exemption).
 - Post or reply to PR/issue comments without invoking `acting-on-behalf` first.
 - Bypass `human-interaction-safeguard` for a public GitHub interaction.
-- Draft or post a reply to, or resolve, a `HUMAN_STOP` thread.
+- Draft or post a reply to, or resolve, a `HUMAN_STOP` thread without the loaded
+  canonical safeguard's single-action authorization for that exact operation.
 - Reply to permitted PR feedback comments without including the related commit
   SHA.
 - Keep dispatching unrelated implementation changes that are outside the

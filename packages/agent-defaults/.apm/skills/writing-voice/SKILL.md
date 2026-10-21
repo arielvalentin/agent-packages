@@ -8,8 +8,10 @@ description: >-
 # Writing Voice
 
 Authoring policy, not posting permission. Apply `human-interaction-safeguard`
-before drafting for existing public GitHub interactions; never draft a reply on
-`HUMAN_STOP`. Use `acting-on-behalf` for permitted posts and attribution.
+before drafting for existing public GitHub interactions. On `HUMAN_STOP`,
+defer any single-action exception exclusively to `human-interaction-safeguard`.
+Voice guidance grants no override or posting authority. Use `acting-on-behalf` for permitted
+posts and attribution.
 
 ## Shared core
 

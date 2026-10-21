@@ -175,10 +175,13 @@ implementation, an agent reply, or agent resolution.
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:
 
-- `HUMAN_STOP` → return control to the user; do not initiate a change from the
-  interaction, draft or post a reply, or resolve the thread. A later, separate,
+- `HUMAN_STOP` → by default, return control to the user; do not initiate a change
+  from the interaction, draft or post a reply, or resolve the thread. A later, separate,
   explicit implementation instruction may authorize code/config/test work;
   reply and resolution remain user-only.
+  Defer any single-action exception exclusively to
+  `human-interaction-safeguard`. Its authorization permits only that action,
+  not lifecycle iteration, another operation, or classification as automation.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
 After pushing fixes:

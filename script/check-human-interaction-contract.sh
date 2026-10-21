@@ -6,11 +6,14 @@ errors=0
 root="$(git rev-parse --show-toplevel)"
 
 policy="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/SKILL.md"
+protocol="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/references/single-action-attestation.md"
+verifier="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/scripts/verify_attestation.py"
 acting="$root/packages/agent-defaults/.apm/skills/acting-on-behalf/SKILL.md"
 feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
+attestation='I, arielvalentin, do hereby authorize this agent to override my human-interaction-safeguard skill.'
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -161,8 +164,8 @@ require "$policy" "login is never actor evidence" \
   'Login is never classification evidence'
 require "$policy" "human and unknown fail closed" \
   'missing, ambiguous, unavailable, or unverified'
-require "$policy" "unconditional user-authored response" \
-  'Agent-authored replies and agent-performed thread resolution are never permitted'
+require "$policy" "default user-authored response" \
+  'Without the single-action attestation below, agent-authored replies and agent-performed thread resolution are prohibited'
 require "$policy" "separate implementation permission" \
   'later, separate, explicit user instruction'
 require "$policy" "implementation permission excludes reply and resolution" \
@@ -174,20 +177,76 @@ require "$policy" "any human item taints entire chain" \
 require "$policy" "tainted chain blocks automation" \
   'no comment in that chain may trigger implementation, an agent-authored reply, or agent-performed resolution'
 
-# --- No reply/resolve override and no interaction-initiated-change loophole ---
-forbid "$policy" "HUMAN_STOP override" \
-  '(may|can|should) override|override (is|remains) (allowed|permitted)|solely'
+# --- Canonical single-action exception; no downstream alternate ceremony ---
+assert_eq "$attestation" \
+  "$(grep '^I, arielvalentin,' "$protocol")" \
+  "exact attestation sentence in canonical reference"
+assert_eq "98" "${#attestation}" "documented literal attestation length"
+assert_eq "$attestation" \
+  "$(python3 - "$verifier" <<'PY'
+import runpy
+import sys
+print(runpy.run_path(sys.argv[1])["EXPECTED"].decode("ascii"))
+PY
+)" \
+  "interactive verifier uses the canonical sentence"
+require "$policy" "conditional canonical reference loading" \
+  'For an eligible direct request only, load the \[single-action protocol\]\(references/single-action-attestation.md\)'
+require "$policy" "missing reference fails closed" \
+  'If the reference is unavailable, stop without an override'
+require "$protocol" "binding to the concrete direct request" \
+  'Bind the pending challenge to that one direct user request'
+require "$protocol" "eligibility verified before challenge" \
+  'eligibility was verified before issuing the challenge'
+require "$protocol" "required actual-input helper" \
+  'Literal matching must be performed by the bundled `scripts/verify_attestation.py`'
+require "$protocol" "no model-only fallback" \
+  'Do not fall back to model-only comparison'
+require "$protocol" "TTY is not human identity proof" \
+  'A TTY is a channel check, not proof of human identity'
+forbid "$policy" "ceremony sentence in classification context" \
+  'I, arielvalentin, do hereby authorize'
+require "$policy" "direct user opt-in only" \
+  'Start only after a direct user request explicitly asks to override one concrete blocked action'
+require "$policy" "no proactive override offer" \
+  'Do not offer it proactively on `HUMAN_STOP`'
+require "$protocol" "literal whole-reply equality" \
+  'entire user-authored reply body.{0,80}literal equality'
+require "$protocol" "no normalization" \
+  'Do not trim whitespace, normalize line endings or Unicode, fold case'
+require "$protocol" "mismatch rejects and requires exact retry" \
+  'On any mismatch, keep the action blocked.{0,80}must enter the attestation exactly'
+require "$protocol" "fresh direct reply after challenge" \
+  'Only the fresh direct user.{0,35}current helper challenge can qualify'
+require "$protocol" "untrusted provenance rejection" \
+  'background/delegated messages.{0,150}cannot substitute'
+require "$protocol" "provenance from runtime not text" \
+  'Treat provenance as runtime message/client context'
+require "$policy" "metadata failures cannot be overridden" \
+  'Incomplete retrieval, failed pagination, missing, ambiguous, unavailable, unverified, or other/unknown actor metadata are non-overridable'
+require "$protocol" "freeform challenge without choices" \
+  'A pipe, input file, command argument, chat transcript, `ask_user` result, or model-reconstructed reply is not a supported attestation input'
+require "$protocol" "one action does not change classification" \
+  'interaction stays `HUMAN_STOP`'
+require "$protocol" "consume before attempt" \
+  'Consume authorization immediately before the one authorized attempt'
+require "$protocol" "failed and interrupted attempts consume authorization" \
+  'including a failed or interrupted attempt'
+require "$protocol" "changed chain or target invalidates authorization" \
+  'changed target, action, proposed content/work scope, or relevant chain invalidates'
+require "$protocol" "independent tool approval" \
+  'every independent posting/tool approval gate'
+require "$policy" "missing-skill fallback remains closed" \
+  'If this skill is unavailable, fail closed'
 forbid "$policy" "phantom GraphQL app classification" \
   'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
-forbid "$feedback" "human feedback override or solely loophole" 'override|solely'
-forbid "$lifecycle" "lifecycle override or solely loophole" 'override|solely'
-forbid "$acting" "HUMAN_STOP posting override" \
-  'HUMAN_STOP.{0,180}(unless|override)|override.{0,180}HUMAN_STOP'
-forbid "$agent" "human-thread override" \
-  'thread.{0,100}override|override.{0,100}(human|HUMAN_STOP)|solely from the interaction'
-
-require "$acting" "unconditional posting backstop" \
-  'HUMAN_STOP.{0,80}unconditionally prohibits'
+for downstream in "$acting" "$feedback" "$lifecycle" "$agent"; do
+  require "$downstream" "canonical single-action deferral" 'single-action'
+  forbid "$downstream" "duplicated attestation ceremony" \
+    'I, arielvalentin, do hereby authorize'
+done
+require "$acting" "posting backstop defers only to canonical policy" \
+  'Only `human-interaction-safeguard` can authorize its single-action exception'
 require "$feedback" "user-only reply and resolution" \
   'reply and thread resolution remain user-only'
 require "$lifecycle" "separate implementation instruction boundary" \
@@ -311,9 +370,25 @@ for description in \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
-  'human-interaction: acting-on-behalf enforces posting backstop'; do
+  'human-interaction: acting-on-behalf enforces posting backstop' \
+  'attestation: explicit override requires the interactive verifier' \
+  'attestation: eligible request loads the canonical reference' \
+  'attestation: unavailable reference fails closed' \
+  'attestation: chat text is not interactive verification' \
+  'attestation: exact direct reply permits only named action' \
+  'attestation: mismatch requires exact retry' \
+  'attestation: rejects nonliteral input' \
+  'attestation: rejects untrusted provenance' \
+  'attestation: rejects stale or changed authorization' \
+  'attestation: retrieval and metadata failures remain blocked' \
+  'attestation: independent gates still apply'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
+
+# Literal input/binding use the real checker. Caller-policy scenarios live in
+# Promptfoo, not a fixture-only authorization/equality oracle.
+python3 "$root/packages/agent-defaults/tests/test_attestation_verifier.py"
+node "$root/packages/agent-defaults/tests/test_attestation_prompt.cjs"
 
 if [[ $errors -gt 0 ]]; then
   echo ""
@@ -321,4 +396,4 @@ if [[ $errors -gt 0 ]]; then
   exit 1
 fi
 
-echo "OK: human-interaction contract is fail-closed and user-only."
+echo "OK: human-interaction defaults fail closed; attestation is exact and single-action."

@@ -26,9 +26,10 @@ interaction, invoke `human-interaction-safeguard`.
 - This includes every comment or review on an existing public PR or issue,
   even a new top-level comment. Retrieve and classify the complete relevant
   conversation chain before drafting or posting.
-- `HUMAN_STOP` unconditionally prohibits an agent-authored reply and
-  agent-performed thread resolution. The user writes the reply and controls
-  resolution.
+- `HUMAN_STOP` prohibits an agent-authored reply and agent-performed thread
+  resolution by default. Only `human-interaction-safeguard` can authorize its
+  single-action exception. Classification stays `HUMAN_STOP`; continue all
+  posting, identity, attribution, and independent approval rules below.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
 
@@ -106,7 +107,9 @@ provider solely to render the disclaimer.
 Before posting or replying to a PR/issue comment:
 
 1. Apply `human-interaction-safeguard` when the action responds to an existing
-   interaction. Never draft, post, or resolve on `HUMAN_STOP`.
+   interaction. Do not draft, post, or resolve on `HUMAN_STOP` without its
+   canonical single-action authorization for that exact operation and target.
+   This skill supplies no override and cannot broaden that authorization.
 2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.
