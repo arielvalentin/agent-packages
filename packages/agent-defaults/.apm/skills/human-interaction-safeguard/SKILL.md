@@ -223,6 +223,16 @@ Do not compare a chat reply yourself or copy it into the verifier. If the
 reference is unavailable, stop without an override. Do not load or run the
 ceremony for ordinary classification or unrequested automation.
 
+For an eligible request to open the verifier, follow the protocol's visible
+terminal launch steps, not a sentence preview. A client-provided visible,
+user-operable terminal is supported without a separate input-provenance API,
+even if the agent also has a send-input tool. The agent must never supply the
+attestation or its submission key. Claim an active prompt only after reading
+the current helper's actual pending-input output. If the user cannot see it,
+focus and inspect the same pending terminal instance; do not start a new
+authorization. If launch is unavailable or fails, name the concrete blocker
+and state that no prompt is active.
+
 Authorization changes only this skill's action prohibition. It never changes
 actor classification, enters the bot/app loop, or replaces `acting-on-behalf`,
 independent tool approvals, or higher-priority policies.
