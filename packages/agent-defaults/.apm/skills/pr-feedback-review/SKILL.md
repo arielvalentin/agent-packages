@@ -41,7 +41,8 @@ Do not skim or assume. Classify the actor before any research or action.
 ### Step 2: Stop for Human or Unknown Actors
 
 For every thread/chain classified `HUMAN_STOP`, follow
-`human-interaction-safeguard`:
+`human-interaction-safeguard`. Without its valid single-action authorization,
+apply this default sequence:
 
 1. Stop automation for that interaction.
 2. Privately summarize the concern and apparent intent for the user.
@@ -52,7 +53,14 @@ For every thread/chain classified `HUMAN_STOP`, follow
 
 If the user later gives a separate, explicit implementation instruction that
 identifies the concern, the requested code/config/test work may proceed as a
-new user instruction. The reply and thread resolution remain user-only.
+new user instruction. The reply and thread resolution remain user-only by
+default.
+
+The only exception is an exact single-action authorization obtained through
+`human-interaction-safeguard`. Defer the ceremony and eligibility to that skill.
+Perform only the identified action, subject to other gates. Classification
+stays `HUMAN_STOP`; do not enter Steps 3-4, bundle reply and resolution, or
+continue automated iteration on the human thread.
 
 Only completely retrieved threads/chains whose every item is
 `AUTOMATION_FLOW` continue to Step 3.

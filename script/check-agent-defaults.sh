@@ -57,7 +57,8 @@ for rule in (
     "Expose failed/incomplete/unverified checks",
     "Preserve schemas/templates; without a template, no required Problem/Changes/Testing/References headings",
     "Before delivery and every permitted post",
-    "never draft a reply on `HUMAN_STOP`",
+    "defer any single-action exception exclusively to `human-interaction-safeguard`",
+    "Voice guidance grants no override or posting authority",
     "preserve severity/scope and requirements vs questions vs nonblocking suggestions",
     "Never invent causes, checks, experience, access, actions, agreement, or commitments",
     "current audience/tone/format requests override history",
@@ -159,10 +160,15 @@ for package in Path("packages").iterdir():
     if not config.is_file():
         continue
     for case in yaml.safe_load(config.read_text())["tests"]:
-        reference = case.get("vars", {}).get("skill_content", "")
-        if reference.startswith("file://"):
-            source = config.parent / reference.removeprefix("file://")
-            assert source.is_file(), f"{config}: broken reference: {reference}"
+        for key in ("skill_content", "companion_content", "review_mode_content"):
+            references = case.get("vars", {}).get(key, "")
+            if not isinstance(references, list):
+                references = [references]
+            for reference in references:
+                assert isinstance(reference, str), f"{config}: invalid skill reference: {reference}"
+                if reference.startswith("file://"):
+                    source = config.parent / reference.removeprefix("file://")
+                    assert source.is_file(), f"{config}: broken reference: {reference}"
 
 release_config = json.loads(Path("release-please-config.json").read_text())["packages"]
 release_manifest = json.loads(Path(".release-please-manifest.json").read_text())

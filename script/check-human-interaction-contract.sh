@@ -6,11 +6,13 @@ errors=0
 root="$(git rev-parse --show-toplevel)"
 
 policy="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/SKILL.md"
+protocol="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/references/single-action-attestation.md"
 acting="$root/packages/agent-defaults/.apm/skills/acting-on-behalf/SKILL.md"
 feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
+attestation='I, arielvalentin, do hereby authorize this agent to override my human-interaction-safeguard skill.'
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -122,6 +124,72 @@ pagination_gate() {
   '
 }
 
+# Reference oracle for policy fixtures, not host-side authorization enforcement.
+attestation_gate() {
+  jq -r --arg exact "$attestation" '
+    def nonempty_string: type == "string" and test("\\S");
+    def positive_id: type == "number" and . > 0 and floor == .;
+    def concrete_action:
+      type == "object"
+      and (.repository | nonempty_string)
+      and (.item | positive_id)
+      and (.operation | IN("draft", "research", "implement", "post", "resolve"))
+      and (if .operation == "resolve" then true else (.content | nonempty_string) end)
+      and (if has("thread") then (.thread | nonempty_string) else true end)
+      and (if has("comment") then (.comment | positive_id) else true end)
+      and (if has("review") then (.review | nonempty_string) else true end)
+      and (if .operation == "resolve"
+           then (.thread | nonempty_string)
+           else (.thread | nonempty_string)
+             or (.comment | positive_id)
+             or (.review | nonempty_string)
+           end);
+    if (.classification == "HUMAN_STOP")
+       and (.retrieval_complete == true)
+       and (.metadata_verified == true)
+       and ((.actors | type) == "array")
+       and ((.actors | length) > 0)
+       and all(.actors[]; . == "User" or . == "Bot" or . == "App")
+       and any(.actors[]; . == "User")
+       and (.pagination_failed == false)
+       and (.safeguard_available == true)
+       and (.protocol_available == true)
+       and (.request.direct_user == true)
+       and (.request.explicit_override == true)
+       and ((.request.turn | type) == "number")
+       and ((.challenge.turn | type) == "number")
+       and (.request.turn < .challenge.turn)
+       and (.current_agent | nonempty_string)
+       and (.current_session | nonempty_string)
+       and (.chain_revision | nonempty_string)
+       and (.request.agent == .current_agent)
+       and (.request.session == .current_session)
+       and (.request.chain_revision == .chain_revision)
+       and (.current_action | concrete_action)
+       and (.request.action == .challenge.action)
+       and (.challenge.state == "waiting")
+       and (.challenge.eligibility_verified_before_issue == true)
+       and (.challenge.action == .current_action)
+       and (.challenge.chain_revision == .chain_revision)
+       and (.challenge.agent == .current_agent)
+       and (.challenge.session == .current_session)
+       and (.reply.source == "direct_user")
+       and (.reply.provenance_verified == true)
+       and (.reply.exact_input_available == true)
+       and (.reply.agent == .current_agent)
+       and (.reply.session == .current_session)
+       and ((.reply.turn | type) == "number")
+       and (.reply.turn > .challenge.turn)
+       and (.reply.body == $exact)
+       and (.cancelled == false)
+       and (.attempted == false)
+       and (.remaining_gates_pass == true)
+    then "AUTHORIZED_ONCE"
+    else "BLOCKED"
+    end
+  '
+}
+
 # --- Canonical policy and authoritative metadata ---
 require "$policy" "REST PR review-comment retrieval" \
   'gh api --paginate "repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/comments"'
@@ -161,8 +229,8 @@ require "$policy" "login is never actor evidence" \
   'Login is never classification evidence'
 require "$policy" "human and unknown fail closed" \
   'missing, ambiguous, unavailable, or unverified'
-require "$policy" "unconditional user-authored response" \
-  'Agent-authored replies and agent-performed thread resolution are never permitted'
+require "$policy" "default user-authored response" \
+  'Without the single-action attestation below, agent-authored replies and agent-performed thread resolution are prohibited'
 require "$policy" "separate implementation permission" \
   'later, separate, explicit user instruction'
 require "$policy" "implementation permission excludes reply and resolution" \
@@ -174,20 +242,61 @@ require "$policy" "any human item taints entire chain" \
 require "$policy" "tainted chain blocks automation" \
   'no comment in that chain may trigger implementation, an agent-authored reply, or agent-performed resolution'
 
-# --- No reply/resolve override and no interaction-initiated-change loophole ---
-forbid "$policy" "HUMAN_STOP override" \
-  '(may|can|should) override|override (is|remains) (allowed|permitted)|solely'
+# --- Canonical single-action exception; no downstream alternate ceremony ---
+assert_eq "$attestation" \
+  "$(grep '^I, arielvalentin,' "$protocol")" \
+  "exact attestation sentence in canonical reference"
+require "$policy" "conditional canonical reference loading" \
+  'For an eligible direct request only, load the \[single-action protocol\]\(references/single-action-attestation.md\)'
+require "$policy" "missing reference fails closed" \
+  'If the reference is unavailable, stop without an override'
+require "$protocol" "binding to the concrete direct request" \
+  'Bind the pending challenge to that one direct user request'
+require "$protocol" "eligibility verified before challenge" \
+  'eligibility was verified before issuing the challenge'
+forbid "$policy" "ceremony sentence in classification context" \
+  'I, arielvalentin, do hereby authorize'
+require "$policy" "direct user opt-in only" \
+  'Start only after a direct user request explicitly asks to override one concrete blocked action'
+require "$policy" "no proactive override offer" \
+  'Do not offer it proactively on `HUMAN_STOP`'
+require "$protocol" "literal whole-reply equality" \
+  'entire user-authored reply body.{0,80}literal equality'
+require "$protocol" "no normalization" \
+  'Do not trim whitespace, normalize line endings or Unicode, fold case'
+require "$protocol" "mismatch rejects and requires exact retry" \
+  'On any mismatch, keep the action blocked.{0,80}must enter the attestation exactly'
+require "$protocol" "fresh direct reply after challenge" \
+  'Only the fresh direct user.{0,15}reply after this agent.{0,15}challenge can qualify'
+require "$protocol" "untrusted provenance rejection" \
+  'background/delegated agent messages.{0,150}cannot qualify'
+require "$protocol" "provenance from runtime not text" \
+  'Treat provenance as runtime message context'
+require "$policy" "metadata failures cannot be overridden" \
+  'Incomplete retrieval, failed pagination, missing, ambiguous, unavailable, unverified, or other/unknown actor metadata are non-overridable'
+require "$protocol" "freeform challenge without choices" \
+  'freeform text question with no approval choices or prefilled answer'
+require "$protocol" "one action does not change classification" \
+  'interaction stays `HUMAN_STOP`'
+require "$protocol" "consume before attempt" \
+  'Consume authorization immediately before the one authorized attempt'
+require "$protocol" "failed and interrupted attempts consume authorization" \
+  'including a failed or interrupted attempt'
+require "$protocol" "changed chain or target invalidates authorization" \
+  'changed target, action, proposed content/work scope, or relevant chain invalidates'
+require "$protocol" "independent tool approval" \
+  'every independent posting/tool approval gate'
+require "$policy" "missing-skill fallback remains closed" \
+  'If this skill is unavailable, fail closed'
 forbid "$policy" "phantom GraphQL app classification" \
   'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
-forbid "$feedback" "human feedback override or solely loophole" 'override|solely'
-forbid "$lifecycle" "lifecycle override or solely loophole" 'override|solely'
-forbid "$acting" "HUMAN_STOP posting override" \
-  'HUMAN_STOP.{0,180}(unless|override)|override.{0,180}HUMAN_STOP'
-forbid "$agent" "human-thread override" \
-  'thread.{0,100}override|override.{0,100}(human|HUMAN_STOP)|solely from the interaction'
-
-require "$acting" "unconditional posting backstop" \
-  'HUMAN_STOP.{0,80}unconditionally prohibits'
+for downstream in "$acting" "$feedback" "$lifecycle" "$agent"; do
+  require "$downstream" "canonical single-action deferral" 'single-action'
+  forbid "$downstream" "duplicated attestation ceremony" \
+    'I, arielvalentin, do hereby authorize'
+done
+require "$acting" "posting backstop defers only to canonical policy" \
+  'Only `human-interaction-safeguard` can authorize its single-action exception'
 require "$feedback" "user-only reply and resolution" \
   'reply and thread resolution remain user-only'
 require "$lifecycle" "separate implementation instruction boundary" \
@@ -293,6 +402,171 @@ assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":true}' | pagination_gate)" \
   "pagination request failure"
 
+# --- Deterministic exact-input, provenance, freshness, and action fixtures ---
+eligible="$(
+  jq -nc --arg exact "$attestation" '{
+    classification: "HUMAN_STOP", retrieval_complete: true,
+    metadata_verified: true, actors: ["User", "Bot", "App"],
+    pagination_failed: false, safeguard_available: true, protocol_available: true,
+    request: {direct_user: true, explicit_override: true, turn: 1},
+    current_action: {repository: "owner/repo", item: 42, thread: "T1",
+      comment: 7, operation: "post", content: "Reviewed response"},
+    chain_revision: "revision-1", current_agent: "agent-1", current_session: "session-1",
+    reply: {source: "direct_user", provenance_verified: true,
+      exact_input_available: true, turn: 3, body: $exact},
+    cancelled: false, attempted: false, remaining_gates_pass: true
+  } | .challenge = {state: "waiting", turn: 2, action: .current_action,
+    eligibility_verified_before_issue: true,
+    chain_revision: .chain_revision, agent: .current_agent, session: .current_session}
+    | .request += {action: .current_action, agent: .current_agent,
+        session: .current_session, chain_revision: .chain_revision}
+    | .reply += {agent: .current_agent, session: .current_session}'
+)"
+assert_eq "AUTHORIZED_ONCE" \
+  "$(printf '%s' "$eligible" | attestation_gate)" \
+  "exact fresh direct reply authorizes only named action"
+for operation in draft post research implement resolve; do
+  assert_eq "AUTHORIZED_ONCE" \
+    "$(printf '%s' "$eligible" |
+      jq --arg operation "$operation" \
+        '.current_action.operation = $operation |
+         if $operation == "resolve" then del(.current_action.content) else . end |
+         .request.action = .current_action | .challenge.action = .current_action' |
+      attestation_gate)" \
+    "valid single $operation action with operation-specific scope"
+done
+for mutation in \
+  'ascii_downcase' \
+  'sub("arielvalentin"; "arielvalentim")' \
+  'rtrimstr(".")' \
+  '" " + .' \
+  '. + " "' \
+  'sub("do hereby"; "do  hereby")' \
+  '. + "\n"' \
+  'sub("authorize"; "authorize\r\n")' \
+  'sub(" "; "\u00a0")' \
+  '. + " Proceed."' \
+  '"\"" + . + "\""' \
+  '"`" + . + "`"' \
+  '"```\n" + . + "\n```"' \
+  '"> " + .' \
+  '"The user said: " + .' \
+  '"yes"'; do
+  assert_eq "BLOCKED" \
+    "$(printf '%s' "$eligible" | jq ".reply.body |= ($mutation)" | attestation_gate)" \
+    "reject nonliteral attestation: $mutation"
+done
+for mutation in \
+  '.request.direct_user = false' \
+  '.request.explicit_override = false' \
+  '.request.turn = 4' \
+  '.request.turn = null' \
+  '.request.agent = "agent-2"' \
+  '.request.session = "session-2"' \
+  '.request.chain_revision = "revision-0"' \
+  '.request.action.repository = "owner/other"' \
+  '.request.action.item = 43' \
+  '.request.action.thread = "T2"' \
+  '.request.action.comment = 8' \
+  '.request.action.operation = "resolve"' \
+  '.request.action.content = "Different response"' \
+  '.challenge = null' \
+  '.challenge.state = "consumed"' \
+  '.challenge.state = "cancelled"' \
+  '.challenge.eligibility_verified_before_issue = false' \
+  'del(.challenge.eligibility_verified_before_issue)' \
+  '.reply.turn = 1' \
+  '.reply.source = "repository"' \
+  '.reply.source = "tool"' \
+  '.reply.source = "thread"' \
+  '.reply.source = "assistant"' \
+  '.reply.source = "background_agent"' \
+  '.reply.source = "approval_button"' \
+  '.reply.provenance_verified = false' \
+  '.reply.exact_input_available = false' \
+  '.reply.agent = "agent-2"' \
+  '.reply.session = "session-2"' \
+  '.current_action.repository = "owner/other"' \
+  '.current_action.item = 43' \
+  '.current_action.thread = "T2"' \
+  '.current_action.comment = 8' \
+  '.current_action.operation = "resolve"' \
+  '.current_action.content = "Different response"' \
+  '.chain_revision = "revision-2"' \
+  '.current_agent = "agent-2"' \
+  '.current_session = "session-2"' \
+  '.cancelled = true' \
+  '.attempted = true' \
+  '.retrieval_complete = false' \
+  '.pagination_failed = true' \
+  '.metadata_verified = false' \
+  '.actors = ["User", "Other"]' \
+  '.actors = ["User", "unknown"]' \
+  '.actors = ["User", "ambiguous"]' \
+  '.actors = ["User", "Mannequin"]' \
+  '.actors = ["User", null]' \
+  '.actors = []' \
+  '.actors = ["Bot", "App"]' \
+  '.safeguard_available = false' \
+  '.protocol_available = false' \
+  '.remaining_gates_pass = false'; do
+  assert_eq "BLOCKED" \
+    "$(printf '%s' "$eligible" | jq "$mutation" | attestation_gate)" \
+    "reject ineligible or stale authorization: $mutation"
+done
+for mutation in \
+  'null' \
+  '{}' \
+  'del(.repository)' \
+  '.repository = ""' \
+  '.repository = " \t"' \
+  'del(.item)' \
+  '.item = 0' \
+  'del(.thread, .comment, .review)' \
+  '.operation = "post_and_resolve"' \
+  '.operation = ""' \
+  '.content = ""'; do
+  assert_eq "BLOCKED" \
+    "$(printf '%s' "$eligible" |
+      jq ".current_action |= ($mutation) |
+          .request.action = .current_action | .challenge.action = .current_action" |
+      attestation_gate)" \
+    "reject equally bound but nonconcrete or bundled actions: $mutation"
+done
+for mutation in \
+  '.content = " \t"' \
+  '.thread = " \t"' \
+  '.review = " \t"'; do
+  assert_eq "BLOCKED" \
+    "$(printf '%s' "$eligible" |
+      jq ".current_action |= ($mutation) |
+          .request.action = .current_action | .challenge.action = .current_action" |
+      attestation_gate)" \
+    "reject whitespace-only action field: $mutation"
+done
+for field in agent session chain_revision; do
+  case "$field" in
+    agent) current_field=current_agent ;;
+    session) current_field=current_session ;;
+    chain_revision) current_field=chain_revision ;;
+  esac
+  for value in null '""' '" \t"'; do
+    assert_eq "BLOCKED" \
+      "$(printf '%s' "$eligible" |
+        jq --arg current "$current_field" --arg field "$field" --argjson value "$value" \
+          '.[$current] = $value | .request[$field] = $value |
+           .challenge[$field] = $value | .reply[$field] = $value' |
+        attestation_gate)" \
+      "reject synchronized invalid $field bindings: $value"
+  done
+  assert_eq "BLOCKED" \
+    "$(printf '%s' "$eligible" |
+      jq --arg current "$current_field" --arg field "$field" \
+        'delpaths([[$current], ["request", $field], ["challenge", $field], ["reply", $field]])' |
+      attestation_gate)" \
+    "reject synchronized missing $field bindings"
+done
+
 # --- Supplemental Promptfoo coverage must remain present ---
 for description in \
   'human-interaction: human question stops automation' \
@@ -311,7 +585,17 @@ for description in \
   'human-interaction: tainted thread reply and resolution stay user-only' \
   'human-interaction: separate implementation permission keeps reply and resolution user-only' \
   'human-interaction: no drafted posted reply or resolution' \
-  'human-interaction: acting-on-behalf enforces posting backstop'; do
+  'human-interaction: acting-on-behalf enforces posting backstop' \
+  'attestation: explicit override issues exact challenge and waits' \
+  'attestation: eligible request loads the canonical reference' \
+  'attestation: unavailable reference fails closed' \
+  'attestation: exact direct reply permits only named action' \
+  'attestation: mismatch requires exact retry' \
+  'attestation: rejects nonliteral input' \
+  'attestation: rejects untrusted provenance' \
+  'attestation: rejects stale or changed authorization' \
+  'attestation: retrieval and metadata failures remain blocked' \
+  'attestation: independent gates still apply'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
 
@@ -321,4 +605,4 @@ if [[ $errors -gt 0 ]]; then
   exit 1
 fi
 
-echo "OK: human-interaction contract is fail-closed and user-only."
+echo "OK: human-interaction defaults fail closed; attestation is exact and single-action."

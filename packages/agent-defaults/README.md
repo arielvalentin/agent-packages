@@ -91,5 +91,26 @@ for existing public GitHub interactions. `acting-on-behalf` is the posting and
 attribution backstop. Human or unknown interactions stop automated replies and
 resolution; verified bot/app chains may follow the normal feedback flow.
 
+After a direct user request to override one concrete blocked action, the
+safeguard can request an exact, fresh direct attestation. It authorizes one
+attempt on the named target, not a task, thread, or session. Drafting, posting,
+and resolution require separate authorization. Mismatches stay blocked, and
+the interaction remains `HUMAN_STOP`. See the
+[canonical ceremony](.apm/skills/human-interaction-safeguard/SKILL.md#single-action-attestation).
+The pending challenge binds to the single concrete direct request; repeating
+every target identifier is optional. Ambiguous or multiple actions remain
+blocked, and a bare attestation without that request and challenge is invalid.
+Incomplete retrieval, pagination failures, missing/unverified actor metadata,
+and an unavailable safeguard cannot be overridden. Posting permission,
+identity, attribution, independent tool approvals, and higher-priority rules
+still apply. This is a skill policy, not host-enforced identity verification.
+
+Existing behavioral cases retain the local Ollama completion provider and
+prompt. Ceremony cases use the same local model's chat endpoint to separate
+the conditionally loaded protocol from the direct user message. Combined-policy
+cases append only the companion skills under test. Exact-input and state
+fixtures are reference checks; they do not supply runtime provenance or
+authorization.
+
 Review handoff validation does not replace public-interaction safeguards.
 Research remains source-bounded fact finding, not duplicated consensus work.

@@ -1,7 +1,8 @@
 # Review mode
 
 Shared core applies; no drafting/posting/resolution authority or history dependency.
-Never override `HUMAN_STOP`.
+On `HUMAN_STOP`, default to a private summary; defer any single-action exception
+exclusively to `human-interaction-safeguard`. This mode grants no authorization.
 
 - Findings first: evidence/location and behavioral or maintenance consequence.
   Distinguish demonstrated defects from risks, hypotheses, and design questions;
