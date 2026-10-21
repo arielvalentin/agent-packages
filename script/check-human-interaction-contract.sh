@@ -204,6 +204,36 @@ require "$protocol" "no model-only fallback" \
   'Do not fall back to model-only comparison'
 require "$protocol" "TTY is not human identity proof" \
   'A TTY is a channel check, not proof of human identity'
+require "$protocol" "visible terminal without independent provenance API" \
+  'No separate client API certifying who typed is required'
+require "$protocol" "agent input tool does not disqualify visible terminal" \
+  'presence of an agent send-input tool does not disqualify'
+forbid "$protocol" "impossible independent client assurance gate" \
+  'client must independently vouch|Clients unable to distinguish that trusted interaction|assurance of direct user control is unavailable'
+require "$protocol" "discover actual Terminal schema" \
+  'Call `list_canvas_capabilities` for `terminal`'
+require "$protocol" "open visible focused terminal" \
+  'call `open_canvas`.{0,100}`canvasId: "terminal"`.{0,250}`placement: \{"focus": true\}`'
+require "$protocol" "read real current helper startup" \
+  'actual pending request, binding, fresh verification ID and verifier PID'
+require "$protocol" "active claim follows real pending input" \
+  'do not claim an active challenge before observing pending input'
+require "$protocol" "where-is-it focuses same pending instance" \
+  'focus/reopen the SAME pending canvas instance'
+require "$protocol" "refocus does not replay launcher" \
+  'Omit the launch command when refocusing an existing instance'
+require "$protocol" "originating conversation owns the terminal" \
+  'Terminal belongs to the originating conversation'
+require "$protocol" "native navigation or exact app link" \
+  'native navigation.{0,160}exact app link obtained from `list_sessions_and_chats`'
+require "$protocol" "worker probe is not the original active prompt" \
+  'probe proves channel availability, not that the original prompt is active'
+require "$protocol" "unsupported UI explains concrete inactive blocker" \
+  'State the concrete channel/helper failure and that no prompt is active'
+require "$protocol" "agent cannot send attestation or submission key" \
+  'Do not use `send_terminal_input` to send or paste the attestation, Ctrl-D'
+require "$policy" "main skill requires real launch not preview" \
+  'visible terminal launch steps, not a sentence preview'
 forbid "$policy" "ceremony sentence in classification context" \
   'I, arielvalentin, do hereby authorize'
 require "$policy" "direct user opt-in only" \
@@ -381,7 +411,18 @@ for description in \
   'attestation: rejects untrusted provenance' \
   'attestation: rejects stale or changed authorization' \
   'attestation: retrieval and metadata failures remain blocked' \
-  'attestation: independent gates still apply'; do
+  'attestation: independent gates still apply' \
+  'attestation-ui: discover declared Terminal schema' \
+  'attestation-ui: visible Terminal without provenance API launches' \
+  'attestation-ui: open canvas requires reading actual startup' \
+  'attestation-ui: where is it focuses same instance' \
+  'attestation-ui: originating conversation owns the prompt' \
+  'attestation-ui: refocus does not replay launcher' \
+  'attestation-ui: missing metadata cannot launch' \
+  'attestation-ui: unsupported UI reports no active prompt' \
+  'attestation-ui: sentence preview is not active input' \
+  'attestation-ui: agent cannot supply input or submission' \
+  'attestation-ui: peer approval does not transfer'; do
   require "$tests" "Promptfoo regression: $description" "$description"
 done
 

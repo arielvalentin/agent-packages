@@ -150,16 +150,29 @@ Literal matching uses the bundled Python 3.10+ verifier in a directly
 user-operated, foreground POSIX terminal. It captures bytes itself; pipes,
 input files, chat/tool replies, and model-reconstructed text are not accepted
 input paths. Ctrl-D submits; Enter and editing keys are data and cause a
-mismatch. Unsupported clients remain blocked.
+mismatch. In Copilot App, discover Terminal with `list_canvas_capabilities`,
+launch the trusted helper with `open_canvas` and `placement.focus: true`, then
+read its actual pending-input output before claiming a prompt is active.
+Tell the user to type in that named Terminal panel, not chat. If they cannot
+see it, focus/reopen and inspect the same saved canvas instance without
+replaying the command. The Terminal is in the originating conversation; use
+native navigation or its exact app link if the user is elsewhere, never a
+worker's probe or another session's authorization. A preview is not an active
+challenge. Unsupported clients or failed launches remain blocked with a concrete
+explanation.
 
 The helper displays and hashes one private pending-request JSON record
 (maximum 16 KiB), not independent action/digest arguments. Its launcher records
 the child's actual completion status; anything other than current status 0
 keeps the action blocked. The fresh literal-verification record is not an
-authorization token. The client must independently establish direct human
-control and preserve all source, scope, freshness, consumption, and posting
-gates. A TTY is not identity proof, and the helper does not provide host-side
-privilege enforcement. Never automate the terminal input.
+authorization token. A client-provided visible, user-operable terminal is
+supported without a separate API certifying who typed, even when the agent
+also has a send-input tool. Preserve all source, scope, freshness, consumption,
+and posting gates. A TTY is not identity proof; this workflow confirmation is
+not authentication or a tamper-resistant boundary against a malicious agent.
+The helper does not provide host-side privilege enforcement. The agent must
+never send/paste the attestation or Ctrl-D, reconstruct input, or fabricate
+verification records.
 Incomplete retrieval, pagination failures, missing/unverified actor metadata,
 and an unavailable safeguard cannot be overridden. Posting permission,
 identity, attribution, independent tool approvals, and higher-priority rules
