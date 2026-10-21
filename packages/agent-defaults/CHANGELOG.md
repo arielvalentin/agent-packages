@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.3.0...agent-defaults-v0.4.0) (2026-10-21)
+
+
+### Features
+
+* add single-action safeguard attestations ([#66](https://github.com/arielvalentin/agent-packages/issues/66)) ([62603df](https://github.com/arielvalentin/agent-packages/commit/62603df3f8b786d2e24bb0ce3aba2ce692136ca2))
+
+
+### Bug Fixes
+
+* open the interactive attestation prompt ([ecd97ca](https://github.com/arielvalentin/agent-packages/commit/ecd97ca208c60fe4077f54bf8db43f3c6be4bed5)), closes [#66](https://github.com/arielvalentin/agent-packages/issues/66)
+
 ## [0.3.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.2.0...agent-defaults-v0.3.0) (2026-10-19)
 
 
