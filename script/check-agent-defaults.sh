@@ -96,6 +96,12 @@ for rule in (
     "Evidence beside claims",
     "Separate reported observations, verified facts, inference, unknowns",
     "Routine validation: brief outcome, no command dumps",
+    "In PR descriptions, omit routine passing test/linter/CI inventories",
+    "PR descriptions: lead with the problem and value, not a prose version of the diff",
+    "Use supported before/after behavior to show the effect",
+    "Link the issue rather than retelling it",
+    "Preserve template sections, comments, and required answers",
+    "impose no headings, word count, or canned sections",
     "Provide minimum template-requested detail",
     "For new reviewer-performed manual/exploratory checks, include needed procedures in the PR",
     "Expose failed/incomplete/unverified checks",
@@ -148,10 +154,17 @@ for mode, rules in mode_rules.items():
 
 artifact_reference = skills / "writing-voice/references/artifact-authoring.md"
 assert "(references/artifact-authoring.md)" in writing, "writing-voice: missing artifact link"
-assert "PR/template, validation, policy/config detail:" in writing
+assert "When authoring PR descriptions, or for template, validation, policy/config detail:" in writing
 artifact = " ".join(artifact_reference.read_text().split())
 for rule in (
-    "Routine checks: brief outcome, not command/result dumps",
+    "Routine checks: brief outcome in status reports, not command/result dumps",
+    "Omit routine passing validation from PR bodies",
+    "Do not add test inventories, command dumps, counts, or file lists as proof of value",
+    "Include material nonstandard evidence when it supports a claim",
+    "do not invent a user-visible improvement",
+    "Do not repeat the issue's investigation or paraphrase the diff",
+    "Preserve headings, sections, HTML comments, checkboxes, and required answers",
+    "Do not check an unmet requirement",
     "Templates: minimum requested commands, results, or procedures",
     "New manual/exploratory investigation: procedures reviewers need and relevant observations",
     "Failed/incomplete/unverified validation: explicit failure or gap",
@@ -193,6 +206,8 @@ for path in writers:
 acting = " ".join((skills / "acting-on-behalf/SKILL.md").read_text().split())
 assert "Apply its final reader check immediately before every permitted post" in acting
 assert 'include a compact "Evidence" section' not in acting, "forced evidence boilerplate"
+assert "documented absence of issue tracking when repository guidance requires it" in acting, \
+    "acting-on-behalf: unqualified missing-tracking boilerplate"
 lifecycle = (skills / "pr-lifecycle/SKILL.md").read_text()
 assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
 

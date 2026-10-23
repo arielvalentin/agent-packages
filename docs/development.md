@@ -52,5 +52,11 @@ their frozen contents independently of the canonical defaults inventory.
 
 ## Troubleshooting
 
+- CI evals record the runtime versions, CPU architecture, and model digest.
+  When an eval produces `eval.json`, it is retained for seven days as an
+  `eval-<package>-<run>-<attempt>` artifact, including failed evaluations.
+  Use the failing row's source, provider, rendered prompt, and output rather than
+  its shared description alone. For local comparisons, use the locked npm
+  dependencies and match the recorded Ollama version and model digest.
 - Hidden directories not visible: use `ls -la` or `tree -a`.
 - Harness not auto-detected in consumer repo: pass `--target <harness>` or set `targets:` in consumer `apm.yml`.

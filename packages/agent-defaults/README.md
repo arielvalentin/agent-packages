@@ -103,7 +103,11 @@ for evidence-backed findings, or [defect reporting](.apm/skills/writing-voice/re
 for observed/expected behavior and diagnosis. Modes add no commands, forced
 headings, or authority to post; mixed tasks use only the applicable guidance.
 Load [artifact-authoring detail](.apm/skills/writing-voice/references/artifact-authoring.md)
-for PR/template, validation, or policy/config questions, not automatically.
+when authoring PR descriptions or handling template, validation, or policy/config
+detail. PR descriptions focus on value and supported before/after behavior in
+the user's voice, link issues without retelling them, and preserve complete
+repository templates. They omit routine passing validation noise, not failures,
+risks, required answers, material evidence, or new reviewer-performed steps.
 
 Load its [public-source calibration notes](.apm/skills/writing-voice/references/voice-patterns.md)
 only when calibrating the voice or consulting historical evidence.
