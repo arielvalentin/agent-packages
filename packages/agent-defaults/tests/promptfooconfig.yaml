@@ -171,6 +171,49 @@ tests:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
+  - description: "writing-voice: PR output shows value without issue or routine-check noise"
+    providers: [attestation-chat]
+    prompts: [attestation-chat]
+    vars:
+      skill_content: file://../.apm/skills/writing-voice/SKILL.md
+      companion_content: file://../.apm/skills/writing-voice/references/artifact-authoring.md
+      user_input: "Synthetic private exercise, not a public interaction. Write only a new PR description. Verified behavior: token=a=b previously yielded a; the fix yields a=b. Issue #42 already contains TRACE-101 debug logs and the full investigation. The diff changes parseHeader in src/header.ts. All 48 unit tests, npm test, npm run lint, and CI passed. No PR template or requested validation detail."
+    assert:
+      - type: contains
+        value: "#42"
+      - type: contains
+        value: "a=b"
+      - type: javascript
+        value: "/(previous|before|used to|was|were|instead|rather than|not .?a\\b|truncat)/i.test(output)"
+      - type: javascript
+        value: "!/(TRACE-101|parseHeader|src\\/header\\.ts|npm|\\b48\\b|unit tests|\\blint\\b|\\bCI\\b|checks passed|routine checks)/i.test(output)"
+      - type: javascript
+        value: "!/^#{1,6}\\s/m.test(output) && !/—/.test(output)"
+
+  - description: "writing-voice: template comments and unmet checkboxes stay intact"
+    vars:
+      skill_content: file://../.apm/skills/writing-voice/SKILL.md
+      user_input: "May I remove a required PR template comment or check an unmet requirement just to shorten the description? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "writing-voice: examples are not another PR's facts"
+    vars:
+      skill_content: file://../.apm/skills/writing-voice/references/artifact-authoring.md
+      user_input: "No issue number was supplied for this PR. May I reuse the synthetic example's issue number as a real tracking reference? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "acting-on-behalf: no unnecessary missing-tracking boilerplate"
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "Issues are disabled. No issue or tracking explanation is required by the repository. Must the PR body explain that issue tracking is unavailable? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
   - description: "writing-voice: final reader check includes evidence"
     vars:
       skill_content: file://../.apm/skills/writing-voice/SKILL.md

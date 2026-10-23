@@ -88,13 +88,14 @@ provider solely to render the disclaimer.
 6. Open PRs in draft mode by default (`gh pr create --draft`).
 7. Follow repository tracking requirements; preserve relevant issue references.
    If required tracking is unavailable, surface the gate rather than inventing
-   an issue or bypassing it. If Issues are disabled and no alternative exists,
-   document their absence in the PR body.
+   an issue or bypassing it. Document unavailable issue tracking in the PR body
+   only when repository guidance requires that context.
 8. Use `gh` CLI for all GitHub operations.
-9. Apply `writing-voice` to PR descriptions, including its validation-detail
-   rules. Keep required tracking context:
+9. Apply `writing-voice` and its artifact-authoring reference to PR descriptions.
+   Keep required tracking context:
    - relevant direct issue references (`Closes`/`Fixes owner/repo#N`), required
-     tracking, or the documented absence of issue tracking
+     tracking, or the documented absence of issue tracking when repository
+     guidance requires it
    - optional ADR references when relevant
 10. For PRs containing code/config/script changes, run `adversarial-review`
    before PR creation and continue fix/re-review cycles until blocker/major
@@ -133,7 +134,7 @@ Before posting or replying to a PR/issue comment:
 3. If nothing matches, ask whether to open a new issue; never create one without
    authorization. Required tracking blocks publication until resolved.
 4. If Issues are disabled, use the repository's supported tracking mechanism.
-   If none exists and none is required, document that in the PR body and proceed.
+   If none exists and none is required, proceed without tracking boilerplate.
 5. If the repository does not require an issue, do not add that requirement.
 
 ## Posting template
@@ -168,12 +169,13 @@ new PR and issue bodies. Writing guidance never grants permission to post.
 
 ## PR description content checklist
 
-Before opening or updating a PR body, apply `writing-voice`, including its
-policy/config evidence guidance and final reader check. Preserve direct issue
-references using closing syntax (`Closes`/`Fixes`) when applicable; otherwise
-document the tracking alternative or absence of issue tracking. Include ADR
-references when they informed a decision. These are content requirements,
-not mandatory section headings.
+Before opening or updating a PR body, apply `writing-voice` and its
+artifact-authoring reference, including policy/config evidence guidance and the
+final reader check. Preserve direct issue references using closing syntax
+(`Closes`/`Fixes`) when applicable; otherwise
+document the tracking alternative or absence only when repository guidance
+requires it. Include ADR references when they informed a decision. These are
+content requirements, not mandatory section headings.
 
 ## Skill-availability fallbacks
 

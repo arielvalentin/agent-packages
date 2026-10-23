@@ -32,10 +32,19 @@ posts and attribution.
 - Rewrites: facts intact, revised text only, no introduction or whole-artifact
   quotation. Preserve schemas/templates; without a template, no required
   Problem/Changes/Testing/References headings.
-- Routine validation: brief outcome, no command dumps. Provide minimum
-  template-requested detail. For new reviewer-performed manual/exploratory checks,
+- PR descriptions: lead with the problem and value, not a prose version of the
+  diff. Use supported before/after behavior to show the effect. Link the issue
+  rather than retelling it; include only context needed to understand this PR.
+  Preserve template sections, comments, and required answers. Without a template,
+  impose no headings, word count, or canned sections.
+- Routine validation: brief outcome, no command dumps in status reports.
+  In PR descriptions, omit routine passing test/linter/CI inventories and
+  validation boilerplate already covered by existing checks. Provide minimum
+  template-requested detail and retain explicit user requests or material
+  nonstandard evidence. For new reviewer-performed manual/exploratory checks,
   include needed procedures in the PR. Expose failed/incomplete/unverified checks;
-  retain requested detail and handoff evidence.
+  retain risks, requested detail and handoff evidence. Limit reporting noise,
+  not validation work.
 
 ## Select a mode
 
@@ -51,7 +60,7 @@ Reviewing a PR is review; explaining its bug fix is defect reporting.
 
 ## Load only when needed
 
-- PR/template, validation, policy/config detail:
+- When authoring PR descriptions, or for template, validation, policy/config detail:
   [artifact authoring](references/artifact-authoring.md).
 - Calibration/provenance:
   [voice patterns](references/voice-patterns.md). History neither authorizes
@@ -61,3 +70,6 @@ Reviewing a PR is review; explaining its bug fix is defect reporting.
 
 Before delivery and every permitted post, check evidence, uncertainty,
 obligation/scope, actors, format, interaction/attribution gates. Revise failures.
+For PR bodies, compare the result with the supplied template and facts: retain
+every required element and failed/unrun check; remove issue retelling and routine
+passing-check inventories.
