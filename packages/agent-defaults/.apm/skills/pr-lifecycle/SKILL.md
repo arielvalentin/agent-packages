@@ -223,11 +223,9 @@ After the PR is **merged**:
 
 ## Pre-requisites
 
-- `human-interaction-safeguard` — source of truth for actor behavior and the
-  exclusive owner of the `HUMAN_STOP` single-action exception policy.
+- `human-interaction-safeguard` — source of truth for actor behavior.
 - `acting-on-behalf` — posting and attribution backstop.
 - `writing-voice` — shared authoring and final reader check.
-- `pr-feedback-review` — normal bot/app feedback handling after
-  `AUTOMATION_FLOW` classification; it grants no `HUMAN_STOP` exception.
+- `pr-feedback-review` — bot/app feedback handling after actor classification.
 - `review-fix-loop` — for gate iteration.
 - `commit-message-storyteller` — for commit messages during fixes.
