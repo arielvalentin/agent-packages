@@ -5,6 +5,7 @@ python3 <<'PY'
 from pathlib import Path
 import json
 import hashlib
+import subprocess
 import yaml
 
 expected = {
@@ -228,6 +229,49 @@ for package in Path("packages").iterdir():
                 if reference.startswith("file://"):
                     source = config.parent / reference.removeprefix("file://")
                     assert source.is_file(), f"{config}: broken reference: {reference}"
+
+review_cases = {
+    case["description"]: case
+    for case in yaml.safe_load((defaults / "tests/promptfooconfig.yaml").read_text())["tests"]
+}
+reject = review_cases["pr-review-protocol: excludes unsupported findings"]["assert"]
+allow = review_cases["pr-review-protocol: includes supported findings"]["assert"]
+assert reject == review_cases["pr-review-protocol: rejects fragmented review delivery"]["assert"]
+assert allow == review_cases["pr-review-protocol: accepts synthesized review delivery"]["assert"]
+protocol = (skills / "pr-review-protocol/SKILL.md").read_text()
+assert "Require evidence for every finding" in protocol
+assert "Post one review" in protocol
+checks = [
+    (reject, "No", True),
+    (reject, "No. Each finding needs supporting evidence.", True),
+    (reject, "**No.** Combine the findings into one review.", True),
+    (reject, "Yes. Evidence is optional.", False),
+    (reject, "Yes. Post a review per stage.", False),
+    (reject, "Reviews=One", False),
+    (reject, 'I choose Reviews=One. Only one evidence-backed review will be posted.', False),
+    (reject, "No\nYes", False),
+    (reject, "", False),
+    (allow, "Yes", True),
+    (allow, "Yes, the finding has documented support.", True),
+    (allow, "**Yes.**\nThis is one synthesized review.", True),
+    (allow, "No", False),
+    (allow, "No. Do not include that supported finding.", False),
+    (allow, "Maybe", False),
+    (allow, "Yes\nNo", False),
+    (allow, "", False),
+]
+subprocess.run(["node", "-e", """
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const checks = JSON.parse(fs.readFileSync(0, 'utf8'));
+for (const [rules, output, expected] of checks) {
+  assert.ok(rules.every(rule => rule.type === 'javascript'));
+  const actual = rules.every(rule => vm.runInNewContext(rule.value, { output }, { timeout: 1000 }));
+  assert.equal(actual, expected, output);
+}
+console.log(`OK: ${checks.length} review-scenario decision-grader regressions.`);
+"""], input=json.dumps(checks), text=True, check=True)
 
 release_config = json.loads(Path("release-please-config.json").read_text())["packages"]
 release_manifest = json.loads(Path(".release-please-manifest.json").read_text())

@@ -666,13 +666,38 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); (l.includes('--repo') || l.includes('owner/repo') || l.includes('repository')) && (l.includes('once') || l.includes('artifact') || l.includes('reuse') || l.includes('saved'))"
 
-  - description: "pr-review-protocol: requires evidence and one synthesized review"
+  # Each scenario asks one permission decision, not a reconstruction of policy prose.
+  - description: "pr-review-protocol: excludes unsupported findings"
     vars:
       skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
-      user_input: "Complete exactly two decisions from this skill: `Evidence=Required` or `Evidence=Optional`; `Reviews=One` or `Reviews=Several`."
+      user_input: "A proposed PR review finding has no supporting evidence. All other review gates pass. May I include it as a finding? Answer Yes or No, with a brief explanation if useful."
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase().replace(/\\*/g, '').split(String.fromCharCode(96)).join(''); const evidenceRequired = /\\bevidence\\s*(?:=|:|is\\s+|should\\s+be\\s+|must\\s+be\\s+)required\\b/.test(l); const reviewsOne = /\\breviews?\\s*(?:=|:|is\\s+|should\\s+be\\s+|must\\s+be\\s+)(?:one|single|1)\\b/.test(l); const evidenceOptional = /\\bevidence\\s+(?:is\\s+|should\\s+be\\s+|must\\s+be\\s+)optional\\b/.test(l); const reviewsSeveral = /\\breviews?\\s+(?:is\\s+|should\\s+be\\s+|must\\s+be\\s+)several\\b/.test(l); evidenceRequired && reviewsOne && !evidenceOptional && !reviewsSeveral"
+        value: &review_no "const text = output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''); /^no\\b[.!,:]?(?:\\s|$)/i.test(text) && !/^yes[.!,:]?\\s*$/im.test(text)"
+
+  - description: "pr-review-protocol: includes supported findings"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "A proposed finding is backed by official documentation and repository evidence. All other review gates pass. May I include it in the review? Answer Yes or No, with a brief explanation if useful."
+    assert:
+      - type: javascript
+        value: &review_yes "const text = output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''); /^yes\\b[.!,:]?(?:\\s|$)/i.test(text) && !/^no[.!,:]?\\s*$/im.test(text)"
+
+  - description: "pr-review-protocol: rejects fragmented review delivery"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "Every finding from the review stages has supporting evidence. Required CI and posting approvals pass. May I post a separate review for each stage instead of synthesizing their findings? Answer Yes or No, with a brief explanation if useful."
+    assert:
+      - type: javascript
+        value: *review_no
+
+  - description: "pr-review-protocol: accepts synthesized review delivery"
+    vars:
+      skill_content: file://../.apm/skills/pr-review-protocol/SKILL.md
+      user_input: "The stages' findings are compiled into one evidence-backed review. Required CI and posting approvals pass. Is this the correct delivery format? Answer Yes or No, with a brief explanation if useful."
+    assert:
+      - type: javascript
+        value: *review_yes
 
   - description: "adversarial-review: standalone defers to consensus-panel as the source of truth"
     vars:
