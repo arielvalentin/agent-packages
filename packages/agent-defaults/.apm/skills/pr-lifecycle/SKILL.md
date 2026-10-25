@@ -179,9 +179,10 @@ actor classification and behavior:
 - `HUMAN_STOP` → by default, return control to the user; do not initiate a change
   from the interaction, draft or post a reply, or resolve the thread. A later, separate,
   explicit implementation instruction may authorize code/config/test work;
-  reply and resolution remain user-only.
-  Defer any single-action exception exclusively to
-  `human-interaction-safeguard`. Its authorization permits only that action,
+  reply and resolution require their own approval.
+  Defer any single-action exception exclusively to `human-interaction-safeguard`:
+  warn about human interaction and obtain ordinary explicit user confirmation
+  for the described action and target. Its authorization permits only that action,
   not lifecycle iteration, another operation, or classification as automation.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 

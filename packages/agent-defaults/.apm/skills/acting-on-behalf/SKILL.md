@@ -28,7 +28,9 @@ interaction, invoke `human-interaction-safeguard`.
   conversation chain before drafting or posting.
 - `HUMAN_STOP` prohibits an agent-authored reply and agent-performed thread
   resolution by default. Only `human-interaction-safeguard` can authorize its
-  single-action exception. Classification stays `HUMAN_STOP`; continue all
+  single-action exception through ordinary scoped user confirmation.
+  Defer the warning and confirmation UX to that skill.
+  Classification stays `HUMAN_STOP`; continue all
   posting, identity, attribution, and independent approval rules below.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.

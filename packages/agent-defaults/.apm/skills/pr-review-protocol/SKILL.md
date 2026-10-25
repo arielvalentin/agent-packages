@@ -99,8 +99,9 @@ in the diff.
 
 Apply `human-interaction-safeguard` before drafting a public review; on
 `HUMAN_STOP`, give only a private findings summary, not a draft reply, unless
-that skill grants its single-action authorization for the exact draft.
-Defer the ceremony to that skill; draft authorization does not permit posting.
+the user confirms the described draft under that skill's single-action rules.
+Defer the warning and ordinary confirmation to that skill; draft authorization
+does not permit posting.
 Use `writing-voice` for the permitted review or private summary. Compile
 steps 3-7 with the following relevant content, not forced section headings:
 

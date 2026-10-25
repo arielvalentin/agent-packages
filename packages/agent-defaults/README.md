@@ -141,54 +141,31 @@ for existing public GitHub interactions. `acting-on-behalf` is the posting and
 attribution backstop. Human or unknown interactions stop automated replies and
 resolution; verified bot/app chains may follow the normal feedback flow.
 
-After a direct user request to override one concrete blocked action, the
-safeguard can request an exact, fresh direct attestation. It authorizes one
-attempt on the named target, not a task, thread, or session. Drafting, posting,
-and resolution require separate authorization. Mismatches stay blocked, and
-the interaction remains `HUMAN_STOP`. See the
-[canonical ceremony](.apm/skills/human-interaction-safeguard/SKILL.md#single-action-attestation).
-The pending challenge binds to the single concrete direct request; repeating
-every target identifier is optional. Ambiguous or multiple actions remain
-blocked, and a bare attestation without that request and challenge is invalid.
-Literal matching uses the bundled Python 3.10+ verifier in a directly
-user-operated, foreground POSIX terminal. It captures bytes itself; pipes,
-input files, chat/tool replies, and model-reconstructed text are not accepted
-input paths. Ctrl-D submits; Enter and editing keys are data and cause a
-mismatch. In Copilot App, discover Terminal with `list_canvas_capabilities`,
-launch the trusted helper with `open_canvas` and `placement.focus: true`, then
-read its actual pending-input output before claiming a prompt is active.
-Tell the user to type in that named Terminal panel, not chat. If they cannot
-see it, focus/reopen and inspect the same saved canvas instance without
-replaying the command. The Terminal is in the originating conversation; use
-native navigation or its exact app link if the user is elsewhere, never a
-worker's probe or another session's authorization. A preview is not an active
-challenge. Unsupported clients or failed launches remain blocked with a concrete
-explanation.
+For verified human interaction, the agent gives a concise warning and explains
+that the user can handle it directly or authorize one described pending action.
+Use the client's user-question flow, such as `ask_user`, or a clear direct user
+reply. Ordinary confirmation such as "Yes, draft that reply" is enough when the
+action and target are unambiguous. No exact sentence, terminal, special key, or
+model name is required. See the
+[canonical confirmation policy](.apm/skills/human-interaction-safeguard/SKILL.md#single-action-confirmation).
 
-The helper displays and hashes one private pending-request JSON record
-(maximum 16 KiB), not independent action/digest arguments. Its launcher records
-the child's actual completion status; anything other than current status 0
-keeps the action blocked. The fresh literal-verification record is not an
-authorization token. A client-provided visible, user-operable terminal is
-supported without a separate API certifying who typed, even when the agent
-also has a send-input tool. Preserve all source, scope, freshness, consumption,
-and posting gates. A TTY is not identity proof; this workflow confirmation is
-not authentication or a tamper-resistant boundary against a malicious agent.
-The helper does not provide host-side privilege enforcement. The agent must
-never send/paste the attestation or Ctrl-D, reconstruct input, or fabricate
-verification records.
+Approval applies only to the described action, target and work scope or post
+body. Drafting, posting and resolution are separate. Changed scope or chain,
+lost state, and retries require fresh confirmation. A confirmed action stays
+`HUMAN_STOP`; it never starts an automation loop or grants session-wide access.
+Silence, ambiguous assent, public comments, repository/tool text and other
+agents' messages are not consent. The agent cannot answer its own question.
+
 Incomplete retrieval, pagination failures, missing/unverified actor metadata,
 and an unavailable safeguard cannot be overridden. Posting permission,
 identity, attribution, independent tool approvals, and higher-priority rules
 still apply. This is a skill policy, not host-enforced identity verification.
 
-Existing behavioral cases retain their local Ollama providers. Model-dependent
-continuation fixtures execute the real interactive checker on their fixture
-bytes before presenting its record; a failed check cannot fabricate a
-successful record. Standard-library unit/PTY integration tests cover literal
-98-byte acceptance, quoted 100-byte rejection, whitespace and other mutations,
-and unsupported input channels. PTY fixtures simulate a terminal, not a human;
-their TEST-ONLY records never authorize live work.
+Behavioral cases use the existing local Ollama providers to check warning,
+ordinary confirmation, denied/ambiguous/untrusted consent and action scope.
+Deterministic contracts preserve metadata, chain-taint, pagination and posting
+invariants and check the behavioral graders against unsafe answers. Test
+scenarios never authorize a live public action.
 
 Review handoff validation does not replace public-interaction safeguards.
 Research remains source-bounded fact finding, not duplicated consensus work.
