@@ -46,18 +46,20 @@ apply this default sequence:
 
 1. Stop automation for that interaction.
 2. Privately summarize the concern and apparent intent for the user.
-3. Prompt the user to engage directly in the thread.
+3. Warn that the chain includes human interaction and offer direct handling or
+   scoped confirmation under the canonical safeguard.
 4. Do not research toward a rebuttal or initiate a repository change from the
    comment.
-5. Never draft or post a reply, or resolve the thread.
+5. Keep drafting, posting and resolution paused until separately authorized.
 
 If the user later gives a separate, explicit implementation instruction that
 identifies the concern, the requested code/config/test work may proceed as a
 new user instruction. The reply and thread resolution remain user-only by
 default.
 
-The only exception is an exact single-action authorization obtained through
-`human-interaction-safeguard`. Defer the ceremony and eligibility to that skill.
+The exception is ordinary, explicit user confirmation for one described action
+under `human-interaction-safeguard`. Defer the warning, eligibility and
+confirmation rules to that skill; no exact sentence or terminal is required.
 Perform only the identified action, subject to other gates. Classification
 stays `HUMAN_STOP`; do not enter Steps 3-4, bundle reply and resolution, or
 continue automated iteration on the human thread.

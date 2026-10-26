@@ -485,10 +485,11 @@ For incoming public GitHub interactions, `human-interaction-safeguard` is the
 single source of truth for actor behavior. By default, `HUMAN_STOP` returns
 control to the user without initiating a repository change, reply drafting/posting, or thread
 resolution. A later, separate, explicit implementation instruction may
-authorize code/config/test work only; reply and resolution remain user-only.
+authorize code/config/test work only; reply and resolution need their own approval.
 Defer any single-action exception exclusively to the loaded safeguard's
-canonical policy. Do not reproduce its ceremony or transfer authorization to a
-worker. Classification stays `HUMAN_STOP`; no automated feedback loop follows.
+canonical warning and ordinary user-confirmation policy. Do not invent a
+separate ceremony or transfer authorization to a worker. Classification stays
+`HUMAN_STOP`; no automated feedback loop follows.
 After complete retrieval, `AUTOMATION_FLOW` may continue through
 `pr-feedback-review` only when every comment/reply in the relevant thread or
 conversation chain has authoritative Bot/App metadata. Any human, unknown, or

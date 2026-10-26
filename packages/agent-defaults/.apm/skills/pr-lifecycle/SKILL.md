@@ -20,9 +20,12 @@ strategy on consumers.
 Permission, human-interaction, attribution, and mandatory safety/review gates
 still apply.
 
-For PR titles and bodies, load `writing-voice` for authoring and the final
-pre-post reader check. Use `acting-on-behalf` for posting permission and
-conditional attribution. This applies to early drafts and later updates.
+For PR titles and bodies, load `writing-voice` and its
+`references/artifact-authoring.md` for authoring and the final pre-post reader
+check. Use `acting-on-behalf` for posting permission and conditional attribution.
+This applies to early drafts and later updates. Check applicable PR templates
+in the repository root, `docs/`, and `.github/`, including template directories,
+before either phase; apply the canonical template and content rules there.
 
 ## Trigger phrases
 
@@ -41,7 +44,7 @@ For `feature`, `bugfix`, and `refactor` flows:
    start, never a placeholder like `WIP: <goal>`. Follow the repository's
    required title format. Only if none is specified, use Conventional Commits:
    ```bash
-   gh pr create --draft --title "<type>: <description>" --body "<issue ref + placeholder>"
+   gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"
    ```
    - Default `<type>` from the canonical flow (`feature` → `feat`, `bugfix` →
      `fix`, `refactor` → `refactor`) and derive `<description>` from the
@@ -61,10 +64,8 @@ The PR remains in draft until all gates pass.
 
 When implementation is complete and gates pass:
 
-1. Check for a PR template:
-   - `.github/PULL_REQUEST_TEMPLATE.md` (single)
-   - `.github/PULL_REQUEST_TEMPLATE/` (directory)
-   - Follow the template structure; write "N/A" for inapplicable sections.
+1. Recheck the applicable PR template and preserve its structure and required
+   answers under `writing-voice`'s artifact-authoring rules.
 2. Follow the repository's title format. For the default Conventional format,
    re-derive and correct the complete header — `<type>`, optional scope,
    optional `!`, and wording — from the final diff, not from the Phase 1 goal.
@@ -178,9 +179,10 @@ actor classification and behavior:
 - `HUMAN_STOP` → by default, return control to the user; do not initiate a change
   from the interaction, draft or post a reply, or resolve the thread. A later, separate,
   explicit implementation instruction may authorize code/config/test work;
-  reply and resolution remain user-only.
-  Defer any single-action exception exclusively to
-  `human-interaction-safeguard`. Its authorization permits only that action,
+  reply and resolution require their own approval.
+  Defer any single-action exception exclusively to `human-interaction-safeguard`:
+  warn about human interaction and obtain ordinary explicit user confirmation
+  for the described action and target. Its authorization permits only that action,
   not lifecycle iteration, another operation, or classification as automation.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
@@ -216,7 +218,7 @@ After the PR is **merged**:
 
 | Missing tool | Fallback |
 |-------------|----------|
-| `create_pull_request` (built-in) | `gh pr create --draft --title "<type>: <description>" --body "<issue ref + placeholder>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
+| `create_pull_request` (built-in) | `gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
 | `gh pr checks --watch` | `gh run watch <run-id>` |
 | `stage-pr` | Report staging unavailable |
 

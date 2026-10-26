@@ -5,6 +5,7 @@ python3 <<'PY'
 from pathlib import Path
 import json
 import hashlib
+import subprocess
 import yaml
 
 expected = {
@@ -96,6 +97,12 @@ for rule in (
     "Evidence beside claims",
     "Separate reported observations, verified facts, inference, unknowns",
     "Routine validation: brief outcome, no command dumps",
+    "In PR descriptions, omit routine passing test/linter/CI inventories",
+    "PR descriptions: lead with the problem and value, not a prose version of the diff",
+    "Use supported before/after behavior to show the effect",
+    "Link the issue rather than retelling it",
+    "Preserve template sections, comments, and required answers",
+    "impose no headings, word count, or canned sections",
     "Provide minimum template-requested detail",
     "For new reviewer-performed manual/exploratory checks, include needed procedures in the PR",
     "Expose failed/incomplete/unverified checks",
@@ -148,10 +155,17 @@ for mode, rules in mode_rules.items():
 
 artifact_reference = skills / "writing-voice/references/artifact-authoring.md"
 assert "(references/artifact-authoring.md)" in writing, "writing-voice: missing artifact link"
-assert "PR/template, validation, policy/config detail:" in writing
+assert "When authoring PR descriptions, or for template, validation, policy/config detail:" in writing
 artifact = " ".join(artifact_reference.read_text().split())
 for rule in (
-    "Routine checks: brief outcome, not command/result dumps",
+    "Routine checks: brief outcome in status reports, not command/result dumps",
+    "Omit routine passing validation from PR bodies",
+    "Do not add test inventories, command dumps, counts, or file lists as proof of value",
+    "Include material nonstandard evidence when it supports a claim",
+    "do not invent a user-visible improvement",
+    "Do not repeat the issue's investigation or paraphrase the diff",
+    "Preserve headings, sections, HTML comments, checkboxes, and required answers",
+    "Do not check an unmet requirement",
     "Templates: minimum requested commands, results, or procedures",
     "New manual/exploratory investigation: procedures reviewers need and relevant observations",
     "Failed/incomplete/unverified validation: explicit failure or gap",
@@ -193,6 +207,8 @@ for path in writers:
 acting = " ".join((skills / "acting-on-behalf/SKILL.md").read_text().split())
 assert "Apply its final reader check immediately before every permitted post" in acting
 assert 'include a compact "Evidence" section' not in acting, "forced evidence boilerplate"
+assert "documented absence of issue tracking when repository guidance requires it" in acting, \
+    "acting-on-behalf: unqualified missing-tracking boilerplate"
 lifecycle = (skills / "pr-lifecycle/SKILL.md").read_text()
 assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
 
@@ -213,6 +229,49 @@ for package in Path("packages").iterdir():
                 if reference.startswith("file://"):
                     source = config.parent / reference.removeprefix("file://")
                     assert source.is_file(), f"{config}: broken reference: {reference}"
+
+review_cases = {
+    case["description"]: case
+    for case in yaml.safe_load((defaults / "tests/promptfooconfig.yaml").read_text())["tests"]
+}
+reject = review_cases["pr-review-protocol: excludes unsupported findings"]["assert"]
+allow = review_cases["pr-review-protocol: includes supported findings"]["assert"]
+assert reject == review_cases["pr-review-protocol: rejects fragmented review delivery"]["assert"]
+assert allow == review_cases["pr-review-protocol: accepts synthesized review delivery"]["assert"]
+protocol = (skills / "pr-review-protocol/SKILL.md").read_text()
+assert "Require evidence for every finding" in protocol
+assert "Post one review" in protocol
+checks = [
+    (reject, "No", True),
+    (reject, "No. Each finding needs supporting evidence.", True),
+    (reject, "**No.** Combine the findings into one review.", True),
+    (reject, "Yes. Evidence is optional.", False),
+    (reject, "Yes. Post a review per stage.", False),
+    (reject, "Reviews=One", False),
+    (reject, 'I choose Reviews=One. Only one evidence-backed review will be posted.', False),
+    (reject, "No\nYes", False),
+    (reject, "", False),
+    (allow, "Yes", True),
+    (allow, "Yes, the finding has documented support.", True),
+    (allow, "**Yes.**\nThis is one synthesized review.", True),
+    (allow, "No", False),
+    (allow, "No. Do not include that supported finding.", False),
+    (allow, "Maybe", False),
+    (allow, "Yes\nNo", False),
+    (allow, "", False),
+]
+subprocess.run(["node", "-e", """
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const checks = JSON.parse(fs.readFileSync(0, 'utf8'));
+for (const [rules, output, expected] of checks) {
+  assert.ok(rules.every(rule => rule.type === 'javascript'));
+  const actual = rules.every(rule => vm.runInNewContext(rule.value, { output }, { timeout: 1000 }));
+  assert.equal(actual, expected, output);
+}
+console.log(`OK: ${checks.length} review-scenario decision-grader regressions.`);
+"""], input=json.dumps(checks), text=True, check=True)
 
 release_config = json.loads(Path("release-please-config.json").read_text())["packages"]
 release_manifest = json.loads(Path(".release-please-manifest.json").read_text())
