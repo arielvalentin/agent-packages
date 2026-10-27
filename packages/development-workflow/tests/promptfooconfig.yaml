@@ -7,7 +7,7 @@ providers:
     label: skill-under-test
 
 prompts:
-  - "{{skill_content}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+  - "{{skill_content}}\n{{companion_content | default('')}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
 
 tests:
   - description: "implementer: standalone oversized tasks return to the user"
@@ -27,6 +27,29 @@ tests:
         value: "no"
 
   # --- implementer agent ---
+  - description: "implementer: generates a repository-required title"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Repository instructions require the exact PR title 'PROJ-123 Fix login crash', not a Conventional Commits prefix. I authorize creating this draft PR; all required safety and review gates have passed and no PR exists. Return only a gh pr create command with --draft, --title, and --body."
+    assert:
+      - type: icontains
+        value: "gh pr create"
+      - type: icontains
+        value: "--draft"
+      - type: icontains
+        value: "--body"
+      - type: javascript
+        value: "/(?:^|\\s)--title(?:=|\\s+)([\\u0022\\u0027])PROJ-123 Fix login crash\\1(?:\\s|$)/.test(output)"
+
+  - description: "implementer: repository title format takes precedence"
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "Which PR title format takes precedence: the repository's required format or the generic Conventional Commits default? Answer one word: repository or default."
+    assert:
+      - type: javascript
+        value: "/^repository[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
   - description: "implementer: reads handoff-envelope inputs"
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
@@ -38,6 +61,7 @@ tests:
   - description: "implementer: opens the early draft PR create command non-interactively with a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception, no WIP)"
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
+      companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md
       user_input: "I am fixing a null-pointer crash in the login handler on this production branch, and no draft PR exists yet. Respond with only the exact shell command to run right now: a `gh pr create --draft` command with a `--title` and a `--body`."
     assert:
       - type: icontains
