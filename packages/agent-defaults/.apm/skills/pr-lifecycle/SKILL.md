@@ -42,9 +42,10 @@ For `feature`, `bugfix`, and `refactor` flows:
 
 1. As soon as a branch exists, open a **draft PR** with a valid title from the
    start, never a placeholder like `WIP: <goal>`. Follow the repository's
-   required title format. Only if none is specified, use Conventional Commits:
+   required title format. Only if none is specified, use Conventional Commits.
+   Adapt this concrete, non-interactive example to the task:
    ```bash
-   gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"
+   gh pr create --draft --title "fix: handle missing login data" --body "Prevent a crash when login data is missing."
    ```
    - Default `<type>` from the canonical flow (`feature` → `feat`, `bugfix` →
      `fix`, `refactor` → `refactor`) and derive `<description>` from the
