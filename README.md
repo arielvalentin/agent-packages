@@ -12,6 +12,7 @@ This repository ships independent installable packages so consumers can pick onl
 | `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Design + implementation workflow | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
+| `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Six agents](packages/personal-agents/README.md#includes), MIT-licensed |
 
 ## Repository layout
 
@@ -88,4 +89,6 @@ Dependencies are declared in `Brewfile` — `script/setup` is idempotent and saf
 
 ## License
 
-Apache-2.0. See `LICENSE`.
+Apache-2.0. See `LICENSE`. The copied agents in
+[`packages/personal-agents`](packages/personal-agents/README.md) retain their
+upstream MIT license and copyright notice.

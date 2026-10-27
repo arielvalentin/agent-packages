@@ -1,5 +1,13 @@
 {
   "packages": {
+    "packages/personal-agents": {
+      "release-type": "simple",
+      "component": "personal-agents",
+      "initial-version": "0.1.0",
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
+    },
     "packages/agent-defaults": {
       "release-type": "simple",
       "component": "agent-defaults",

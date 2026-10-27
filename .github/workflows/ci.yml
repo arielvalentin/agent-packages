@@ -59,6 +59,9 @@ jobs:
       - name: Agent defaults and release compatibility checks
         run: bash script/check-agent-defaults.sh
 
+      - name: Personal agent provenance and model inheritance checks
+        run: bash script/check-personal-agents.sh
+
   release-please-config:
     name: Validate release-please config
     runs-on: ubuntu-latest
