@@ -126,27 +126,33 @@ Commits defaults for titles created or updated in Phase 1 and Phase 3:
 
 ## Phase 4 — Monitor CI
 
-After every push, watch CI:
+After every push, record the repository, PR number, and pushed head SHA. Read
+live PR state, then load [PR monitoring](references/pr-monitoring.md).
+It owns capability selection, the single monitoring owner, bounded waits,
+failure handling, and final exact-head verification. Reuse an existing
+delegated controller or available PR/head-aware notifications. Availability
+never grants permission to enable Agent merge, create automation, or merge.
+
+CLI/cloud fallback when no native monitor or controller owns the work,
+under the reference's deadline and permission rules:
 
 ```bash
-gh pr checks <number> --watch --fail-fast
+gh pr checks <number> --repo <owner/repo> --watch --fail-fast
 ```
 
-**On failure:**
-```bash
-gh run view <run-id> --log-failed
-```
-- Categorize: test error, lint, build, timeout, flaky
-- Dispatch `implementer` with failure context
-- Re-run affected gates, push fix, re-watch
-
-**On success:** proceed to Phase 5.
-
-**Fallback:** If `--watch` unavailable, use `gh run watch <run-id>`.
+Native notifications are wakeups, not proof of success. Recheck live head and
+all applicable checks before reporting CI passed. Report missing, failed,
+stale, unavailable, or timed-out checks explicitly; do not loop model turns
+to poll or treat no status as success.
 
 ## Phase 5 — Wait for Copilot code review
 
-After CI passes, check for automated Copilot review:
+Load [PR monitoring](references/pr-monitoring.md) for expected-review evidence
+and the bounded notification/wait policy. No review yet does not mean disabled.
+Skip speculative waits when no review is configured/expected; report unknown
+expectation or timeout as a gap, never a satisfied required review gate.
+
+Retrieve arrived reviews through `human-interaction-safeguard`, for example:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
@@ -155,11 +161,11 @@ gh api --paginate "repos/{owner}/{repo}/pulls/{number}/reviews" \
 
 - The login prefix identifies Copilot only after authoritative Bot/App metadata
   establishes `AUTOMATION_FLOW`; it never classifies the actor.
-- Poll every 30s, timeout after 10 minutes.
-- If findings: categorize by severity, feed actionable ones into
-  `review-fix-loop`.
-- If no findings or timeout: proceed.
-- If repo doesn't use Copilot review: skip and note.
+- This review listing alone is not complete thread/chain retrieval. Phase 6
+  remains mandatory before processing feedback.
+- Categorize permitted automated findings and feed actionable ones into
+  `review-fix-loop`. Skipping an unconfigured wait never skips mandatory
+  adversarial, security, or repository-required review gates.
 
 ## Phase 6 — Process review feedback
 
@@ -186,24 +192,27 @@ actor classification and behavior:
   not lifecycle iteration, another operation, or classification as automation.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
-After pushing fixes:
+After pushing fixes, request another review only when repository policy or
+the user's delegation calls for it, through the existing lifecycle owner:
 ```bash
 gh pr edit <number> --add-reviewer <reviewer>
 ```
 
-Re-run Phase 4 after any push.
+Resume Phase 4 for the new head after any push; reuse its monitoring owner.
 
 ## Phase 7 — Loop exit conditions
 
 | Condition | Action |
 |-----------|--------|
-| CI green AND all threads resolved | Notify user: ready to merge |
+| Exact-head CI verified, required approvals/reviews and mandatory gates satisfied, no unresolved blocking feedback | Report readiness; merging still needs independent permission |
+| Checks/review pending, unavailable, unknown, timed out, or for an old head | Report the gap and yield; do not claim readiness |
 | PR merged | Phase 8 (cleanup) |
 | PR closed | Notify user, stop |
 | User says stop | Stop |
 | 10 iterations reached | Stop, report unresolved items |
 
-Yield control between iterations.
+Yield control between iterations. A completion event may resume the existing
+owner; do not create another controller or schedule polling to fill the wait.
 
 ## Phase 8 — Post-merge cleanup
 
@@ -219,7 +228,8 @@ After the PR is **merged**:
 | Missing tool | Fallback |
 |-------------|----------|
 | `create_pull_request` (built-in) | `gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
-| `gh pr checks --watch` | `gh run watch <run-id>` |
+| Native monitoring unavailable | Phase 4 portable fallback with exact-head verification and one bounded wait |
+| `gh pr checks --watch` unavailable | PR monitoring reference: verified-head `gh run watch` under the same deadline |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites

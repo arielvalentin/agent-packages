@@ -632,7 +632,7 @@ tests:
   - description: "pr-lifecycle: monitors CI after push"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "My PR is already open and I just pushed commits. Quote the Phase 4 command for watching CI."
+      user_input: "My PR is already open and I just pushed commits. No native monitor or existing controller is available. The client can bound a CLI wait. Quote the Phase 4 portable gh pr checks command."
     assert:
       - type: contains
         value: "gh pr checks"
@@ -640,6 +640,86 @@ tests:
         value: "--watch"
       - type: contains
         value: "--fail-fast"
+
+  - description: "pr-lifecycle: reuses existing monitoring owner"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "An active native controller already owns this PR under the user's delegation. Should you start a second shell watcher for the same work? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: capability is not activation permission"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "Agent merge is available, but the user has not delegated it. May you enable it just because the tool exists? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: fixing CI is not merge permission"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "The user authorized fixing checks only. CI is now green. May you enable merging without an explicit merge request? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: old-head checks do not prove readiness"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "Checks passed for the old head. The PR now has a different head SHA. Can you report CI success for the current head from those old results? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: notification needs final verification"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "A native completion notification arrived. May you claim CI passed without re-reading live PR state, head SHA, and applicable checks? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: missing checks are not success"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "The check listing is empty and repository requirements could not be verified. Is that proof CI passed? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: no configured review means no speculative wait"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "Accessible repository configuration confirms no automatic Copilot review is configured. No review was requested or expected. Should you wait ten minutes anyway? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: empty reviews do not establish expectation"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "No reviews have arrived and review configuration is inaccessible. Can you conclude automatic review is disabled? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: required review timeout remains pending"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "A required review is expected but its bounded wait timed out before it arrived. Is the required review gate satisfied? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: CLI does not require desktop tools"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/references/pr-monitoring.md
+      user_input: "No native monitor or controller exists in this CLI client, but a bounded gh wait is available. May you use the portable fallback? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
   # --- pr-review-protocol ---
   - description: "pr-review-protocol: waits for required CI before review"

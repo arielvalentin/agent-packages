@@ -211,6 +211,36 @@ assert "documented absence of issue tracking when repository guidance requires i
     "acting-on-behalf: unqualified missing-tracking boilerplate"
 lifecycle = (skills / "pr-lifecycle/SKILL.md").read_text()
 assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
+monitoring_path = skills / "pr-lifecycle/references/pr-monitoring.md"
+assert "(references/pr-monitoring.md)" in lifecycle, "pr-lifecycle: missing monitoring reference"
+assert monitoring_path.is_file(), "pr-lifecycle: monitoring reference is not bundled"
+lifecycle_rules = " ".join((lifecycle + "\n" + monitoring_path.read_text()).split())
+for rule in (
+    "Prefer already-available app status and completion notifications",
+    "Use actual exposed capabilities and live status",
+    "Do not start a second fix/review loop, shell watcher, or automation",
+    "Availability is not permission",
+    "Merging additionally needs an explicit merge request",
+    "Do not delegate actions that cannot preserve those boundaries",
+    "When no usable native monitor or existing controller owns this work",
+    "Bound either wait by the client's execution deadline",
+    "stop the local watcher at that deadline, not the GitHub workflow",
+    "Do not spend repeated model turns or sleep loops polling",
+    "re-read live PR state, head SHA, and the complete applicable check set",
+    "no checks is not proof of success",
+    "No reviews yet is not evidence that automatic review is disabled",
+    "report it as unknown",
+    "report pending, not passed",
+    "A required review still blocks readiness",
+    "Phase 6 remains mandatory before processing feedback",
+):
+    assert rule in lifecycle_rules, f"pr-lifecycle: missing monitoring boundary: {rule}"
+for stale in (
+    "After every push, watch CI:",
+    "Poll every 30s, timeout after 10 minutes",
+    "If no findings or timeout: proceed",
+):
+    assert stale not in lifecycle_rules, f"pr-lifecycle: stale unconditional wait: {stale}"
 
 for name in ("handoff-envelope", "consensus-panel", "review-fix-loop"):
     text = (defaults / ".apm/skills" / name / "SKILL.md").read_text()

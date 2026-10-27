@@ -204,8 +204,10 @@ If companion skills are unavailable, do not block progress. Use:
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
    before creating, updating, or readying a PR title — whether through the
    built-in `create_pull_request`/`update_pull_request` tools or
-   `gh pr create`, `gh pr edit --title`, `gh pr ready`. Also use
-   `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
-   `gh run view|watch`.
+   `gh pr create`, `gh pr edit --title`, `gh pr ready`. For monitoring, follow
+   `pr-lifecycle` Phase 4 when available: reuse an existing owner or native
+   notifications, with a bounded `gh` fallback. If that skill is missing, read
+   exact-head check status once and report pending/failure explicitly; do not
+   invent a controller, loop indefinitely, or treat missing checks as success.
 3. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.

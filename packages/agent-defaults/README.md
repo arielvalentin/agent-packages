@@ -85,6 +85,18 @@ authored policy. Keep personal/local overrides in a separate native
 managed root. This package contains no personal identity, signing-key paths,
 host setup, or private tooling policy.
 
+## PR monitoring
+
+`pr-lifecycle` prefers available PR/head-aware status and notifications, or an
+already delegated native controller such as Agent merge. It does not activate
+controllers or grant merge permission. CLI and cloud clients retain a bounded
+`gh` fallback; no desktop-only capability is required.
+
+One owner tracks each PR. Final readiness still requires live exact-head checks,
+repository-required reviews, and the existing safety gates. Copilot review waits
+need evidence that a review is expected; unknown configuration or a timeout is
+reported as a gap, never as success.
+
 ## Writing
 
 `apm install --target copilot` discovers `.apm/skills/writing-voice/` and installs
