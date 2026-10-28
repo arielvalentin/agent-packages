@@ -85,6 +85,18 @@ authored policy. Keep personal/local overrides in a separate native
 managed root. This package contains no personal identity, signing-key paths,
 host setup, or private tooling policy.
 
+## PR monitoring
+
+`pr-lifecycle` reuses delegated native monitoring when available, with one bounded
+CLI fallback otherwise. It neither activates controllers nor grants merge
+permission. Exact-head checks and required reviews remain gates; unknown or
+timed-out results stay explicit gaps. Review waits need evidence of expectation.
+
+Title syntax does not authorize an unnecessary scope. Disclosure is decided once
+by `acting-on-behalf`, including display-name attribution with service credentials.
+For verified human interactions, a scoped approval can permit the named action
+once without changing `HUMAN_STOP`; approval to fix code is not approval to post.
+
 ## Writing
 
 `apm install --target copilot` discovers `.apm/skills/writing-voice/` and installs

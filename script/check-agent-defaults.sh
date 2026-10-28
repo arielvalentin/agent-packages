@@ -211,6 +211,25 @@ assert "documented absence of issue tracking when repository guidance requires i
     "acting-on-behalf: unqualified missing-tracking boilerplate"
 lifecycle = (skills / "pr-lifecycle/SKILL.md").read_text()
 assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
+lifecycle_rules = " ".join(lifecycle.split())
+for rule in (
+    "Use one monitoring owner per PR",
+    "Capability alone does not authorize",
+    "all repository, actor/chain, review, and independent approval gates",
+    "one CLI wait bounded by the client's deadline",
+    "Stop only the local watcher",
+    "verify live PR state, current head SHA",
+    "A changed head invalidates prior results",
+    "An empty review list does not establish that it is disabled",
+    "Timeout remains pending; required reviews still block readiness",
+):
+    assert rule in lifecycle_rules, f"pr-lifecycle: missing monitoring boundary: {rule}"
+for stale in (
+    "After every push, watch CI:",
+    "Poll every 30s, timeout after 10 minutes",
+    "If no findings or timeout: proceed",
+):
+    assert stale not in lifecycle_rules, f"pr-lifecycle: stale unconditional wait: {stale}"
 
 for name in ("handoff-envelope", "consensus-panel", "review-fix-loop"):
     text = (defaults / ".apm/skills" / name / "SKILL.md").read_text()

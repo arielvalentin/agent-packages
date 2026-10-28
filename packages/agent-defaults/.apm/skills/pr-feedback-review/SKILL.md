@@ -116,7 +116,8 @@ For each all-automation comment thread, choose one:
 After all comments are addressed:
 
 1. Run the relevant test/lint/build commands to verify nothing broke
-2. Resume `pr-lifecycle` Phase 4 if changes were pushed
+2. Resume `pr-lifecycle` Phase 4 for the new head if changes were pushed,
+   through the existing monitoring owner; do not start a second controller
 3. Summarize actions taken:
    - Human/unknown comments routed to the user (no automated action)
    - Comments accepted (with commit SHAs)
