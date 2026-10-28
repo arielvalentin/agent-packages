@@ -73,7 +73,7 @@ tests:
       user_input: "Name the database query pattern caused by calling u.posts.count for each user:\n```ruby\nusers = User.all\nusers.each { |u| puts u.posts.count }\n```\nReply with the pattern name only."
     assert:
       - type: javascript
-        value: "['n+1', 'n+1 query', 'n+1 query pattern'].includes(output.trim().replaceAll(String.fromCharCode(96), '').replaceAll('*', '').replaceAll('.', '').toLowerCase())"
+        value: "const text = output.trim().split(String.fromCharCode(96)).join('').replace(/[*_]/g, ''); /^n\\s*\\+\\s*1(?:\\s+(?:database\\s+)?(?:quer(?:y|ies)(?:\\s+(?:pattern|problem))?|pattern|problem))?[.!]?$/i.test(text)"
 
   # --- style-reviewer agent ---
   - description: "style-reviewer: does not comment on trivial formatting"

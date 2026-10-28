@@ -579,6 +579,14 @@ tests:
       - type: javascript
         value: "output.trim().replaceAll('.', '').toLowerCase() === 'yes'"
 
+  - description: "pr-lifecycle: redundant scope is not justified"
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A proposed PR-title scope adds no material clarification because the affected package is already obvious. Does the skill permit adding that scope anyway? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
   - description: "pr-lifecycle: breaking changes use the optional ! marker"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
@@ -1405,12 +1413,14 @@ tests:
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^no[.!]?$/.test(l)"
 
   - description: "consensus-panel: high plus medium confidence merges to medium"
+    providers: [policy-chat]
+    prompts: [policy-chat]
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
-      user_input: "Two initial reviewers agree on every verdict axis with no blocker or major finding. One reports confidence high, the other medium. Return only the selected confidence token."
+      user_input: "Two initial reviewers agree on every verdict axis with no blocker or major finding. One reports confidence high, the other medium. Choose exactly one confidence token: HIGH, MEDIUM, or LOW. Reply with only the token, without explanation."
     assert:
       - type: javascript
-        value: "const lines = output.trim().split('\\n').filter((line) => line.trim()); const last = lines[lines.length - 1].trim().split(String.fromCharCode(96)).join('').replaceAll('*', '').replaceAll('.', '').toLowerCase(); last === 'medium'"
+        value: "const text = output.trim().split(String.fromCharCode(96)).join('').replace(/[*_]/g, ''); /^medium[.!]?$/i.test(text)"
 
   - description: "consensus-panel: dispatched single reviewer does not fan out"
     vars:

@@ -4,6 +4,8 @@ providers:
   - id: ollama:llama3.2:3b
     config:
       temperature: 0
+      num_ctx: 8192
+      num_predict: 512
     label: skill-under-test
 
 prompts:
@@ -18,7 +20,7 @@ tests:
       user_input: "A user asks you to add a capability for exporting reports as PDF. Which canonical flow should you announce? Return the flow name only."
     assert:
       - type: javascript
-        value: "/^feature[.!]?$/i.test(output.trim())"
+        value: "/^feature[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
   - description: "acting-on-behalf: coordinator invokes attribution policy"
     vars:
