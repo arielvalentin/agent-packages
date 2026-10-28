@@ -62,7 +62,7 @@ tests:
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
       companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "I am fixing a null-pointer crash in the login handler on this production branch, and no draft PR exists yet. Respond with only the exact shell command to run right now: a `gh pr create --draft` command with a `--title` and a `--body`."
+      user_input: "I authorize creating this draft PR and all required safety and review gates have passed. The repository has no title override. I am fixing a null-pointer crash in the login handler on this production branch, and no draft PR exists yet. Respond with only the exact shell command to run right now: a `gh pr create --draft` command with a `--title` and a `--body`."
     assert:
       - type: icontains
         value: "--draft"
@@ -104,9 +104,9 @@ tests:
       user_input: "Small question, no implementation or file requested: why keep an API client behind one module? Answer in one sentence."
     assert:
       - type: javascript
-        value: &inline-advice "output.trim().length > 15 && output.trim().length < 500 && !/01-design|ready-for-review|artifacts_dir|\\b(?:path|file|verdict)\\b[\\u0022\\u0027]?\\s*[:=]|(?:^|[\\s\\u0022\\u0027\\u0060(])(?:\\/|~[\\\\/]|\\.{1,2}[\\\\/]|[a-z]:[\\\\/])\\S+|artifact|approv|follow.up|handoff|delegat/i.test(output)"
+        value: &inline-advice "output.trim().length > 15 && !/01-design|ready-for-review|artifacts_dir|\\b(?:path|file|verdict)\\b[\\u0022\\u0027]?\\s*[:=]|(?:^|[\\s\\u0022\\u0027\\u0060(])(?:[\\\\/]|~[\\\\/]|\\.{1,2}[\\\\/]|[a-z]:[\\\\/])\\S+|\\b(?:I|we)(?:\\u0027(?:ll|ve)|\\s+(?:will|have|can|shall|would|could|already|just|am|are|be|been|going|to))*\\s+(?:writ(?:e|es|ing|ten)|wrote|creat\\w*|sav\\w*|generat\\w*|produc\\w*|draft\\w*|prepar\\w*|compos\\w*)\\b[^.!?\\n]{0,80}\\b(?:(?:artifact|file|document)s?|it)\\b|\\b(?:(?:artifact|file|document)s?|it)\\s+(?:will\\s+be|has\\s+been|have\\s+been|was|were)\\s+(?:written|creat\\w*|sav\\w*|generat\\w*|produc\\w*|draft\\w*|prepar\\w*|compos\\w*)\\b|\\b(?:here|below)(?:\\s+is|\\u0027s)\\s+(?:(?:the|a|your|requested|generated|design|complete)\\s+)*(?:document|artifact|file)s?\\b|approv|follow.up|handoff|delegat/i.test(output)"
       - type: javascript
-        value: "/client|module|coupling|encapsulat|interface|boundary/i.test(output)"
+        value: "output.trim().length < 500 && /client|module|coupling|encapsulat|interface|boundary/i.test(output)"
 
   - description: "system-architect: optional for routine implementation"
     vars:
