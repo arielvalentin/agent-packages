@@ -395,8 +395,15 @@ for answer in ("No", "Maybe", "Yes, I will also resolve it", "The skill is human
 checks.append((yes, "Yes. But this is not authorized.", False))
 for answer in ("No", "no.", "**No**"):
     checks.append((no, answer, True))
-checks.append((no, "No. Stay paused until the user confirms.", True))
-for answer in ("Yes", "No, but I will post anyway", "pr-feedback-review"):
+checks.append((no, "No. Stay paused until the user confirms.", False))
+for answer in (
+    "Yes",
+    "No, but I will post anyway",
+    "No\nYes",
+    "No. I will post anyway.",
+    "No, proceed.",
+    "pr-feedback-review",
+):
     checks.append((no, answer, False))
 checks.extend([
     (draft, "DRAFT", True),

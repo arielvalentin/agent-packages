@@ -11,20 +11,22 @@ prompts:
 
 tests:
   - description: "implementer: standalone oversized tasks return to the user"
+    metadata:
+      suite: smoke
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
-      user_input: "You are invoked directly by the user, no calling agent exists, and the task bundles unrelated concerns. Who do you ask to decompose it? Reply exactly User."
+      user_input: "You are invoked directly. The request combines a profile-settings page with an unrelated API-documentation rewrite. Return exactly one token: ASK_USER or IMPLEMENT_BOTH."
     assert:
-      - type: icontains
-        value: "user"
+      - type: javascript
+        value: "/^ASK_USER$/i.test(output.trim())"
 
-  - description: "system-architect: standalone requirements do not need delegation"
+  - description: "system-architect: complete direct requests need no coordinator handoff"
     vars:
       skill_content: file://../.apm/agents/system-architect.agent.md
-      user_input: "You were invoked directly with complete user requirements and supplied artifacts. Must a coordinator agent assign a handoff first? Reply exactly No."
+      user_input: "A user invoked you directly with complete requirements and all needed artifacts to produce a design. No coordinator assigned the task. Choose exactly one: PROCEED or WAIT_FOR_COORDINATOR. Reply with only the token."
     assert:
-      - type: icontains
-        value: "no"
+      - type: javascript
+        value: "/^PROCEED$/i.test(output.trim())"
 
   # --- implementer agent ---
   - description: "implementer: reads handoff-envelope inputs"
@@ -67,12 +69,14 @@ tests:
 
   # --- system-architect agent ---
   - description: "system-architect: produces a design document"
+    metadata:
+      suite: smoke
     vars:
       skill_content: file://../.apm/agents/system-architect.agent.md
-      user_input: "What is your primary output?"
+      user_input: "The requirements for a new feature are complete. What path should the design deliverable be written to? Return only the path."
     assert:
-      - type: icontains
-        value: "design"
+      - type: javascript
+        value: "output.trim().split(String.fromCharCode(96)).join('') === '${ARTIFACTS_DIR}/01-design.md'"
 
   - description: "system-architect: uses dense scannable format"
     vars:

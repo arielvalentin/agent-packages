@@ -16,6 +16,25 @@ tree -a .apm
 
 ## Local validation
 
+Promptfoo smoke tests run by default with `npm test`. They cover a small set of
+package-specific core behaviors and safety boundaries. Run the full behavioral
+suite when changing behavior or investigating a failure:
+
+```bash
+npm run test:full
+```
+
+For one package, use its existing full-suite command (for example,
+`npm run test:defaults`) or the corresponding `:smoke` command
+(`npm run test:defaults:smoke`). The package eval workflows use the smoke suite
+for affected packages on pull requests. Use the workflow's **Run workflow**
+control and select `full` to run a package's complete suite in CI. To validate
+an unmerged pull request, select its head branch in the workflow's ref
+selector; the default branch will not include the pull request's changes.
+
+Smoke runners reject empty selections and cases missing `suite: smoke`
+metadata, both locally and in CI.
+
 From an individual package directory:
 
 ```bash

@@ -2,11 +2,17 @@
   "name": "agent-packages",
   "private": true,
   "scripts": {
-    "test": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
+    "test": "npm run test:smoke",
+    "test:smoke": "npm run test:defaults:smoke && npm run test:coordinator:smoke && npm run test:dev-workflow:smoke && npm run test:reviewers:smoke",
+    "test:full": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
     "test:defaults": "promptfoo eval --config packages/agent-defaults/tests/promptfooconfig.yaml",
     "test:coordinator": "promptfoo eval --config packages/coordinator/tests/promptfooconfig.yaml",
     "test:dev-workflow": "promptfoo eval --config packages/development-workflow/tests/promptfooconfig.yaml",
-    "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml"
+    "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml",
+    "test:defaults:smoke": "bash script/run-promptfoo-smoke.sh packages/agent-defaults/tests/promptfooconfig.yaml",
+    "test:coordinator:smoke": "bash script/run-promptfoo-smoke.sh packages/coordinator/tests/promptfooconfig.yaml",
+    "test:dev-workflow:smoke": "bash script/run-promptfoo-smoke.sh packages/development-workflow/tests/promptfooconfig.yaml",
+    "test:reviewers:smoke": "bash script/run-promptfoo-smoke.sh packages/code-reviewers/tests/promptfooconfig.yaml"
   },
   "devDependencies": {
     "promptfoo": "^0.123.0"

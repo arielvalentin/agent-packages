@@ -7,6 +7,8 @@ on:
       - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
+      - "script/run-promptfoo-smoke.sh"
+      - "script/validate-promptfoo-eval.js"
       - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
   pull_request:
@@ -15,8 +17,18 @@ on:
       - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
+      - "script/run-promptfoo-smoke.sh"
+      - "script/validate-promptfoo-eval.js"
       - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Run the smoke suite or the full package suite"
+        required: true
+        type: choice
+        options: [smoke, full]
+        default: smoke
 
 permissions:
   contents: read
@@ -32,3 +44,4 @@ jobs:
       - uses: ./.github/actions/eval-package
         with:
           package: agent-defaults
+          suite: ${{ inputs.suite || 'smoke' }}
