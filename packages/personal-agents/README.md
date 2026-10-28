@@ -1,6 +1,6 @@
 # personal-agents
 
-Four personal variants of [Awesome Copilot](https://github.com/github/awesome-copilot)
+Three personal variants of [Awesome Copilot](https://github.com/github/awesome-copilot)
 agents without top-level `model` presets. Names, descriptions, tools, prompt
 bodies and filenames are unchanged. These are owned source copies, not runtime
 overrides or modifications to APM's installed supplier files.
@@ -18,7 +18,6 @@ model or guarantee tool availability across clients.
 | --- | --- |
 | `se-security-reviewer.agent.md` | SE: Security |
 | `se-technical-writer.agent.md` | SE: Tech Writer |
-| `custom-agent-foundry.agent.md` | Custom Agent Foundry |
 | `agent-governance-reviewer.agent.md` | Agent Governance Reviewer |
 
 There are no dependencies, hooks, instructions, skills, MCP definitions or
@@ -48,7 +47,7 @@ For user scope, declare the dependency in APM's user manifest and run
 `apm install --global --target copilot`. APM deploys native agent files under
 `~/.copilot/agents/`. Do not edit those managed copies.
 
-Replace the four `github/awesome-copilot/agents/<filename>` dependencies listed
+Replace the three `github/awesome-copilot/agents/<filename>` dependencies listed
 above before installing this bundle. Do not retain both sources or rely on
 same-name shadowing. Reconcile any previously deployed supplier-owned files
 through APM's ownership checks, not a force overwrite. Unrelated Awesome
@@ -62,7 +61,7 @@ an existing session may retain previously discovered profiles.
 
 ## Provenance and maintenance
 
-All four agents come from
+All three agents come from
 [`github/awesome-copilot` at `d75b41863510272ed217a3074c7045202b96e93f`](https://github.com/github/awesome-copilot/tree/d75b41863510272ed217a3074c7045202b96e93f/agents).
 The only change is removal of each top-level frontmatter `model` line.
 Model examples inside prompt bodies are deliberately unchanged.
