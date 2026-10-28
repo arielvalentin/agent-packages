@@ -39,9 +39,9 @@ bundle. After upgrading an earlier source pin, verify that their managed native
 files are gone and refresh the client session's agent catalog. Do not retain
 separate dependencies for profiles you intend to remove.
 
-The package starts at `0.0.0` locally. Its first proposed release is `0.1.0`;
-do not use an unpublished tag. Pin a published commit SHA or a real
-`personal-agents-vX.Y.Z` tag after release.
+Pin a published commit SHA or a real `personal-agents-vX.Y.Z` tag from
+[releases](https://github.com/arielvalentin/agent-packages/releases).
+The `0.0.0` bootstrap version is not a release; do not infer a tag from it.
 
 ## Deprecated coordinator package
 
