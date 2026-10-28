@@ -42,10 +42,9 @@ For `feature`, `bugfix`, and `refactor` flows:
 
 1. As soon as a branch exists, open a **draft PR** with a valid title from the
    start, never a placeholder like `WIP: <goal>`. Follow the repository's
-   required title format. Only if none is specified, use Conventional Commits.
-   Adapt this concrete, non-interactive example to the task:
+   required title format. Only if none is specified, use Conventional Commits:
    ```bash
-   gh pr create --draft --title "fix: handle missing login data" --body "Prevent a crash when login data is missing."
+   gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"
    ```
    - Default `<type>` from the canonical flow (`feature` → `feat`, `bugfix` →
      `fix`, `refactor` → `refactor`) and derive `<description>` from the
@@ -127,31 +126,41 @@ Commits defaults for titles created or updated in Phase 1 and Phase 3:
 
 ## Phase 4 — Monitor CI
 
-After every push, record the repository, PR number, and pushed head SHA. Read
-live PR state, then load [PR monitoring](references/pr-monitoring.md).
-It owns capability selection, the single monitoring owner, bounded waits,
-failure handling, and final exact-head verification. Reuse an existing
-delegated controller or available PR/head-aware notifications. Availability
-never grants permission to enable Agent merge, create automation, or merge.
+Use one monitoring owner per PR. Prefer available PR/head-aware native status
+and notifications under the user's delegation; do not start a duplicate watcher
+or fix loop after each push. Capability alone does not authorize enabling Agent
+merge, scheduling automation, posting, or merging. Native mechanics must preserve
+all repository, actor/chain, review, and independent approval gates.
 
-CLI/cloud fallback when no native monitor or controller owns the work,
-under the reference's deadline and permission rules:
+Without a usable native path, use one CLI wait bounded by the client's deadline:
 
 ```bash
 gh pr checks <number> --repo <owner/repo> --watch --fail-fast
 ```
 
-Native notifications are wakeups, not proof of success. Recheck live head and
-all applicable checks before reporting CI passed. Report missing, failed,
-stale, unavailable, or timed-out checks explicitly; do not loop model turns
-to poll or treat no status as success.
+If `--watch` is unavailable, use
+`gh run watch <run-id> --exit-status --repo <owner/repo>`
+for a verified-head run under the same deadline. If no bounded
+wait is possible, read once and hand off pending. Stop only the local watcher
+at the deadline, not the GitHub workflow; do not poll through model turns.
+
+On failure, inspect `gh run view <run-id> --repo <owner/repo> --log-failed`;
+the existing owner handles authorized fixes and rechecks the new head.
+Before reporting success, verify live PR state, current head SHA and all
+applicable terminal check results. Notifications or old-head results are not
+proof. Require successful conclusions, honoring repository skipped/neutral rules.
+Missing, inaccessible, failed, cancelled, or timed-out checks remain
+explicit gaps with URLs, never success. A changed head invalidates prior results.
 
 ## Phase 5 — Wait for Copilot code review
 
-Load [PR monitoring](references/pr-monitoring.md) for expected-review evidence
-and the bounded notification/wait policy. No review yet does not mean disabled.
-Skip speculative waits when no review is configured/expected; report unknown
-expectation or timeout as a gap, never a satisfied required review gate.
+Wait only when a configured rule/workflow, authoritative review request, or
+explicit user request establishes that review is expected. An empty review
+list does not establish that it is disabled. Skip invented waits otherwise;
+report inaccessible/unknown configuration, not "review passed".
+When expected, reuse the owner/notification or one bounded wait, never model-turn
+polling. Timeout remains pending; required reviews still block readiness.
+Apply repository re-review rules to the current head.
 
 Retrieve arrived reviews through `human-interaction-safeguard`, for example:
 
@@ -230,7 +239,7 @@ After the PR is **merged**:
 |-------------|----------|
 | `create_pull_request` (built-in) | `gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
 | Native monitoring unavailable | Phase 4 portable fallback with exact-head verification and one bounded wait |
-| `gh pr checks --watch` unavailable | PR monitoring reference: verified-head `gh run watch` under the same deadline |
+| `gh pr checks --watch` unavailable | Phase 4 verified-head `gh run watch` under the same deadline |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites

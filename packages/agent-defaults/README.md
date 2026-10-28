@@ -87,15 +87,10 @@ host setup, or private tooling policy.
 
 ## PR monitoring
 
-`pr-lifecycle` prefers available PR/head-aware status and notifications, or an
-already delegated native controller such as Agent merge. It does not activate
-controllers or grant merge permission. CLI and cloud clients retain a bounded
-`gh` fallback; no desktop-only capability is required.
-
-One owner tracks each PR. Final readiness still requires live exact-head checks,
-repository-required reviews, and the existing safety gates. Copilot review waits
-need evidence that a review is expected; unknown configuration or a timeout is
-reported as a gap, never as success.
+`pr-lifecycle` reuses delegated native monitoring when available, with one bounded
+CLI fallback otherwise. It neither activates controllers nor grants merge
+permission. Exact-head checks and required reviews remain gates; unknown or
+timed-out results stay explicit gaps. Review waits need evidence of expectation.
 
 ## Writing
 
