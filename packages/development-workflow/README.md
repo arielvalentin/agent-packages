@@ -10,7 +10,18 @@ Design-and-implementation package for code and configuration changes.
 
 ## Use
 
-Use this package when you want a structured path from design artifacts to implementation handoff.
+Use the implementer directly for an accepted task. System Architect is an
+optional specialist for requested architecture advice or explicitly delegated
+consequential design decisions, not a required step before implementation.
+Small questions get inline answers without a design file, plan-approval step,
+follow-up ritual or another agent hop.
+
+Create a design artifact only when requested, relevant to a consequential
+decision, or needed downstream. Use relevant sections rather than a fixed
+eleven-section template. Consequential designs still cover realistic failures
+and mitigations, plus rollout/migration/recovery risks where applicable. Ask
+when genuinely missing requirements block a sound decision, not merely because
+there is no prior artifact.
 
 ## Required companion skills
 

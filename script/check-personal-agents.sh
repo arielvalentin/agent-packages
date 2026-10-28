@@ -14,11 +14,9 @@ if sys.flags.optimize:
 
 package = Path("packages/personal-agents")
 expected = {
-    "context-architect.agent.md": "Context Architect",
     "se-security-reviewer.agent.md": "SE: Security",
     "se-technical-writer.agent.md": "SE: Tech Writer",
     "custom-agent-foundry.agent.md": "Custom Agent Foundry",
-    "meta-agentic-project-scaffold.agent.md": "Meta Agentic Project Scaffold",
     "agent-governance-reviewer.agent.md": "Agent Governance Reviewer",
 }
 manifest = yaml.safe_load((package / "apm.yml").read_text())
@@ -32,7 +30,7 @@ assert provenance["agents"].keys() == expected.keys(), "unexpected provenance in
 assert {p.relative_to(package / ".apm").as_posix()
         for p in (package / ".apm").rglob("*") if p.is_file()} == {
     f"agents/{name}" for name in expected
-}, "personal-agents must contain only the six native agent resources"
+}, "personal-agents must contain only the four native agent resources"
 assert not any(p.is_symlink() for p in package.rglob("*")), "no symlinked resources"
 
 def digest(data):
@@ -77,5 +75,5 @@ assert release["component"] == "personal-agents" and release["release-type"] == 
 assert release["initial-version"] == "0.1.0"
 assert {"type": "yaml", "path": "apm.yml", "jsonpath": "$.version"} in release["extra-files"]
 assert json.loads(Path(".release-please-manifest.json").read_text())[release_path] == version
-print("OK: Six model-free agents, upstream-only delta, MIT license and release registration.")
+print("OK: Four model-free agents, upstream-only delta, MIT license and release registration.")
 PY

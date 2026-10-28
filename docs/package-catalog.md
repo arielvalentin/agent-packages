@@ -7,10 +7,10 @@ This document is the authoritative inventory of installable packages in this rep
 - Path: `packages/personal-agents`
 - Manifest: `packages/personal-agents/apm.yml`
 - Purpose: personal Awesome Copilot source variants without model presets
-- Primitives: [six agents](../packages/personal-agents/README.md#includes);
+- Primitives: [four agents](../packages/personal-agents/README.md#includes);
   names, tools and bodies preserved
 - License: upstream MIT, with pinned source and SHA-256 provenance
-- Consumers: replace the matching six supplier dependencies, not same-name
+- Consumers: replace the matching four supplier dependencies, not same-name
   shadowing; see [installation](../packages/personal-agents/README.md#install)
 
 ## agent-defaults
@@ -55,7 +55,7 @@ Replace this dependency with `agent-defaults`; see
 
 - Path: `packages/development-workflow`
 - Manifest: `packages/development-workflow/apm.yml`
-- Purpose: design-to-implementation workflow for code/config/script changes
+- Purpose: optional architecture advice and implementation for code/config/script changes
 - Companion: `agent-defaults` supplies required handoff and lifecycle skills
 - Primitives:
   - Agents:

@@ -21,7 +21,7 @@ tests:
   - description: "system-architect: standalone requirements do not need delegation"
     vars:
       skill_content: file://../.apm/agents/system-architect.agent.md
-      user_input: "You were invoked directly with complete user requirements and supplied artifacts. Must a coordinator agent assign a handoff first? Reply exactly No."
+      user_input: "You were invoked directly with complete user requirements and no prior artifacts. Must a coordinator agent assign a handoff first? Reply exactly No."
     assert:
       - type: icontains
         value: "no"
@@ -90,18 +90,54 @@ tests:
         value: "const l = output.toLowerCase(); l.includes('convention') || l.includes('existing') || l.includes('codebase') || l.includes('match') || l.includes('idiomatic') || l.includes('surrounding') || l.includes('consistent') || l.includes('style') || l.includes('pattern') || l.includes('follow')"
 
   # --- system-architect agent ---
-  - description: "system-architect: produces a design document"
+  - description: "system-architect: writes a requested downstream design artifact"
     vars:
       skill_content: file://../.apm/agents/system-architect.agent.md
-      user_input: "What is your primary output?"
+      user_input: "I request a design document at 01-design.md for a downstream implementation step. Is the requested design artifact appropriate? Reply only Yes or No."
     assert:
       - type: icontains
-        value: "design"
+        value: "yes"
 
-  - description: "system-architect: uses dense scannable format"
+  - description: "system-architect: answers a small question inline"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "Small question, no implementation or file requested: why keep an API client behind one module? Answer in one sentence."
+    assert:
+      - type: javascript
+        value: &inline-advice "output.trim().length > 15 && output.trim().length < 500 && !/01-design|ready-for-review|artifacts_dir|\\b(?:path|file|verdict)\\b[\\u0022\\u0027]?\\s*[:=]|(?:^|[\\s\\u0022\\u0027\\u0060(])(?:\\/|~[\\\\/]|\\.{1,2}[\\\\/]|[a-z]:[\\\\/])\\S+|artifact|approv|follow.up|handoff|delegat/i.test(output)"
+      - type: javascript
+        value: "/client|module|coupling|encapsulat|interface|boundary/i.test(output)"
+
+  - description: "system-architect: optional for routine implementation"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "For routine implementation, is this architecture specialist optional or mandatory? Reply one word."
+    assert:
+      - type: javascript
+        value: "/^optional[.!]?$/i.test(output.trim().replace(/[*_]/g, ''))"
+
+  - description: "system-architect: preserves consequential failure and rollout analysis"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "A concise consequential design changes a production database. Must it still address realistic failure modes and rollout, migration and recovery risks? Reply only Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, ''))"
+
+  - description: "system-architect: stops for a genuinely missing constraint"
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      user_input: "Choose an irreversible retention design, but the required legal retention period is unknown. It changes which design is valid. Should you guess or ask? Reply only Guess or Ask."
+    assert:
+      - type: javascript
+        value: "/^ask[.!]?$/i.test(output.trim().replace(/[*_]/g, ''))"
+
+  - description: "system-architect: answers document-format questions inline"
     vars:
       skill_content: file://../.apm/agents/system-architect.agent.md
       user_input: "What format should the design document use?"
     assert:
       - type: javascript
-        value: "const l = output.toLowerCase(); l.includes('table') || l.includes('bullet') || l.includes('diagram') || l.includes('scannable') || l.includes('dense') || l.includes('concise') || l.includes('markdown') || l.includes('section') || l.includes('heading')"
+        value: *inline-advice
+      - type: javascript
+        value: "/table|bullet|diagram|scannable|dense|concise|markdown|section|heading/i.test(output)"

@@ -1,6 +1,6 @@
 # personal-agents
 
-Six personal variants of [Awesome Copilot](https://github.com/github/awesome-copilot)
+Four personal variants of [Awesome Copilot](https://github.com/github/awesome-copilot)
 agents without top-level `model` presets. Names, descriptions, tools, prompt
 bodies and filenames are unchanged. These are owned source copies, not runtime
 overrides or modifications to APM's installed supplier files.
@@ -16,11 +16,9 @@ model or guarantee tool availability across clients.
 
 | File | Display name |
 | --- | --- |
-| `context-architect.agent.md` | Context Architect |
 | `se-security-reviewer.agent.md` | SE: Security |
 | `se-technical-writer.agent.md` | SE: Tech Writer |
 | `custom-agent-foundry.agent.md` | Custom Agent Foundry |
-| `meta-agentic-project-scaffold.agent.md` | Meta Agentic Project Scaffold |
 | `agent-governance-reviewer.agent.md` | Agent Governance Reviewer |
 
 There are no dependencies, hooks, instructions, skills, MCP definitions or
@@ -49,15 +47,21 @@ For user scope, declare the dependency in APM's user manifest and run
 `apm install --global --target copilot`. APM deploys native agent files under
 `~/.copilot/agents/`. Do not edit those managed copies.
 
-Replace the six `github/awesome-copilot/agents/<filename>` dependencies listed
+Replace the four `github/awesome-copilot/agents/<filename>` dependencies listed
 above before installing this bundle. Do not retain both sources or rely on
 same-name shadowing. Reconcile any previously deployed supplier-owned files
 through APM's ownership checks, not a force overwrite. Unrelated Awesome
 Copilot agents can remain installed.
 
+Earlier source revisions included Context Architect and Meta Agentic Project
+Scaffold. They have been removed from this bundle. When upgrading, verify that
+APM also removes their managed native files and that no separate dependency
+reinstalls them. Refresh the client session before relying on its agent catalog;
+an existing session may retain previously discovered profiles.
+
 ## Provenance and maintenance
 
-All six agents come from
+All four agents come from
 [`github/awesome-copilot` at `d75b41863510272ed217a3074c7045202b96e93f`](https://github.com/github/awesome-copilot/tree/d75b41863510272ed217a3074c7045202b96e93f/agents).
 The only change is removal of each top-level frontmatter `model` line.
 Model examples inside prompt bodies are deliberately unchanged.

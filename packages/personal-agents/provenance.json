@@ -7,13 +7,6 @@
     "sha256": "e32449d23085399adc1222f7a17408b730550258e51627c153cb108ca9955823"
   },
   "agents": {
-    "context-architect.agent.md": {
-      "source": "agents/context-architect.agent.md",
-      "upstreamSha256": "6da7a854a670d2810fc61b173eea2500a2af644d8292f58e3d440ac2d120ee0d",
-      "sha256": "cb45c984bfc3760b8297ef0eddf4f82fa9ccbba2f5ecbb0a5daf0baaa68fc76b",
-      "removedLine": "model: 'GPT-5'\n",
-      "removedLineNumber": 3
-    },
     "se-security-reviewer.agent.md": {
       "source": "agents/se-security-reviewer.agent.md",
       "upstreamSha256": "3b5fec1f93bf21e20b865493ceca30708738642887d00c68e0bd0051f2d0e1fc",
@@ -33,13 +26,6 @@
       "upstreamSha256": "a44a820b88f00c8a57422f834fb3c82844f5995b28340f1892015db73f79a281",
       "sha256": "81d5ff29509d65a72a106a34b3def053f2cf396fb37ca873546c4d57bcfc82b0",
       "removedLine": "model: Claude Sonnet 4.5\n",
-      "removedLineNumber": 5
-    },
-    "meta-agentic-project-scaffold.agent.md": {
-      "source": "agents/meta-agentic-project-scaffold.agent.md",
-      "upstreamSha256": "045954f1d22f9c9e5cf36ca248d60b53ace5ffdc286998592df37662795ddda8",
-      "sha256": "189424dbb6cc3738cfbeb920ad7f28c7ac146ac61749c4075b5228db3abbeaad",
-      "removedLine": "model: \"GPT-4.1\"\n",
       "removedLineNumber": 5
     },
     "agent-governance-reviewer.agent.md": {
