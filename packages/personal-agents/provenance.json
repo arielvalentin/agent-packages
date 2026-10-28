@@ -1,0 +1,39 @@
+{
+  "repository": "https://github.com/github/awesome-copilot",
+  "commit": "d75b41863510272ed217a3074c7045202b96e93f",
+  "modification": "Remove only the top-level model field from each agent.",
+  "license": {
+    "path": "LICENSE",
+    "sha256": "e32449d23085399adc1222f7a17408b730550258e51627c153cb108ca9955823"
+  },
+  "agents": {
+    "se-security-reviewer.agent.md": {
+      "source": "agents/se-security-reviewer.agent.md",
+      "upstreamSha256": "3b5fec1f93bf21e20b865493ceca30708738642887d00c68e0bd0051f2d0e1fc",
+      "sha256": "a1b55ea195e7f8f551f5d7b612f4673f9d1f8ebc40db45b0abbac207546ced70",
+      "removedLine": "model: GPT-5\n",
+      "removedLineNumber": 4
+    },
+    "se-technical-writer.agent.md": {
+      "source": "agents/se-technical-writer.agent.md",
+      "upstreamSha256": "e2b7fe3959fee4701084022bdfb6bae9c24b2890d44305f17d779d0055ec9506",
+      "sha256": "a7eedb760f9353cb7f05887f7a4062f9ccf7d670426befb8744857837aad0bba",
+      "removedLine": "model: GPT-5\n",
+      "removedLineNumber": 4
+    },
+    "custom-agent-foundry.agent.md": {
+      "source": "agents/custom-agent-foundry.agent.md",
+      "upstreamSha256": "a44a820b88f00c8a57422f834fb3c82844f5995b28340f1892015db73f79a281",
+      "sha256": "81d5ff29509d65a72a106a34b3def053f2cf396fb37ca873546c4d57bcfc82b0",
+      "removedLine": "model: Claude Sonnet 4.5\n",
+      "removedLineNumber": 5
+    },
+    "agent-governance-reviewer.agent.md": {
+      "source": "agents/agent-governance-reviewer.agent.md",
+      "upstreamSha256": "83fb9073c86faaba2b1b9c40f12037125261739ad008f8df59aa58dc45fa738d",
+      "sha256": "61629dfad677711ae005575d35fc586393dd868d131e93d5babec1788c9b8ce7",
+      "removedLine": "model: 'gpt-4o'\n",
+      "removedLineNumber": 3
+    }
+  }
+}
