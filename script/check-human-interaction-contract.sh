@@ -191,6 +191,10 @@ require "$policy" "proceed once after scoped confirmation" \
   'When the checks pass and the user confirms, perform the approved action once'
 require "$policy" "draft approval is sufficient for drafting" \
   'Draft-only approval permits drafting now; it does not need posting approval first'
+require "$policy" "operation-specific posting approval excludes resolution" \
+  'Posting the shown reply body \| No \| No \| Yes \| No'
+require "$policy" "operation-specific fix approval excludes public actions" \
+  'The named code/config/test fix \| Yes \| No \| No \| No'
 require "$policy" "metadata failures cannot be overridden" \
   'Incomplete retrieval, failed pagination, missing, ambiguous, unavailable, unverified, or other/unknown actor metadata are non-overridable'
 require "$policy" "one described action and target" \
