@@ -46,10 +46,6 @@ A disclaimer is required when either condition is true:
 - Bot, app, or service credentials with no user attribution: **No**.
 - Unknown credential/account provenance: **Pause and ask before posting**.
 
-`UNATTRIBUTED_BOT_APP_SERVICE_DISCLAIMER = NO`.
-For a bot, app, or service using its own credentials without naming or
-attributing the user, the answer is **No**: no disclaimer is required.
-
 Never infer **No** from service credentials alone. Explicit user attribution
 overrides the service identity. Attribution includes the user's username or
 handle, display or real name, a byline, or wording such as "by" or "on behalf
@@ -70,62 +66,40 @@ provider solely to render the disclaimer.
 
 ## Always enforce
 
-1. Include the short AI-assistance disclaimer only when either condition is
-   true:
-   - the agent posts using the user's personal credentials or token, including
-     when the platform shows the post under the user's account; or
-   - the post explicitly attributes the user through a username/handle,
-     display or real name, byline, or "by"/"on behalf of" wording.
-2. Do not add a disclaimer when a bot, app, or service identity posts without
-   attributing the user. Apply this only when the posting identity is known.
-3. Do not include a username, model, or provider in the disclaimer.
-4. When a disclaimer is required, preserve the supplied substantive body, then
+1. Apply the Disclaimer decision above; do not duplicate or override that
+   decision in individual workflows. The disclaimer contains no username,
+   model, or provider.
+2. When a disclaimer is required, preserve the supplied substantive body, then
    append a blank line and the exact footer below as the final paragraph of
    the agent-composed body. This applies to PR bodies, issue bodies, comments,
    review replies, release notes, and similar public/shared text.
    Tool-added notices do not change this rule and should be left untouched.
-5. For permitted replies to bot/app PR feedback, include the related commit SHA
+3. For permitted replies to bot/app PR feedback, include the related commit SHA
    in the comment text (for example: `Fixed in <sha>`) before the disclaimer
    when one is required.
-6. Open PRs in draft mode by default (`gh pr create --draft`).
-7. Follow repository tracking requirements; preserve relevant issue references.
+4. Open PRs in draft mode by default (`gh pr create --draft`).
+5. Follow repository tracking requirements; preserve relevant issue references.
    If required tracking is unavailable, surface the gate rather than inventing
    an issue or bypassing it. Document unavailable issue tracking in the PR body
    only when repository guidance requires that context.
-8. Use `gh` CLI for all GitHub operations.
-9. Apply `writing-voice` and its artifact-authoring reference to PR descriptions.
+6. Use `gh` CLI for all GitHub operations.
+7. Apply `writing-voice` and its artifact-authoring reference to PR descriptions.
    Keep required tracking context:
    - relevant direct issue references (`Closes`/`Fixes owner/repo#N`), required
      tracking, or the documented absence of issue tracking when repository
      guidance requires it
    - optional ADR references when relevant
-10. For PRs containing code/config/script changes, run `adversarial-review`
-   before PR creation and continue fix/re-review cycles until blocker/major
-   feedback is satisfied. If the same blocker/major concern is raised twice and
-   still unsatisfied, escalate to the user before proceeding. Skip only on
-   explicit user request.
+8. Apply the PR safety gate below before creating or finalizing code/config/script
+   PRs; draft status does not waive it.
 
 ## PR/issue comment rule
 
-Before posting or replying to a PR/issue comment:
-
-1. Apply `human-interaction-safeguard` when the action responds to an existing
-   interaction. Do not draft, post, or resolve on `HUMAN_STOP` without its
-   canonical single-action authorization for that exact operation and target.
-   This skill supplies no override and cannot broaden that authorization.
-2. Include the requested substantive message and determine whether the post
-   meets a disclaimer condition.
-   If the posting identity is unknown, pause and ask before posting.
-3. If the comment invokes a GitHub issue-ops slash command (for example,
-   `/catalog-diff`), keep the slash command as the exact first line of the
-   comment. Do not prefix the command with the disclaimer or any other text.
-4. If a disclaimer is required, append it as the final paragraph of the
-   supplied body. When other content follows a slash command, never place the
-   disclaimer immediately after the command.
-5. Verify any required disclaimer remains last in the agent-composed body.
-   Do not add one for an unattributed bot, app, or service post.
-6. For a permitted PR feedback reply, add the related commit SHA
-   (`Fixed in <sha>`) before the final disclaimer when required.
+Apply the posting backstop and disclosure decision before composing a permitted
+comment. For GitHub issue-ops commands such as `/catalog-diff`, keep the slash
+command as the exact first line of the comment. The requested substantive
+content follows; any required disclaimer is the final paragraph. Do not insert
+the disclaimer immediately after the command when other content follows.
+For a permitted PR feedback reply, put `Fixed in <sha>` before the disclaimer.
 
 ## If no issue is provided
 
@@ -163,21 +137,12 @@ Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
 
 ## Authoring permitted content
 
-After the interaction gate permits drafting, load `writing-voice`. It is the
-single source of truth for voice, evidence, rationale, structure, and validation
-detail across PRs, issues, comments, reviews, and other written communication.
-Apply its final reader check immediately before every permitted post, including
-new PR and issue bodies. Writing guidance never grants permission to post.
-
-## PR description content checklist
-
-Before opening or updating a PR body, apply `writing-voice` and its
-artifact-authoring reference, including policy/config evidence guidance and the
-final reader check. Preserve direct issue references using closing syntax
-(`Closes`/`Fixes`) when applicable; otherwise
-document the tracking alternative or absence only when repository guidance
-requires it. Include ADR references when they informed a decision. These are
-content requirements, not mandatory section headings.
+After the interaction gate permits drafting, load `writing-voice`; it owns
+voice, evidence, rationale, structure and validation detail. Apply its final
+reader check immediately before every permitted post, including new PR and
+issue bodies. For PR descriptions also load its artifact-authoring reference
+and preserve the tracking context listed above. These are content requirements,
+not mandatory section headings. Writing guidance grants no posting permission.
 
 ## Skill-availability fallbacks
 
