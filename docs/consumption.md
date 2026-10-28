@@ -25,6 +25,24 @@ development and review agents require an `agent-defaults` release containing
 `writing-voice`, which is absent from `agent-defaults-v0.1.0`.
 See [releases](https://github.com/arielvalentin/agent-packages/releases).
 
+## Personal agent variants
+
+[`personal-agents`](../packages/personal-agents/README.md) is an optional,
+MIT-licensed bundle of four Awesome Copilot agents with only their top-level
+`model` fields removed. Replace the matching four supplier dependencies before
+installing it; do not install both sources or rely on filename shadowing.
+Names, tools and prompt bodies are preserved. Model inheritance and tool
+availability remain client-specific.
+
+Context Architect and Meta Agentic Project Scaffold were removed from the
+bundle. After upgrading an earlier source pin, verify that their managed native
+files are gone and refresh the client session's agent catalog. Do not retain
+separate dependencies for profiles you intend to remove.
+
+The package starts at `0.0.0` locally. Its first proposed release is `0.1.0`;
+do not use an unpublished tag. Pin a published commit SHA or a real
+`personal-agents-vX.Y.Z` tag after release.
+
 ## Deprecated coordinator package
 
 The coordinator agent is deprecated. Prefer direct agent execution and remove
