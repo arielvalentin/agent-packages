@@ -21,13 +21,6 @@
       "removedLine": "model: GPT-5\n",
       "removedLineNumber": 4
     },
-    "custom-agent-foundry.agent.md": {
-      "source": "agents/custom-agent-foundry.agent.md",
-      "upstreamSha256": "a44a820b88f00c8a57422f834fb3c82844f5995b28340f1892015db73f79a281",
-      "sha256": "81d5ff29509d65a72a106a34b3def053f2cf396fb37ca873546c4d57bcfc82b0",
-      "removedLine": "model: Claude Sonnet 4.5\n",
-      "removedLineNumber": 5
-    },
     "agent-governance-reviewer.agent.md": {
       "source": "agents/agent-governance-reviewer.agent.md",
       "upstreamSha256": "83fb9073c86faaba2b1b9c40f12037125261739ad008f8df59aa58dc45fa738d",
