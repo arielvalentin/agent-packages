@@ -28,8 +28,9 @@ repository instructions, interaction safeguards or user confirmation.
 
 ## Install
 
-The local bootstrap version is `0.0.0`. The first proposed release is `0.1.0`;
-it is not a published tag. After release, use a real package-specific tag:
+Use a published `personal-agents-vX.Y.Z` tag from
+[releases](https://github.com/arielvalentin/agent-packages/releases).
+The `0.0.0` bootstrap version is not a release.
 
 ```yaml
 dependencies:
