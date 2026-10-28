@@ -75,12 +75,21 @@ Tests use [promptfoo](https://promptfoo.dev) + [Ollama](https://ollama.com) (loc
 script/setup
 
 # Run tests
-npm test                     # all packages
-npm run test:defaults        # canonical shared skills
-npm run test:coordinator     # single package
-npm run test:reviewers
-npm run test:dev-workflow
+npm test                              # all package smoke suites
+npm run test:full                     # all full behavioral suites
+npm run test:defaults                  # full canonical shared skills suite
+npm run test:defaults:smoke            # canonical shared skills smoke suite
+npm run test:coordinator               # full coordinator suite
+npm run test:coordinator:smoke         # coordinator smoke suite
+npm run test:dev-workflow              # full development-workflow suite
+npm run test:dev-workflow:smoke        # development-workflow smoke suite
+npm run test:reviewers                 # full code-reviewers suite
+npm run test:reviewers:smoke           # code-reviewers smoke suite
 ```
+
+The smoke suites cover a small set of package-specific core behaviors and
+safety boundaries. The package commands without `:smoke` run their full
+behavioral suites; `npm run test:full` runs all four.
 
 Dependencies are declared in `Brewfile` — `script/setup` is idempotent and safe to re-run.
 
