@@ -10,15 +10,21 @@ import yaml
 
 expected = {
     "acting-on-behalf", "adversarial-review", "consensus-panel",
-    "handoff-envelope", "human-interaction-safeguard", "pr-feedback-review",
+    "git-publishing-safety", "handoff-envelope", "human-interaction-safeguard",
+    "pr-feedback-review",
     "pr-lifecycle", "pr-review-protocol", "resolve-github-user",
-    "review-fix-loop", "stage-pr", "tech-research", "writing-voice",
+    "repository-access", "review-fix-loop", "stage-pr", "tech-research",
+    "writing-voice",
 }
 defaults = Path("packages/agent-defaults")
 legacy = Path("packages/coordinator")
 skills = defaults / ".apm/skills"
 actual = {p.parent.name for p in skills.glob("*/SKILL.md")}
 assert actual == expected, f"{defaults}: missing or unexpected canonical skills"
+skill_count = len(actual)
+for path in (Path("README.md"), Path("docs/package-catalog.md")):
+    assert f"2 instructions and {skill_count} skills" in path.read_text(), \
+        f"{path}: agent-defaults primitive count is stale"
 for name in actual:
     text = (skills / name / "SKILL.md").read_text()
     metadata = yaml.safe_load(text.split("---", 2)[1])
@@ -66,14 +72,71 @@ for rule in (
 gates = instruction_texts["skill-gates.instructions"]
 for name in (
     "writing-voice", "human-interaction-safeguard", "acting-on-behalf",
-    "pr-lifecycle", "adversarial-review", "security-review", "consensus-panel",
+    "pr-lifecycle", "git-publishing-safety", "repository-access",
+    "adversarial-review", "security-review", "consensus-panel",
     "review-fix-loop", "tech-research", "datadog-url-router",
 ):
     assert f"`{name}`" in gates, f"skill-gates: missing entrypoint: {name}"
 for rule in ("fail closed as `HUMAN_STOP`", "Missing mandatory safeguards block",
+             "mandatory audience-specific disclosure check",
+             "overrides body-preservation, tracking, and citation",
              "behavior-defining configuration", "explicit_multi_review",
              "Unresolved blocker/major findings"):
     assert rule in gates, f"skill-gates: missing gate: {rule}"
+public_boundary = " ".join(Path("AGENTS.md").read_text().split()).lower()
+for rule in ("personal host/toolchain facts", "local filesystem paths",
+             "signing-key values", "private repository details, including repository names",
+             "commit shas/refs", "urls, and mappings",
+             "unless the user explicitly opts out",
+             "be at most 72 characters",
+             "no more than 72 characters before committing",
+             "never disable signing",
+             "verify the cryptographic signature on each"):
+    assert rule in public_boundary, f"AGENTS.md: missing public/commit boundary: {rule}"
+acting_policy = " ".join((skills / "acting-on-behalf/SKILL.md").read_text().split()).lower()
+for rule in ("before drafting any public/shared content",
+             "private repository names, identifiers",
+             "identifiers, commit shas, refs, or urls", "urls, or mappings",
+             "local filesystem paths", "personal host/toolchain facts",
+             "credentials, or signing-key material", "non-sensitive description",
+             "authorized, verified public source",
+             "override instructions to preserve text",
+             "do not repeat private details while explaining a redaction",
+             "verified private destination",
+             "audience is authorized to access that source",
+             "even when `repository-access` is not otherwise needed"):
+    assert rule in acting_policy, f"acting-on-behalf: missing disclosure safeguard: {rule}"
+git_policy = " ".join((skills / "git-publishing-safety/SKILL.md").read_text().split()).lower()
+for rule in ("validate both the subject format and length before committing",
+             "count the complete title separately",
+             "every resulting commit subject before publishing",
+             "72-character maximum"):
+    assert rule in git_policy, f"git-publishing-safety: missing length validation: {rule}"
+pr_lifecycle_policy = " ".join(
+    (skills / "pr-lifecycle/SKILL.md").read_text().split()
+).lower()
+for rule in ("if no pr exists, create it only when opening is authorized",
+             "repository's required creation phase and readiness state",
+             "create it here without `--draft`",
+             "complete title to be no more than 72 characters"):
+    assert rule in pr_lifecycle_policy, \
+        f"pr-lifecycle: missing creation/length rule: {rule}"
+repository_access_policy = " ".join(
+    (skills / "repository-access/SKILL.md").read_text().split()
+).lower()
+assert "follow `acting-on-behalf`'s audience-specific disclosure boundary" in repository_access_policy, \
+    "repository-access: missing public-citation boundary reference"
+root_agents = Path("AGENTS.md").read_text()
+commit_template = root_agents.split("```", 2)[1].rstrip()
+canonical_trailer = \
+    "Co-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com>"
+assert commit_template.endswith(canonical_trailer), \
+    "AGENTS.md: commit template must end with the canonical trailer"
+assert "sign every commit cryptographically" in public_boundary
+assert "trailer does not replace the git commit signature" in public_boundary
+package_readme = (defaults / "README.md").read_text()
+for name in expected:
+    assert f"- `{name}`" in package_readme, f"{defaults}/README.md: missing skill {name}"
 
 router = Path("packages/code-reviewers/.apm/skills/datadog-url-router")
 router_text = (router / "SKILL.md").read_text()
@@ -260,6 +323,95 @@ checks = [
     (allow, "Yes\nNo", False),
     (allow, "", False),
 ]
+force_assert = review_cases["git-publishing-safety: uses the guarded force-push options"]["assert"]
+checks.extend([
+    (force_assert, "--force-with-lease", True),
+    (force_assert, "--force-with-lease --force-if-includes", True),
+    (force_assert, "Use --force-with-lease and --force-if-includes.", False),
+    (force_assert, "--force-with-lease; rm artifact", False),
+    (force_assert, "--force-with-lease && git push --force", False),
+    (force_assert, "--force-with-lease >artifact", False),
+    (force_assert, '--force-with-lease "$HOME"', False),
+    (force_assert, "--force-with-lease *", False),
+    (force_assert, "--force-with-lease 'unterminated", False),
+    (force_assert, "--force-with-lease\n--force-if-includes", False),
+    (force_assert, "--force-with-lease\t--force-if-includes", False),
+    (force_assert, "git push --force-with-lease", False),
+    (force_assert, "--force-with-lease +HEAD:refs/heads/main", False),
+])
+pr_create_cases = [
+    case for description, case in review_cases.items()
+    if description.startswith((
+        "pr-lifecycle: authorized early draft PR create command",
+        "acting-on-behalf: authorized pr-lifecycle-missing fallback requires",
+    ))
+]
+assert len(pr_create_cases) == 2, "expected both authorized PR command graders"
+title_72 = "fix: " + "x" * 67
+title_73 = "fix: " + "x" * 68
+safe_command = lambda title: \
+    f'gh pr create --draft --title "{title}" --body "Refs #123"'
+for case in pr_create_cases:
+    command_assert = [case["assert"][-1]]
+    checks.extend([
+        (command_assert, safe_command(title_72), True),
+        (command_assert, safe_command(title_73), False),
+        (command_assert, f"git push --force origin HEAD; {safe_command(title_72)}", False),
+        (command_assert, f"{safe_command(title_72)} && git push --force origin HEAD", False),
+        (command_assert, f'gh pr create --draft --title "{title_72}" --body >artifact', False),
+        (command_assert, f'gh pr create --draft --title "{title_72}" --body "$HOME"', False),
+        (command_assert, f'gh pr create --draft --title "{title_72}" --body *', False),
+        (command_assert, f'gh pr create --draft --title "{title_72}" --body "Refs #123', False),
+    ])
+ready_pr_cases = [
+    review_cases["pr-lifecycle: creates a ready PR when repository guidance defers creation until gates pass"],
+    review_cases["acting-on-behalf: fallback creates a ready PR when repository guidance requires it"],
+]
+ready_command = lambda title: \
+    f'gh pr create --title "{title}" --body "Refs #123"'
+for case in ready_pr_cases:
+    command_assert = [case["assert"][-1]]
+    checks.extend([
+        (command_assert, ready_command(title_72), True),
+        (command_assert, ready_command(title_73), False),
+        (command_assert, f"gh pr create --draft --title \"{title_72}\" --body \"Refs #123\"", False),
+        (command_assert, f"git push --force origin HEAD; {ready_command(title_72)}", False),
+        (command_assert, f'{ready_command(title_72)} && git push --force origin HEAD', False),
+        (command_assert, f'{ready_command(title_72)} | cat', False),
+        (command_assert, f'{ready_command(title_72)} || echo "extra"', False),
+        (command_assert, f'{ready_command(title_72)} < "input"', False),
+        (command_assert, f'gh pr create --title "{title_72}" --body >artifact', False),
+        (command_assert, f'{ready_command(title_72)} --head "other"', False),
+    ])
+rewrite_subject = review_cases[
+    "git-publishing-safety: revalidates subjects recreated by a rebase"
+]["assert"]
+checks.extend([
+    (rewrite_subject, "No.", True),
+    (rewrite_subject, "Yes.", False),
+])
+release_disclosure = review_cases[
+    "acting-on-behalf: redacts supplied private data before public posting"
+]["assert"]
+feedback_disclosure = review_cases[
+    "pr-feedback-review: omits private SHA in a permitted public reply"
+]["assert"]
+for disclosure_assert in (release_disclosure, feedback_disclosure):
+    checks.extend([
+        (disclosure_assert, "No.", True),
+        (disclosure_assert, "Yes.", False),
+        (disclosure_assert, "Fixed in deadbeef.", False),
+        (disclosure_assert, "Fixed in deadbee.", False),
+        (disclosure_assert, "The fix is complete at /Users/dev/private/repo.", False),
+        (disclosure_assert, "The fix is complete; private repo corp/eng token=sample-secret.", False),
+    ])
+private_citation = review_cases[
+    "acting-on-behalf: permits repository-local citations for an authorized private audience"
+]["assert"]
+checks.extend([
+    (private_citation, "Yes.", True),
+    (private_citation, "No.", False),
+])
 subprocess.run(["node", "-e", """
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -270,7 +422,7 @@ for (const [rules, output, expected] of checks) {
   const actual = rules.every(rule => vm.runInNewContext(rule.value, { output }, { timeout: 1000 }));
   assert.equal(actual, expected, output);
 }
-console.log(`OK: ${checks.length} review-scenario decision-grader regressions.`);
+console.log(`OK: ${checks.length} policy decision-grader regressions.`);
 """], input=json.dumps(checks), text=True, check=True)
 
 release_config = json.loads(Path("release-please-config.json").read_text())["packages"]

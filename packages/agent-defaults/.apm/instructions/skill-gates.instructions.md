@@ -14,10 +14,19 @@ gated action; report the missing dependency rather than invent a weaker path.
   before research, implementation, drafting, posting, or resolution from the
   interaction. If unavailable, fail closed as `HUMAN_STOP`. It owns actor and
   complete-chain classification; writing guidance never overrides it.
-- Public/shared posts: load `acting-on-behalf` for permission and attribution.
+- Public/shared posts: load `acting-on-behalf` for permission, attribution,
+  and the mandatory audience-specific disclosure check. That boundary applies
+  to every public or shared destination and overrides body-preservation,
+  tracking, and citation instructions. If it is unavailable or disclosure is
+  uncertain, fail closed.
   PR creation/management uses `pr-lifecycle`; bot/app feedback permitted by the
   interaction gate uses `pr-feedback-review`. Reviewing another author's PR
   uses `pr-review-protocol`. Do not duplicate their detailed policies.
+- Git publication actions: load `git-publishing-safety` before creating or
+  rewriting commits, rebasing, pushing, force-pushing, or opening a PR.
+- Repository access: load `repository-access` when locating repositories,
+  inspecting local or remote state, citing repository findings, or changing
+  APM-managed skills and plugins.
 - Code/config/script PRs require `adversarial-review` before creation, except
   an explicit user waiver. Agent/skill instructions, safeguards, workflows,
   and contract checks are behavior-defining configuration: they require

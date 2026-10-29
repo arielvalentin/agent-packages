@@ -21,12 +21,14 @@ Skills:
 - `acting-on-behalf`
 - `adversarial-review`
 - `consensus-panel`
+- `git-publishing-safety`
 - `handoff-envelope`
 - `human-interaction-safeguard`
 - `pr-feedback-review`
 - `pr-lifecycle`
 - `pr-review-protocol`
 - `resolve-github-user`
+- `repository-access`
 - `review-fix-loop`
 - `stage-pr`
 - `tech-research`

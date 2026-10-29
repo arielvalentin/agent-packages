@@ -19,7 +19,7 @@ This document is the authoritative inventory of installable packages in this rep
 - Manifest: `packages/agent-defaults/apm.yml`
 - Purpose: repository-first defaults and shared skills for direct execution, safe public
   interactions, research, and reviews
-- Primitives: [2 instructions and 13 skills](../packages/agent-defaults/README.md#includes), no agents
+- Primitives: [2 instructions and 15 skills](../packages/agent-defaults/README.md#includes), no agents
 - Consumers: install alongside development and review agents that reference
   its skills; no mandatory coordinator routing
 
