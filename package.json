@@ -15,7 +15,7 @@
     "test:reviewers:smoke": "bash script/run-promptfoo-smoke.sh packages/code-reviewers/tests/promptfooconfig.yaml"
   },
   "devDependencies": {
-    "promptfoo": "^0.123.0"
+    "promptfoo": "^0.125.1"
   },
   "engines": {
     "node": ">=22"
