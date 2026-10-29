@@ -34,6 +34,13 @@ Load at the start of any subagent turn where the prompt begins with a
 }
 ```
 
+For flows other than `pr-review`, include a top-level
+`"acceptance_criteria": ["<concrete, verifiable outcome>"]` field. It is
+required and must be a non-empty array. A `pr-review` handoff omits this field;
+the PR body and linked issues provide the acceptance criteria.
+`inputs.artifact_paths` is optional and may be omitted or empty when there are
+no upstream artifacts.
+
 For review phases, `explicit_multi_review` is a required JSON boolean (`true`
 or `false`). The calling agent derives it from the user's request before
 loading review skills and persists it unchanged in initial, retry, and
@@ -58,9 +65,9 @@ Research-flow examples: `01-research.md`, `02-research-synthesis.md`.
 ## Read side
 
 1. Parse `handoff_envelope` JSON from the prompt.
-2. For each path in `inputs.artifact_paths`, read the file and treat its
-   contents as authoritative context.
-3. If any path is missing, stop and return an error naming the missing file.
+2. For every path supplied in `inputs.artifact_paths`, read the file before
+   starting work and treat its contents as authoritative context.
+3. If any supplied path is missing, stop and return an error naming the file.
 
 ## Write side
 
@@ -78,7 +85,8 @@ schemas, output limits, and internal evidence; do not add prose outside JSON.
 
 ## Ambiguity
 
-If the envelope is missing `goal`, `phase`, or acceptance criteria, respond
-with 1–3 clarifying questions and stop. For `flow: pr-review`, the PR body and
-linked issues are the acceptance-criteria source; unclear intent is review
-feedback to return to the calling agent, not a reason for a panel member to halt.
+If the envelope is missing `goal`, `phase`, or (outside `pr-review`) a
+non-empty `acceptance_criteria` array, respond with 1–3 clarifying questions
+and stop. For `flow: pr-review`, use the PR body and linked issues as the
+acceptance-criteria source; unclear intent is review feedback to return to the
+calling agent, not a reason for a panel member to halt.

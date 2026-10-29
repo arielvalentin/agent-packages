@@ -60,6 +60,28 @@ tests:
       - type: javascript
         value: "const l = output.toLowerCase(); l.includes('handoff') || l.includes('envelope') || l.includes('goal') || l.includes('artifact') || l.includes('assignment') || l.includes('task') || l.includes('input') || l.includes('instruction')"
 
+  - description: "implementer: accepts a self-contained handoff without artifact paths"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      companion_content: file://../../agent-defaults/.apm/skills/handoff-envelope/SKILL.md
+      user_input: "handoff_envelope: {\"flow\":\"bugfix\",\"phase\":\"implement\",\"task_id\":\"test\",\"goal\":\"Update the parser error text\",\"acceptance_criteria\":[\"The parser reports the invalid token\"],\"inputs\":{\"from_agent\":\"coordinator\",\"summary\":\"Fix parser message\"},\"constraints\":[\"Change only parser output text\"]}. No upstream artifact exists. Should you proceed or ask for an artifact? Return exactly one token: PROCEED or ASK."
+    assert:
+      - type: javascript
+        value: "/\\bproceed\\b/i.test(output) && !/\\bask\\b/i.test(output)"
+
+  - description: "system-architect: proceeds with inline requirements and no artifact paths"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/agents/system-architect.agent.md
+      companion_content: file://../../agent-defaults/.apm/skills/handoff-envelope/SKILL.md
+      user_input: "handoff_envelope: {\"flow\":\"feature\",\"phase\":\"design\",\"task_id\":\"test\",\"goal\":\"Design a parser error-message update\",\"acceptance_criteria\":[\"The design preserves the existing parser API\"],\"inputs\":{\"from_agent\":\"coordinator\",\"summary\":\"No prior research artifacts\"},\"constraints\":[\"Keep the change scoped to parser error output\"]}. No prior research artifact exists, and the inline requirements are sufficient. Should you proceed or ask for research? Return exactly one token: PROCEED or ASK."
+    assert:
+      - type: javascript
+        value: "/^PROCEED[.!]?$/i.test(output.trim())"
+
   - description: "implementer: opens the early draft PR create command non-interactively with a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception, no WIP)"
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md

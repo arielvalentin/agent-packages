@@ -428,6 +428,46 @@ tests:
       - type: icontains
         value: "STOP_INVALID_HANDOFF"
 
+  - description: "handoff-envelope: requires explicit acceptance criteria outside PR review"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/handoff-envelope/SKILL.md
+      user_input: "A bugfix handoff has a goal and phase but no acceptance_criteria array. What should you do? Return exactly one token: ASK or PROCEED."
+    assert:
+      - type: javascript
+        value: "/^ASK[.!]?$/i.test(output.trim())"
+
+  - description: "handoff-envelope: rejects empty acceptance criteria outside PR review"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/handoff-envelope/SKILL.md
+      user_input: "A bugfix handoff requires a non-empty acceptance_criteria array. Is acceptance_criteria: [] valid? Return exactly one token: YES or NO."
+    assert:
+      - type: javascript
+        value: "/^NO[.!]?$/i.test(output.trim())"
+
+  - description: "handoff-envelope: PR review uses the PR body and linked issues"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/handoff-envelope/SKILL.md
+      user_input: "A pr-review handoff omits acceptance_criteria, but its PR body and linked issues clearly state the review intent. Should the missing field block the review? Return exactly one token: BLOCK or REVIEW."
+    assert:
+      - type: javascript
+        value: "/^REVIEW[.!]?$/i.test(output.trim())"
+
+  - description: "handoff-envelope: stores change-flow criteria in the acceptance_criteria field"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/handoff-envelope/SKILL.md
+      user_input: "Which exact top-level field contains the concrete, verifiable outcomes in a non-PR handoff? Return the field name only."
+    assert:
+      - type: javascript
+        value: "output.trim().split(String.fromCharCode(96)).join('').replace(/[*!.]/g, '').toLowerCase() === 'acceptance_criteria'"
+
   - description: "agent-defaults: string review bootstrap fails closed"
     vars:
       skill_content: file://../.apm/skills/consensus-panel/SKILL.md
