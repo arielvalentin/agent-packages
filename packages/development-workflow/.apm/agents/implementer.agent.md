@@ -28,9 +28,13 @@ the shared interaction and attribution safeguards.
 When delegated, read `handoff-envelope` from `agent-defaults`. Required fields:
 
 - `goal` — one-line objective
-- `inputs.artifact_paths` — design or root-cause doc (e.g. `01-design.md`)
+- `acceptance_criteria` — concrete, verifiable outcomes for the task
+- `inputs.artifact_paths` — optional design or root-cause artifacts; omit or
+  use an empty list when no upstream artifact exists
 - `constraints` — target files, style, dependencies to add/avoid
 
+Read every supplied artifact before starting implementation. A missing
+`artifact_paths` field is not a missing required input.
 If delegated inputs are missing, return 1–3 clarifying questions and stop.
 When invoked directly, use the user's approved design or accepted bug report
 as the task input. Ask only for genuinely missing requirements.

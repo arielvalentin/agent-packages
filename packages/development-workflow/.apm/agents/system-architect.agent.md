@@ -30,10 +30,14 @@ When delegated, read `handoff-envelope` from `agent-defaults` and honor the
 caller's required schema. Use the supplied:
 
 - `goal` — problem statement.
+- `acceptance_criteria` — concrete, verifiable outcomes for the task.
 - `constraints` — target language/framework, existing services,
   performance/availability targets, deployment surface.
-- `inputs.artifact_paths` — any supplied research or design context. The list
-  can be empty when inline requirements are sufficient.
+- `inputs.artifact_paths` — optional research or design context; omit or use
+  an empty list when no upstream artifact exists.
+
+Read every supplied artifact before starting work. A missing `artifact_paths`
+field is not a missing required input.
 
 When invoked directly, use the user's requirements and supplied context.
 Ask a focused question and stop only when genuinely missing requirements or
