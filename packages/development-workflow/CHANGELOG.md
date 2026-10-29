@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.8.0...development-workflow-v0.8.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* clarify handoff acceptance criteria and artifact inputs ([#76](https://github.com/arielvalentin/agent-packages/issues/76)) ([6b058e5](https://github.com/arielvalentin/agent-packages/commit/6b058e599241d4dc08f2850ad47b15bc08a43ae5))
+
 ## [0.8.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.7.2...development-workflow-v0.8.0) (2026-10-28)
 
 

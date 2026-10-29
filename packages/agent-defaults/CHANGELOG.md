@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.4.0...agent-defaults-v0.4.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* clarify handoff acceptance criteria and artifact inputs ([#76](https://github.com/arielvalentin/agent-packages/issues/76)) ([6b058e5](https://github.com/arielvalentin/agent-packages/commit/6b058e599241d4dc08f2850ad47b15bc08a43ae5))
+
 ## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.3.0...agent-defaults-v0.4.0) (2026-10-26)
 
 
