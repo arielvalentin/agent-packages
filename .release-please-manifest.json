@@ -1,6 +1,6 @@
 {
   "packages/personal-agents": "0.2.0",
-  "packages/agent-defaults": "0.4.0",
-  "packages/development-workflow": "0.8.0",
+  "packages/agent-defaults": "0.4.1",
+  "packages/development-workflow": "0.8.1",
   "packages/code-reviewers": "0.4.0"
 }
