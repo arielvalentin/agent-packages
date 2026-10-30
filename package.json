@@ -2,6 +2,8 @@
   "name": "agent-packages",
   "private": true,
   "scripts": {
+    "test:affected": "node script/run-affected-tests.js",
+    "test:selector": "node --test script/run-affected-tests.test.js",
     "test": "npm run test:smoke",
     "test:smoke": "npm run test:defaults:smoke && npm run test:coordinator:smoke && npm run test:dev-workflow:smoke && npm run test:reviewers:smoke",
     "test:full": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
@@ -15,6 +17,7 @@
     "test:reviewers:smoke": "bash script/run-promptfoo-smoke.sh packages/code-reviewers/tests/promptfooconfig.yaml"
   },
   "devDependencies": {
+    "js-yaml": "5.4.3",
     "promptfoo": "^0.125.1"
   },
   "engines": {
