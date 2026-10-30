@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.4.1...agent-defaults-v0.5.0) (2026-10-30)
+
+
+### Features
+
+* add portable Git and repository access guidance ([bb7a8d6](https://github.com/arielvalentin/agent-packages/commit/bb7a8d60d004c188c082be4ec1a121d8fe4a1799))
+
 ## [0.4.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.4.0...agent-defaults-v0.4.1) (2026-10-29)
 
 
