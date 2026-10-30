@@ -345,15 +345,15 @@ tests:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
-  - description: "repository-access: identifies repository and source before cloning"
+  - description: "repository-access: requires repository and source in clone notices"
     metadata:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/repository-access/SKILL.md
-      user_input: "Before cloning an authorized repository, which two details must the notice identify? Answer with the two details."
+      user_input: "Before cloning an authorized repository, which two details about the clone target must the notice identify? This is not asking about a branch or commit SHA to cite for repository findings. Answer with only the two details."
     assert:
       - type: javascript
-        value: "const answer = output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''); /^(?:the )?(?:repository(?: name)? and (?:the )?source(?: url)?|(?:the )?source(?: url)? and (?:the )?repository(?: name)?)[.!]?$/i.test(answer) || /^the notice must identify the:\\s*1[.)]?\\s*repository\\s*2[.)]?\\s*source[.!]?$/i.test(answer)"
+        value: "const answer = output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''); /^(?:the )?(?:repository(?: name)? and (?:the )?source(?: url)?|(?:the )?source(?: url)? and (?:the )?repository(?: name)?)[.!]?$/i.test(answer) || /^the notice must identify the:\\s*1[.)]?\\s*repository\\s*2[.)]?\\s*source[.!]?$/i.test(answer) || /^the notice must identify the repository and source(?: that the user plans to clone)?[.!]?$/i.test(answer)"
 
   - description: "repository-access: does not clone from an unverified source"
     metadata:
@@ -384,6 +384,16 @@ tests:
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "repository-access: does not reconfirm verified scope or access"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/repository-access/SKILL.md
+      user_input: "Task scope, source, and access are verified; no separate confirmation is required. Must you ask the user to reconfirm any of those before cloning? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
   - description: "repository-access: obeys explicit tool confirmation for cloning"
     metadata:

@@ -139,6 +139,7 @@ for rule in ("first verify that the task authorizes work on it",
              "tell the user which repository and source you plan to clone",
              "the task authorization and notice are sufficient",
              "do not ask for additional approval solely to clone",
+             "do not ask the user to reconfirm verified task scope, source, or access",
              "never clone silently", "does not authorize bypassing repository access controls",
              "pause if the source, access, or requested work is not authorized"):
     assert rule in repository_access_policy, \
@@ -367,6 +368,17 @@ checks.extend([
     (clone_approval, "Yes\nNo", False),
     (clone_approval, "", False),
 ])
+clone_reconfirmation = review_cases[
+    "repository-access: does not reconfirm verified scope or access"
+]["assert"]
+checks.extend([
+    (clone_reconfirmation, "No", True),
+    (clone_reconfirmation, "No.", True),
+    (clone_reconfirmation, "Yes", False),
+    (clone_reconfirmation, "No, but ask the user to confirm anyway.", False),
+    (clone_reconfirmation, "No\nYes", False),
+    (clone_reconfirmation, "", False),
+])
 source_choice = review_cases[
     "repository-access: edits APM source rather than installed copies"
 ]["assert"]
@@ -379,14 +391,16 @@ checks.extend([
     (source_choice, "Source\nGenerated", False),
 ])
 clone_notice = review_cases[
-    "repository-access: identifies repository and source before cloning"
+    "repository-access: requires repository and source in clone notices"
 ]["assert"]
 checks.extend([
     (clone_notice, "Repository and source", True),
     (clone_notice, "The source URL and repository name.", True),
     (clone_notice, "The notice must identify the:\n\n1. Repository\n2. Source", True),
-    (clone_notice, "Do not identify the repository or source; silently clone it.", False),
+    (clone_notice, "The notice must identify the repository and source that the user plans to clone.", True),
+    (clone_notice, "The intended upstream or target branch and the inspected commit SHA.", False),
     (clone_notice, "Repository only; do not identify the source.", False),
+    (clone_notice, "Source URL only; do not identify the repository.", False),
     (clone_notice, "Repository and source; no notice is needed.", False),
 ])
 pr_create_cases = [

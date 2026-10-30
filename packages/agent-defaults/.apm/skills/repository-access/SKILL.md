@@ -27,11 +27,14 @@ clone. Check applicable tool and higher-priority confirmation requirements
 before cloning; obtain any required confirmation before proceeding. If the
 task authorizes the repository work and cloning is necessary to complete it,
 the task authorization and notice are sufficient when no separate confirmation
-is required. Do not ask for additional approval solely to clone. Never clone
-silently. This does not authorize bypassing repository access controls or using
-credentials the task does not authorize. Pause if the source, access, or
-requested work is not authorized; otherwise, continue with another authorized
-source.
+is required. After verifying task scope, source, access, and any separate
+confirmation, proceed with cloning. Do not ask for additional approval solely
+to clone. Do not ask the user to reconfirm verified task scope, source, or
+access.
+Never clone silently. This does not authorize bypassing repository access
+controls or using credentials the task does not authorize. Pause if the source,
+access, or requested work is not authorized; otherwise, continue with another
+authorized source.
 
 For repository findings, cite the inspected commit SHA or a GitHub URL. Do not
 present an inspected local snapshot as current remote state without checking it.
