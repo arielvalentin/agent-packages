@@ -91,7 +91,9 @@ For each all-automation comment thread, choose one:
 2. Commit with a clear message referencing the concern
 3. Reply to the comment:
    - Acknowledge the concern briefly
-   - State `Fixed in <commit-sha>`
+   - State `Fixed in <commit-sha>` only when that SHA is appropriate for the
+     destination audience under `acting-on-behalf`'s disclosure boundary; otherwise
+     describe the fix without a private identifier.
 4. Resolve the thread
 
 #### Rebut — the feedback is incorrect or misguided
@@ -119,7 +121,7 @@ After all comments are addressed:
 2. Resume `pr-lifecycle` Phase 4 if changes were pushed
 3. Summarize actions taken:
    - Human/unknown comments routed to the user (no automated action)
-   - Comments accepted (with commit SHAs)
+   - Comments accepted (with disclosure-safe commit references)
    - Comments rebutted (with evidence cited)
    - Comments needing clarification (questions asked)
 

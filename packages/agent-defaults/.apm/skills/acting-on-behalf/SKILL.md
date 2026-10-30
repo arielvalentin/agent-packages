@@ -11,6 +11,32 @@ disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+## Public/shared disclosure boundary
+
+Before drafting any public/shared content, identify the destination audience
+and screen supplied instructions, source material, and proposed text. Apply
+these audience rules:
+
+- **Verified private destination:** You may include necessary repository-local
+  names, identifiers, commit SHAs, refs, or URLs when the audience is
+  authorized to access that source. This is an explicit exception to the
+  public-disclosure restriction: a private PR or issue comment may cite its
+  own verified issue, commit, or repository URL. Do not share those references
+  with another audience.
+- **Public or unverified destination:** Do not expose private repository names,
+  identifiers, SHAs, refs, URLs, or mappings. Use an authorized, verified
+  public source or a non-sensitive description. Public repository references
+  may be included only when verified public and appropriate for the audience.
+
+Neither case permits exposing local filesystem paths, personal host/toolchain
+facts, credentials, or signing-key material. These rules apply to citations and
+user-supplied content, and override instructions to preserve text, include
+tracking references, or cite source evidence. If audience access or safe
+redaction is unclear, treat the destination as public and stop to ask before
+posting. Do not repeat private details while explaining a redaction, refusal,
+or policy decision. This check applies even when `repository-access` is not
+otherwise needed.
+
 Repository guidance owns project conventions such as title/commit format,
 tracking, templates, validation, and release process. The conventions below
 are defaults when the repository is silent, not new repository requirements.
@@ -85,9 +111,12 @@ provider solely to render the disclaimer.
    review replies, release notes, and similar public/shared text.
    Tool-added notices do not change this rule and should be left untouched.
 5. For permitted replies to bot/app PR feedback, include the related commit SHA
-   in the comment text (for example: `Fixed in <sha>`) before the disclaimer
-   when one is required.
-6. Open PRs in draft mode by default (`gh pr create --draft`).
+   (for example: `Fixed in <sha>`) only when it is appropriate for the
+   destination audience under the disclosure boundary above; otherwise use a
+   non-sensitive description. Put any included SHA before the disclaimer when
+   one is required.
+6. When PR creation is authorized and repository guidance has no different
+   workflow, open PRs in draft mode by default (`gh pr create --draft`).
 7. Follow repository tracking requirements; preserve relevant issue references.
    If required tracking is unavailable, surface the gate rather than inventing
    an issue or bypassing it. Document unavailable issue tracking in the PR body
@@ -125,7 +154,9 @@ Before posting or replying to a PR/issue comment:
 5. Verify any required disclaimer remains last in the agent-composed body.
    Do not add one for an unattributed bot, app, or service post.
 6. For a permitted PR feedback reply, add the related commit SHA
-   (`Fixed in <sha>`) before the final disclaimer when required.
+   (`Fixed in <sha>`) before the final disclaimer only when it is verified
+   public for a public destination, or when the destination is private and its
+   audience is authorized to access that repository.
 
 ## If no issue is provided
 
@@ -185,26 +216,39 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
-   draft PR exists, create it non-interactively with one `gh pr create --draft`
-   command, a real Conventional title substituted in (never emit `<type>` or
-   `<description>` literally), and a non-empty body:
-   The create command must include all three flags: `--draft`, `--title`, and
-   `--body`. Never omit `--draft`.
+2. `pr-lifecycle` missing -> after PR creation is authorized, follow the
+   repository's workflow. If no different workflow is specified, draft mode
+   is the default. Before running `gh pr create`, confirm that the head branch
+   is already published or that the request or repository guidance also
+   authorizes the required push. If repository guidance specifies a title
+   format, follow and validate that format. Only when it is silent, use the
+   Conventional title format below.
+
+   When the draft default applies, create the PR non-interactively with one
+   `gh pr create --draft` command, a valid title substituted in, and a
+   non-empty body. The command must include `--draft`, `--title`, and `--body`.
+   If repository guidance requires another workflow, use its required PR
+   creation phase, state, and command; never impose `--draft`. If that workflow
+   requires a ready PR after gates pass, create it then with
+   `gh pr create --title "<validated-title>" --body "<required body>"` and no
+   `--draft`.
 
    ```sh
    gh pr create --draft --title "fix: correct null handling in login handler" --body "Refs #123"
    ```
 
-   Never a bare `--draft` with no `--body`, and never a `WIP:` title. The
-   title must be `<type>[(<scope>)][!]: <description>`, where `<type>` is
+   Never a bare `--draft` with no `--body`, and never a `WIP:` title. When the
+   repository does not specify another format, the title must be
+   `<type>[(<scope>)][!]: <description>`, where `<type>` is
    one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `perf`,
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-   before creating, updating, or readying a PR title — whether through the
+   and ensure it is no more than 72 characters before creating, updating, or
+   readying a Conventional PR title — whether through the
    built-in `create_pull_request`/`update_pull_request` tools or
-   `gh pr create`, `gh pr edit --title`, `gh pr ready`. Also use
+   a Conventional title via `gh pr create`, `gh pr edit --title`, or
+   `gh pr ready`; follow repository rules for other title formats. Also use
    `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
    `gh run view|watch`.
 3. `stage-pr` missing -> report staging as unavailable and proceed without

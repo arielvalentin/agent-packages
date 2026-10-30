@@ -265,7 +265,15 @@ require "$acting" "unknown publisher pauses" \
 require "$acting" "body-preserving final footer" \
   'preserve the supplied substantive body, then append a blank line and the exact footer below as the final paragraph of the agent-composed body'
 require "$acting" "fixing SHA before footer" \
-  'include the related commit SHA.{0,100}before the disclaimer'
+  'include the related commit SHA.{0,160}only when it is appropriate for the destination audience.{0,200}before the disclaimer'
+require "$acting" "public/shared disclosure boundary" \
+  'Before drafting any public/shared content'
+require "$acting" "public and unknown audiences redact private references" \
+  'Public or unverified destination.{0,180}Do not expose private repository names'
+require "$acting" "authorized private repository citations" \
+  'Verified private destination.{0,250}audience is authorized to.{0,40}access that source'
+require "$acting" "boundary overrides content retention" \
+  'override instructions to preserve text, include tracking references, or cite source evidence'
 require "$acting" "slash command stays first" \
   'keep the slash command as the exact first line'
 require "$acting" "no lookup solely for footer" \
