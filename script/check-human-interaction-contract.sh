@@ -230,6 +230,10 @@ require "$policy" "actionable reply phrase" \
   'give an exact reply phrase'
 require "$policy" "direct user authorization still opens gate" \
   'clear direct user message in the current conversation can open the scoped gate'
+require "$policy" "parked decision accepts later direct confirmation" \
+  'A parked decision is not permanently denied.{0,180}without another question'
+require "$policy" "later draft confirmation remains draft-only" \
+  'after a draft decision is parked.{0,220}It does not authorize posting or resolution'
 require "$policy" "status never authorizes action" \
   'status question.{0,100}never authorizes'
 require "$policy" "runtime nudges are not user messages" \

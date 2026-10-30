@@ -279,6 +279,11 @@ work is reported, not which actions require authorization.
   repeating an already parked question. A real user request to ask again or a
   materially changed action, target, or scope may justify a fresh question;
   record what changed rather than relabeling the same blocked action.
+- A parked decision is not permanently denied. A later real, clear direct user
+  reply in the current conversation can authorize the pending action without
+  another question. For example, after a draft decision is parked, the real
+  user's "Yes, draft that reply" authorizes that draft once when eligibility,
+  target, and scope rechecks pass. It does not authorize posting or resolution.
 - Park only the gated step and work that depends on it. Continue independent,
   ungated work. Never substitute a smaller unauthorized action, such as a
   local commit when push/PR permission was not given. Do not claim gated work
