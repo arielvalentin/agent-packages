@@ -5,6 +5,7 @@ python3 <<'PY'
 from pathlib import Path
 import json
 import hashlib
+import re
 import subprocess
 import yaml
 
@@ -21,10 +22,16 @@ legacy = Path("packages/coordinator")
 skills = defaults / ".apm/skills"
 actual = {p.parent.name for p in skills.glob("*/SKILL.md")}
 assert actual == expected, f"{defaults}: missing or unexpected canonical skills"
-skill_count = len(actual)
 for path in (Path("README.md"), Path("docs/package-catalog.md")):
-    assert f"2 instructions and {skill_count} skills" in path.read_text(), \
-        f"{path}: agent-defaults primitive count is stale"
+    summary_lines = [
+        line for line in path.read_text().splitlines()
+        if "[Repository instructions and shared skills]" in line
+    ]
+    assert len(summary_lines) == 1, \
+        f"{path}: agent-defaults summary should use stable descriptive wording"
+    assert not re.search(r"\b\d+\s+(?:instructions?|skills?)\b",
+                         summary_lines[0], re.IGNORECASE), \
+        f"{path}: agent-defaults summary must not hard-code primitive counts"
 for name in actual:
     text = (skills / name / "SKILL.md").read_text()
     metadata = yaml.safe_load(text.split("---", 2)[1])
@@ -126,6 +133,16 @@ repository_access_policy = " ".join(
 ).lower()
 assert "follow `acting-on-behalf`'s audience-specific disclosure boundary" in repository_access_policy, \
     "repository-access: missing public-citation boundary reference"
+for rule in ("first verify that the task authorizes work on it",
+             "the source is verified", "repository access is authorized",
+             "obtain any required confirmation before proceeding",
+             "tell the user which repository and source you plan to clone",
+             "the task authorization and notice are sufficient",
+             "do not ask for additional approval solely to clone",
+             "never clone silently", "does not authorize bypassing repository access controls",
+             "pause if the source, access, or requested work is not authorized"):
+    assert rule in repository_access_policy, \
+        f"repository-access: missing notified-clone/access boundary: {rule}"
 root_agents = Path("AGENTS.md").read_text()
 commit_template = root_agents.split("```", 2)[1].rstrip()
 canonical_trailer = \
@@ -338,6 +355,39 @@ checks.extend([
     (force_assert, "--force-with-lease\t--force-if-includes", False),
     (force_assert, "git push --force-with-lease", False),
     (force_assert, "--force-with-lease +HEAD:refs/heads/main", False),
+])
+clone_approval = review_cases[
+    "repository-access: does not require separate approval solely for an authorized task clone"
+]["assert"]
+checks.extend([
+    (clone_approval, "Yes", True),
+    (clone_approval, "Yes.", True),
+    (clone_approval, "No.", False),
+    (clone_approval, "Yes, but wait for separate approval solely for the clone.", False),
+    (clone_approval, "Yes\nNo", False),
+    (clone_approval, "", False),
+])
+source_choice = review_cases[
+    "repository-access: edits APM source rather than installed copies"
+]["assert"]
+checks.extend([
+    (source_choice, "Source", True),
+    (source_choice, "Source.", True),
+    (source_choice, "**Source.**", True),
+    (source_choice, "Generated", False),
+    (source_choice, "Source, and also edit the generated copy.", False),
+    (source_choice, "Source\nGenerated", False),
+])
+clone_notice = review_cases[
+    "repository-access: identifies repository and source before cloning"
+]["assert"]
+checks.extend([
+    (clone_notice, "Repository and source", True),
+    (clone_notice, "The source URL and repository name.", True),
+    (clone_notice, "The notice must identify the:\n\n1. Repository\n2. Source", True),
+    (clone_notice, "Do not identify the repository or source; silently clone it.", False),
+    (clone_notice, "Repository only; do not identify the source.", False),
+    (clone_notice, "Repository and source; no notice is needed.", False),
 ])
 pr_create_cases = [
     case for description, case in review_cases.items()

@@ -20,8 +20,18 @@ are part of that commit. If references cannot be refreshed or compared,
 identify the inspected commit SHA and state what remote state remains unknown;
 identify uncommitted content separately or restrict claims to committed files.
 
-Do not silently clone a repository that is not already available. Ask before
-cloning, or continue with another authorized source.
+If a repository required for the task is not available locally, first verify
+that the task authorizes work on it, the source is verified, and repository
+access is authorized. Tell the user which repository and source you plan to
+clone. Check applicable tool and higher-priority confirmation requirements
+before cloning; obtain any required confirmation before proceeding. If the
+task authorizes the repository work and cloning is necessary to complete it,
+the task authorization and notice are sufficient when no separate confirmation
+is required. Do not ask for additional approval solely to clone. Never clone
+silently. This does not authorize bypassing repository access controls or using
+credentials the task does not authorize. Pause if the source, access, or
+requested work is not authorized; otherwise, continue with another authorized
+source.
 
 For repository findings, cite the inspected commit SHA or a GitHub URL. Do not
 present an inspected local snapshot as current remote state without checking it.
