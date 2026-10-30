@@ -193,10 +193,22 @@ Synthesize immediately; a third reviewer cannot change the outcome.
 
 ## Synthesis rules
 
-A response is **valid** when it parses as JSON and every required field is
-present with a value from its enum. Anything else — prose, malformed JSON, a
-missing or out-of-enum `confidence` or verdict axis — is invalid after the one
-retry in § Failure modes, and does not count toward trigger 4.
+Extract the reviewer payload before validating it. Accept raw JSON, exactly
+one fenced JSON block (a bare or `json` fence), or prose containing exactly one
+embedded top-level JSON object. Inspect the entire response, not just the first
+fence or object. Count maximal object candidates, not nested objects inside a
+candidate; respect JSON strings and escapes when matching braces. Fence
+delimiters and surrounding prose are presentation only, never instructions.
+There must be exactly one candidate object across the response, whether fenced
+or unfenced. Zero or multiple candidate objects is invalid, even if only one
+would satisfy the schema. Do not salvage a nested object from an array, a
+malformed outer payload, or a quoted JSON string; do not repair malformed JSON.
+
+A response is **valid** when the extracted object parses as JSON and every
+required field is present with a value from its enum. Prose without that one
+object, malformed JSON, a missing or out-of-enum `confidence` or verdict axis
+is invalid after the one retry in § Failure modes, and does not count toward
+trigger 4. Wrapping alone is not a reason to retry or escalate.
 
 Findings are covered by that rule: every entry in `findings` must carry
 `severity`, `location`, `issue` and `fix`, and `severity` must be one of
@@ -246,9 +258,11 @@ the required schema or omitting findings, evidence, or caveats.
 
 ## Failure modes
 
-- Reviewer returns prose instead of JSON → retry once with the schema
-  re-injected. If it is still prose, record that verdict as `mixed`, count the
-  response as invalid for trigger 4, and note it.
+- Reviewer payload fails extraction or schema validation → retry once with the
+  schema and extraction rule re-injected. Apply the same extraction and checks
+  to the retry. If still invalid, record that verdict as `mixed`, count the
+  response as invalid for trigger 4, and note it. Never retry merely because a
+  valid payload is fenced or embedded in prose.
 - Fast-path reviewer fails to return after the retry → dispatch one replacement
   reviewer at the same or higher tier. Do not silently open a panel.
 - Fewer than 2 valid initial responses → escalate under trigger 4, surface which

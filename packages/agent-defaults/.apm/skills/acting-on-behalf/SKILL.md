@@ -44,6 +44,10 @@ An issue is required only when repository guidance requires one; never invent
 a tracking gate or reference. Repository conventions do not waive permission,
 human-interaction, attribution, or mandatory review gates.
 
+For unanswered or unavailable confirmation, follow
+`human-interaction-safeguard`'s **Unattended decision handling**, including
+posting identity and disclosure blockers. This does not waive any posting gate.
+
 ## Human-interaction posting backstop
 
 Before drafting, posting, replying to, or resolving an existing public GitHub

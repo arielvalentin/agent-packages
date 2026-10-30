@@ -73,3 +73,7 @@ already published or that the request or repository guidance also authorizes
 the required push; otherwise ask before proceeding.
 
 Use `writing-voice` when reporting a blocked or failed publication action.
+
+For unanswered or unavailable authorization, follow
+`human-interaction-safeguard`'s **Unattended decision handling**. It applies to
+commit, push, history rewrite, and PR gates without broadening authorization.
