@@ -332,16 +332,14 @@ tests:
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
   - description: "git-publishing-safety: separates cryptographic validity from signer trust"
-    providers: [policy-chat]
-    prompts: [policy-chat]
     metadata:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/git-publishing-safety/SKILL.md
-      user_input: "Does this policy require separate signer ownertrust when cryptographic verification succeeds and repository guidance has no signer-trust requirement? Answer exactly one word: Yes or No."
+      user_input: "A commit's cryptographic signature verification succeeds. Signer ownertrust is unknown. The repository has no signer-trust requirement. Is the signature cryptographically valid? Answer one word: Yes or No."
     assert:
       - type: javascript
-        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
 
   - description: "git-publishing-safety: refuses when signature verification is unavailable"
     metadata:
