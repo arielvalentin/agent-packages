@@ -35,6 +35,44 @@ selector; the default branch will not include the pull request's changes.
 Smoke runners reject empty selections and cases missing `suite: smoke`
 metadata, both locally and in CI.
 
+### Affected local tests
+
+Use the opt-in selector for routine local feedback:
+
+```bash
+npm run test:selector
+npm run test:affected -- --dry-run
+npm run test:affected
+npm run test:affected -- --base main --no-cache
+```
+
+The selector unions staged, unstaged, and nonignored untracked paths. With
+`--base <ref>`, it also includes committed changes since the merge-base with
+that ref. It runs sequentially and does not change `npm test`, `test:full`,
+or CI.
+
+For each changed file, it selects smoke cases whose declared `file://` inputs
+load that file, across all four configs. If there are no matching smoke cases,
+it runs matching non-smoke cases instead. Variable arrays retain their normal
+Promptfoo expansion. Selected runs require passing results and exactly the
+expected description set.
+
+A package test/config change selects that package's smoke suite. An uncovered
+`.apm` file reports a coverage gap and falls back to its package's smoke suite.
+Unsupported input forms also report a package-smoke fallback. Shared tooling,
+unknown paths/packages, and an empty change set select all four smoke suites.
+Explicit non-input exceptions are Markdown under `docs/`, root and package
+`README.md`/`CHANGELOG.md`, and YAML workflow files under `.github/workflows/`.
+These can select nothing, with an explicit message, unless they are declared
+test inputs. `--dry-run` prints every path classification and the execution plan.
+
+This is declared-input selection, not a coverage-adequacy check. Mentions of
+other skills inside prose do not load their contents into an eval. Fallback
+smoke runs do not establish coverage for an uncovered file. Keep using full
+behavioral suites for behavior changes and existing static checks for package,
+policy, and release contracts. CI remains unchanged; selector unit and offline
+Promptfoo contract tests run separately through `test:selector`.
+
 From an individual package directory:
 
 ```bash

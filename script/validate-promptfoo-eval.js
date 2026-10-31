@@ -2,7 +2,7 @@
 
 const fs = require("node:fs");
 
-const [file, suite] = process.argv.slice(2);
+const [file, suite, expectedFile] = process.argv.slice(2);
 if (!file || !["smoke", "full"].includes(suite)) {
   console.error("Usage: node script/validate-promptfoo-eval.js <eval.json> <smoke|full>");
   process.exit(2);
@@ -33,6 +33,28 @@ if (suite === "smoke") {
   const unexpected = rows.filter((row) => row?.testCase?.metadata?.suite !== "smoke");
   if (unexpected.length) {
     console.error(`Smoke selection included ${unexpected.length} case(s) without suite=smoke metadata.`);
+    invalid = true;
+  }
+}
+
+if (expectedFile) {
+  let expected;
+  try {
+    expected = JSON.parse(fs.readFileSync(expectedFile, "utf8"));
+    if (!Array.isArray(expected) || !expected.length ||
+        expected.some((description) => typeof description !== "string" || !description)) {
+      throw new Error("expected a nonempty array of descriptions");
+    }
+  } catch (error) {
+    console.error(`Unable to read expected descriptions: ${error.message}`);
+    process.exit(1);
+  }
+  const actual = new Set(rows.map((row) => row?.testCase?.description));
+  const wanted = new Set(expected);
+  const missing = expected.filter((description) => !actual.has(description));
+  const extra = [...actual].filter((description) => !wanted.has(description));
+  if (missing.length || extra.length) {
+    console.error(`Executed description mismatch: missing=${JSON.stringify(missing)}, extra=${JSON.stringify(extra)}`);
     invalid = true;
   }
 }
