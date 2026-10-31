@@ -206,7 +206,30 @@ require "$panel" "fast-path envelope carrying the anti-recursion semantics" \
 require "$panel" "operational definition of a new dependency" \
   '\*\*new dependency\*\*'
 require "$panel" "definition of a valid response" \
-  'a response is \*\*valid\*\* when it parses as json'
+  'a response is \*\*valid\*\* when the extracted object parses as json'
+require "$panel" "raw, fenced, and embedded payload support" \
+  'Accept raw JSON, exactly one fenced JSON block.{0,100}exactly one embedded top-level JSON object'
+require "$panel" "unique candidate across entire response" \
+  'exactly one candidate object across the response, whether fenced or unfenced'
+require "$panel" "ambiguous candidates fail closed" \
+  'Zero or multiple candidate objects is invalid'
+require "$panel" "nested objects are not separate candidates" \
+  'Count maximal object candidates, not nested objects'
+require "$panel" "string-aware brace matching" \
+  'respect JSON strings and escapes'
+require "$panel" "no malformed-payload repair" \
+  'do not repair malformed JSON'
+require "$panel" "one retry preserves extraction" \
+  'retry once with the schema and extraction rule re-injected'
+require "$panel" "wrappers do not cause retry or escalation" \
+  'Wrapping alone is not a reason to retry or escalate'
+for case_name in \
+  'consensus-panel: accepts a unique wrapped payload' \
+  'consensus-panel: rejects ambiguous or invalid payloads' \
+  'consensus-panel: wrapped payload still requires schema validation' \
+  'consensus-panel: extraction preserves one retry and no fourth reviewer'; do
+  require "$tests" "regression $case_name" "$case_name"
+done
 require "$panel" "finding entries are covered by the validity rule" \
   'malformed finding entry is invalid'
 require "$panel" "total confidence rule" \

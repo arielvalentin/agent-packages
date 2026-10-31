@@ -14,6 +14,9 @@ gated action; report the missing dependency rather than invent a weaker path.
   before research, implementation, drafting, posting, or resolution from the
   interaction. If unavailable, fail closed as `HUMAN_STOP`. It owns actor and
   complete-chain classification; writing guidance never overrides it.
+- Authorization questions in any workflow: load `human-interaction-safeguard`
+  for its canonical **Unattended decision handling** when confirmation is
+  unanswered or unavailable. This reporting rule grants no authorization.
 - Public/shared posts: load `acting-on-behalf` for permission, attribution,
   and the mandatory audience-specific disclosure check. That boundary applies
   to every public or shared destination and overrides body-preservation,

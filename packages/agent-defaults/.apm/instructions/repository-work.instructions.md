@@ -14,6 +14,8 @@ description: Repository-first task ownership, evidence, surgical changes, and fo
   No coordinator or specialist is required for every phase. Clarify material
   ambiguity, behavior/scope changes, or consequential choices; use reasonable
   defaults for routine details. Autopilot never bypasses user/permission gates.
+  For unanswered gates, follow `human-interaction-safeguard`'s **Unattended
+  decision handling** rather than stalling independent work.
 - Inspect relevant context and prior art before editing. Reuse existing
   patterns/tools; make complete, surgical changes, including directly related
   documentation. Preserve unrelated work and intended behavior. Avoid unrelated

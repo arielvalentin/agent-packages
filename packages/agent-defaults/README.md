@@ -50,6 +50,18 @@ The calling agent owns task scope, review handoffs, synthesis, and user gates.
 For review dispatches, the caller records `explicit_multi_review` as a JSON
 boolean in every handoff; missing or invalid values fail closed.
 
+Unanswered authorization uses `human-interaction-safeguard`'s canonical
+unattended decision handling. Synthetic unavailable-user responses are not
+consent. Agents park gated work without repeating the question, finish
+independent work, and surface pending decisions with reply phrases in their
+final summary or coordinated handoff. Clear direct user authorization still
+opens an eligible gate.
+
+Reviewer output may be raw JSON, one fenced JSON block, or one embedded
+top-level JSON object. `consensus-panel` extracts the unique payload before
+applying the same schema and finding checks; ambiguous or malformed payloads
+remain invalid.
+
 Install this package alongside `development-workflow` or `code-reviewers`,
 which reference its handoff, lifecycle, and review skills. These agent packages
 do not bundle shared skills themselves.
