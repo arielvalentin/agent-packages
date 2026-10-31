@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.5.0...agent-defaults-v0.5.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* handle unanswered gates and wrapped review verdicts ([#81](https://github.com/arielvalentin/agent-packages/issues/81)) ([33dba31](https://github.com/arielvalentin/agent-packages/commit/33dba316d476696a01d52a85b7b325c4b621bea0))
+
 ## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.4.1...agent-defaults-v0.5.0) (2026-10-30)
 
 
