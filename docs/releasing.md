@@ -13,6 +13,29 @@ This repository is versioned by git tags. Consumers are expected to pin tags in 
    then merge the release PR.
 6. Verify the package-specific GitHub releases and tag SHAs.
 
+## Release automation authentication
+
+Release Please uses a GitHub App installation token instead of `GITHUB_TOKEN`.
+This lets release PRs trigger CI and affected-package eval workflows without
+the "Approve workflows to run" prompt associated with `GITHUB_TOKEN`-created PRs.
+Normal workflow event and path filters still apply.
+
+Before enabling this workflow, a repository administrator must:
+
+1. Create a GitHub App with **Contents**, **Issues**, and **Pull requests**
+   repository permissions set to **Read and write**.
+2. Install the App on this repository only.
+3. Set the repository Actions variable `RELEASE_PLEASE_APP_CLIENT_ID` to the
+   App's client ID.
+4. Generate the App's private key and store it directly as the repository
+   Actions secret `RELEASE_PLEASE_APP_PRIVATE_KEY`. Never commit or share it.
+
+Both values must exist before merging changes that enable App authentication.
+The workflow runs on every push to `main` and fails if App authentication is
+missing or invalid. It requests only the three permissions above, limits the
+token to the current repository, and revokes it when the job finishes.
+The workflow's `GITHUB_TOKEN` has no explicitly granted permissions.
+
 ## Tagging
 
 Release Please uses `release-please-config.json` and
