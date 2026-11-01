@@ -45,7 +45,8 @@ tests:
     prompts: [policy-chat]
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
-      user_input: "A user directly asks you to fix a parser error. The task is clear and small. Per your instructions, may you delegate it to another agent? Answer exactly one word: Yes or No."
+      companion_content: file://../../agent-defaults/.apm/instructions/repository-work.instructions.md
+      user_input: "You are assigned directly as implementer. development-workflow is installed and implementer delegation is available. The user asks you to fix a clear, small parser error. May you delegate the assigned implementation to another agent? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim())"
@@ -108,10 +109,10 @@ tests:
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
       companion_content: file://../../agent-defaults/.apm/skills/handoff-envelope/SKILL.md
-      user_input: "handoff_envelope: {\"flow\":\"bugfix\",\"phase\":\"implement\",\"task_id\":\"test\",\"goal\":\"Update the parser error text\",\"acceptance_criteria\":[\"The parser reports the invalid token\"],\"inputs\":{\"from_agent\":\"coordinator\",\"summary\":\"Fix parser message\"},\"constraints\":[\"Change only parser output text\"]}. No upstream artifact exists. Should you proceed or ask for an artifact? Return exactly one token: PROCEED or ASK."
+      user_input: "handoff_envelope: {\"flow\":\"bugfix\",\"phase\":\"implement\",\"task_id\":\"test\",\"goal\":\"Update the parser error text\",\"acceptance_criteria\":[\"The parser reports the invalid token\"],\"inputs\":{\"from_agent\":\"coordinator\",\"summary\":\"Fix parser message\"},\"constraints\":[\"Change only parser output text\"]}. No upstream artifact exists. Should the implementer accept this task or ask for an artifact? Output only the exact uppercase token PROCEED or ASK, with no other text."
     assert:
       - type: javascript
-        value: "const asksForArtifact = /\\bask for (?:an? )?artifacts?\\b/i.test(output) && !/\\b(?:not|never) ask for (?:an? )?artifacts?\\b/i.test(output); /\\bproceed\\b/i.test(output) && !asksForArtifact"
+        value: "/^PROCEED[.!]?$/i.test(output.trim())"
 
   - description: "system-architect: proceeds with inline requirements and no artifact paths"
     metadata:
