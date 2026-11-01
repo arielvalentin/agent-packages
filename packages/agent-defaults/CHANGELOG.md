@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.5.1...agent-defaults-v0.6.0) (2026-11-01)
+
+
+### Features
+
+* clarify implementation and publishing ownership ([#84](https://github.com/arielvalentin/agent-packages/issues/84)) ([d81f568](https://github.com/arielvalentin/agent-packages/commit/d81f56881b2b5eda5b6f5618097b605822048f9c))
+
 ## [0.5.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.5.0...agent-defaults-v0.5.1) (2026-10-31)
 
 
