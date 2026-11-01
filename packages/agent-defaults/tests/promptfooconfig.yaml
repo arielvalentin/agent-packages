@@ -443,26 +443,6 @@ tests:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
-  - description: "git-publishing-safety: follows a non-draft repository PR workflow"
-    metadata:
-      suite: smoke
-    vars:
-      skill_content: file://../.apm/skills/git-publishing-safety/SKILL.md
-      user_input: "The repository requires PRs to be opened ready for review, not as drafts. Should you impose the generic draft default? Answer exactly one word: Yes or No."
-    assert:
-      - type: javascript
-        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
-
-  - description: "git-publishing-safety: does not invent an issue requirement"
-    metadata:
-      suite: smoke
-    vars:
-      skill_content: file://../.apm/skills/git-publishing-safety/SKILL.md
-      user_input: "Repository guidance says an issue is not required for PRs. Should you impose a tracking issue anyway? Answer exactly one word: Yes or No."
-    assert:
-      - type: javascript
-        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
-
   - description: "git-publishing-safety: caps Conventional Commit subjects"
     metadata:
       suite: smoke
@@ -1337,6 +1317,26 @@ tests:
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
       user_input: "The `pr-lifecycle` skill is unavailable, the user authorized a PR, the head branch is published, and repository guidance requires PRs to be opened ready for review. Should the fallback add `--draft`? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: preserves a non-draft repository workflow"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The repository requires PRs to be opened ready for review, not as drafts. Should you impose the generic draft default? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not invent an issue requirement"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Repository guidance says an issue is not required for PRs. Should you impose a tracking issue anyway? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"

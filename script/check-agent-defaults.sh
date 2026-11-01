@@ -129,15 +129,18 @@ for rule in ("validate both the subject format and length before committing",
              "every resulting commit subject before publishing",
              "72-character maximum"):
     assert rule in git_policy, f"git-publishing-safety: missing length validation: {rule}"
+for rule in ("use the draft default", "require a tracking issue only when"):
+    assert rule not in git_policy, \
+        f"git-publishing-safety: duplicates PR lifecycle policy: {rule}"
 pr_lifecycle_policy = " ".join(
     (skills / "pr-lifecycle/SKILL.md").read_text().split()
 ).lower()
-for rule in ("if no pr exists, create it only when opening is authorized",
+for rule in ("if no pr exists and publication is authorized under `git-publishing-safety`",
              "repository's required creation phase and readiness state",
              "create it here without `--draft`",
-"the regex does not enforce the shared title-length limit; follow `git-publishing-safety` for that check",
+"the regex does not enforce the shared title-length limit. follow `git-publishing-safety` for that check",
              "before pr creation or any required branch push, follow `git-publishing-safety` for publication authorization",
-             "opening a pr does not authorize pushing an unpublished branch"):
+             "follow repository tracking requirements; do not invent a required issue when none applies"):
     assert rule in pr_lifecycle_policy, \
         f"pr-lifecycle: missing creation/length rule: {rule}"
 for rule in ("ask before pushing or opening a pr unless",

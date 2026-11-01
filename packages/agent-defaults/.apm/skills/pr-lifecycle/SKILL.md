@@ -41,15 +41,13 @@ before either phase; apply the canonical template and content rules there.
 For `feature`, `bugfix`, and `refactor` flows:
 
 Before PR creation or any required branch push, follow
-`git-publishing-safety` for publication authorization. Opening a PR does not
-authorize pushing an unpublished branch.
+`git-publishing-safety` for publication authorization.
 
-1. Once opening a PR is authorized by the user's request or repository
-   guidance, and the repository does not prescribe another workflow, open an
-   early **draft PR** with a valid title from the start, never a placeholder
-   like `WIP: <goal>`. A branch existing alone is not authorization. Follow the
-   repository's required title format. Only if none is specified, use
-   Conventional Commits:
+1. Once publication is authorized under `git-publishing-safety`, and the
+   repository does not prescribe another workflow, open an early **draft PR**
+   with a valid title from the start, never a placeholder like `WIP: <goal>`.
+   Follow the repository's required title format. Only if none is specified,
+   use Conventional Commits:
    ```bash
    gh pr create --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"
    ```
@@ -77,16 +75,14 @@ do not introduce a draft transition.
 
 When implementation is complete and gates pass:
 
-1. If no PR exists, create it only when opening is authorized. Follow the
-   repository's required creation phase and readiness state. When guidance
-   requires the PR to be opened ready only after gates pass, create it here
-   without `--draft`:
+1. If no PR exists and publication is authorized under
+   `git-publishing-safety`, follow the repository's required creation phase and
+   readiness state. When guidance requires the PR to be opened ready only
+   after gates pass, create it here without `--draft`:
    ```bash
    gh pr create --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
-   Follow `git-publishing-safety` for publication authorization, including any
-   required push. If repository guidance prescribes another command or state,
-   follow it.
+   If repository guidance prescribes another command or state, follow it.
 2. Recheck the applicable PR template and preserve its structure and required
    answers under `writing-voice`'s artifact-authoring rules.
 3. Follow the repository's title format. For the default Conventional format,
@@ -104,8 +100,9 @@ When implementation is complete and gates pass:
    ```
 4. Rewrite the body using `writing-voice`, including its validation-detail
    rules. Follow the repository template when present; otherwise use only the
-   structure this change needs. Preserve relevant issue and ADR references
-   and apply conditional AI attribution via `acting-on-behalf`.
+   structure this change needs. Follow repository tracking requirements; do
+   not invent a required issue when none applies. Preserve relevant issue and
+   ADR references and apply conditional AI attribution via `acting-on-behalf`.
    PR-body attribution is not part of feedback processing:
    `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
    sole source of truth for whether a PR body needs AI attribution.
@@ -148,7 +145,7 @@ Commits defaults for titles created or updated in Phase 1 and Phase 3:
   through the built-in `create_pull_request`/`update_pull_request` tools
   or the `gh pr create`, `gh pr edit --title`, `gh pr ready` commands:
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-  The regex does not enforce the shared title-length limit; follow
+  The regex does not enforce the shared title-length limit. Follow
   `git-publishing-safety` for that check. Use repository-required formats
   instead when they differ.
   This regex validates only the default Conventional format, not a different
