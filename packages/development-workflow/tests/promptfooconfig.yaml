@@ -2,20 +2,63 @@ description: "Development workflow package behavioral tests"
 
 providers:
   - id: ollama:llama3.2:3b
-    config:
+    config: &local_model_config
       temperature: 0
     label: skill-under-test
+  - id: ollama:chat:llama3.2:3b
+    config: *local_model_config
+    label: policy-chat
 
 prompts:
-  - "{{skill_content}}\n{{companion_content | default('')}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+  - id: skill-completion
+    raw: "{{skill_content}}\n{{companion_content | default('')}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+  - id: policy-chat
+    raw: |
+      {% set instructions = skill_content ~ "\n" ~ (companion_content | default("")) %}
+      [
+        {"role": "system", "content": {{ instructions | dump }}},
+        {"role": "user", "content": {{ user_input | dump }}}
+      ]
+
+defaultTest:
+  providers: [skill-under-test]
+  prompts: [skill-completion]
 
 tests:
+  - description: "routing: ordinary requests default to implementer"
+    metadata:
+      suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
+    vars:
+      skill_content: file://../../agent-defaults/.apm/instructions/repository-work.instructions.md
+      companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "You are the main agent, development-workflow is installed, and implementer delegation is available and permitted. The user asks to fix a parser error. No approved design or bug report exists. Which agent implements by default? Return only IMPLEMENTER or MAIN."
+    assert:
+      - type: javascript
+        value: "/^IMPLEMENTER[.!]?$/i.test(output.trim())"
+
+  - description: "implementer: ordinary direct requests do not recurse"
+    metadata:
+      suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      companion_content: file://../../agent-defaults/.apm/instructions/repository-work.instructions.md
+      user_input: "You are assigned directly as implementer. development-workflow is installed and implementer delegation is available. The user asks you to fix a clear, small parser error. May you delegate the assigned implementation to another agent? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
   - description: "implementer: standalone oversized tasks return to the user"
     metadata:
       suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
-      user_input: "You are invoked directly. The request combines a profile-settings page with an unrelated API-documentation rewrite. Return exactly one token: ASK_USER or IMPLEMENT_BOTH."
+      user_input: "You are invoked directly. The user asks for an unrelated profile-settings page and API-documentation rewrite in the same request. Should you ask the user to split the work, or implement both? Return exactly ASK_USER or IMPLEMENT_BOTH."
     assert:
       - type: javascript
         value: "/^ASK_USER$/i.test(output.trim())"
@@ -66,10 +109,10 @@ tests:
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
       companion_content: file://../../agent-defaults/.apm/skills/handoff-envelope/SKILL.md
-      user_input: "handoff_envelope: {\"flow\":\"bugfix\",\"phase\":\"implement\",\"task_id\":\"test\",\"goal\":\"Update the parser error text\",\"acceptance_criteria\":[\"The parser reports the invalid token\"],\"inputs\":{\"from_agent\":\"coordinator\",\"summary\":\"Fix parser message\"},\"constraints\":[\"Change only parser output text\"]}. No upstream artifact exists. Should you proceed or ask for an artifact? Return exactly one token: PROCEED or ASK."
+      user_input: "handoff_envelope: {\"flow\":\"bugfix\",\"phase\":\"implement\",\"task_id\":\"test\",\"goal\":\"Update the parser error text\",\"acceptance_criteria\":[\"The parser reports the invalid token\"],\"inputs\":{\"from_agent\":\"coordinator\",\"summary\":\"Fix parser message\"},\"constraints\":[\"Change only parser output text\"]}. No upstream artifact exists. Should the implementer accept this task or ask for an artifact? Output only the exact uppercase token PROCEED or ASK, with no other text."
     assert:
       - type: javascript
-        value: "/\\bproceed\\b/i.test(output) && !/\\bask\\b/i.test(output)"
+        value: "/^PROCEED[.!]?$/i.test(output.trim())"
 
   - description: "system-architect: proceeds with inline requirements and no artifact paths"
     metadata:

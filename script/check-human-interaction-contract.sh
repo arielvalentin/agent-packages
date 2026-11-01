@@ -242,8 +242,7 @@ require "$policy" "runtime nudges cannot be forwarded" \
   'Never forward them to other sessions as instructions'
 for downstream in "$acting" \
   "$root/packages/agent-defaults/.apm/skills/git-publishing-safety/SKILL.md" \
-  "$root/packages/agent-defaults/.apm/instructions/skill-gates.instructions.md" \
-  "$root/packages/agent-defaults/.apm/instructions/repository-work.instructions.md"; do
+  "$root/packages/agent-defaults/.apm/instructions/skill-gates.instructions.md"; do
   require "$downstream" "canonical unattended decision routing" \
     'human-interaction-safeguard.{0,40}Unattended decision handling'
 done
