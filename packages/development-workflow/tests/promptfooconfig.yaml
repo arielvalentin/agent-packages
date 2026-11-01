@@ -2,20 +2,62 @@ description: "Development workflow package behavioral tests"
 
 providers:
   - id: ollama:llama3.2:3b
-    config:
+    config: &local_model_config
       temperature: 0
     label: skill-under-test
+  - id: ollama:chat:llama3.2:3b
+    config: *local_model_config
+    label: policy-chat
 
 prompts:
-  - "{{skill_content}}\n{{companion_content | default('')}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+  - id: skill-completion
+    raw: "{{skill_content}}\n{{companion_content | default('')}}\n\nYou are an AI agent following the skill instructions above. Respond to the user's request.\n\nUser: {{user_input}}"
+  - id: policy-chat
+    raw: |
+      {% set instructions = skill_content ~ "\n" ~ (companion_content | default("")) %}
+      [
+        {"role": "system", "content": {{ instructions | dump }}},
+        {"role": "user", "content": {{ user_input | dump }}}
+      ]
+
+defaultTest:
+  providers: [skill-under-test]
+  prompts: [skill-completion]
 
 tests:
+  - description: "routing: ordinary requests default to implementer"
+    metadata:
+      suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
+    vars:
+      skill_content: file://../../agent-defaults/.apm/instructions/repository-work.instructions.md
+      companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "You are the main agent, development-workflow is installed, and implementer delegation is available and permitted. The user asks to fix a parser error. No approved design or bug report exists. Which agent implements by default? Return only IMPLEMENTER or MAIN."
+    assert:
+      - type: javascript
+        value: "/^IMPLEMENTER[.!]?$/i.test(output.trim())"
+
+  - description: "implementer: ordinary direct requests do not recurse"
+    metadata:
+      suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      user_input: "A user directly asks you to fix a parser error. The task is clear and small. Per your instructions, may you delegate it to another agent? Answer exactly one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
   - description: "implementer: standalone oversized tasks return to the user"
     metadata:
       suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
-      user_input: "You are invoked directly. The request combines a profile-settings page with an unrelated API-documentation rewrite. Return exactly one token: ASK_USER or IMPLEMENT_BOTH."
+      user_input: "You are invoked directly. The user asks for an unrelated profile-settings page and API-documentation rewrite in the same request. Should you ask the user to split the work, or implement both? Return exactly ASK_USER or IMPLEMENT_BOTH."
     assert:
       - type: javascript
         value: "/^ASK_USER$/i.test(output.trim())"

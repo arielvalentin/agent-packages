@@ -7,8 +7,7 @@ This package installs no coordinator agent and requires no coordinator routing.
 
 Unconditional instructions in `.apm/instructions/`:
 
-- `repository-work.instructions.md`: repository precedence, task ownership,
-  surgical changes, evidence, and focused validation.
+- `repository-work.instructions.md`: repository precedence, evidence, and a conditional default implementation owner when `development-workflow` is installed.
 - `skill-gates.instructions.md`: canonical entrypoints and mandatory interaction,
   posting, and bounded review gates.
 
@@ -45,7 +44,7 @@ dependencies:
 Replace the placeholder with a [published package tag](https://github.com/arielvalentin/agent-packages/releases)
 that includes `writing-voice`; `agent-defaults-v0.1.0` predates this skill.
 Run `apm install --target copilot`. Invoke the appropriate agent directly and load skills when
-their triggers apply. Delegate only when specialist context helps the task.
+their triggers apply. Follow the installed execution package's default implementation owner.
 The calling agent owns task scope, review handoffs, synthesis, and user gates.
 For review dispatches, the caller records `explicit_multi_review` as a JSON
 boolean in every handoff; missing or invalid values fail closed.

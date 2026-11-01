@@ -40,6 +40,10 @@ before either phase; apply the canonical template and content rules there.
 
 For `feature`, `bugfix`, and `refactor` flows:
 
+Before PR creation or any required branch push, follow
+`git-publishing-safety` for publication authorization. Opening a PR does not
+authorize pushing an unpublished branch.
+
 1. Once opening a PR is authorized by the user's request or repository
    guidance, and the repository does not prescribe another workflow, open an
    early **draft PR** with a valid title from the start, never a placeholder
@@ -55,17 +59,16 @@ For `feature`, `bugfix`, and `refactor` flows:
      initial change is clearly `docs`, `test`, `chore`, `ci`, `perf`,
      `build`, or `revert` work, use that type instead.
    - Validate the title against § Title format before creating the PR.
-   - Before running the command, confirm the head branch is already published
-     or that the request or repository guidance also authorizes the required
-     push. A PR request alone does not authorize an implicit push by `gh pr create`.
 2. Skip for `research` flows, when the user explicitly declines, or when
    repository guidance prescribes a different PR workflow, including creating
    the PR only after implementation gates pass.
 
 ## Phase 2 — Implementation & gates
 
-Work proceeds through the calling agent, with optional `implementer` delegation
-and review gates (`review-fix-loop`). No coordinator agent is required.
+Follow `repository-work`'s task-ownership rule: use the installed `implementer`
+when delegation is available and permitted; otherwise, the calling agent owns
+implementation. Preserve PR lifecycle orchestration and review gates
+(`review-fix-loop`). No coordinator agent is required.
 When the repository workflow uses an early draft, keep the PR in draft until
 all gates pass. Otherwise preserve the state required by repository guidance;
 do not introduce a draft transition.
@@ -81,9 +84,9 @@ When implementation is complete and gates pass:
    ```bash
    gh pr create --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
-   Before running the command, confirm the head branch is already published
-   or that the request or repository guidance also authorizes the required
-   push. If repository guidance prescribes another command or state, follow it.
+   Follow `git-publishing-safety` for publication authorization, including any
+   required push. If repository guidance prescribes another command or state,
+   follow it.
 2. Recheck the applicable PR template and preserve its structure and required
    answers under `writing-voice`'s artifact-authoring rules.
 3. Follow the repository's title format. For the default Conventional format,
@@ -124,8 +127,6 @@ For example, a repository requiring a ticket prefix keeps that prefix.
 Only when the repository supplies no title format, use these Conventional
 Commits defaults for titles created or updated in Phase 1 and Phase 3:
 
-- Keep Conventional Commit subjects and PR titles within the 72-character
-  maximum in `git-publishing-safety`.
 - Default: `<type>: <description>`.
 - `<description>` must be non-empty and separated from the colon by at
   least one whitespace character — `fix:` (no description) and `fix:   `
@@ -147,9 +148,9 @@ Commits defaults for titles created or updated in Phase 1 and Phase 3:
   through the built-in `create_pull_request`/`update_pull_request` tools
   or the `gh pr create`, `gh pr edit --title`, `gh pr ready` commands:
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-  For this Conventional format, also require the complete title to be no more
-  than 72 characters; the regex does not enforce length. Use repository-required
-  formats instead when they differ.
+  The regex does not enforce the shared title-length limit; follow
+  `git-publishing-safety` for that check. Use repository-required formats
+  instead when they differ.
   This regex validates only the default Conventional format, not a different
   repository-required format.
 
@@ -255,8 +256,8 @@ After the PR is **merged**:
 
 - `human-interaction-safeguard` — source of truth for actor behavior.
 - `acting-on-behalf` — posting and attribution backstop.
-- `git-publishing-safety` — authorization, commit rules, and the shared
-  Conventional Commit subject and PR title length cap.
+- `git-publishing-safety` — publication authorization, commit signing and
+  history, and the shared Conventional title-length limit.
 - `writing-voice` — shared authoring and final reader check.
 - `pr-feedback-review` — bot/app feedback handling after actor classification.
 - `review-fix-loop` — for gate iteration.
