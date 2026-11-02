@@ -1570,7 +1570,7 @@ tests:
       - type: javascript
         value: "/^gh pr create --repo octo\\/example --draft --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
 
-  - description: "pr-lifecycle: authorized ready PR create command has repository, title, and body"
+  - description: "pr-lifecycle: creates a ready PR when repository guidance defers creation until gates pass"
     metadata:
       suite: smoke
     vars:
@@ -2998,7 +2998,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: 'The pr-lifecycle skill is unavailable. I authorized a PR for this published bugfix branch; repository guidance has no different workflow. No PR exists. Return exactly one plain shell command with this argument order: gh pr create --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
+      user_input: 'The pr-lifecycle skill is unavailable. I authorized a draft PR for this published bugfix branch in octo/example; repository guidance has no different workflow. No PR exists. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
     assert:
       - type: icontains
         value: "--draft"
@@ -3007,17 +3007,17 @@ tests:
       - type: icontains
         value: "--body"
       - type: javascript
-        value: "/^gh pr create --draft --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
+        value: "/^gh pr create --repo octo\\/example --draft --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
 
   - description: "acting-on-behalf: fallback creates a ready PR when repository guidance requires it"
     metadata:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: 'The pr-lifecycle skill is unavailable. I authorized a PR for this published bugfix branch. Repository guidance requires opening it ready only after gates pass. Gates passed, issue #123 tracks it, and no PR exists. Return exactly one plain shell command with this argument order: gh pr create --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
+      user_input: 'The pr-lifecycle skill is unavailable. I authorized a PR for this published bugfix branch in octo/example. Repository guidance requires opening it ready only after gates pass. Gates passed, issue #123 tracks it, and no PR exists. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
     assert:
       - type: javascript
-        value: "/^gh pr create --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
+        value: "/^gh pr create --repo octo\\/example --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
 
   - description: "acting-on-behalf: pr-lifecycle defers attribution policy"
     vars:
