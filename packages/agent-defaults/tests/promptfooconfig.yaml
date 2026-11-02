@@ -262,6 +262,66 @@ tests:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
+  - description: "pr-lifecycle: excludes manual workflow runs from required checks"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Which Actions event cannot satisfy a required PR check? Answer with the event name only."
+    assert:
+      - type: icontains
+        value: "workflow_dispatch"
+
+  - description: "pr-lifecycle: applies event eligibility only to Actions jobs"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "For a required check from an external GitHub App, should you verify its configured producer identity or its workflow event? Answer with the identity to verify."
+    assert:
+      - type: icontains
+        value: "producer"
+
+  - description: "pr-lifecycle: does not treat external failures as Actions runs"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A failing required check was created by an external GitHub App, not GitHub Actions. To diagnose its cause, inspect which source: Actions run logs or the producer's output/details or target URL?"
+    assert:
+      - type: javascript
+        value: "output.toUpperCase().includes('OUTPUT/DETAILS') || output.toUpperCase().includes('TARGET URL')"
+
+  - description: "pr-lifecycle: reports external service outages"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The external check's failure report says the provider is down, with no issue in repository code. Which next step applies: IMPLEMENT_FIX or REPORT_EXTERNAL_BLOCKER?"
+    assert:
+      - type: icontains
+        value: "REPORT_EXTERNAL_BLOCKER"
+
+  - description: "pr-lifecycle: permits optional failures when required checks pass"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When mergeStateStatus is UNSTABLE, policy is verified, and every required check passes, can the required-check gate pass despite an optional failure? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: retrieves all attempts before checking workflow events"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must you retrieve all check-run attempts so an ineligible manual run cannot hide an earlier eligible result? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
   - description: "repository-work: no invented repository requirements"
     metadata:
       suite: smoke
@@ -271,6 +331,225 @@ tests:
     assert:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: rechecks review threads before readiness"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The final review-thread retrieval finds a newly unresolved actionable thread, although the head SHA is unchanged. Is the PR ready? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: permits unresolved rebuttal after permitted reply"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "After its permitted rebuttal reply is posted, may the thread remain open for the reviewer? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: blocks unresolved clarification"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A review thread is awaiting clarification, with no answer yet. May the lifecycle report the PR ready? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: requires two matching final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before reporting readiness, must two consecutive complete snapshots agree on PR state, head/base, checks, and all review-thread state? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: compares required policy across final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The two final snapshots have matching SHAs and check results, but the refreshed required-check policy differs. May you report ready? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: repeats paginated policy and check reads in final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must each final snapshot reread every effective-rule page and every check-result page for the current head? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: includes all feedback surfaces in final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must each final snapshot include reviews, inline comments, issue/PR comments, and paginated review threads, not threads alone? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: paginates nested review comments in final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A review thread has another comments page that was not retrieved in either final snapshot. May you report ready? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: classifies feedback that arrives before final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must every new PR review comment found in final snapshots be retrieved and classified before readiness? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: processes actionable feedback found in final snapshots"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "An actionable bot issue comment, absent from reviewThreads, appears in both final snapshots but Phase 6 has not processed it. May you report ready? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: gates Copilot fixes on complete thread classification"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "After Phase 5 finds actionable Copilot feedback, may you dispatch a fix before complete Phase 6 thread retrieval and human-interaction classification? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+  - description: "pr-lifecycle: stops fixes for a closed or merged PR"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "For a closed PR, should the lifecycle report the state and stop without dispatching fixes? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: avoids cleanup for a read-only merged-PR check"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "For a status-only request where the PR was already merged at task start, does the existing-PR entrypoint say to report the state and stop? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: gates existing-PR fixes on publishing authorization"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before dispatching a fix that may be committed or pushed, does the skill require authorization from git-publishing-safety? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: gates direct fixes on publishing authorization"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does git-publishing-safety apply before a direct local fix, not only before delegating or pushing? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not notify reviewers without authorization"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "If a reviewer notification is not explicitly authorized by the user or required by repository guidance, is re-requesting a reviewer ALLOWED or BLOCKED?"
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join('').toUpperCase().includes('BLOCKED')"
+
+  - description: "pr-lifecycle: continues CI verification without reviewer notification"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "An authorized fix was pushed, but reviewer notification is not authorized. Should the lifecycle stop or continue by rerunning Phase 4? Answer exactly Yes or No: Yes means continue."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: allows behind branches when up-to-date checks are disabled"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When strict/up-to-date policy is false, which merge state may be accepted: BEHIND or UNKNOWN? Answer with one state."
+    assert:
+      - type: javascript
+        value: "output.toUpperCase().includes('BEHIND') && !output.toUpperCase().includes('BLOCKED')"
+
+  - description: "pr-lifecycle: blocks behind branches when strict checks require updates"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "All status checks pass, but mergeStateStatus is BEHIND and an applicable strict/up-to-date policy is true. May the PR pass readiness? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not treat required workflow rules as an empty check set"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: 'An active effective rules page contains {"type":"workflows","parameters":{"workflows":[{"path":".github/workflows/test.yml","ref":"main","repository_id":123,"sha":"abc"}]}} and no required status-check contexts. May you treat the required policy as empty and report ready? Answer exactly Yes or No.'
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: user skip does not waive required checks"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The user skips Copilot review. Does a failing required check still block merge readiness? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: explicit user skip satisfies the Copilot gate"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The user explicitly asked to skip Copilot review. All other readiness gates pass. Is the Copilot review gate accounted for? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
   - description: "git-publishing-safety: separates PR authorization from push authorization"
     metadata:
@@ -1280,7 +1559,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: 'I authorized a draft PR for this published bugfix branch. Issue #123 tracks it; repository guidance has no different workflow. Return exactly one plain shell command with this argument order: gh pr create --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
+      user_input: 'I authorized a draft PR for this published bugfix branch in octo/example. Issue #123 tracks it; repository guidance has no different workflow. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
     assert:
       - type: icontains
         value: "--draft"
@@ -1289,17 +1568,23 @@ tests:
       - type: icontains
         value: "--body"
       - type: javascript
-        value: "/^gh pr create --draft --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
+        value: "/^gh pr create --repo octo\\/example --draft --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
 
-  - description: "pr-lifecycle: creates a ready PR when repository guidance defers creation until gates pass"
+  - description: "pr-lifecycle: authorized ready PR create command has repository, title, and body"
     metadata:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: 'I authorized a PR for this published bugfix branch. Repository guidance requires opening it ready only after gates pass. Gates passed, issue #123 tracks it, and no PR exists. Return exactly one plain shell command with this argument order: gh pr create --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
+      user_input: 'I authorized a PR for this published bugfix branch in octo/example. Gates pass, issue #123 tracks it, and repository guidance requires opening it ready, not draft. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with nonempty text. No prose, Markdown fences, outer quotes, escaped quotes, `--draft`, extra flags, or additional commands. This is a command-format exercise, not a public post.'
     assert:
+      - type: icontains
+        value: "gh pr create"
+      - type: icontains
+        value: "--repo octo/example"
+      - type: icontains
+        value: "--body"
       - type: javascript
-        value: "/^gh pr create --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
+        value: "/^gh pr create --repo octo\\/example --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
 
   - description: "acting-on-behalf: fallback honors a repository-required title format"
     metadata:
@@ -1479,14 +1764,650 @@ tests:
   - description: "pr-lifecycle: monitors CI after push"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "My PR is already open and I just pushed commits. Quote the Phase 4 command for watching CI."
+      user_input: "For bounded CI monitoring in the full PR lifecycle, which helper should you use when available? Answer exactly one: watch-ci or wait-for-copilot-code-review."
     assert:
       - type: contains
-        value: "gh pr checks"
+        value: "watch-ci"
+
+  - description: "pr-lifecycle: routes existing PR shepherding handoffs"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The PR is already open. One skill must drive feedback, required CI, and merge readiness through to clean. Which skill owns that lifecycle: `pr-lifecycle` or `review-fix-loop`?"
+    assert:
+      - type: javascript
+        value: "output.toLowerCase().includes('pr-lifecycle')"
+
+  - description: "pr-lifecycle: scopes reads to the requested repository"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When the target PR is outside the active repository, which `gh pr` flag scopes the read to the correct repository?"
+    assert:
       - type: contains
-        value: "--watch"
+        value: "--repo"
+
+  - description: "pr-lifecycle: scopes failed-run reads to the requested repository"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "To run `gh run view` against an external repository, include `--repo owner/repo`. What exact flag scopes it? Answer only `--repo`."
+    assert:
       - type: contains
-        value: "--fail-fast"
+        value: "--repo"
+
+  - description: "pr-lifecycle: scopes review API reads to the requested repository"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When reading reviews for an external PR, should the API path contain the resolved literal `owner/repo` rather than infer it from the active checkout? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: retains CI and Copilot wait triggers"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does this skill explicitly cover `watch CI` and `wait for Copilot review` requests? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: starts existing PR work at phase 4"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the skill tell you to start existing-PR shepherding at Phase 4? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: keeps standalone CI waits bounded"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "I only want to watch CI until checks finish with a bounded wait, without fixing feedback. Which route applies? Answer exactly one: READ_ONLY or FULL_LOOP."
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[.*]/g, '').split(String.fromCharCode(96)).join('').toUpperCase() === 'READ_ONLY'"
+
+  - description: "pr-lifecycle: uses the bounded CI helper for CI-only waits"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "For a CI-only bounded wait, which helper should you use: `watch-ci` or `wait-for-copilot-code-review`? Answer exactly one helper name."
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[*_.]/g, '').split(String.fromCharCode(96)).join('').toLowerCase() === 'watch-ci'"
+
+  - description: "pr-lifecycle: uses the bounded Copilot helper for review-only waits"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "I only want a bounded Copilot review wait, and the `wait-for-copilot-code-review` helper is available. What should you use? Answer only the helper name."
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[*_.]/g, '').split(String.fromCharCode(96)).join('').toLowerCase() === 'wait-for-copilot-code-review'"
+
+  - description: "pr-lifecycle: keeps CI fallback to one status check"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The `watch-ci` helper is unavailable. Is the standalone fallback one read-only CI check without `--watch`? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: fallback reports optional CI checks"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "For the standalone one-query CI fallback, should the result include optional checks as well as required checks? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: bounds full-loop CI waits"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Required CI is still pending after the 10-minute wait. Should you continue waiting indefinitely or report pending and stop? Answer exactly REPORT or WAIT."
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[.*]/g, '').split(String.fromCharCode(96)).join('').toUpperCase().includes('REPORT')"
+
+  - description: "pr-lifecycle: full-loop fallback polls the selected SHA"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When `watch-ci` cannot monitor the selected governing SHA in the full lifecycle, what should the fallback poll: the selected SHA's check/status APIs or `gh pr checks`?"
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('selected sha') && (l.includes('api') || l.includes('check/status'))"
+
+  - description: "pr-lifecycle: keeps Copilot fallback to one status check"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The `wait-for-copilot-code-review` helper is unavailable. Is the standalone fallback one review query without repeat polling? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: refreshes the state snapshot before reporting clean"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must the fresh state snapshot before reporting an existing PR clean include the required CI rollup and merge state? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: requires fresh exit verification"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before notifying the user a PR is ready to merge, must you take a fresh state snapshot and retrieve every review-thread page? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts only eligible merge states"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When required checks pass, does the skill allow `mergeStateStatus=UNSTABLE`? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not report drafts ready to merge"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "All other gates pass, but the PR is still a draft. May the lifecycle report it ready to merge? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: bounds Copilot review wait"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "If no Copilot review appears, how long should a direct wait last before proceeding? Answer briefly."
+    assert:
+      - type: javascript
+        value: "const l = output.toLowerCase(); l.includes('10') && l.includes('minute')"
+
+  - description: "pr-lifecycle: rejects stale Copilot review coverage"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A Copilot review is attached to an earlier commit, not the current PR head SHA. Does it cover the current revision? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: rejects a lookalike Copilot reviewer app"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A current-head review comes from a Bot account with a Copilot-like login, but its authoritative App metadata identifies an unrelated app. Does it count as Copilot coverage? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts the exact Copilot reviewer identity"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A current-head review is by exact login `copilot-pull-request-reviewer[bot]` and actor metadata establishes a Bot/App. Can it count as Copilot coverage? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: blocks readiness on stale review coverage"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "CI passes and all threads are resolved, but the only Copilot review is on an earlier commit and the 10-minute wait has not ended. Is the PR ready to merge? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not restart an expired current-head review wait"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The Phase 5 wait for the current head ended without a current-head Copilot review. Which Phase 7 outcome applies? Answer exactly one: TIMEOUT_COUNTS or OLD_REVIEW_BLOCKS."
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[.*]/g, '').split(String.fromCharCode(96)).join('').toUpperCase() === 'TIMEOUT_COUNTS'"
+
+  - description: "pr-lifecycle: rejects stale CI after a head change"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A push changed the current PR head SHA. Are CI results from the earlier head stale? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: verifies the worktree before fixing feedback"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before a CI or review fix, should you verify the active repository, worktree, branch, local changes, and PR head against the latest PR state? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: treats wrong or dirty checkout as hard stop"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "This checkout has the wrong branch and unrelated local changes. Are those a hard stop that forbids dispatching fixes or editing files? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: checks the PR head against the active checkout"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before editing a PR feedback fix, should I compare the active checkout with the latest PR head? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: blocks readiness on a failing required check"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The PR is open and non-draft and mergeStateStatus is CLEAN, but the selected SHA has one required check failing. Is the PR ready to merge? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: permits an explicitly empty required-check set"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The command reports no required checks. Base-branch protection and all applicable rulesets confirm none are configured. Does the required-check gate pass? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: recognizes an empty policy after a no-check result"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The required-check command returns its no-checks result. Both branch protection and every applicable ruleset were successfully read and require no checks. Is the required set verified empty? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: reads effective rules for the base branch"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the skill use `repos/<owner>/<repo>/rules/branches/<url-encoded-base>` to read effective rules for the base branch? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: paginates effective branch rules"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Should you use `--paginate` to retrieve every page of effective rules for the base branch? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: encodes slash-containing base branch names"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Using the skill's rule, does base branch `release/1.x` become `release%2F1.x` as one path segment? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: blocks when a policy-required check has no result"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A required check has no result for the head. Which status applies: PENDING or PASSED?"
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join('').toUpperCase().includes('PENDING')"
+
+  - description: "pr-lifecycle: rejects conflicting results for a required context"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A required context has a passing check run and a failing same-name commit status on an eligible SHA. Does the context pass? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts neutral required check runs"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the skill explicitly list `neutral` as a passing completed check-run conclusion? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts skipped required check runs"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the skill explicitly list `skipped` as a passing completed check-run conclusion? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: treats cancelled required checks as non-passing"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Is `cancelled` listed as a non-passing check-run conclusion? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: treats pending check-run status as pending"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A required check run has status `pending` and no conclusion. Is its state PENDING or PASSED?"
+    assert:
+      - type: javascript
+        value: "output.toUpperCase().includes('PENDING') && !output.toUpperCase().includes('PASSED')"
+
+  - description: "pr-lifecycle: ignores superseded failed check attempts"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must you ignore a failed check-run attempt when a later attempt with the same check name and producer supersedes it? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: supersedes check attempts only by name and producer"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A later run in a different suite has the same required-check name and producer as an older failed run. Does it supersede that attempt? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: retains different named check runs in a suite"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the skill say that a rerun supersedes only an earlier attempt with the same check name and producer, while distinct names remain independent? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: uses test-merge check results when present"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The verified test-merge commit has a failed required check, while the head check passes. May the head result substitute? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: passing test-merge result governs over head"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The verified test-merge commit passes a required check, while the head result fails. Does the passing test-merge result govern? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: falls back to head checks when merge has none"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "When the verified test-merge commit has no status-check results, may the head results govern? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: unrelated merge result still selects merge SHA"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "If the verified test-merge SHA has an optional status result, must all required contexts still be checked on that SHA rather than using a result from HEAD? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: latest unrestricted commit status supersedes older status"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the skill use only the latest commit status per context and ignore superseded older status records? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: rejects a required check from the wrong app"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Policy requires context `build` from integration 42. A passing `build` result came from integration 99 on this head. Does it satisfy the requirement? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts the current PR merge-commit check"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Are the test-merge commit's two parents ordered as captured base SHA, then captured head SHA? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts an any-app required check"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does branch-protection `app_id: -1` allow a passing required check from any app? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: rejects unverified legacy status identity"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must authoritative metadata prove the pinned integration ID before a legacy status can satisfy the requirement? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: blocks readiness when required-check policy is unknown"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The `gh pr checks --required` query failed, and neither base-branch protection nor applicable rulesets can be verified. Is the PR ready to merge? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts verified empty classic-check policy"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The full-protection API succeeds with 200 and returns `required_status_checks: null`. Are classic required checks absent? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: accepts a protection 404 with verified access"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The active credential is a GitHub App installation token with this repository access and `Administration: read`; the base branch is readable and full protection returns 404. Is classic protection absent? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: treats required-check subresource 404 as ambiguous"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "After the `required_status_checks` subresource returns 404, what must you read next: FULL_PROTECTION or EMPTY_POLICY?"
+    assert:
+      - type: javascript
+        value: "output.toUpperCase().includes('FULL_PROTECTION')"
+
+  - description: "pr-lifecycle: rejects settings permission from another credential"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Must branch-protection permission be verified for the active credential itself, not a different credential? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: rejects protection 404 for an unreadable base branch"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "If base-branch readability cannot be verified, must the branch policy remain unknown? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: fails closed on unverified branch-policy access"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "If settings-read permission cannot be confirmed for the active credential, is the required-check policy unknown? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: reports optional check failures without fixes"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Which check failure enters the Phase 4 implementation path? Answer exactly one: REQUIRED or OPTIONAL."
+    assert:
+      - type: javascript
+        value: "output.trim().replace(/[.*]/g, '').split(String.fromCharCode(96)).join('').toUpperCase() === 'REQUIRED'"
+
+  - description: "pr-lifecycle: retrieves optional check results for reporting"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Can `gh pr checks` replace direct selected-SHA results as the required-check gate? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not infer a review skip from absent evidence"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "No Copilot request or review is visible and repository guidance does not say review is disabled. Should you still wait for Copilot review? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: rejects a head change during final verification"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "All readiness evidence passed, but the final PR head reread differs from the snapshot. Is it ready to report? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: prevents unrelated review-driven refactors"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A PR review fix is clear, and I also noticed an unrelated refactor opportunity. May I include that drive-by refactor without asking? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
   # --- pr-review-protocol ---
   - description: "pr-review-protocol: waits for required CI before review"
