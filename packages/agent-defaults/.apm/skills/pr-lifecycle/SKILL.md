@@ -48,6 +48,48 @@ latest state. If it is already merged, report that state and stop; do not infer
 a cleanup request or enter Phase 8 for a status-only request. If closed,
 notify the user and stop; only an open PR proceeds to Phase 4. Do not create or
 retitle a PR unless the user asks.
+For an existing draft, keep it in draft while required checks or feedback gates
+remain. After Phase 4 checks pass, retrieve and classify all feedback through
+Phase 6 before the review wait; address actionable feedback only through its
+safeguards, rerunning checks and feedback retrieval after each push. Once checks
+pass and feedback processing leaves no actionable finding, unresolved
+clarification, or required permitted reply, mark it ready only when the user or
+repository guidance authorizes that transition. Do not mark the PR ready just
+to trigger required checks that cannot pass while it is a draft; report that
+blocker and stop. Immediately before a permitted transition, take two
+consecutive complete snapshots. In each, record opening PR state, title,
+head/base SHAs, base name, merge state, and the complete reviewer-request set
+using the endpoint and validation defined in Phase 5. Retrieve complete
+PR state with this command for each opening, closing, and final read:
+
+```bash
+gh pr view <number> --repo <owner>/<repo> --json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus
+```
+
+Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat both
+retrievals. Finish with fresh PR and reviewer-request reads after the last
+feedback page. Retrieve and classify all feedback surfaces again after those
+closing reads, then retrieve policy/check evidence once more. Finish with one
+final PR-state and reviewer-request read after those final evidence reads.
+Compare opening, closing, and final PR/reviewer values and all repeated
+policy/check and feedback evidence within and across snapshots. Any mismatch
+invalidates the transition; return to Phase 4 and the applicable feedback
+handling. Require the PR to
+remain open and a draft, the head/base/base-name tuple to match Phase 4, all
+required checks to pass, the reviewer-request sets to remain unchanged, and
+the feedback sets to match the fully processed set with no new actionable
+finding, unresolved clarification, or required permitted reply. If these
+conditions hold and the current title passes § Title format, run:
+
+```bash
+gh pr ready <number> --repo <owner>/<repo>
+```
+
+If transition authority is absent, report the draft blocker and stop. After a
+transition, discard all earlier readiness evidence and restart Phases 4–6 for
+the current PR state; this path never creates or retitles the PR. The snapshots
+above are the draft-transition gate, not Phase 7's readiness snapshots. Do not
+wait for Copilot review or enter Phase 7 while the PR remains a draft.
 Before any implementation or fix dispatch, including a Phase 4 CI fix, verify
 the PR is still open and verify the active repository, worktree, branch, local
 changes, and PR head against the latest PR state. Recheck immediately before
@@ -369,10 +411,12 @@ Retrieve and classify the complete feedback surfaces listed in Phase 6 using
 `human-interaction-safeguard`; do not run Phase 7's repeated snapshot sequence
 here. This feedback-routing pass never replies, resolves, or dispatches a
 feedback fix. If any feedback is `HUMAN_STOP`, return control to the user
-immediately. If actionable feedback is found, queue it for Phase 6 after Phase
-5; do not use this read as readiness evidence. Otherwise, proceed to Phase 5
-after this single read. Only Phase 7's two final snapshots can establish
-readiness.
+immediately. If actionable feedback is found on an existing draft, route it
+to Phase 6 now; after each permitted fix or push, restart Phase 4 and retrieve
+and classify feedback again. For a non-draft PR, queue actionable feedback for
+Phase 6 after Phase 5. Do not use this read as readiness evidence. Otherwise,
+proceed to Phase 5 after this single read. Only Phase 7's two final snapshots
+can establish readiness.
 
 Missing required contexts are not an empty policy or a pass. If either policy
 source or check results cannot be verified, do not report the PR ready.
@@ -423,9 +467,10 @@ gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRe
 ```
 
 The PR must be open and non-draft. If it is closed or merged, follow the
-existing closed/merged handling; if it is a draft, stop. If any compared value
-differs, return to Phase 4 and refresh policy, checks, and feedback before
-starting the review wait.
+existing closed/merged handling; if it is a draft, follow the Existing PR
+entrypoint's transition path or report the authorization blocker and stop. If
+any compared value differs, return to Phase 4 and refresh policy, checks, and
+feedback before starting the review wait.
 
 The 10-minute wait starts immediately before the first completed-review poll.
 Those entry checks do not count toward the wait. If polling directly, poll every
@@ -565,7 +610,17 @@ user input or an action lacks authorization.
 gh pr edit <number> --repo <owner>/<repo> --add-reviewer <reviewer>
 ```
 
-Re-run Phase 4 after any push.
+Re-run Phase 4 after any push. For an existing draft routed from Phase 4, use
+this complete exit rule, which takes precedence over generic loop routing:
+stop and return control if clarification or another user response is pending;
+after a push, rerun Phase 4; after completed processing with no push or pending
+clarification, go directly to the existing-draft transition snapshots, which
+refresh checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
+case or act on unchanged feedback again. Record handled findings and their
+feedback state so they are not replied to, resolved, or fixed twice. Count
+each draft feedback iteration toward Phase 7's 10-iteration limit; after 10,
+stop and report unresolved items instead of attempting a transition. Do not
+fall through to Phase 5 or Phase 7 while the PR remains a draft.
 
 ## Phase 7 — Loop exit conditions
 
@@ -593,8 +648,15 @@ ready and continue only through the existing bounded steps or report blockers.
 Before reporting readiness, take two consecutive complete snapshots. In each,
 record opening PR state, draft status, head/base SHAs, base name, merge state,
 and the complete review-request set; retrieve complete policy/check evidence
-and all review, comment, and thread pages. Repeat policy/check and feedback
-retrieval, then finish with fresh PR and review-request reads. Use
+and all review, comment, and thread pages. Repeat policy/check and feedback retrieval, then finish with fresh PR state,
+draft status, head/base/base-name, and merge state reads plus a fresh complete
+reviewer-set read. Retrieve and classify all feedback surfaces again after
+those closing reads, then retrieve complete policy/check evidence once more.
+Finish with one final PR-state and reviewer-set read after those final
+evidence reads. Compare the closing and final PR/reviewer reads with the
+opening values, the final feedback with the earlier feedback sets, and the
+final policy/check evidence with the earlier policy/check evidence; any
+observed change invalidates the snapshot. Use
 `human-interaction-safeguard` on every feedback read: `HUMAN_STOP` discards the
 snapshot and returns control; actionable feedback discards it for Phase 6.
 Never reply, resolve, or fix feedback inside a snapshot. Fail closed on any
@@ -605,12 +667,13 @@ policy rules, required contexts/producers and strictness; selected governing
 SHA and any generated merge SHA/verified parent SHAs; check attempts, results,
 and workflow events; review/comment IDs, states, bodies, and actor types;
 thread IDs, resolution, and comments; and reviewer type-qualified IDs.
-Within each snapshot, compare opening/closing PR and reviewer state plus
-repeated policy/check and feedback sets. Across snapshots, compare those same
-sets and PR state; also compare both snapshots' head/base/base-name tuple with
-the tuple accepted at Phase 5 entry. Any mismatch or observed state change
-invalidates both snapshots and requires a new pair. Reads are sequential, not
-atomic; readiness does not guarantee GitHub cannot change after the last read.
+Within each snapshot, compare opening/closing PR and reviewer state, the
+repeated policy/check evidence, and feedback sets. Across snapshots, compare
+those same sets and PR state; also compare both snapshots' head/base/base-name
+tuple with the tuple accepted at Phase 5 entry. Any mismatch or observed state
+change invalidates both snapshots and requires a new pair. Reads are
+sequential, not atomic; readiness does not guarantee GitHub cannot change
+after the last read.
 If Phase 5 used a review for coverage, both final snapshots must still contain
 that review as current-head eligible with the recorded state and actor
 metadata. If it becomes missing, dismissed, pending, stale, or unverifiable,

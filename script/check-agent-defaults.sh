@@ -746,6 +746,75 @@ review_cases = {
     case["description"]: case
     for case in yaml.safe_load((defaults / "tests/promptfooconfig.yaml").read_text())["tests"]
 }
+lifecycle_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+draft_entrypoint = lifecycle_text.split("## Existing PR entrypoint", 1)[1].split(
+    "## Standalone waits", 1
+)[0]
+draft_entrypoint = " ".join(draft_entrypoint.split())
+draft_transition_steps = [
+    "After Phase 4 checks pass, retrieve and classify all feedback through Phase 6 before the review wait",
+    "only when the user or repository guidance authorizes that transition",
+    "take two consecutive complete snapshots",
+    "and the complete reviewer-request set using the endpoint and validation defined in Phase 5",
+    "--json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus",
+    "Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat both retrievals",
+    "Finish with fresh PR and reviewer-request reads after the last feedback page",
+    "Retrieve and classify all feedback surfaces again after those closing reads",
+    "then retrieve policy/check evidence once more",
+    "Finish with one final PR-state and reviewer-request read after those final evidence reads",
+    "Compare opening, closing, and final PR/reviewer values and all repeated policy/check and feedback evidence within and across snapshots",
+    "Any mismatch invalidates the transition",
+    "Require the PR to remain open and a draft",
+    "all required checks to pass",
+    "the feedback sets to match the fully processed set",
+    "conditions hold and the current title passes § Title format",
+    "gh pr ready <number> --repo <owner>/<repo>",
+    "After a transition, discard all earlier readiness evidence and restart Phases 4–6",
+]
+draft_transition_positions = [draft_entrypoint.index(step) for step in draft_transition_steps]
+assert draft_transition_positions == sorted(draft_transition_positions), \
+    "existing draft transition must compare reviewers around refreshed checks and feedback, verify state and authorization, validate the title, and restart evidence"
+assert "Do not mark the PR ready just to trigger required checks that cannot pass while it is a draft" in draft_entrypoint, \
+    "existing drafts must not be readied solely to start required checks"
+normalized_lifecycle = " ".join(lifecycle_text.split())
+assert "Do not wait for Copilot review or enter Phase 7 while the PR remains a draft" in draft_entrypoint, \
+    "draft transition snapshots must be distinct from Phase 7 readiness snapshots"
+assert "after completed processing with no push or pending clarification, go directly to the existing-draft transition snapshots" in normalized_lifecycle, \
+    "completed no-push draft feedback must proceed to refreshed transition evidence instead of repeating Phase 4"
+assert "Count each draft feedback iteration toward Phase 7's 10-iteration limit" in normalized_lifecycle, \
+    "draft feedback iteration must remain bounded by the lifecycle limit"
+assert "stop and return control if clarification or another user response is pending" in normalized_lifecycle, \
+    "draft feedback must stop while clarification or user response is pending"
+draft_feedback_routing = lifecycle_text.split("## Phase 4 — Monitor CI", 1)[1].split(
+    "## Phase 5 — Wait for Copilot code review", 1
+)[0]
+draft_feedback_routing = " ".join(draft_feedback_routing.split())
+draft_feedback_steps = [
+    "If actionable feedback is found on an existing draft, route it to Phase 6 now",
+    "For a non-draft PR, queue actionable feedback for Phase 6 after Phase 5",
+]
+draft_feedback_positions = [draft_feedback_routing.index(step) for step in draft_feedback_steps]
+assert draft_feedback_positions == sorted(draft_feedback_positions), \
+    "existing drafts must process actionable feedback before Phase 5 while non-drafts retain the Phase 5 wait"
+final_snapshots = lifecycle_text.split("## Phase 7 — Loop exit conditions", 1)[1].split(
+    "## Phase 8 — Post-merge cleanup", 1
+)[0]
+final_snapshots = " ".join(final_snapshots.split())
+snapshot_steps = [
+    "and all review, comment, and thread pages",
+    "Repeat policy/check and feedback retrieval",
+    "then finish with fresh PR state, draft status, head/base/base-name, and merge state reads plus a fresh complete reviewer-set read",
+    "Retrieve and classify all feedback surfaces again after those closing reads",
+    "then retrieve complete policy/check evidence once more",
+    "Finish with one final PR-state and reviewer-set read after those final evidence reads",
+    "Compare the closing and final PR/reviewer reads with the opening values",
+    "the final feedback with the earlier feedback sets",
+    "the final policy/check evidence with the earlier policy/check evidence",
+    "any observed change invalidates the snapshot",
+]
+snapshot_positions = [final_snapshots.index(step) for step in snapshot_steps]
+assert snapshot_positions == sorted(snapshot_positions), \
+    "final snapshots must reread feedback and checks after closing reads, then finish with final PR/reviewer state"
 reject = review_cases["pr-review-protocol: excludes unsupported findings"]["assert"]
 allow = review_cases["pr-review-protocol: includes supported findings"]["assert"]
 assert reject == review_cases["pr-review-protocol: rejects fragmented review delivery"]["assert"]
@@ -910,6 +979,24 @@ for case in ready_pr_cases:
         (command_assert, 'gh pr create --repo octo/example --title "fix: handle null" --body "$(whoami)"', False),
         (command_assert, 'gh pr create --repo octo/example --title "fix: handle null" --body "   "', False),
     ])
+existing_draft_case = review_cases[
+    "pr-lifecycle: readies an authorized existing draft after gates"
+]
+assert existing_draft_case.get("metadata", {}).get("suite") == "smoke", \
+    "existing draft transition grader must run in CI"
+existing_draft_command_assert = [existing_draft_case["assert"][-1]]
+existing_draft_command = "gh pr ready <number> --repo <owner>/<repo>"
+existing_draft_fenced_command = f"```bash\n{existing_draft_command}\n```"
+checks.extend([
+    (existing_draft_command_assert, existing_draft_command, True),
+    (existing_draft_command_assert, existing_draft_fenced_command, False),
+    (existing_draft_command_assert, "gh pr ready <number>", False),
+    (existing_draft_command_assert, "gh pr ready <number> --repo <owner>/<other>", False),
+    (existing_draft_command_assert, f"gbashh pr ready <number> --repo <owner>/<repo>", False),
+    (existing_draft_command_assert, f"{existing_draft_command} --title \"feat: new title\"", False),
+    (existing_draft_command_assert, f"{existing_draft_command} && git push --force origin HEAD", False),
+    (existing_draft_command_assert, f"gh pr edit <number> --title \"feat: new title\" && {existing_draft_command}", False),
+])
 rewrite_subject = review_cases[
     "git-publishing-safety: revalidates subjects recreated by a rebase"
 ]["assert"]

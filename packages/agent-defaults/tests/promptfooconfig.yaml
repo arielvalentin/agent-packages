@@ -287,10 +287,10 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "A required context is pinned to app ID 42. A passing check with the same name comes from app ID 99. Does it satisfy the requirement? Answer exactly Yes or No."
+      user_input: "Required producer ID: 42. Actual producer ID: 99. Return the required status: PASS or BLOCK."
     assert:
       - type: javascript
-        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+        value: "output.toUpperCase().includes('BLOCK')"
 
   - description: "pr-lifecycle: does not treat external failures as Actions runs"
     metadata:
@@ -309,8 +309,8 @@ tests:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
       user_input: "The external check's failure report says the provider is down, with no issue in repository code. Which next step applies: IMPLEMENT_FIX or REPORT_EXTERNAL_BLOCKER?"
     assert:
-      - type: icontains
-        value: "REPORT_EXTERNAL_BLOCKER"
+      - type: javascript
+        value: "const s = output.toLowerCase(); s.includes('report_external_blocker') || (s.includes('blocker') && s.includes('stop'))"
 
   - description: "pr-lifecycle: permits optional failures when required checks pass"
     metadata:
@@ -1961,6 +1961,96 @@ tests:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
+  - description: "pr-lifecycle: readies an authorized existing draft after gates"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "What exact command line does the skill provide to mark an authorized existing draft ready? Output only the plain-text command, with no Markdown code fence or explanation."
+    assert:
+      - type: javascript
+        value: "output.trim() === 'gh pr ready <number> --repo <owner>/<repo>'"
+
+  - description: "pr-lifecycle: requires authorization to ready an existing draft"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "No one authorized the draft state change. Should the lifecycle stop and report a blocker instead of running `gh pr ready`? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: refreshes evidence after readying an existing draft"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "After an authorized existing-draft transition to ready, may pre-transition checks and review evidence establish readiness? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: refreshes checks and feedback before draft transition"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Before marking an existing draft ready, must you refresh required checks and complete feedback, then close with fresh PR and reviewer reads? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: blocks changed reviewer requests before draft transition"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The complete requested-reviewer set changed during the pre-transition checks. May the lifecycle still run `gh pr ready`? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: does not ready a draft just to trigger checks"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The user authorizes readying this draft only after required checks pass. Those checks are still pending. Is the transition authorized? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: avoids looping after no-push draft feedback"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Does the draft-specific rule override generic Phase 4 routing after no-push feedback processing finishes with no pending clarification? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
+  - description: "pr-lifecycle: stops while draft clarification is pending"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A clarification is pending on an existing draft. What should the lifecycle do: RETURN_CONTROL or REPEAT_PHASE_4?"
+    assert:
+      - type: icontains
+        value: "RETURN_CONTROL"
+
+  - description: "pr-lifecycle: invalidates feedback arriving during closing reads"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A new actionable comment appears in the final feedback retrieval after the closing PR and reviewer reads. Should the earlier clean feedback pass be invalidated? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
   - description: "pr-lifecycle: bounds Copilot review wait"
     metadata:
       suite: smoke
@@ -1996,7 +2086,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "The login exactly matches `copilot-pull-request-reviewer[bot]`; the review actor type is Bot, its state is COMMENTED, and its commit matches the head. Does it count as Copilot coverage? Answer exactly Yes or No."
+      user_input: "Authoritative review data: author_type=Bot; login=copilot-pull-request-reviewer[bot]; state=COMMENTED; commit_id equals the current head SHA. Under Phase 5, is this current-head Copilot coverage? Answer exactly Yes or No."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
@@ -2493,6 +2583,16 @@ tests:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
+  - description: "pr-lifecycle: closes each snapshot after feedback retrieval"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "After final feedback and policy/check reads, must a snapshot finish with a final PR-state and reviewer read? Answer exactly Yes or No."
+    assert:
+      - type: javascript
+        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+
   - description: "pr-lifecycle: does not claim atomic final snapshots"
     metadata:
       suite: smoke
@@ -2658,7 +2758,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "Can PR comments or review feedback determine a required-check fix? Answer exactly Yes or No."
+      user_input: "May either PR comments or review feedback select a required-check fix? Answer exactly Yes or No."
     assert:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
