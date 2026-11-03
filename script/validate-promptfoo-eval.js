@@ -155,7 +155,8 @@ for (const row of lifecycleRows) {
       }
     }
   }
-  if (!Number.isInteger(promptTokens) || promptTokens + outputReserve > contextWindow) {
+  if (!Number.isInteger(promptTokens) || promptTokens <= 0
+    || promptTokens + outputReserve > contextWindow) {
     console.error(
       `Complete lifecycle prompt exceeds the 16K context budget: `
       + `${row.description || row.testCase?.description || "?"} `

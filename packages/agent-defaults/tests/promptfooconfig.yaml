@@ -2608,7 +2608,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "Must Phase 4 queue actionable feedback for Phase 6 to handle after Phase 5? Answer exactly Yes or No."
+      user_input: "For a non-draft PR, must Phase 4 queue actionable feedback for Phase 6 to handle after Phase 5? Answer exactly Yes or No."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"

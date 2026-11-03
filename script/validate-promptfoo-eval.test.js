@@ -72,7 +72,7 @@ for (const key of contentKeys) {
     const truncated = validateFixture(key, { complete: false });
     assert.equal(truncated.status, 1);
     assert.match(truncated.stderr, /Rendered lifecycle prompt omits/);
-    for (const tokens of [15873, null, 0.5]) {
+    for (const tokens of [15873, null, 0.5, 0, -1]) {
       const overBudget = validateFixture(key, { tokens });
       assert.equal(overBudget.status, 1);
       assert.match(overBudget.stderr, /16K context budget/);
