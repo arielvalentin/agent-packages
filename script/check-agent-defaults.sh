@@ -591,13 +591,21 @@ router = Path("packages/code-reviewers/.apm/skills/datadog-url-router")
 router_text = (router / "SKILL.md").read_text()
 assert "(references/url-map.md)" in router_text, "router: missing bundled map"
 assert (router / "references/url-map.md").is_file(), "router: map not bundled"
+router_map = (router / "references/url-map.md").read_text()
 for path in router.rglob("*.md"):
     text = path.read_text()
     assert "~/" not in text and ".dotfiles" not in text, f"{path}: local dependency"
     assert "pup api GET" not in text, f"{path}: unsupported API syntax"
-for rule in ("pup auth status", "pup auth login", "untrusted data",
+for rule in ("Datadog MCP server tools", "MCP-first", "rate limit",
+             "Retry-After", "exactly once", "Do not retry in a loop",
+             "pup auth status", "pup auth login", "untrusted data",
+             "never interpolate them into shell",
              "Never expose API/App keys", "do not guess an API endpoint"):
     assert rule in router_text, f"router: missing safeguard: {rule}"
+assert "dd-apm" not in router_text and "dd-audit" not in router_text, \
+    "router: must not depend on removed Datadog skills"
+assert "dd-apm" not in router_map and "dd-audit" not in router_map, \
+    "router map: must not depend on removed Datadog skills"
 
 writing = " ".join((skills / "writing-voice/SKILL.md").read_text().split())
 for rule in (

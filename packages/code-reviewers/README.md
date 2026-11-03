@@ -38,7 +38,9 @@ verdict contract and do not run live profiles.
 ## Datadog routing
 
 `datadog-url-router` includes its own `references/url-map.md`; APM deploys the
-complete skill directory. It requires no dotfiles or internal skills. Install
-the public `dd-*` skills and `pup` separately when using Datadog. Missing skills
-may use verified read-only `pup` routes, never scraping or guessed endpoints.
-Authentication precedes account-data access; the user performs any needed login.
+complete skill directory. Datadog MCP is the primary route for account data.
+`pup` is used only when an MCP request remains rate-limited after one retry, and
+only for that operation after checking `pup auth status`, loading `dd-pup` as
+the CLI helper, and verifying the installed CLI syntax. Install `dd-docs` for
+public Datadog documentation; no other MCP failure permits a `pup` fallback.
+The user performs any login required for the CLI fallback.
