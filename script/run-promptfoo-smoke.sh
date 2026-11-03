@@ -22,7 +22,7 @@ if [[ ! -s "$output" ]]; then
   echo "Promptfoo did not produce eval results; refusing to report success." >&2
   validation_status=1
 else
-  node script/validate-promptfoo-eval.js "$output" smoke || validation_status=$?
+  node script/validate-promptfoo-eval.js "$output" smoke "$1" || validation_status=$?
 fi
 
 if [[ $eval_status -ne 0 ]]; then

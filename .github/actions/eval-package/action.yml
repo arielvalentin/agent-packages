@@ -122,7 +122,8 @@ runs:
           echo "::error::Promptfoo did not produce eval results; refusing to report success."
           status=1
         else
-          node script/validate-promptfoo-eval.js "$RUNNER_TEMP/eval.json" "$suite"
+          node script/validate-promptfoo-eval.js "$RUNNER_TEMP/eval.json" "$suite" \
+            "packages/${{ inputs.package }}/tests/promptfooconfig.yaml"
           summary_status=$?
           if [[ $summary_status -ne 0 ]]; then
             status=1

@@ -57,8 +57,9 @@ Before any direct or delegated fix work, follow `git-publishing-safety` and
 confirm that the requested change and any required publication actions are
 authorized. Do not edit or dispatch implementation when that gate is unmet.
 Follow it again before committing or pushing.
-This skill owns `manage-pr` handoffs; use `review-fix-loop` only as an
-implementation helper, not as the lifecycle entrypoint.
+This skill owns `manage-pr` handoffs and all existing-PR feedback, CI, and
+merge-readiness phases. Use `review-fix-loop` only to implement authorized
+fixes, never as the lifecycle entrypoint.
 
 ## Standalone waits
 
@@ -183,9 +184,9 @@ Commits defaults for titles created or updated in Phase 1 and Phase 3:
   through the built-in `create_pull_request`/`update_pull_request` tools
   or the `gh pr create`, `gh pr edit --title`, `gh pr ready` commands:
   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-  The regex does not enforce the shared title-length limit. Follow
-  `git-publishing-safety` for that check. Use repository-required formats
-  instead when they differ.
+  Conventional titles over 72 characters are invalid; follow
+  `git-publishing-safety` for the shared length check. Use repository-required
+  formats instead when they differ.
   This regex validates only the default Conventional format, not a different
   repository-required format.
 
@@ -252,20 +253,21 @@ gh api --paginate "repos/<owner>/<repo>/commits/<merge-sha>/status?per_page=100"
 gh api --paginate "repos/<owner>/<repo>/actions/runs?head_sha=<selected-sha>&per_page=100"
 ```
 
-The merge commit must have exactly two parents, in order: captured base SHA,
-then captured head SHA. Select one governing SHA before evaluating results. If
+The merge commit must have exactly two parents. Parent 1 must equal the
+captured base SHA; parent 2 must equal the captured head SHA. Select one
+governing SHA before evaluating results. If
 the verified test-merge commit has any status-check results, all required
 contexts must pass on it; do not substitute a passing head result or combine
 results across SHAs. Only when that commit has no status-check results may head
 results govern. If the merge commit or its results cannot be verified, stop
 and report the blocker.
 
-Match each required context to its configured `app_id` or `integration_id`
-when a concrete ID is present, using check-run `app.id` metadata. A policy
-`app_id` of `-1`, or an omitted/unset producer restriction, allows any app;
-do not require a literal ID match. A same-named legacy commit status cannot
-satisfy a policy-pinned app/integration requirement unless its authoritative
-metadata proves that identity.
+When a required context is pinned to `app_id` or `integration_id`, the
+check-run `app.id` must match. A same-named check from another producer does
+not satisfy the requirement. A policy `app_id` or `integration_id` of `-1`,
+or an omitted/unset producer restriction, allows any app; do not require a
+literal ID match. A same-named legacy commit status cannot satisfy a policy-pinned requirement
+unless its authoritative metadata proves that identity.
 
 For check runs, request `filter=all` and compare attempts by check name and
 producer across all suites. After excluding ineligible attempts, only the most
@@ -277,13 +279,16 @@ eligible commit status share a required context, both must pass.
 
 For check runs whose `app.slug` is `github-actions`, match each run's
 `check_suite.id` to `check_suite_id` in the paginated workflow-run results for
-the selected SHA. Count an Actions workflow-job check only when its event is eligible
+the selected SHA. Both the check run's `head_sha` and the matched workflow
+run's `head_sha` must equal the selected SHA. Count an Actions workflow-job check
+only when its event is eligible
 for PR checks: `push`, `pull_request`, `pull_request_review`,
 `pull_request_target`, `deployment`, or `deployment_status`; include
-`merge_group` for merge-queue checks. A `workflow_dispatch` or other ineligible
-event cannot satisfy a PR-required check and must not supersede an eligible
-attempt. Do not apply this event restriction to checks created by another
-GitHub App; match those by the configured producer instead. If an Actions run
+`dynamic` for GitHub-generated workflows such as CodeQL default setup; include
+`merge_group` for merge-queue checks. `workflow_dispatch` is ineligible for
+PR-required checks and must not supersede an eligible attempt. Do not
+apply this event restriction to checks created by another GitHub App; match
+those by the configured producer instead. If an Actions run
 or its event cannot be verified, treat that result as unavailable, not passing.
 
 If the required set is nonempty, wait up to 10 minutes for the selected SHA's
@@ -300,7 +305,8 @@ and inspect all current results once. A recognized no-checks response does not
 by itself mean either an empty policy or an API failure; authentication,
 access, and other command errors remain blockers.
 
-For check runs, completed conclusions `success`, `neutral`, and `skipped` pass;
+For check runs, only completed conclusions `success`, `neutral`, and `skipped`
+pass;
 `queued`, `in_progress`, `waiting`, `requested`, `pending`, and a missing
 conclusion are pending; `failure`, `cancelled`, `timed_out`, `action_required`,
 and `stale` do not pass. For commit statuses, only `success` passes, `pending`
@@ -322,20 +328,24 @@ report the blocker and stop. Dispatch `implementer` only when the evidence
 identifies an actionable repository defect; for an external service failure or
 an unclear cause, report the blocker and stop without changing code. After a
 permitted fix, re-run the affected gates, push the fix, and re-check the PR.
+Use only check evidence as input to this path; do not use PR comments or review
+feedback to select a required-check fix. The later feedback-routing pass still
+applies `HUMAN_STOP` before any feedback action and stops the lifecycle.
 
 Compare current results on the selected SHA with the complete policy-derived
 required-check set. Optional check failures do not trigger implementation;
 report them separately. Do not dispatch a fix solely because an optional check
-failed. The readiness gate accepts `mergeStateStatus=CLEAN` or `UNSTABLE` only
-when policy and required-check results are verified and every required check
-passes. In `UNSTABLE`, report optional failures separately. Accept
-`mergeStateStatus=BEHIND` only when every applicable strict/up-to-date
+failed. The allowed merge states include `mergeStateStatus=CLEAN` and
+`UNSTABLE`. `UNSTABLE` is allowed when policy and required-check results are
+verified and every required check passes, even if optional checks fail; report
+optional failures separately.
+Accept `mergeStateStatus=BEHIND` only when every applicable strict/up-to-date
 requirement is verified false; if any is true or unknown, do not report ready.
-Other merge states do not pass the readiness gate. Then proceed to Phase 5.
-Take a fresh state snapshot before fixing feedback, after every push, and
-before reporting the PR clean. These are separate refresh points; a push
-invalidates earlier CI and review evidence. Record the PR state (open, closed,
-or merged), current head SHA, review-thread state, CI rollup, and merge state.
+Other merge states do not pass the readiness gate.
+Take a fresh state snapshot before fixing feedback and after every push. These
+are separate refresh points; a push invalidates earlier CI and review evidence.
+Record the PR state (open, closed, or merged), current head SHA, review-thread
+state, CI rollup, and merge state.
 Use the selected governing SHA for required checks and the head SHA for review
 coverage. Do not report a clean state from stale checks or review data.
 After a head change, earlier CI and review coverage is stale; repeat the
@@ -345,30 +355,128 @@ because earlier reviews remain. Revalidate any earlier findings against the
 current diff. For a CI-only wait, use `watch-ci` when available.
 
 ```bash
+set -e -o pipefail
 gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName,mergeStateStatus,statusCheckRollup
 ```
 
-`statusCheckRollup` is supplemental only. Repeat the policy and candidate SHA
-result retrieval described above, then confirm the PR head/base did not change.
-Retrieve every review-thread page through the exact `gh api` commands in
-`human-interaction-safeguard`. If any SHA, policy, or result changed, discard
-the snapshot and rerun Phase 4.
+`statusCheckRollup` is supplemental only. The feedback-routing substep is
+read-only and is not readiness evidence; it does not restrict the separate
+required-check remediation path above. Record opening PR state, draft status,
+head/base SHAs, and base name before policy/check retrieval. Phase 5 compares
+its final PR read with these exact values; do not treat a later observed
+revision as checked.
+Retrieve and classify the complete feedback surfaces listed in Phase 6 using
+`human-interaction-safeguard`; do not run Phase 7's repeated snapshot sequence
+here. This feedback-routing pass never replies, resolves, or dispatches a
+feedback fix. If any feedback is `HUMAN_STOP`, return control to the user
+immediately. If actionable feedback is found, queue it for Phase 6 after Phase
+5; do not use this read as readiness evidence. Otherwise, proceed to Phase 5
+after this single read. Only Phase 7's two final snapshots can establish
+readiness.
 
 Missing required contexts are not an empty policy or a pass. If either policy
 source or check results cannot be verified, do not report the PR ready.
 
 ## Phase 5 — Wait for Copilot code review
 
-After CI passes, inspect pending review requests and completed reviews:
+After required checks pass, retrieve and canonicalize the complete set of
+requested reviewers from GitHub's all-reviewers endpoint:
 
 ```bash
-gh pr view <number> --repo <owner>/<repo> --json headRefOid,reviewRequests
+set -e -o pipefail
+gh api "repos/<owner>/<repo>/pulls/<number>/requested_reviewers" \
+  --jq 'def no_control:
+    (test("[[:cntrl:]]") | not);
+    def valid_node_id:
+      (.node_id | type) == "string" and (.node_id | length) > 0
+      and (.node_id | no_control)
+      and ((.node_id | gsub("^\\s+|\\s+$"; "")) == .node_id);
+    if type != "object" or (.users | type) != "array" or (.teams | type) != "array"
+    then error("invalid requested reviewers response")
+    else
+      ([.users[] |
+        if type == "object" and valid_node_id and (.type | type) == "string"
+          and (.type | length) > 0 and (.type | no_control)
+          and ((.type | gsub("^\\s+|\\s+$"; "")) == .type)
+        then ["user", .type, .node_id] | @json
+        else error("invalid requested user") end]
+       + [.teams[] |
+        if type == "object" and valid_node_id
+          and (.type == "enterprise" or .type == "organization")
+        then ["team", .type, .node_id] | @json
+        else error("invalid requested team") end])
+      | .[]
+    end' \
+  | LC_ALL=C sort -u
 ```
 
+This endpoint returns all requested users and teams in one response; it has no
+pagination parameters. If retrieval fails or either identity list is missing
+or malformed, stop; never treat an unknown or partial set as empty.
+Immediately before starting the review timer, reread and compare PR state,
+draft status, head/base SHAs, and base name with the Phase 4 values for which
+checks passed:
+
 ```bash
+set -e -o pipefail
+gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName
+```
+
+The PR must be open and non-draft. If it is closed or merged, follow the
+existing closed/merged handling; if it is a draft, stop. If any compared value
+differs, return to Phase 4 and refresh policy, checks, and feedback before
+starting the review wait.
+
+The 10-minute wait starts immediately before the first completed-review poll.
+Those entry checks do not count toward the wait. If polling directly, poll every
+30 seconds and stop after 10 minutes:
+
+```bash
+set -e -o pipefail
 gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \
-  --jq '[.[] | select(.user.type == "Bot" or .performed_via_github_app != null) | {commit_id, state, user, performed_via_github_app}]'
+  --jq 'def no_control: (test("[[:cntrl:]]") | not);
+    def valid_review:
+      type == "object"
+      and (.id | type) == "number" and (.id | floor) == .id and .id > 0
+      and has("commit_id")
+      and (.commit_id == null
+        or ((.commit_id | type) == "string"
+          and (.commit_id | test("^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$"))))
+      and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"
+        or .state == "COMMENTED" or .state == "DISMISSED" or .state == "PENDING")
+      and has("user")
+      and (if .user == null then true
+        else (.user | type) == "object"
+          and (.user.type | type) == "string" and (.user.type | length) > 0
+          and (.user.type | no_control)
+          and ((.user.type | gsub("^\\s+|\\s+$"; "")) == .user.type)
+          and (.user.login | type) == "string" and (.user.login | length) > 0
+          and (.user.login | no_control)
+          and ((.user.login | gsub("^\\s+|\\s+$"; "")) == .user.login)
+        end)
+      and (if .performed_via_github_app == null then true
+        else (.performed_via_github_app | type) == "object"
+          and (.performed_via_github_app.id | type) == "number"
+          and (.performed_via_github_app.id | floor) == .performed_via_github_app.id
+          and .performed_via_github_app.id > 0
+        end);
+    if type != "array" then error("invalid reviews response")
+    else [.[] |
+      if valid_review then
+        select(.user != null
+          and (.user.type == "Bot" or .performed_via_github_app != null))
+        | {id, commit_id, state, user, performed_via_github_app}
+      else error("invalid review record")
+      end]
+    end'
 ```
+
+If a completed-review poll fails or pagination is incomplete, stop; do not
+treat it as no review or count a timeout.
+Immediately before accepting a candidate review or recording a timeout, reread
+PR state, draft status, head/base SHAs, and base name. If any differs from the
+Phase 5 entry values, return to Phase 4 and refresh policy, checks, and
+feedback; do not accept the candidate or count a timeout for the stale head.
 
 - Default to the 10-minute wait. Skip it only when repository guidance
   explicitly says Copilot review is disabled or the user explicitly asks to
@@ -384,18 +492,25 @@ gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \
   one appears.
 - A pending request is not a completed review or proof of the reviewer's actor
   type.
+- If the requested-reviewer query fails or either identity list is incomplete,
+  stop. Never treat an unknown or partial set as empty.
 - Count a Copilot review as current-head coverage only when its state is
   `APPROVED`, `COMMENTED`, or `CHANGES_REQUESTED` and its `commit_id` matches
-  the recorded current head SHA. `PENDING`, `DISMISSED`, or an earlier commit
-  does not count as a completed current-head review.
+  the recorded current head SHA. A null commit ID is valid response data but
+  cannot prove current-head coverage. `PENDING`, `DISMISSED`, or an earlier
+  commit does not count as a completed current-head review.
+- Before leaving Phase 5, record its outcome as current-head review coverage
+  (review ID, state, commit ID, and authoritative actor metadata), bounded
+  timeout (start/end and successful final poll), explicit repository guidance
+  to skip (source), or user-authorized skip (instruction).
 - Do not feed findings from a stale review directly into `review-fix-loop`.
   Recheck them against the current diff through the Phase 6 safeguards first.
 - For a bounded, read-only wait for a single Copilot review, use
   `wait-for-copilot-code-review` when available.
-- The 10-minute wait starts when Phase 5 begins after CI passes. If polling
-  directly, poll every 30s and stop after 10 minutes.
-- If findings: record them for Phase 6. Do not dispatch fixes before the full
-  thread retrieval and safeguard classification there.
+- Phase 5 is only a bounded review wait. Queue findings for Phase 6, which must
+  retrieve the complete conversation and apply `human-interaction-safeguard`
+  before any action. A `HUMAN_STOP` classification ends the lifecycle and
+  returns control to the user.
 - If no findings or timeout: proceed.
 - If repo doesn't use Copilot review: skip and note.
   This must be established by explicit repository guidance; absence of a
@@ -454,14 +569,17 @@ Re-run Phase 4 after any push.
 
 ## Phase 7 — Loop exit conditions
 
-Before evaluating the exit condition, refresh the Phase 4 PR and check snapshot
-and record its head and base SHA. Required checks must pass on that head or its
-verified generated merge commit for that head/base. Only a Copilot review that
+Before evaluating the exit condition, confirm that required checks passed on
+the current head or its verified generated merge commit for that head/base.
+Do not take a separate Phase 4 snapshot here; the two ordered snapshots below
+are the authoritative readiness evidence. Only a Copilot review that
 counts as current-head coverage must match the head SHA;
 earlier reviews do not count as coverage, and their findings must be
-revalidated against the current diff. If the head changes, rerun Phase 4 and
-Phase 5 for the new head. Once the Phase 5 wait for that head ends, an older
-review does not restart the wait or block readiness.
+revalidated against the current diff. Keep the head SHA, base SHA, and base
+name from the Phase 4 values accepted at Phase 5 entry. Both final snapshots
+must match that tuple. If any value changes after the Phase 5 outcome, rerun
+Phase 4 and re-evaluate Phase 5 for the new PR diff; do not carry over review
+coverage or timeout evidence from the prior tuple.
 Copilot review is accounted for only when a current-head review was processed,
 the Phase 5 10-minute wait ended without a current-head review, the repository
 does not use Copilot review, or the user explicitly asked to skip it. When
@@ -472,32 +590,38 @@ required-check policy and results, or `BEHIND` with every applicable
 strict/up-to-date requirement verified false. Otherwise, do not report it
 ready and continue only through the existing bounded steps or report blockers.
 
-Before reporting readiness, take two consecutive complete final snapshots.
-For each snapshot, repeat Phase 4's policy and check retrieval, including
-classic protection, every effective-rules page, the complete policy-derived
-required-check set with producer restrictions, strict/up-to-date policy, check
-attempts, and matching workflow-run event metadata for the selected governing
-SHA. Each snapshot also includes PR state, head/base SHAs and base name, merge
-state, all reviews, inline comments, issue/PR comments, every review-thread
-page, and every thread's independent comments page. Repeat the complete Phase 6
-retrieval for each snapshot; do not treat reviews, comments, or threads as
-single-page results. Use `human-interaction-safeguard` to classify all newly
-retrieved feedback. Any `HUMAN_STOP` feedback returns control to the user.
-Process each new actionable
-`AUTOMATION_FLOW` finding through Phase 6 before readiness; do not report ready
-while an actionable finding remains unprocessed. Do not require a rebutted
-thread to be resolved for readiness: after its permitted evidence-based reply
-is posted through `pr-feedback-review` and `acting-on-behalf`, it is handled
-for this gate and may remain open for the reviewer. An unresolved clarification
-or actionable thread blocks readiness. The snapshots must agree on PR, policy,
-check, and feedback/thread state, and no actionable finding may remain. If the
-PR is no longer open or is a draft, the head or base differs, required checks
-changed or are no longer passing, the merge state is neither `CLEAN` nor an
-eligible `UNSTABLE` nor `BEHIND` with every applicable strict/up-to-date
-requirement verified false, feedback/thread state changed, or actionable or
-clarification feedback remains, discard readiness evidence and repeat the
-relevant phases and final snapshots. Stop rather than report ready after 10
-iterations.
+Before reporting readiness, take two consecutive complete snapshots. In each,
+record opening PR state, draft status, head/base SHAs, base name, merge state,
+and the complete review-request set; retrieve complete policy/check evidence
+and all review, comment, and thread pages. Repeat policy/check and feedback
+retrieval, then finish with fresh PR and review-request reads. Use
+`human-interaction-safeguard` on every feedback read: `HUMAN_STOP` discards the
+snapshot and returns control; actionable feedback discards it for Phase 6.
+Never reply, resolve, or fix feedback inside a snapshot. Fail closed on any
+incomplete page.
+
+Canonicalize and compare sorted readiness-relevant fields:
+policy rules, required contexts/producers and strictness; selected governing
+SHA and any generated merge SHA/verified parent SHAs; check attempts, results,
+and workflow events; review/comment IDs, states, bodies, and actor types;
+thread IDs, resolution, and comments; and reviewer type-qualified IDs.
+Within each snapshot, compare opening/closing PR and reviewer state plus
+repeated policy/check and feedback sets. Across snapshots, compare those same
+sets and PR state; also compare both snapshots' head/base/base-name tuple with
+the tuple accepted at Phase 5 entry. Any mismatch or observed state change
+invalidates both snapshots and requires a new pair. Reads are sequential, not
+atomic; readiness does not guarantee GitHub cannot change after the last read.
+If Phase 5 used a review for coverage, both final snapshots must still contain
+that review as current-head eligible with the recorded state and actor
+metadata. If it becomes missing, dismissed, pending, stale, or unverifiable,
+rerun Phase 4 and Phase 5 for that tuple or report the blocker; do not rely on
+the earlier outcome.
+
+Do not report ready while an actionable finding or unresolved clarification
+remains. A rebutted thread is handled for readiness after its permitted,
+evidence-based reply is posted through `pr-feedback-review` and
+`acting-on-behalf`; its unresolved thread status alone is not a blocker. Stop
+rather than report ready after 10 iterations.
 
 | Condition | Action |
 |-----------|--------|

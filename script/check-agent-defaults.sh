@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 import hashlib
 import re
+import shlex
 import subprocess
 import yaml
 
@@ -132,13 +133,356 @@ for rule in ("validate both the subject format and length before committing",
 for rule in ("use the draft default", "require a tracking issue only when"):
     assert rule not in git_policy, \
         f"git-publishing-safety: duplicates PR lifecycle policy: {rule}"
-pr_lifecycle_policy = " ".join(
-    (skills / "pr-lifecycle/SKILL.md").read_text().split()
-).lower()
+pr_lifecycle_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+pr_lifecycle_flat = " ".join(pr_lifecycle_text.split())
+pr_lifecycle_policy = pr_lifecycle_flat.lower()
+for rule in (
+    'set -e -o pipefail gh api "repos/<owner>/<repo>/pulls/<number>/requested_reviewers"',
+    "lc_all=c sort -u",
+    "(.users | type) != \"array\" or (.teams | type) != \"array\"",
+    "def valid_node_id:",
+    "test(\"[[:cntrl:]]\") | not",
+    '.type == "enterprise" or .type == "organization"',
+    '["user", .type, .node_id] | @json',
+    '["team", .type, .node_id] | @json',
+):
+    assert rule in pr_lifecycle_policy, \
+        f"pr-lifecycle: incomplete all-reviewers query: {rule}"
+for rule in (
+    "`workflow_dispatch` is ineligible for pr-required checks",
+    "must not supersede an eligible attempt",
+    "do not apply this event restriction to checks created by another github app",
+    "when a required context is pinned to `app_id` or `integration_id`, the check-run `app.id` must match",
+    "a same-named check from another producer does not satisfy the requirement",
+    "only completed conclusions `success`, `neutral`, and `skipped` pass",
+    "this skill owns `manage-pr` handoffs and all existing-pr feedback, ci, and merge-readiness phases",
+):
+    assert rule in pr_lifecycle_policy, \
+        f"pr-lifecycle: missing Actions event eligibility rule: {rule}"
+
+# Parse these source rules so contract regressions exercise the eligible-event
+# set and producer matching deterministically.
+event_clause = re.search(
+    r"Count an Actions workflow-job check only when its event is eligible "
+    r"for PR checks:(.*?)`workflow_dispatch` is ineligible",
+    pr_lifecycle_flat,
+    re.DOTALL,
+)
+assert event_clause, "pr-lifecycle: missing Actions event decision list"
+eligible_actions_events = re.findall(r"`([a-z_]+)`", event_clause.group(1))
+assert eligible_actions_events == [
+    "push", "pull_request", "pull_request_review", "pull_request_target",
+    "deployment", "deployment_status", "dynamic", "merge_group",
+], "pr-lifecycle: changed eligible Actions event set"
+assert "workflow_dispatch" not in eligible_actions_events
+assert "merge_group" not in eligible_actions_events[:-1]
+
+producer_policy = re.search(
+    r"When a required context is pinned to `app_id` or `integration_id`, "
+    r"the check-run `app.id` must match\.(.*?)For check runs,",
+    pr_lifecycle_flat,
+    re.DOTALL,
+)
+assert producer_policy, "pr-lifecycle: missing required-check producer policy"
+producer_policy_text = " ".join(producer_policy.group(1).split()).lower()
+for rule in (
+    "a same-named check from another producer does not satisfy the requirement",
+    "a policy `app_id` or `integration_id` of `-1`, or an omitted/unset producer restriction, allows any app",
+    "a same-named legacy commit status cannot satisfy a policy-pinned requirement unless its authoritative metadata proves that identity",
+):
+    assert rule in producer_policy_text, \
+        f"pr-lifecycle: incomplete producer policy: {rule}"
+
+def producer_matches(required, check_app_id):
+    required_app_id = required.get("app_id", required.get("integration_id"))
+    return required_app_id in (None, -1) or required_app_id == check_app_id
+
+for producer_field in ("app_id", "integration_id"):
+    assert producer_matches({producer_field: 42}, 42)
+    assert not producer_matches({producer_field: 42}, 99)
+    assert producer_matches({producer_field: -1}, 99)
+    assert producer_matches({producer_field: None}, 99)
+assert producer_matches({}, 99)
+
+for rule in (
+    "include `dynamic` for github-generated workflows such as codeql default setup",
+    "both the check run's `head_sha` and the matched workflow run's `head_sha` must equal the selected sha",
+    "match each run's `check_suite.id` to `check_suite_id`",
+):
+    assert rule in pr_lifecycle_policy, \
+        f"pr-lifecycle: missing Actions provenance rule: {rule}"
+
+def required_actions_check_passes(required, check, workflow_runs, selected_sha):
+    if check.get("name") != required["context"] \
+            or not producer_matches(required, check["app"].get("id")) \
+            or check["app"].get("slug") != "github-actions" \
+            or check.get("head_sha") != selected_sha:
+        return False
+    suite_id = check.get("check_suite", {}).get("id")
+    if suite_id is None:
+        return False
+    matches = [
+        run for run in workflow_runs
+        if run.get("check_suite_id") == suite_id
+        and run.get("head_sha") == selected_sha
+    ]
+    return len(matches) == 1 \
+        and matches[0].get("event") in eligible_actions_events \
+        and check.get("status") == "completed" \
+        and check.get("conclusion") in ("success", "neutral", "skipped")
+
+# Synthetic fixtures: dynamic is eligible only with the same provenance checks
+# as other Actions events, not a context-name or event-only exception.
+required = {"context": "CodeQL", "app_id": 42}
+selected_sha = "a" * 40
+actions_check = {
+    "name": "CodeQL",
+    "app": {"id": 42, "slug": "github-actions"},
+    "head_sha": selected_sha,
+    "check_suite": {"id": 101},
+    "status": "completed",
+    "conclusion": "success",
+}
+dynamic_run = {
+    "check_suite_id": 101, "head_sha": selected_sha, "event": "dynamic",
+}
+assert required_actions_check_passes(required, actions_check, [dynamic_run], selected_sha)
+for policy, passes in (
+    ({"context": "CodeQL", "integration_id": 42}, True),
+    ({"context": "CodeQL", "integration_id": 99}, False),
+    ({"context": "CodeQL", "integration_id": -1}, True),
+    ({"context": "CodeQL", "integration_id": None}, True),
+    ({"context": "CodeQL"}, True),
+):
+    assert required_actions_check_passes(
+        policy, actions_check, [dynamic_run], selected_sha,
+    ) == passes, f"pr-lifecycle: incorrect integration producer matching: {policy}"
+for event in eligible_actions_events:
+    assert required_actions_check_passes(
+        required, actions_check, [dict(dynamic_run, event=event)], selected_sha,
+    )
+for ineligible_check in (
+    dict(actions_check, name="unrelated"),
+    dict(actions_check, app={"id": 99, "slug": "github-actions"}),
+    dict(actions_check, app={"id": 42, "slug": "another-app"}),
+    dict(actions_check, head_sha="b" * 40),
+    dict(actions_check, head_sha=None),
+    dict(actions_check, check_suite={"id": 102}),
+    dict(actions_check, check_suite={}),
+    dict(actions_check, status="in_progress"),
+    dict(actions_check, conclusion="failure"),
+):
+    assert not required_actions_check_passes(
+        required, ineligible_check, [dynamic_run], selected_sha,
+    ), f"pr-lifecycle: ineligible dynamic check accepted: {ineligible_check}"
+for unverifiable_runs in (
+    [],
+    [dict(dynamic_run, check_suite_id=102)],
+    [dict(dynamic_run, head_sha="b" * 40)],
+    [dict(dynamic_run, head_sha=None)],
+    [dict(dynamic_run, event=None)],
+    [dict(dynamic_run, event="unknown")],
+    [dict(dynamic_run, event="workflow_dispatch")],
+    [dynamic_run, dict(dynamic_run)],
+):
+    assert not required_actions_check_passes(
+        required, actions_check, unverifiable_runs, selected_sha,
+    ), f"pr-lifecycle: unverifiable Actions run accepted: {unverifiable_runs}"
+
+reviewer_query = re.search(
+    r'gh api .*requested_reviewers".*?--jq \'(.*?)\'\s*\\\s*\|\s*LC_ALL=C sort -u',
+    pr_lifecycle_text,
+    re.DOTALL,
+)
+assert reviewer_query, "pr-lifecycle: missing reviewer identity filter"
+reviewers_response = {
+    "users": [
+        {"node_id": "bot-node", "type": "Bot"},
+        {"node_id": "user-node", "type": "User"},
+        {"node_id": "mannequin-node", "type": "Mannequin"},
+        {"node_id": "opaque:v2.id", "type": "Custom-Type"},
+    ],
+    "teams": [
+        {"node_id": "enterprise-node", "type": "enterprise"},
+        {"node_id": "organization-node", "type": "organization"},
+    ],
+}
+expected_reviewers = sorted(
+    json.dumps([kind, actor_type, node_id], separators=(",", ":"))
+    for kind, actor_type, node_id in (
+        ("user", "Bot", "bot-node"),
+        ("user", "User", "user-node"),
+        ("user", "Mannequin", "mannequin-node"),
+        ("user", "Custom-Type", "opaque:v2.id"),
+        ("team", "enterprise", "enterprise-node"),
+        ("team", "organization", "organization-node"),
+    )
+)
+reviewer_pipeline = (
+    f"jq -r {shlex.quote(reviewer_query.group(1))} | LC_ALL=C sort -u"
+)
+reviewer_result = subprocess.run(
+    ["bash", "-o", "pipefail", "-c", reviewer_pipeline],
+    input=json.dumps(reviewers_response),
+    text=True, capture_output=True, check=False,
+)
+assert reviewer_result.returncode == 0 \
+    and reviewer_result.stdout.splitlines() == expected_reviewers, \
+    "pr-lifecycle: reviewer filter must preserve all user and team identities"
+producer_failure = subprocess.run(
+    ["bash", "-o", "pipefail", "-c",
+     f"{{ jq -r {shlex.quote(reviewer_query.group(1))}; exit 17; }} "
+     "| LC_ALL=C sort -u"],
+    input=json.dumps(reviewers_response),
+    text=True, capture_output=True, check=False,
+)
+assert producer_failure.returncode == 17 \
+    and producer_failure.stdout.splitlines() == expected_reviewers, \
+    "pr-lifecycle: pipeline must preserve a producer failure after valid output"
+assert subprocess.run(
+    ["bash", "-o", "pipefail", "-c", reviewer_pipeline],
+    input=json.dumps({"users": [], "teams": []}),
+    text=True, capture_output=True, check=False,
+).returncode == 0, "pr-lifecycle: empty reviewer arrays are valid"
+for malformed_response in (
+    {},
+    {"users": None, "teams": []},
+    {"users": {}, "teams": []},
+    {"users": [], "teams": {}},
+    {"users": [None], "teams": []},
+    {"users": [{"type": "User"}], "teams": []},
+    {"users": [{"node_id": "u1", "type": "  "}], "teams": []},
+    {"users": [{"node_id": "u1", "type": "User\nteam:organization"}], "teams": []},
+    {"users": [{"node_id": "u1", "type": "User\n"}], "teams": []},
+    {"users": [{"node_id": "u1", "type": " User "}], "teams": []},
+    {"users": [{"node_id": "u1", "type": "User\t"}], "teams": []},
+    {"users": [{"node_id": "   ", "type": "User"}], "teams": []},
+    {"users": [{"node_id": " \n ", "type": "User"}], "teams": []},
+    {"users": [{"node_id": "u1\n", "type": "User"}], "teams": []},
+    {"users": [], "teams": [{"node_id": "t1", "type": "unknown"}]},
+):
+    malformed_result = subprocess.run(
+        ["bash", "-o", "pipefail", "-c", reviewer_pipeline],
+        input=json.dumps(malformed_response),
+        text=True, capture_output=True, check=False,
+    )
+    assert malformed_result.returncode != 0, \
+        f"pr-lifecycle: malformed reviewer response accepted: {malformed_response}"
+review_poll_query = re.search(
+    r'gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \\\s+--jq \'(.*?)\'',
+    pr_lifecycle_text,
+    re.DOTALL,
+)
+assert review_poll_query, "pr-lifecycle: missing completed-review validation filter"
+for rule in (
+    "set -e -o pipefail",
+    "invalid reviews response",
+    "invalid review record",
+    "(.user.login | type) == \"string\"",
+    ".performed_via_github_app.id | type",
+    "null commit id is valid response data",
+):
+    assert rule in pr_lifecycle_policy, \
+        f"pr-lifecycle: incomplete completed-review validation: {rule}"
+review_head_sha = "0123456789abcdef0123456789abcdef01234567"
+review_pages = [
+    [
+        {
+            "id": 1,
+            "commit_id": review_head_sha,
+            "state": "COMMENTED",
+            "user": {
+                "type": "Bot",
+                "login": "copilot-pull-request-reviewer[bot]",
+            },
+            "performed_via_github_app": None,
+        },
+        {
+            "id": 2,
+            "commit_id": review_head_sha,
+            "state": "APPROVED",
+            "user": {"type": "User", "login": "reviewer"},
+        },
+        {
+            "id": 4,
+            "commit_id": None,
+            "state": "PENDING",
+            "user": {
+                "type": "Bot",
+                "login": "copilot-pull-request-reviewer[bot]",
+            },
+            "performed_via_github_app": None,
+        },
+        {
+            "id": 5,
+            "commit_id": review_head_sha,
+            "state": "APPROVED",
+            "user": None,
+            "performed_via_github_app": None,
+        },
+    ],
+    [{
+        "id": 3,
+        "commit_id": review_head_sha,
+        "state": "CHANGES_REQUESTED",
+        "user": {"type": "User", "login": "app-reviewer"},
+        "performed_via_github_app": {"id": 30, "slug": "automation"},
+    }],
+]
+review_results = [
+    subprocess.run(
+        ["jq", "-c", review_poll_query.group(1)],
+        input=json.dumps(page),
+        text=True, capture_output=True, check=False,
+    )
+    for page in review_pages
+]
+assert all(result.returncode == 0 for result in review_results), \
+    "pr-lifecycle: valid completed-review pages must parse"
+assert json.loads(review_results[0].stdout) == [
+    review_pages[0][0], review_pages[0][2],
+] \
+    and json.loads(review_results[1].stdout) == [review_pages[1][0]], \
+    "pr-lifecycle: review filter must select only Bot/App reviews"
+assert subprocess.run(
+    ["jq", "-c", review_poll_query.group(1)],
+    input="[]", text=True, capture_output=True, check=False,
+).returncode == 0, "pr-lifecycle: empty review pages are valid"
+for malformed_reviews in (
+    {},
+    None,
+    [None],
+    [{}],
+    [{**review_pages[0][0], "commit_id": 1}],
+    [{**review_pages[0][0], "commit_id": "not-a-sha"}],
+    [{**review_pages[0][0], "commit_id": "g" * 40}],
+    [{key: value for key, value in review_pages[0][0].items()
+      if key != "commit_id"}],
+    [{**review_pages[0][0], "state": None}],
+    [{**review_pages[0][0], "user": {"login": "copilot"}}],
+    [{**review_pages[0][0], "user": {**review_pages[0][0]["user"], "login": "   "}}],
+    [{**review_pages[0][0], "user": {**review_pages[0][0]["user"], "login": " copilot "}}],
+    [{**review_pages[0][0], "user": {**review_pages[0][0]["user"], "login": "co\npilot"}}],
+    [{key: value for key, value in review_pages[0][0].items()
+      if key != "user"}],
+    [{**review_pages[0][0], "performed_via_github_app": "unknown"}],
+    [{**review_pages[0][0], "performed_via_github_app": {}}],
+    [{**review_pages[0][0], "performed_via_github_app": {"slug": "missing-id"}}],
+    [{**review_pages[0][0], "performed_via_github_app": {"id": "30"}}],
+    [{**review_pages[0][0], "performed_via_github_app": {"id": 0}}],
+    [{**review_pages[0][0], "id": None}],
+):
+    malformed_review_result = subprocess.run(
+        ["jq", "-c", review_poll_query.group(1)],
+        input=json.dumps(malformed_reviews),
+        text=True, capture_output=True, check=False,
+    )
+    assert malformed_review_result.returncode != 0, \
+        f"pr-lifecycle: malformed completed-review response accepted: {malformed_reviews}"
 for rule in ("if no pr exists and publication is authorized under `git-publishing-safety`",
              "repository's required creation phase and readiness state",
              "create it here without `--draft`",
-"the regex does not enforce the shared title-length limit. follow `git-publishing-safety` for that check",
+"conventional titles over 72 characters are invalid",
              "before pr creation or any required branch push, follow `git-publishing-safety` for publication authorization",
              "follow repository tracking requirements; do not invent a required issue when none applies"):
     assert rule in pr_lifecycle_policy, \
@@ -153,9 +497,39 @@ for rule in ("ask before pushing or opening a pr unless",
              "source for publication authorization and shared title-length limits"):
     assert rule in git_policy, \
         f"git-publishing-safety: missing publication boundary: {rule}"
-defaults_tests = yaml.safe_load(
+defaults_eval_config = yaml.safe_load(
     (defaults / "tests/promptfooconfig.yaml").read_text()
-)["tests"]
+)
+defaults_tests = defaults_eval_config["tests"]
+eval_providers = {
+    provider["label"]: provider for provider in defaults_eval_config["providers"]
+}
+for label in ("skill-under-test", "policy-chat"):
+    config = eval_providers[label]["config"]
+    assert config["num_ctx"] >= 32768 and config["num_predict"] == 512, \
+        f"agent-defaults: {label} must provide room to measure the 16K input budget"
+for config_path in Path("packages").glob("*/tests/promptfooconfig.yaml"):
+    package_config = yaml.safe_load(config_path.read_text())
+    providers = {
+        provider["label"]: provider for provider in package_config["providers"]
+    }
+    for case in package_config["tests"]:
+        if not any(
+            "pr-lifecycle/SKILL.md" in str(case.get("vars", {}).get(key, ""))
+            for key in ("skill_content", "companion_content", "review_mode_content")
+        ):
+            continue
+        selected_providers = case.get(
+            "providers", package_config["defaultTest"]["providers"]
+        )
+        assert selected_providers and set(selected_providers) <= {
+            "skill-under-test", "policy-chat",
+        }, f"{config_path}: {case.get('description')}: lifecycle tests require the full-context provider"
+        for label in selected_providers:
+            config = providers[label]["config"]
+            assert config.get("num_ctx", 0) >= 32768 \
+                and config.get("num_predict") == 512, \
+                f"{config_path}: {label}: lifecycle tests require explicit context and output reserve"
 untrusted_test = next(
     test for test in defaults_tests
     if test.get("description") ==
@@ -588,3 +962,5 @@ for package, version in release_manifest.items():
     assert yaml.safe_load((path / "apm.yml").read_text())["version"] == version, f"{package}: apm.yml drift"
 print("OK: unconditional defaults, portable router, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
 PY
+
+node --test script/validate-promptfoo-eval.test.js
