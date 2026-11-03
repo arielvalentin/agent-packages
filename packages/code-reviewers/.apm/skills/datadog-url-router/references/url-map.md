@@ -35,9 +35,11 @@ documentation is a separate route.
 | `docs.datadoghq.com/...` | Use `dd-docs` for public documentation | Not applicable |
 
 Call `search_datadog_sdk` before `execute_code` unless the exact SDK call is
-already known. Never use `execute_code` for writes unless the user explicitly
-requested that specific change. A missing route, SDK method, or verified CLI
-command is a limitation to report, not permission to guess or scrape.
+already known. Use only read-only SDK operations. Never use `execute_code` for
+writes, even when the user explicitly requested a change; use a direct MCP
+write operation only with explicit authorization for that specific object.
+A missing route, SDK method, or verified CLI command is a limitation to report,
+not permission to guess or scrape.
 In findings, cite the MCP tool or `pup` command and relevant time window and
 site, with secrets redacted. Distinguish Unix seconds from milliseconds when
 converting timestamps.

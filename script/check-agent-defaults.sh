@@ -592,6 +592,12 @@ router_text = (router / "SKILL.md").read_text()
 assert "(references/url-map.md)" in router_text, "router: missing bundled map"
 assert (router / "references/url-map.md").is_file(), "router: map not bundled"
 router_map = (router / "references/url-map.md").read_text()
+assert "Use only read-only SDK operations." in router_map, \
+    "router map: SDK operations must remain read-only"
+assert "even when the user explicitly requested a change" in router_map, \
+    "router map: execute_code must not perform writes"
+assert "execute_code` for writes unless" not in router_map, \
+    "router map: execute_code write policy is contradictory"
 for path in router.rglob("*.md"):
     text = path.read_text()
     assert "~/" not in text and ".dotfiles" not in text, f"{path}: local dependency"
