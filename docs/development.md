@@ -104,6 +104,19 @@ selector; the default branch will not include the pull request's changes.
 Smoke runners reject empty selections and cases missing `suite: smoke`
 metadata, both locally and in CI.
 
+Agent-defaults CI runs four eval shards on separate runners for both smoke
+and manually selected full runs. Keep every test in
+`packages/agent-defaults/tests/promptfooconfig.yaml` assigned exactly one
+`metadata.shard` value from 1 to 4, and run `npm run test:eval-config` after
+changing the cases or shard tags. The stable `agent-defaults` check fails if
+any shard fails. Each shard uploads an
+`eval-agent-defaults-<run>-<attempt>-shard-<N>` artifact; other package evals
+keep their existing unsuffixed artifact names.
+
+CI evals disable Promptfoo's cache. The regular local smoke commands do not,
+so use `promptfoo eval --no-cache` for timing comparisons and keep the model
+and concurrency consistent. Report local timings separately from CI timings.
+
 From an individual package directory:
 
 ```bash
@@ -142,9 +155,11 @@ their frozen contents independently of the canonical defaults inventory.
 
 - CI evals record the runtime versions, CPU architecture, and model digest.
   When an eval produces `eval.json`, it is retained for seven days as an
-  `eval-<package>-<run>-<attempt>` artifact, including failed evaluations.
-  Use the failing row's source, provider, rendered prompt, and output rather than
-  its shared description alone. For local comparisons, use the locked npm
-  dependencies and match the recorded Ollama version and model digest.
+  artifact, including failed evaluations. Agent-defaults has one
+  `eval-agent-defaults-<run>-<attempt>-shard-<N>` artifact per shard; other
+  packages keep the `eval-<package>-<run>-<attempt>` name. Use the failing
+  row's source, provider, rendered prompt, and output rather than its shared
+  description alone. For local comparisons, use the locked npm dependencies
+  and match the recorded Ollama version and model digest.
 - Hidden directories not visible: use `ls -la` or `tree -a`.
 - Harness not auto-detected in consumer repo: pass `--target <harness>` or set `targets:` in consumer `apm.yml`.

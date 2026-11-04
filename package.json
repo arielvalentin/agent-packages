@@ -2,8 +2,9 @@
   "name": "agent-packages",
   "private": true,
   "scripts": {
-    "test": "npm run test:dependencies && npm run test:smoke",
+    "test": "npm run test:dependencies && npm run test:eval-config && npm run test:smoke",
     "test:dependencies": "node --test script/check-npm-dependencies.test.js",
+    "test:eval-config": "node --test script/check-eval-shard-result.test.js script/check-promptfoo-shards.test.js script/validate-promptfoo-eval.test.js && node script/check-promptfoo-shards.js packages/agent-defaults/tests/promptfooconfig.yaml",
     "test:smoke": "npm run test:defaults:smoke && npm run test:coordinator:smoke && npm run test:dev-workflow:smoke && npm run test:reviewers:smoke",
     "test:full": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
     "test:defaults": "promptfoo eval --config packages/agent-defaults/tests/promptfooconfig.yaml",
