@@ -16,6 +16,33 @@ tree -a .apm
 
 ## Local validation
 
+Run `script/setup` once to install the npm version pinned in `package.json`
+under `devEngines.packageManager`. Setup and both CI install paths read that
+pin. npm versions that support `devEngines` reject dependency and test commands
+when the configured npm version does not match.
+
+The Node 26 path selection in `script/setup` applies only while setup runs. To
+use that runtime in the current shell for later npm commands, run:
+
+```bash
+export PATH="$(brew --prefix node@26)/bin:$PATH"
+```
+
+To update npm without running the rest of setup, first apply that PATH setting:
+
+```bash
+npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+```
+
+Before pushing, start local validation with a clean dependency install:
+
+```bash
+npm ci
+```
+
+This checks that the committed lockfile is installable with the same npm
+version used in CI. It runs manually, not through an automatic Git hook.
+
 Promptfoo smoke tests run by default with `npm test`. They cover a small set of
 package-specific core behaviors and safety boundaries. Run the full behavioral
 suite when changing behavior or investigating a failure:

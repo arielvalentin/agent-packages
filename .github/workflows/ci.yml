@@ -18,8 +18,11 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: ">=22.22.0 <23"
           cache: npm
+
+      - name: Install repository npm version
+        run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
 
       - name: Install Node dependencies
         run: npm ci

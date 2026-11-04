@@ -19,6 +19,13 @@
     "promptfoo": "^0.125.1"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "11.20.0",
+      "onFail": "error"
+    }
   }
 }
