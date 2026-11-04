@@ -32,7 +32,17 @@ runs:
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ inputs.node-version }}
-        cache: npm
+        package-manager-cache: false
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-node-${{ inputs.node-version }}-${{ hashFiles('package.json', 'package-lock.json') }}
+        restore-keys: npm-${{ runner.os }}-node-${{ inputs.node-version }}-
+
+    - name: Install repository npm version
+      shell: bash
+      run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
 
     - name: Cache Ollama binary
       id: cache-ollama
@@ -90,6 +100,7 @@ runs:
         printf 'Logical CPUs: '
         getconf _NPROCESSORS_ONLN
         node --version
+        npm --version
         npx --no-install promptfoo --version
         ollama --version
         curl --fail --silent --show-error http://localhost:11434/api/tags
