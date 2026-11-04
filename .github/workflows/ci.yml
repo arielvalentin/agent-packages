@@ -33,6 +33,9 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Check dependency override compatibility
+        run: npm run test:dependencies
+
       - name: Install APM
         run: curl -sSL https://aka.ms/apm-unix | sh
 
