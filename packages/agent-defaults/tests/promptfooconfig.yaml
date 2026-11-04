@@ -2246,7 +2246,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "Should you use `--paginate` to retrieve every page of effective rules for the base branch? Answer exactly Yes or No."
+      user_input: "Must every page of effective branch rules be retrieved before the required-check policy is verified? Answer exactly Yes or No."
     assert:
       - type: javascript
         value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
