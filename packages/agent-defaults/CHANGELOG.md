@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.6.0...agent-defaults-v0.7.0) (2026-11-04)
+
+
+### Features
+
+* consolidate PR shepherding into pr-lifecycle ([4db83b7](https://github.com/arielvalentin/agent-packages/commit/4db83b7bd71eca255e4c33395b1b1450955bb883))
+
 ## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.5.1...agent-defaults-v0.6.0) (2026-11-01)
 
 
