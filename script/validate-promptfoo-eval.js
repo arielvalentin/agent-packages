@@ -81,11 +81,17 @@ function sourceContent(value) {
   ).trim();
 }
 
-function normalizedVariable(value) {
+function resolvedVariable(value) {
   const resolved = typeof value === "string" && value.startsWith("file://")
     ? sourceContent(value)
     : value;
-  return typeof resolved === "string" ? resolved.replace(/\n$/, "") : resolved;
+  return resolved;
+}
+
+function resultVariable(value) {
+  return typeof value === "string" && value.startsWith("file://")
+    ? sourceContent(value)
+    : value;
 }
 
 function valuesFor(value) {
@@ -136,10 +142,10 @@ function asList(value) {
   return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
 }
 
-function shardVariantKey(description, vars, varKeys, provider, promptIndex) {
+function shardVariantKey(description, vars, varKeys, provider, promptIndex, normalizeSource = false) {
   const variant = Object.fromEntries(varKeys.map((key) => {
     const value = vars?.[key];
-    const normalize = normalizedVariable;
+    const normalize = normalizeSource ? resolvedVariable : resultVariable;
     const normalized = value === undefined
       ? null
       : Array.isArray(value) ? value.map(normalize) : normalize(value);
@@ -166,7 +172,9 @@ if (shard) {
   for (const testCase of expectedCases) {
     const description = typeof testCase?.description === "string" ? testCase.description : "";
     const vars = testCase?.vars || {};
-    const arrayKeys = Object.keys(vars).filter((key) => Array.isArray(vars[key]));
+    const arrayKeys = Object.keys(vars).filter((key) =>
+      Array.isArray(vars[key]) && typeof vars[key][0] === "string"
+    );
     let variants = [vars];
     for (const key of arrayKeys) {
       variants = variants.flatMap((variant) => vars[key].map((value) => ({
@@ -182,15 +190,15 @@ if (shard) {
         const { choice: provider, index: providerIndex } =
           selectedChoice(providerSelection, configuredProviders);
         const providerIdentity = typeof provider === "object" && provider !== null
-          ? { id: provider.id ?? null, label: provider.label ?? null }
-          : { id: provider ?? null, label: provider ?? null };
+          ? { id: provider.id ?? null, label: provider.label || null }
+          : { id: provider ?? null, label: null };
         for (const promptSelection of prompts) {
           const { index: promptIndex } = selectedChoice(promptSelection, configuredPrompts);
           const globalPromptIndex = providerIndex < 0 || promptIndex < 0
             ? null
             : providerIndex * configuredPrompts.length + promptIndex;
           const key = shardVariantKey(
-            description, variant, varKeys, providerIdentity, globalPromptIndex
+            description, variant, varKeys, providerIdentity, globalPromptIndex, true
           );
           expectedRows.set(key, (expectedRows.get(key) || 0) + 1);
         }
@@ -205,7 +213,7 @@ if (shard) {
     const actualVarKeys = [...new Set([...varKeys, ...Object.keys(vars)])].sort();
     const provider = {
       id: row?.provider?.id ?? null,
-      label: row?.provider?.label ?? null,
+      label: row?.provider?.label || null,
     };
     const promptIndex = Number.isInteger(row?.promptIdx) ? row.promptIdx : null;
     const key = shardVariantKey(description, vars, actualVarKeys, provider, promptIndex);

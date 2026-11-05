@@ -4,6 +4,8 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
+const { loadApiProviders } = require("promptfoo");
+const yaml = require("js-yaml");
 
 const lifecyclePath = path.resolve("packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md");
 const lifecycle = fs.readFileSync(lifecyclePath, "utf8");
@@ -215,6 +217,11 @@ test("sharded results include every selected lifecycle case and no other shard",
         metadata: { suite: "smoke", shard: 1 },
         vars: { user_input: "line one\nline two\n" },
       },
+      {
+        description: "double-newline fixture",
+        metadata: { suite: "smoke", shard: 1 },
+        vars: { user_input: "line one\nline two\n\n" },
+      },
     ]);
     const selected = fixtureRow("skill_content");
     selected.testCase.description = "selected lifecycle fixture";
@@ -258,7 +265,11 @@ test("sharded results include every selected lifecycle case and no other shard",
       },
       {
         description: "multiline fixture",
-        vars: { user_input: "line one\nline two" },
+        vars: { user_input: "line one\nline two\n" },
+      },
+      {
+        description: "double-newline fixture",
+        vars: { user_input: "line one\nline two\n\n" },
       },
     ].map(({ description, vars }) => ({
       success: true,
@@ -320,6 +331,82 @@ test("sharded results include every selected lifecycle case and no other shard",
     ], "1");
     assert.equal(rejected.status, 1);
     assert.match(rejected.stderr, /results included 1 case\(s\) assigned to another shard/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("sharded row validation normalizes unlabeled providers like Promptfoo results", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "promptfoo-provider-config-"));
+  try {
+    for (const providerConfig of [
+      "ollama:chat:llama3.2:3b",
+      { id: "ollama:chat:llama3.2:3b" },
+    ]) {
+      const configFile = path.join(directory, "promptfooconfig.yaml");
+      fs.writeFileSync(configFile, JSON.stringify({
+        providers: [providerConfig],
+        prompts: [{ id: "policy-chat", raw: "{{user_input}}" }],
+        defaultTest: {
+          providers: ["ollama:chat:llama3.2:3b"],
+          prompts: ["policy-chat"],
+        },
+        tests: [{
+          description: "unlabeled provider fixture",
+          metadata: { suite: "smoke", shard: 1 },
+          vars: { user_input: "selected input" },
+        }],
+      }));
+      const result = runValidator(configFile, "smoke", [{
+        success: true,
+        testCase: {
+          description: "unlabeled provider fixture",
+          metadata: { suite: "smoke", shard: 1 },
+          vars: { user_input: "selected input" },
+        },
+        provider: { id: "ollama:chat:llama3.2:3b", label: "" },
+        promptIdx: 0,
+      }], "1");
+      assert.equal(result.status, 0, result.stderr);
+    }
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("configured agent-defaults provider IDs match Promptfoo's loaded identities", async () => {
+  const configFile = "packages/agent-defaults/tests/promptfooconfig.yaml";
+  const config = yaml.load(fs.readFileSync(configFile, "utf8"));
+  const loaded = await loadApiProviders(config.providers, {
+    basePath: path.dirname(path.resolve(configFile)),
+  });
+  assert.deepEqual(
+    loaded.map((provider) => provider.id()),
+    config.providers.map((provider) => provider.id)
+  );
+});
+
+test("sharded row validation follows Promptfoo string-first array expansion", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "promptfoo-array-config-"));
+  try {
+    const cases = [
+      { description: "numeric-first", vars: { dimension: [1, 2] } },
+      { description: "object-first", vars: { dimension: [{ value: "a" }, { value: "b" }] } },
+      { description: "empty", vars: { dimension: [] } },
+    ].map(({ description, vars }) => ({
+      description,
+      metadata: { suite: "smoke", shard: 1 },
+      vars,
+    }));
+    const configFile = makeConfig(directory, cases);
+    const rows = cases.map((testCase) => ({
+      success: true,
+      testCase,
+      provider: { id: "ollama:chat:llama3.2:3b", label: "policy-chat" },
+      promptIdx: 0,
+    }));
+    const result = runValidator(configFile, "smoke", rows, "1");
+    assert.equal(result.status, 0, result.stderr);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }

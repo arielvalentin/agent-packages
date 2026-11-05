@@ -113,6 +113,11 @@ runs:
         ollama --version
         curl --fail --silent --show-error http://localhost:11434/api/tags
 
+    - name: Validate sharded eval configuration
+      if: ${{ inputs.shard != '' }}
+      shell: bash
+      run: node script/check-promptfoo-shards.js packages/${{ inputs.package }}/tests/promptfooconfig.yaml
+
     - name: Run evals
       shell: bash
       env:
