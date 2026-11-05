@@ -36,6 +36,9 @@ jobs:
       - name: Check dependency override compatibility
         run: npm run test:dependencies
 
+      - name: Test and validate agent-defaults eval shards
+        run: npm run test:eval-config
+
       - name: Install APM
         run: curl -sSL https://aka.ms/apm-unix | sh
 

@@ -9,6 +9,11 @@ on:
       - "package-lock.json"
       - "script/run-promptfoo-smoke.sh"
       - "script/validate-promptfoo-eval.js"
+      - "script/validate-promptfoo-eval.test.js"
+      - "script/check-promptfoo-shards.js"
+      - "script/check-promptfoo-shards.test.js"
+      - "script/check-eval-shard-result.sh"
+      - "script/check-eval-shard-result.test.js"
       - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
   pull_request:
@@ -19,6 +24,11 @@ on:
       - "package-lock.json"
       - "script/run-promptfoo-smoke.sh"
       - "script/validate-promptfoo-eval.js"
+      - "script/validate-promptfoo-eval.test.js"
+      - "script/check-promptfoo-shards.js"
+      - "script/check-promptfoo-shards.test.js"
+      - "script/check-eval-shard-result.sh"
+      - "script/check-eval-shard-result.test.js"
       - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
   workflow_dispatch:
@@ -34,8 +44,12 @@ permissions:
   contents: read
 
 jobs:
-  eval:
-    name: agent-defaults
+  eval-shard:
+    name: agent-defaults shard ${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: --no-warnings
@@ -45,3 +59,17 @@ jobs:
         with:
           package: agent-defaults
           suite: ${{ inputs.suite || 'smoke' }}
+          shard: ${{ matrix.shard }}
+          artifact-suffix: -shard-${{ matrix.shard }}
+
+  eval:
+    name: agent-defaults
+    if: always()
+    needs: eval-shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Require every shard to pass
+        env:
+          SHARD_RESULT: ${{ needs.eval-shard.result }}
+        run: bash script/check-eval-shard-result.sh "$SHARD_RESULT"
