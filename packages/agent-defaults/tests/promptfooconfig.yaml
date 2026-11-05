@@ -721,10 +721,10 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "For a required check from an external GitHub App, should you verify its configured producer identity or its workflow event? Answer with the identity to verify."
+      user_input: "A required check is pinned to an external GitHub App producer. Which check-run field must match the configured producer ID: app.id or check_suite.id? Answer with exactly one field name."
     assert:
-      - type: icontains
-        value: "producer"
+      - type: javascript
+        value: "output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join('').replace(/[.!]$/, '').toLowerCase() === 'app.id'"
 
   - description: "pr-lifecycle: excludes workflow_dispatch from PR checks"
     metadata:
