@@ -3,12 +3,25 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
+const nunjucks = require("nunjucks");
 
 const SHARD_COUNT = 4;
 const MAX_ROW_SPREAD_RATIO = 0.15;
 const EXPECTED_AGENT_DEFAULTS_ROWS = { full: 404, smoke: 137 };
-const VARIABLE_INTERPOLATION = /\{\{\s*\w+\s*\}\}/;
-const CONVERSATION_VARIABLE = /\{\{\s*_conversation\s*\}\}/;
+const CONVERSATION_VARIABLE = "_conversation";
+const RESERVED_PROMPT_BINDINGS = new Set([CONVERSATION_VARIABLE]);
+const PROMPT_FILE_EXTENSIONS = [
+  ".cjs", ".cts", ".j2", ".js", ".json", ".jsonl", ".md",
+  ".mjs", ".mts", ".py", ".ts", ".txt", ".yml", ".yaml",
+];
+const UNSUPPORTED_TEMPLATE_NODES = new Set([
+  "Block",
+  "Extends",
+  "FromImport",
+  "Import",
+  "Include",
+  "Macro",
+]);
 const PROMPT_PREFIX_VARIABLES = new Set([
   "skill_content",
   "companion_content",
@@ -40,16 +53,271 @@ function checkPromptDefinitions(prompts) {
       valid = false;
       continue;
     }
-    if (/^(file|package|langfuse|portkey):\/\//.test(prompt.raw)) {
+    if (isDynamicPromptSource(prompt.raw)) {
       console.error(`Prompt ${index + 1} uses an unsupported dynamic prompt source.`);
       valid = false;
     }
-    if (CONVERSATION_VARIABLE.test(prompt.raw)) {
-      console.error(`Prompt ${index + 1} uses unsupported runtime variable _conversation.`);
-      valid = false;
+    let jsonPrompt;
+    let isJsonPrompt = false;
+    try {
+      jsonPrompt = JSON.parse(prompt.raw);
+      isJsonPrompt = true;
+    } catch {
+      // Non-JSON prompt templates are checked directly by Nunjucks.
     }
+    if (isJsonPrompt) {
+      if (!checkJsonPromptStrings(jsonPrompt, `Prompt ${index + 1}`)) valid = false;
+    } else if (!checkPromptTemplate(prompt.raw, `Prompt ${index + 1}`)) valid = false;
   }
   return valid;
+}
+
+function isPromptfooBooleanEnabled(value) {
+  return typeof value === "string"
+    && ["1", "true", "yes", "yup", "yeppers"].includes(value.toLowerCase());
+}
+
+function findPromptfooReference(value, segments = []) {
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      const match = findPromptfooReference(item, [...segments, index]);
+      if (match) return match;
+    }
+    return undefined;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      const childPath = [...segments, key];
+      if (key === "$ref") return childPath;
+      const match = findPromptfooReference(item, childPath);
+      if (match) return match;
+    }
+  }
+  return undefined;
+}
+
+function formatConfigPath(segments) {
+  return segments.reduce((result, segment) =>
+    typeof segment === "number" ? `${result}[${segment}]` : `${result}.${segment}`,
+  "config");
+}
+
+function checkPromptfooRowSources(config) {
+  let valid = true;
+  if (isPromptfooBooleanEnabled(process.env.PROMPTFOO_DISABLE_VAR_EXPANSION)
+    || isPromptfooBooleanEnabled(config.env?.PROMPTFOO_DISABLE_VAR_EXPANSION)) {
+    console.error("PROMPTFOO_DISABLE_VAR_EXPANSION is unsupported for sharded evaluations.");
+    valid = false;
+  }
+  const reference = findPromptfooReference(config);
+  if (reference) {
+    console.error(
+      `${formatConfigPath(reference.slice(0, -1))} uses unsupported Promptfoo $ref configuration.`
+    );
+    valid = false;
+  }
+  const hasEnvFileSource = process.env.DOTENV_PATH !== undefined
+    || process.env.DOTENV_CONFIG_PATH !== undefined
+    || fs.existsSync(path.resolve(process.cwd(), ".env"));
+  if (hasEnvFileSource) {
+    console.error("Promptfoo env files are unsupported for sharded evaluations.");
+    valid = false;
+  }
+  if (config.commandLineOptions?.envPath !== undefined) {
+    console.error("commandLineOptions.envPath is unsupported for sharded evaluations.");
+    valid = false;
+  }
+  return valid;
+}
+
+function isDynamicPromptSource(raw) {
+  if (raw.startsWith("exec:")
+    || /^(file|package|langfuse|portkey|helicone):\/\//.test(raw)) {
+    return true;
+  }
+  if (raw.includes("\n")
+    || ["portkey://", "langfuse://", "helicone://"].some((source) => raw.includes(source))) {
+    return false;
+  }
+  const tokens = raw.split(":");
+  return raw.startsWith("file://") || PROMPT_FILE_EXTENSIONS.some((extension) =>
+    tokens.at(-1)?.endsWith(extension) || tokens.at(-2)?.endsWith(extension)
+  ) || raw.at(-3) === "." || raw.at(-4) === "."
+    || raw.includes("*") || raw.includes("/") || raw.includes("\\");
+}
+
+function checkPromptTemplate(prompt, label) {
+  const conversationReference = analyzeConversationReference(prompt);
+  if (!conversationReference.parsed) {
+    console.error(`${label} contains malformed or unsupported Nunjucks syntax.`);
+    return false;
+  }
+  if (conversationReference.referenced) {
+    console.error(`${label} uses unsupported runtime variable _conversation.`);
+    return false;
+  }
+  if (!conversationReference.supported) {
+    console.error(`${label} uses unsupported Nunjucks template constructs.`);
+    return false;
+  }
+  return true;
+}
+
+function checkJsonPromptStrings(value, label) {
+  if (typeof value === "string") return checkPromptTemplate(value, label);
+  if (Array.isArray(value)) {
+    return value.every((item, index) => checkJsonPromptStrings(item, `${label}[${index}]`));
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value).every(([key, item]) => {
+      // Promptfoo may fall back to rendering the raw JSON string if value rendering fails.
+      return checkPromptTemplate(key, `${label} key`)
+        && checkJsonPromptStrings(item, `${label}.${key}`);
+    });
+  }
+  return true;
+}
+
+function analyzeConversationReference(prompt) {
+  try {
+    const ast = nunjucks.parser.parse(prompt);
+    return {
+      parsed: true,
+      supported: !containsUnsupportedTemplateNode(ast)
+        && !containsReservedPromptBinding(ast),
+      referenced: astReferencesVariable(ast, CONVERSATION_VARIABLE),
+    };
+  } catch {
+    return { parsed: false, supported: false, referenced: false };
+  }
+}
+
+function isAstNode(value) {
+  return Boolean(value && typeof value === "object" && typeof value.typename === "string");
+}
+
+function containsUnsupportedTemplateNode(node) {
+  if (!isAstNode(node)) return false;
+  if (UNSUPPORTED_TEMPLATE_NODES.has(node.typename)) return true;
+  if (node.typename === "Set" && containsUnsupportedTemplateNode(node.body)) return true;
+  return (node.fields ?? []).some((field) => {
+    const child = node[field];
+    return Array.isArray(child)
+      ? child.some(containsUnsupportedTemplateNode)
+      : containsUnsupportedTemplateNode(child);
+  });
+}
+
+function containsReservedPromptBinding(node) {
+  if (!isAstNode(node)) return false;
+  if (node.typename === "Set"
+    && collectBindingNames(node.targets).some((name) => RESERVED_PROMPT_BINDINGS.has(name))) {
+    return true;
+  }
+  if (["For", "AsyncEach", "AsyncAll"].includes(node.typename)
+    && collectBindingNames(node.name).some((name) => RESERVED_PROMPT_BINDINGS.has(name))) {
+    return true;
+  }
+  if (node.typename === "Set" && containsReservedPromptBinding(node.body)) return true;
+  return (node.fields ?? []).some((field) => {
+    const child = node[field];
+    return Array.isArray(child)
+      ? child.some(containsReservedPromptBinding)
+      : containsReservedPromptBinding(child);
+  });
+}
+
+function isPlainNunjucksText(node) {
+  if (!isAstNode(node)) return false;
+  if (node.typename === "Root" || node.typename === "NodeList") {
+    return Array.isArray(node.children) && node.children.every(isPlainNunjucksText);
+  }
+  return node.typename === "Output"
+    && Array.isArray(node.children)
+    && node.children.every((child) => child?.typename === "TemplateData");
+}
+
+function containsNunjucksTemplateDelimiter(source) {
+  const lexer = nunjucks.lexer.lex(source);
+  let token;
+  while ((token = lexer.nextToken())) {
+    if ([nunjucks.lexer.TOKEN_BLOCK_START, nunjucks.lexer.TOKEN_VARIABLE_START,
+      nunjucks.lexer.TOKEN_COMMENT].includes(token.type)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isNonReferenceSymbol(node, parent) {
+  if (!parent) return false;
+  const { node: parentNode, field } = parent;
+  return (parentNode.typename === "Pair" && field === "key")
+    || (parentNode.typename === "Filter" && field === "name")
+    || (parentNode.typename === "Is" && field === "right")
+    || (parentNode.typename === "Set" && field === "targets")
+    || (["For", "AsyncEach", "AsyncAll"].includes(parentNode.typename) && field === "name")
+    || (parentNode.typename === "LookupVal" && field === "val"
+      && node?.typename === "Literal");
+}
+
+function collectBindingNames(node) {
+  if (Array.isArray(node)) return node.flatMap(collectBindingNames);
+  if (node?.typename === "Symbol" && typeof node.value === "string") return [node.value];
+  if (!isAstNode(node) || !Array.isArray(node.children)) return [];
+  return node.children.flatMap(collectBindingNames);
+}
+
+function astNodeListReferencesVariable(children, variableName) {
+  return children.some((child) =>
+    isAstNode(child) && astReferencesVariable(child, variableName)
+  );
+}
+
+function astReferencesVariable(node, variableName, parent) {
+  if (Array.isArray(node)) {
+    return node.some((child) =>
+      isAstNode(child) && astReferencesVariable(child, variableName, parent)
+    );
+  }
+  if (node.typename === "Symbol" && node.value === variableName) {
+    return !isNonReferenceSymbol(node, parent);
+  }
+  if ((node.typename === "Root" || node.typename === "NodeList")
+    && Array.isArray(node.children)) {
+    return astNodeListReferencesVariable(node.children, variableName);
+  }
+  if (["For", "AsyncEach", "AsyncAll"].includes(node.typename)) {
+    return astReferencesVariable(node.arr, variableName, { node, field: "arr" })
+    || astReferencesVariable(node.body, variableName, { node, field: "body" })
+    || (node.else_ && astReferencesVariable(
+      node.else_, variableName, { node, field: "else_" },
+    ));
+  }
+  if (node.typename === "Set") {
+    return astReferencesVariable(node.targets, variableName, { node, field: "targets" })
+    || (isAstNode(node.value) && astReferencesVariable(
+      node.value, variableName, { node, field: "value" },
+    )) || (isAstNode(node.body) && astReferencesVariable(
+      node.body, variableName, { node, field: "body" },
+    ));
+  }
+  if (node.typename === "Is") {
+    const right = node.right;
+    return astReferencesVariable(node.left, variableName, { node, field: "left" })
+    || (isAstNode(right) && right.typename !== "Symbol"
+      && astReferencesVariable(right, variableName, { node, field: "right" }));
+  }
+  return (node.fields ?? []).some((field) => {
+    const child = node[field];
+    return Array.isArray(child)
+    ? child.some((item) => isAstNode(item) && astReferencesVariable(
+      item, variableName, { node, field },
+    ))
+    : isAstNode(child) && astReferencesVariable(
+      child, variableName, { node, field },
+    );
+  });
 }
 
 function selectedProviders(testCase, config) {
@@ -314,14 +582,39 @@ function checkVariableInterpolation(value, label, baseDirectory) {
       return false;
     }
     try {
-      source = fs.readFileSync(filePath, "utf8");
+      const repositoryRoot = fs.realpathSync(path.resolve(__dirname, ".."));
+      const sourcePath = fs.realpathSync(filePath);
+      const relativePath = path.relative(repositoryRoot, sourcePath);
+      if (fs.lstatSync(filePath).isSymbolicLink()
+        || relativePath === ".."
+        || relativePath.startsWith(`..${path.sep}`)
+        || path.isAbsolute(relativePath)) {
+        console.error(`${label}: file variable sources must resolve to regular files inside the repository.`);
+        return false;
+      }
+      if (!fs.statSync(sourcePath).isFile()) {
+        console.error(`${label}: file variable sources must resolve to regular files inside the repository.`);
+        return false;
+      }
+      source = fs.readFileSync(sourcePath, "utf8");
     } catch (error) {
       console.error(`${label}: unable to inspect variable source ${filePath}: ${error.message}`);
       return false;
     }
   }
-  if (VARIABLE_INTERPOLATION.test(source)) {
-    console.error(`${label}: variable interpolation is unsupported for sharded evaluations.`);
+  let template;
+  try {
+    template = nunjucks.parser.parse(source);
+  } catch {
+    console.error(`${label}: malformed Nunjucks template syntax is unsupported for sharded evaluations.`);
+    return false;
+  }
+  if (!isPlainNunjucksText(template)) {
+    console.error(`${label}: Nunjucks templating is unsupported for sharded evaluations.`);
+    return false;
+  }
+  if (containsNunjucksTemplateDelimiter(source)) {
+    console.error(`${label}: Nunjucks templating is unsupported for sharded evaluations.`);
     return false;
   }
   return true;
@@ -367,16 +660,11 @@ function checkConfig(config, configPath) {
     console.error("Promptfoo config must contain at least one test case.");
     return false;
   }
-  if (["1", "true", "yes", "yup", "yeppers"].includes(
-    (process.env.PROMPTFOO_DISABLE_VAR_EXPANSION || "").toLowerCase()
-  )) {
-    console.error("PROMPTFOO_DISABLE_VAR_EXPANSION is unsupported; variable expansion must remain enabled.");
-    return false;
-  }
   const shards = Array.from({ length: SHARD_COUNT }, (_, index) =>
     tests.filter((testCase) => testCase?.metadata?.shard === index + 1)
   );
   let invalid = !checkRowOptions(config.defaultTest?.options, "defaultTest");
+  if (!checkPromptfooRowSources(config)) invalid = true;
   if (!checkPromptDefinitions(config.prompts)) invalid = true;
   if (config.defaultTest?.provider !== undefined && config.defaultTest.provider !== null) {
     console.error("defaultTest.provider is unsupported for sharded evaluations; use defaultTest.providers.");

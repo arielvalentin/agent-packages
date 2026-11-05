@@ -113,6 +113,9 @@ any shard fails. Each shard uploads an
 `eval-agent-defaults-<run>-<attempt>-shard-<N>` artifact; other package evals
 keep their existing unsuffixed artifact names.
 
+The shard checker is a correctness preflight for repository-controlled configs,
+not a code-execution security sandbox for arbitrary Promptfoo configuration.
+
 CI evals disable Promptfoo's cache. The regular local smoke commands do not,
 so use `promptfoo eval --no-cache` for timing comparisons and keep the model
 and concurrency consistent. Report local timings separately from CI timings.

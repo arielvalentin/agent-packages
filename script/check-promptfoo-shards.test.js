@@ -10,7 +10,7 @@ const { assignPromptGroups, balanceLimits } = require("./check-promptfoo-shards"
 
 const checkerPath = "script/check-promptfoo-shards.js";
 
-function runChecker(tests, config = {}, env = {}) {
+function runChecker(tests, config = {}, env = {}, options = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "promptfoo-shards-"));
   try {
     const configFile = path.join(directory, "promptfooconfig.yaml");
@@ -28,6 +28,15 @@ function runChecker(tests, config = {}, env = {}) {
     )].map((id) => key === "prompts"
       ? { id, raw: "{{user_input}}" }
       : { id });
+    if (options.dotenv !== undefined) {
+      fs.writeFileSync(path.join(directory, ".env"), options.dotenv);
+    }
+    for (const [file, contents] of Object.entries(options.references ?? {})) {
+      fs.writeFileSync(path.join(directory, file), contents);
+    }
+    for (const [file, target] of Object.entries(options.symlinks ?? {})) {
+      fs.symlinkSync(target, path.join(directory, file));
+    }
     const prompts = config.prompts
       ? config.prompts.map((prompt) =>
         prompt && typeof prompt === "object" && prompt.raw === undefined
@@ -45,7 +54,8 @@ function runChecker(tests, config = {}, env = {}) {
         tests,
       })
     );
-    return spawnSync(process.execPath, [checkerPath, configFile], {
+    return spawnSync(process.execPath, [path.resolve(checkerPath), configFile], {
+      cwd: directory,
       encoding: "utf8",
       env: { ...process.env, PROMPTFOO_DISABLE_VAR_EXPANSION: "", ...env },
     });
@@ -391,7 +401,7 @@ test("variable transforms and scenarios fail closed before sharded evaluation", 
   assert.match(result.stderr, /scenarios are unsupported for sharded evaluations/);
 });
 
-test("stored outputs and conversation-dependent prompts fail closed", () => {
+test("stored outputs and reserved prompt runtime variables fail closed", () => {
   for (const scope of ["test", "defaultTest"]) {
     const config = groupedConfig([1, 1, 1, 1]);
     const assignment = assignPromptGroups(config);
@@ -403,19 +413,197 @@ test("stored outputs and conversation-dependent prompts fail closed", () => {
     assert.match(result.stderr, /options\.storeOutputAs is unsupported/);
   }
 
+  for (const raw of [
+    "Continue: {{_conversation}}",
+    "Continue: {{ _conversation | dump }}",
+    "Continue: {{ _conversation[0] }}",
+    "Continue: {{ user[_conversation] }}",
+    "Continue: {{ \"}}\" ~ _conversation[0] }}",
+    "{\"content\":\"\\u007b\\u007b _conversation \\u007d\\u007d\"}",
+    "{% for turn in _conversation %}{{ turn }}{% endfor %}",
+    "{% if \"%}\" and _conversation %}x{% endif %}",
+    "{% set value %}{{ _conversation }}{% endset %}",
+  ]) {
+    const config = groupedConfig([1, 1, 1, 1]);
+    const assignment = assignPromptGroups(config);
+    for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+    const result = runChecker(config.tests, {
+      prompts: [{ id: "test-prompt", raw }],
+      defaultTest: config.defaultTest,
+    });
+    assert.equal(result.status, 1, raw);
+    assert.match(result.stderr, /unsupported runtime variable _conversation/);
+  }
+
+  for (const raw of [
+    "Continue: {{ user_conversation }}",
+    "Continue: {{ \"_conversation\" }}",
+    "Continue: {{ user._conversation }}",
+    "{% raw %}{{ _conversation }}{% endraw %}",
+    "{% for first, second in values %}{{ first }}{{ second }}{% endfor %}",
+    JSON.stringify([{ role: "user", content: '{{ "{{ user_input }}" }}' }], null, 2),
+    JSON.stringify({ "{{ \"_conversation\" }}": "literal key" }, null, 2),
+    JSON.stringify({ "{{ user._conversation }}": "literal key" }, null, 2),
+  ]) {
+    const config = groupedConfig([1, 1, 1, 1]);
+    const assignment = assignPromptGroups(config);
+    for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+    const staticPrompt = runChecker(config.tests, {
+      prompts: [{ id: "test-prompt", raw }],
+      defaultTest: config.defaultTest,
+    });
+    assert.equal(staticPrompt.status, 0, `${raw}\n${staticPrompt.stderr}`);
+  }
+
+  for (const raw of [
+    "{% macro render(_conversation) %}{{ _conversation }}{% endmacro %}",
+    "{% macro outer(_conversation) %}{% macro inner() %}{{ _conversation }}{% endmacro %}{{ inner() }}{% endmacro %}{{ outer(\"local\") }}",
+    "{% macro render(value=_conversation) %}{{ value }}{% endmacro %}{{ render() }}",
+    "{% set _conversation = \"local\" %}{% macro render() %}{{ _conversation }}{% endmacro %}{{ render() }}",
+    "{% set _conversation = \"local\" %}{{ _conversation }}",
+    "{% set _conversation %}local{% endset %}{{ _conversation }}",
+    "{% if true %}{% set _conversation = \"local\" %}{% endif %}{{ _conversation }}",
+    "{% for _conversation in values %}{{ _conversation }}{% endfor %}",
+    "{% include \"hidden-template\" %}",
+    "{% extends \"hidden-template\" %}",
+    "{% import \"hidden-template\" as hidden %}",
+    "{% from \"hidden-template\" import hidden %}",
+    "{% set value %}{% include \"hidden-template\" %}{% endset %}",
+    "{% block _conversation %}hidden{% endblock %}",
+    "{% set _conversation.foo = \"x\" %}",
+    "{% set foo[_conversation] = \"x\" %}",
+  ]) {
+    const config = groupedConfig([1, 1, 1, 1]);
+    const assignment = assignPromptGroups(config);
+    for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+    const unsupportedPrompt = runChecker(config.tests, {
+      prompts: [{ id: "test-prompt", raw }],
+      defaultTest: config.defaultTest,
+    });
+    assert.equal(unsupportedPrompt.status, 1, `${raw}\n${unsupportedPrompt.stderr}`);
+    assert.match(unsupportedPrompt.stderr, /unsupported (Nunjucks template constructs|runtime variable _conversation)/);
+  }
+
   const config = groupedConfig([1, 1, 1, 1]);
   const assignment = assignPromptGroups(config);
   for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+  const malformedPrompt = runChecker(config.tests, {
+    prompts: [{ id: "test-prompt", raw: "Continue: {{ _conversation" }],
+    defaultTest: config.defaultTest,
+  });
+  assert.equal(malformedPrompt.status, 1);
+  assert.match(malformedPrompt.stderr, /malformed or unsupported Nunjucks syntax/);
+});
+
+test("JSON prompt values are checked while raw-block text remains literal", () => {
+  const config = groupedConfig([1, 1, 1, 1]);
+  const assignment = assignPromptGroups(config);
+  for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+
+  const raw = JSON.stringify({ content: "{{ _conversation }}" });
   const result = runChecker(config.tests, {
-    prompts: [{ id: "test-prompt", raw: "Continue: {{_conversation}}" }],
+    prompts: [{ id: "test-prompt", raw }],
     defaultTest: config.defaultTest,
   });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /unsupported runtime variable _conversation/);
+
+  const rawBlock = JSON.stringify({
+    content: "{% raw %}{{ _conversation }}{% endraw %}",
+  });
+  const literalResult = runChecker(config.tests, {
+    prompts: [{ id: "test-prompt", raw: rawBlock }],
+    defaultTest: config.defaultTest,
+  });
+  assert.equal(literalResult.status, 0, literalResult.stderr);
+});
+
+test("Promptfoo variable-expansion overrides are unsupported for sharded evaluations", () => {
+  const tests = groupedConfig([1, 1, 1, 1]).tests;
+  const configOverride = runChecker(tests, {
+    env: { PROMPTFOO_DISABLE_VAR_EXPANSION: "true" },
+  });
+  assert.equal(configOverride.status, 1);
+  assert.match(configOverride.stderr, /PROMPTFOO_DISABLE_VAR_EXPANSION is unsupported/);
+
+  const configuredEnvPath = runChecker(tests, {
+    commandLineOptions: { envPath: ".env.extra" },
+  });
+  assert.equal(configuredEnvPath.status, 1);
+  assert.match(configuredEnvPath.stderr, /commandLineOptions\.envPath is unsupported/);
+
+  const dotenvPath = runChecker(tests, {}, { DOTENV_PATH: "custom.env" });
+  assert.equal(dotenvPath.status, 1);
+  assert.match(dotenvPath.stderr, /Promptfoo env files are unsupported/);
+
+  const dotenvFile = runChecker(tests, {}, {}, {
+    dotenv: "PROMPTFOO_DISABLE_VAR_EXPANSION=true\n",
+  });
+  assert.equal(dotenvFile.status, 1);
+  assert.match(dotenvFile.stderr, /Promptfoo env files are unsupported/);
+
+  const processOverride = runChecker(tests, {}, {
+    PROMPTFOO_DISABLE_VAR_EXPANSION: "true",
+  });
+  assert.equal(processOverride.status, 1);
+  assert.match(processOverride.stderr, /PROMPTFOO_DISABLE_VAR_EXPANSION is unsupported/);
+});
+
+test("Promptfoo config references fail closed before resolving external rows", () => {
+  const config = groupedConfig([1, 1, 1, 1]);
+  const assignment = assignPromptGroups(config);
+  for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+  config.tests[0].vars.skill_content = { $ref: "./skill-content.json" };
+  const result = runChecker(config.tests, config, {}, {
+    references: {
+      "skill-content.json": "[\"first\", \"second\"]",
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /uses unsupported Promptfoo \$ref configuration/);
+});
+
+test("variable-expansion flag name is ordinary row data", () => {
+  const config = groupedConfig([1, 1, 1, 1]);
+  const assignment = assignPromptGroups(config);
+  for (const testCase of config.tests) {
+    testCase.metadata.shard = assignment.get(testCase);
+    testCase.vars.PROMPTFOO_DISABLE_VAR_EXPANSION = "test-data";
+  }
+  const result = runChecker(config.tests);
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("file-backed variable sources must stay inside the repository", () => {
+  const config = groupedConfig([1, 1, 1, 1]);
+  const assignment = assignPromptGroups(config);
+  for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
+
+  for (const reference of ["file://outside.md", "file://linked.md"]) {
+    config.tests[0].vars.skill_content = reference;
+    const result = runChecker(config.tests, {}, {}, {
+      references: { "outside.md": "static text\n" },
+      symlinks: { "linked.md": "outside.md" },
+    });
+    assert.equal(result.status, 1, `${reference}\n${result.stderr}`);
+    assert.match(result.stderr, /file variable sources must resolve to regular files inside the repository/);
+  }
 });
 
 test("dynamic prompt sources fail closed", () => {
-  for (const raw of ["file://prompts/*.txt", "package://prompt.js", "langfuse://prompt-id"]) {
+  for (const raw of [
+    "file://prompts/*.txt",
+    "package://prompt.js",
+    "langfuse://prompt-id",
+    "portkey://prompt-id",
+    "helicone://prompt-id",
+    "exec:generate.sh",
+    "exec:./dynamic-prompt.js",
+    "./prompts/template.txt",
+    "/tmp/prompt.md",
+    "prompts/*.txt",
+    "prompts/template",
+  ]) {
     const config = groupedConfig([1, 1, 1, 1]);
     const assignment = assignPromptGroups(config);
     for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
@@ -428,23 +616,41 @@ test("dynamic prompt sources fail closed", () => {
   }
 });
 
-test("variable interpolation is rejected in values and loaded text sources", () => {
+test("Nunjucks templating is rejected in values and loaded text sources", () => {
   const file = path.join(os.tmpdir(), `promptfoo-variable-${process.pid}.txt`);
+  const commentFile = path.join(os.tmpdir(), `promptfoo-comment-${process.pid}.txt`);
+  const rawFile = path.join(os.tmpdir(), `promptfoo-raw-${process.pid}.txt`);
   const yamlFile = path.join(os.tmpdir(), `promptfoo-variable-${process.pid}.yaml`);
   fs.writeFileSync(file, "Hello {{name}}");
+  fs.writeFileSync(commentFile, "before{#- hidden -#}after");
+  fs.writeFileSync(rawFile, "{% raw %}{{ user_input }}{% endraw %}");
   fs.writeFileSync(yamlFile, "message: hello\n");
   try {
-    for (const value of ["Hello {{name}}", `file://${file}`, `file://${yamlFile}`]) {
+    for (const value of [
+      "Hello {{name}}",
+      "Hello {{ user_input | upper }}",
+      "Hello {{ user_input.name }}",
+      "{% if user_input %}Hello{% endif %}",
+      "before{# hidden #}after",
+      "{#- hidden -#}",
+      "{% raw %}{{ user_input }}{% endraw %}",
+      `file://${file}`,
+      `file://${commentFile}`,
+      `file://${rawFile}`,
+      `file://${yamlFile}`,
+    ]) {
       const config = groupedConfig([1, 1, 1, 1]);
       config.tests[0].vars.user_input = value;
       const assignment = assignPromptGroups(config);
       for (const testCase of config.tests) testCase.metadata.shard = assignment.get(testCase);
       const result = runChecker(config.tests, { defaultTest: config.defaultTest });
       assert.equal(result.status, 1, value);
-      assert.match(result.stderr, /(variable interpolation is unsupported|only plain-text file variable sources)/);
+      assert.match(result.stderr, /(Nunjucks templating is unsupported|only plain-text file variable sources|file variable sources must resolve)/);
     }
   } finally {
     fs.rmSync(file, { force: true });
+    fs.rmSync(commentFile, { force: true });
+    fs.rmSync(rawFile, { force: true });
     fs.rmSync(yamlFile, { force: true });
   }
 });
