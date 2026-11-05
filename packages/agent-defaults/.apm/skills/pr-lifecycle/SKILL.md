@@ -23,11 +23,11 @@ still apply.
 For PR titles and bodies, load `writing-voice` and its
 `references/artifact-authoring.md` for authoring and the final pre-post reader
 check. Use `acting-on-behalf` for posting permission and conditional attribution.
-This applies to early drafts and later updates. Check applicable PR templates
+This applies to initial creation and later updates. Check applicable PR templates
 in the repository root, `docs/`, and `.github/`, including template directories,
 before either phase; apply the canonical template and content rules there.
 
-Resolve the exact repository and PR once. A bare PR number means the active
+Resolve the exact repository first; resolve the PR once one exists. A bare PR number means the active
 repository only; pass `--repo <owner>/<repo>` to every repository-scoped
 `gh` command, including `gh pr` and `gh run`, and use that exact repository in
 `gh api` paths. Replace placeholders in command examples with the resolved
@@ -117,30 +117,18 @@ or inspect Phase 5 review requests/reviews once for Copilot. Do not use
 
 ---
 
-## Phase 1 — Early draft PR
+## Phase 1 — Local preparation
 
 For `feature`, `bugfix`, and `refactor` flows:
 
-Before PR creation or any required branch push, follow
-`git-publishing-safety` for publication authorization.
-
-1. Once publication is authorized under `git-publishing-safety`, and the
-   repository does not prescribe another workflow, open an early **draft PR**
-   with a valid title from the start, never a placeholder like `WIP: <goal>`.
-   Follow the repository's required title format. Only if none is specified,
-   use Conventional Commits:
-   ```bash
-   gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"
-   ```
-   - Default `<type>` from the canonical flow (`feature` → `feat`, `bugfix` →
-     `fix`, `refactor` → `refactor`) and derive `<description>` from the
-     goal — this mapping is a default, not an absolute. If the actual
-     initial change is clearly `docs`, `test`, `chore`, `ci`, `perf`,
-     `build`, or `revert` work, use that type instead.
-   - Validate the title against § Title format before creating the PR.
-2. Skip for `research` flows, when the user explicitly declines, or when
-   repository guidance prescribes a different PR workflow, including creating
-   the PR only after implementation gates pass.
+1. Prepare the local branch and task context. Do not push or create a PR yet,
+   even a draft. Publication permission alone does not satisfy local review.
+2. Keep tracking and continuation state local: repository, branch, base
+   revision, task/issue references when applicable, validation and review
+   outcomes, unresolved findings, and the next step. A PR number or URL is not
+   required before Phase 3; do not create a PR just to obtain one.
+3. Research-only flows do not create a PR. If creation is declined or not
+   authorized, complete the local work and report the publication gate.
 
 ## Phase 2 — Implementation & gates
 
@@ -148,38 +136,42 @@ Follow `repository-work`'s task-ownership rule: use the installed `implementer`
 when delegation is available and permitted; otherwise, the calling agent owns
 implementation. Preserve PR lifecycle orchestration and review gates
 (`review-fix-loop`). No coordinator agent is required.
-When the repository workflow uses an early draft, keep the PR in draft until
-all gates pass. Otherwise preserve the state required by repository guidance;
-do not introduce a draft transition.
+Keep implementation, validation, and the required adversarial local
+review/fix cycle local. Run `adversarial-review` through `review-fix-loop`
+against the completed diff and relevant context. Address blocker/major
+findings and re-review after fixes until the existing acceptance criteria
+pass. Incomplete reviews, unresolved blocker/major findings, or exhausted
+retries block PR creation; escalate rather than publish with a warning.
+Preserve the existing explicit user-waiver path for adversarial review;
+publication authorization or a request for an early draft is not a waiver.
+Any subsequent diff change invalidates local acceptance: rerun affected
+validation and review gates before creation. On continuation, verify that
+recorded acceptance still covers the current diff instead of assuming a PR
+already exists.
 
-## Phase 3 — Finalize PR
+## Phase 3 — Create draft PR after local acceptance
 
-When implementation is complete and gates pass:
+Only when implementation is complete and local gates pass (or an applicable
+explicit review waiver is recorded):
 
-1. If no PR exists and publication is authorized under
-   `git-publishing-safety`, follow the repository's required creation phase and
-   readiness state. When guidance requires the PR to be opened ready only
-   after gates pass, create it here without `--draft`:
-   ```bash
-   gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<problem/value summary + required tracking>"
-   ```
-   If repository guidance prescribes another command or state, follow it.
-2. Recheck the applicable PR template and preserve its structure and required
+Before PR creation or any required branch push, follow
+`git-publishing-safety` for publication authorization. Apply
+`acting-on-behalf` for posting permission and disclosure. Local acceptance
+does not authorize publication.
+
+1. Recheck the applicable PR template and preserve its structure and required
    answers under `writing-voice`'s artifact-authoring rules.
-3. Follow the repository's title format. For the default Conventional format,
-   re-derive and correct the complete header — `<type>`, optional scope,
-   optional `!`, and wording — from the final diff, not from the Phase 1 goal.
-   The title already follows the chosen format from Phase 1; this step
-   **corrects/refines** that header (the
-   flow-default type may no longer fit, or a scope may now materially
-   clarify the change) — it is never a deferred WIP-to-Conventional
-   conversion. Validate against § Title format, then update using the
-   corrected title itself (not the unscoped template — the corrected
-   scope and `!` must survive):
-   ```bash
-   gh pr edit <number> --repo <owner>/<repo> --title "<validated-conventional-title>"
-   ```
-4. Rewrite the body using `writing-voice`, including its validation-detail
+2. Follow the repository's title format. For the default Conventional format,
+   derive the complete header — `<type>`, optional scope, optional `!`, and
+   wording — from the final diff before creation. The flow-to-type mapping
+   (`feature` → `feat`, `bugfix` → `fix`, `refactor` → `refactor`) is a default,
+   not absolute: use `docs`, `test`, `chore`, `ci`, `perf`, `build`, or `revert`
+   when the actual change calls for it. Validate against § Title format.
+   When no PR exists, prepare title text only and pass it to step 4's
+   `--title`; do not run `gh pr edit` or invent a PR number.
+   Preserve the validated scope and `!` in the creation title when applicable.
+   This phase only prepares a new PR; it does not retitle an existing PR.
+3. Prepare the body using `writing-voice`, including its validation-detail
    rules. Follow the repository template when present; otherwise use only the
    structure this change needs. Follow repository tracking requirements; do
    not invent a required issue when none applies. Preserve relevant issue and
@@ -187,14 +179,28 @@ When implementation is complete and gates pass:
    PR-body attribution is not part of feedback processing:
    `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
    sole source of truth for whether a PR body needs AI attribution.
-5. If the PR is in draft and the repository workflow calls for a
-   ready-for-review transition, validate the title against § Title format,
-   then mark it ready when all gates pass:
+4. If no PR exists and publication is authorized under
+   `git-publishing-safety`, follow the repository's required creation phase and
+   readiness state, but never create before local acceptance. By default,
+   create a **draft PR** with the validated title and complete body, never a
+   placeholder like `WIP: <goal>`:
    ```bash
-   gh pr ready <number> --repo <owner>/<repo>
+   gh pr create --repo <owner>/<repo> --draft --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
-   If repository guidance uses another workflow, follow its required state
-   transition instead. Do not run `gh pr ready` for a PR that is already ready.
+   When guidance requires the PR to be opened ready only
+   after gates pass, create it here without `--draft`:
+   ```bash
+   gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<problem/value summary + required tracking>"
+   ```
+   If repository guidance prescribes another command or state, follow it
+   after local acceptance. If a PR already exists, do not create a duplicate;
+   use the Existing PR entrypoint. Record its number/URL in continuation state
+   only after creation succeeds; failed creation is not a published PR.
+5. Continue to Phase 4. A newly created draft uses the Existing PR entrypoint's
+   draft checks, feedback handling, authorization, and transition snapshots
+   before `gh pr ready`. Local review acceptance is not remote readiness.
+   Do not wait for Copilot review or enter Phase 7 while it remains a draft.
+   Do not run `gh pr ready` for a PR that is already ready.
 
 ## Title format
 
@@ -203,7 +209,7 @@ from Conventional Commits, validate that format instead of the regex below.
 For example, a repository requiring a ticket prefix keeps that prefix.
 
 Only when the repository supplies no title format, use these Conventional
-Commits defaults for titles created or updated in Phase 1 and Phase 3:
+Commits defaults for titles created or updated in Phase 3:
 
 - Default: `<type>: <description>`.
 - `<description>` must be non-empty and separated from the colon by at
@@ -720,7 +726,7 @@ After the PR is **merged**:
 
 | Missing tool | Fallback |
 |-------------|----------|
-| `create_pull_request` (built-in) | After PR creation is authorized and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
+| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
 | `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. In full Phase 4, poll the selected SHA's check-run and status APIs every 30 seconds for up to 10 minutes; never use `gh pr checks` as the required-check gate |
 | `stage-pr` | Report staging unavailable |
 

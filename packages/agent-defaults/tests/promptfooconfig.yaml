@@ -1564,12 +1564,12 @@ tests:
         value: "const l = output.toLowerCase(); l.includes('artifact_paths') && /(do not|don't|should not|must not|never|avoid|without|no need|not necessary|skip)/.test(l) && /(re-?query|repeat|redundant|duplicate)/.test(l) && (l.includes('covered') || l.includes('backend'))"
 
   # --- pr-lifecycle ---
-  - description: "pr-lifecycle: authorized early draft PR create command is non-interactive — a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception), and a later gh pr edit --title/--body cannot launder a WIP/missing create title"
+  - description: "pr-lifecycle: authorized post-review draft PR create command is non-interactive — a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception), and a later gh pr edit --title/--body cannot launder a WIP/missing create title"
     metadata:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: 'I authorized a draft PR for this published bugfix branch in octo/example. Issue #123 tracks it; repository guidance has no different workflow. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
+      user_input: 'Implementation, validation, and required adversarial local review have passed for the current diff. I authorized a draft PR for this published bugfix branch in octo/example. Issue #123 tracks it; repository guidance has no different workflow. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
     assert:
       - type: icontains
         value: "--draft"
@@ -1579,6 +1579,71 @@ tests:
         value: "--body"
       - type: javascript
         value: "/^gh pr create --repo octo\\/example --draft --title \\u0022[^\\u0022\\r\\n]+\\u0022 --body \\u0022[^\\u0022\\r\\n]+\\u0022$/.test(output.trim()) && output.trim().split(String.fromCharCode(34))[1].length <= 72 && /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\\([^()\\s]+\\))?!?:\\s+\\S/.test(output.trim().split(String.fromCharCode(34))[1]) && output.trim().split(String.fromCharCode(34))[3].trim().length > 0 && !['$', '\\\\', String.fromCharCode(96)].some(value => output.includes(value))"
+
+  - description: "pr-lifecycle: blocks creation before local acceptance"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input:
+        - "The user authorized publication and the branch exists, but implementation and local adversarial review have not started. May you create a draft PR now? Answer one word: Yes or No."
+        - "Implementation and tests pass, but local adversarial review is incomplete. Publication is authorized. May you create a draft PR now? Answer one word: Yes or No."
+        - "Publication is authorized. Local adversarial review still has an unresolved major finding after the retry limit. May you create a draft PR with a warning? Answer one word: Yes or No."
+        - "The diff changed after local review passed. No fresh validation or review has run. Publication is authorized. May you create a draft PR now? Answer one word: Yes or No."
+        - "Repository guidance requests an early draft, but required local adversarial review has not passed and no review waiver exists. May you create the draft now? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "pr-lifecycle: first creation does not edit a nonexistent PR"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Local acceptance passed. Publication is authorized, the branch is published, and the template, title, and body are prepared. No PR exists. Which command comes next: gh pr create or gh pr edit? Return only the command name."
+    assert:
+      - type: javascript
+        value: "/^gh pr create[.!]?$/i.test(output.trim())"
+
+  - description: "pr-lifecycle: local acceptance does not authorize publication"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "Local implementation, validation, and adversarial review passed. Publication is not authorized by the user or trusted repository policy. May you push or create a draft PR? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "pr-lifecycle: resumes local review without a PR identifier"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "You resume local implementation with repository, branch, base revision, and review findings recorded, but no PR number or URL. Must you create a PR before continuing local review fixes? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "pr-lifecycle: new draft preserves remote readiness gates"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "A draft was just created after local acceptance. CI and feedback checks and transition snapshots have not run. May you immediately mark it ready based only on local acceptance? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "acting-on-behalf: fallback blocks drafts before local acceptance"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
+      user_input: "The pr-lifecycle skill is missing. Publication is authorized, but required local adversarial review has not run. May the fallback create a draft PR now? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
 
   - description: "pr-lifecycle: creates a ready PR when repository guidance defers creation until gates pass"
     metadata:
@@ -1737,23 +1802,23 @@ tests:
       - type: javascript
         value: "const l = output.trim().toLowerCase().replace(/[*_#]/g, '').split(String.fromCharCode(96)).join(''); /^yes[.!]?$/.test(l)"
 
-  - description: "pr-lifecycle: finalization is not first-time format conversion"
+  - description: "pr-lifecycle: validates title format before creation"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "Does finalization convert the title into the required format for the first time? Answer one word: Yes or No."
+      user_input: "May you create a PR with a placeholder title and defer required title formatting until later? Answer one word: Yes or No."
     assert:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
-  - description: "pr-lifecycle: finalization corrects the existing title"
+  - description: "pr-lifecycle: creation phase does not retitle an existing PR"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "Does finalization correct or refine the existing PR title from the final diff? Answer one word: Yes or No."
+      user_input: "Does Phase 3 retitle an existing PR as part of creating a new PR? Answer one word: Yes or No."
     assert:
       - type: javascript
-        value: "/^yes[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
+        value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
 
-  - description: "pr-lifecycle: skips early draft PR for research flows"
+  - description: "pr-lifecycle: skips PR creation for research flows"
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
       user_input: "I am doing a research flow to investigate a performance issue. Should I open a PR?"
@@ -1766,7 +1831,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/pr-lifecycle/SKILL.md
-      user_input: "Repository guidance requires PRs to be opened ready for review, not as drafts. Are the Phase 2 draft state and Phase 3 `gh pr ready` command unconditional? Answer exactly one word: Yes or No."
+      user_input: "Repository guidance requires PRs to be opened ready for review after local gates pass, not as drafts. Are draft creation and a later `gh pr ready` command unconditional? Answer exactly one word: Yes or No."
     assert:
       - type: javascript
         value: "/^no[.!]?$/i.test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))"
@@ -3432,7 +3497,7 @@ tests:
       suite: smoke
     vars:
       skill_content: file://../.apm/skills/acting-on-behalf/SKILL.md
-      user_input: 'The pr-lifecycle skill is unavailable. I authorized a draft PR for this published bugfix branch in octo/example; repository guidance has no different workflow. No PR exists. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
+      user_input: 'The pr-lifecycle skill is unavailable. Implementation, validation, and required adversarial local review passed for the current diff. I authorized a draft PR for this published bugfix branch in octo/example; repository guidance has no different workflow. No PR exists. Return exactly one plain shell command with this argument order: gh pr create --repo octo/example --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a public post.'
     assert:
       - type: icontains
         value: "--draft"

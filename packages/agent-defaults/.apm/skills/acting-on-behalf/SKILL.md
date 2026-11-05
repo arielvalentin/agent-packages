@@ -182,7 +182,8 @@ Use this exact final paragraph when a disclaimer is required:
 
 ## PR safety gate
 
-Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
+Before any PR creation for code changes, including drafts, built-in tools,
+and the `pr-lifecycle`-missing fallback:
 
 1. Run `adversarial-review`.
 2. Address high-confidence blocker/major findings.
@@ -220,7 +221,9 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> after PR creation is authorized, follow the
+2. `pr-lifecycle` missing -> complete the local PR safety gate above before
+   any creation; keep implementation and review/fix cycles local until it
+   passes. Then, after PR creation is authorized, follow the
    repository's workflow. If no different workflow is specified, draft mode
    is the default. Before running `gh pr create`, confirm that the head branch
    is already published or that the request or repository guidance also
