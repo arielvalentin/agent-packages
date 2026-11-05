@@ -56,6 +56,12 @@ independent work, and surface pending decisions with reply phrases in their
 final summary or coordinated handoff. Clear direct user authorization still
 opens an eligible gate.
 
+New PR work stays local through implementation, validation, and the required
+adversarial review/fix cycle. Only after local acceptance may `pr-lifecycle`
+create an authorized draft PR. Passing local review does not grant publication
+permission or bypass the later CI, remote-review, and readiness gates. Local
+tracking does not need a PR number or URL.
+
 Reviewer output may be raw JSON, one fenced JSON block, or one embedded
 top-level JSON object. `consensus-panel` extracts the unique payload before
 applying the same schema and finding checks; ambiguous or malformed payloads

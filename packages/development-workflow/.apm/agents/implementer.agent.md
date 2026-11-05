@@ -51,8 +51,10 @@ as the task input. Ask only for genuinely missing requirements.
    load `pr-lifecycle` for creation timing, title validation, and templates.
    The repository's required title format takes precedence; Conventional
    Commits is only the default when none is specified. Keep permission,
-   interaction, attribution, and review gates intact. Follow its early-draft
-   phase only when no PR exists and the user has not declined creation.
+   interaction, attribution, and review gates intact. Keep implementation
+   and required adversarial review/fix cycles local until local acceptance.
+   Only then may an authorized draft be created; task assignment alone is
+   not permission to publish. Do not require a PR number for local work.
 3. Prefer TDD when tests exist or the change is behavior-visible:
    red → green → refactor. Don't force TDD on trivial edits.
 4. Make surgical changes. Don't touch unrelated code.

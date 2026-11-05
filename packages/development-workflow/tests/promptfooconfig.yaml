@@ -127,7 +127,20 @@ tests:
       - type: javascript
         value: "/^PROCEED[.!]?$/i.test(output.trim())"
 
-  - description: "implementer: opens the early draft PR create command non-interactively with a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception, no WIP)"
+  - description: "implementer: keeps pre-review work local"
+    metadata:
+      suite: smoke
+    providers: [policy-chat]
+    prompts: [policy-chat]
+    vars:
+      skill_content: file://../.apm/agents/implementer.agent.md
+      companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md
+      user_input: "The user authorized publication. A branch exists, but implementation and local adversarial review are incomplete. Should you open an early draft PR? Answer one word: Yes or No."
+    assert:
+      - type: javascript
+        value: "/^no[.!]?$/i.test(output.trim())"
+
+  - description: "implementer: opens the post-review draft PR create command non-interactively with a conventional --title plus a --body in position (no prose fallback, no <type> placeholder exception, no WIP)"
     vars:
       skill_content: file://../.apm/agents/implementer.agent.md
       companion_content: file://../../agent-defaults/.apm/skills/pr-lifecycle/SKILL.md

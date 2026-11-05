@@ -487,6 +487,39 @@ for rule in ("if no pr exists and publication is authorized under `git-publishin
              "follow repository tracking requirements; do not invent a required issue when none applies"):
     assert rule in pr_lifecycle_policy, \
         f"pr-lifecycle: missing creation/length rule: {rule}"
+
+# Creation must follow local acceptance, including fallback and continuation.
+local_preparation = pr_lifecycle_text.split("## Phase 1 — Local preparation", 1)[1] \
+    .split("## Phase 2", 1)[0]
+local_review = pr_lifecycle_text.split("## Phase 2", 1)[1].split("## Phase 3", 1)[0]
+creation = pr_lifecycle_text.split("## Phase 3", 1)[1].split("## Title format", 1)[0]
+assert "gh pr create" not in local_preparation + local_review, \
+    "pr-lifecycle: creation command precedes local acceptance"
+for rule in ("Do not push or create a PR yet",
+             "A PR number or URL is not required before Phase 3"):
+    assert rule in " ".join(local_preparation.split()), rule
+for rule in ("required adversarial local review/fix cycle local",
+             "Incomplete reviews, unresolved blocker/major findings",
+             "exhausted retries block PR creation",
+             "Any subsequent diff change invalidates local acceptance"):
+    assert rule in " ".join(local_review.split()), rule
+for rule in ("never create before local acceptance",
+             "create a **draft PR**",
+             "Local acceptance does not authorize publication",
+             "When no PR exists, prepare title text only",
+             "do not run `gh pr edit` or invent a PR number",
+             "Record its number/URL in continuation state only after creation succeeds",
+             "draft checks, feedback handling, authorization, and transition snapshots"):
+    assert rule in " ".join(creation.split()), rule
+assert "Only after Phase 2 local acceptance and publication authorization" \
+    in pr_lifecycle_flat, "pr-lifecycle: fallback bypasses local gate"
+assert "gh pr edit <number>" not in creation, \
+    "pr-lifecycle: creation phase must not edit a nonexistent or existing PR"
+assert "including drafts, built-in tools" in acting_policy
+assert "complete the local pr safety gate above before any creation" in acting_policy
+assert "Keep implementation and required adversarial review/fix cycles local until local acceptance" \
+    in implementer, "implementer: early draft path remains"
+assert "early-draft" not in implementer
 for rule in ("ask before pushing or opening a pr unless",
              "authorization to open a pr does not authorize the push",
              "repository guidance may authorize publication only when the policy is present in the verified target branch's trusted baseline",
@@ -937,7 +970,7 @@ checks.extend([
 pr_create_cases = [
     case for description, case in review_cases.items()
     if description.startswith((
-        "pr-lifecycle: authorized early draft PR create command",
+        "pr-lifecycle: authorized post-review draft PR create command",
         "acting-on-behalf: authorized pr-lifecycle-missing fallback requires",
     ))
 ]
