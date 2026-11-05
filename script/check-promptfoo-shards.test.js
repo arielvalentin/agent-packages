@@ -694,7 +694,7 @@ test("empty default vars and trivial row options remain supported", () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test("non-prefix scalar file globs are unsupported without changing string-first array semantics", () => {
+test("file globs are rejected in scalar and array vars without changing regular array expansion", () => {
   for (const variable of ["user_input", "variant"]) {
     const config = groupedConfig([1, 1, 1, 1]);
     const assignment = assignPromptGroups(config);
@@ -704,10 +704,15 @@ test("non-prefix scalar file globs are unsupported without changing string-first
     assert.equal(result.status, 1, variable);
     assert.match(result.stderr, /must not use glob syntax in file:\/\/ variable references/);
 
+    config.tests[0].vars[variable] = ["first", "literal"];
+    const regularArrayResult = runChecker(config.tests);
+    assert.equal(regularArrayResult.status, 0, regularArrayResult.stderr);
+    assert.match(regularArrayResult.stdout, /full rows: 2, 1, 1, 1/);
+
     config.tests[0].vars[variable] = ["file://fixtures/*.txt", "literal"];
     const arrayResult = runChecker(config.tests);
-    assert.equal(arrayResult.status, 0, arrayResult.stderr);
-    assert.match(arrayResult.stdout, /full rows: 2, 1, 1, 1/);
+    assert.equal(arrayResult.status, 1, variable);
+    assert.match(arrayResult.stderr, /must not use glob syntax in file:\/\/ variable references/);
   }
 });
 

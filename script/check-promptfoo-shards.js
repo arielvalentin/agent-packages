@@ -469,24 +469,24 @@ function checkConfig(config, configPath) {
     for (const [name, value] of Object.entries(testCase?.vars || {})) {
       const values = Array.isArray(value) ? value : [value];
       for (const [valueIndex, item] of values.entries()) {
+        const valueLabel = `${label}.vars.${name}${Array.isArray(value) ? `[${valueIndex}]` : ""}`;
         if (!checkVariableInterpolation(
-          item, `${label}.vars.${name}${Array.isArray(value) ? `[${valueIndex}]` : ""}`,
-          path.dirname(configPath)
+          item, valueLabel, path.dirname(configPath)
         )) {
+          invalid = true;
+        }
+        if (
+          typeof item === "string" &&
+          item.startsWith("file://") &&
+          GLOB_SYNTAX.test(item.slice("file://".length))
+        ) {
+          const referenceType = PROMPT_PREFIX_VARIABLES.has(name) ? "prompt-prefix" : "variable";
+          console.error(`${valueLabel}: ${name} must not use glob syntax in file:// ${referenceType} references.`);
           invalid = true;
         }
       }
       if (PROMPT_PREFIX_VARIABLES.has(name) && Array.isArray(value)) {
         console.error(`${label}: ${name} must be scalar; split expanded prompt prefixes into consecutive scalar definitions.`);
-        invalid = true;
-      }
-      if (
-        typeof value === "string" &&
-        value.startsWith("file://") &&
-        GLOB_SYNTAX.test(value.slice("file://".length))
-      ) {
-        const referenceType = PROMPT_PREFIX_VARIABLES.has(name) ? "prompt-prefix" : "variable";
-        console.error(`${label}: ${name} must not use glob syntax in file:// ${referenceType} references.`);
         invalid = true;
       }
     }
