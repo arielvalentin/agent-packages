@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.7.0...agent-defaults-v0.7.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* defer draft PR creation until local review passes ([faafa8b](https://github.com/arielvalentin/agent-packages/commit/faafa8bcefb9e04eccdf26809de29676e00b959b))
+* keep shared skill examples portable ([8afa125](https://github.com/arielvalentin/agent-packages/commit/8afa1253ec49d5e930e45b9ebe691c0e1963f1f7))
+
 ## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.6.0...agent-defaults-v0.7.0) (2026-11-04)
 
 
