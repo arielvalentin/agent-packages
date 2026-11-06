@@ -2,7 +2,9 @@
 
 Reusable APM producer monorepo for custom agents and skills.
 
-This repository ships independent installable packages so consumers can pick only the workflow bundles they need.
+This repository ships individually installable APM packages. Some workflow
+bundles require companions; see the
+[package compatibility matrix](docs/package-catalog.md#package-compatibility).
 
 ## What is in this repository
 

@@ -5,6 +5,8 @@
 - APM installed (`apm --version`)
 - Git configured for signed commits if you plan to publish changes
 
+CI pins APM to v0.35.0 and prints the installed version in its logs.
+
 ## Working with package contents
 
 Use the canonical `.apm/` path while editing:
@@ -104,6 +106,10 @@ selector; the default branch will not include the pull request's changes.
 Smoke runners reject empty selections and cases missing `suite: smoke`
 metadata, both locally and in CI.
 
+The evals use an Ollama `llama3.2:3b` provider as a regression proxy. They do
+not establish parity with Copilot models or verify that every Copilot client
+loads the same package resources.
+
 From an individual package directory:
 
 ```bash
@@ -140,7 +146,8 @@ their frozen contents independently of the canonical defaults inventory.
 
 ## Troubleshooting
 
-- CI evals record the runtime versions, CPU architecture, and model digest.
+- CI evals record runtime versions and CPU architecture, and verify the pinned
+  Ollama model digest before evaluation.
   When an eval produces `eval.json`, it is retained for seven days as an
   `eval-<package>-<run>-<attempt>` artifact, including failed evaluations.
   Use the failing row's source, provider, rendered prompt, and output rather than
