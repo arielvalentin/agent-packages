@@ -101,8 +101,9 @@ success while skipping its deployment. Treat missing canonical content as a
 blocked migration, not success; reconcile ownership without force-overwriting
 authored policy. Keep personal/local overrides in a separate native
 `~/.copilot/instructions/*.instructions.md` module rather than editing APM's
-managed root. This package contains no personal identity, signing-key paths,
-host setup, or private tooling policy.
+managed root. This package includes a public writing-voice reference to
+`@arielvalentin`; it contains no signing-key paths, host setup, or private
+tooling policy.
 
 ## Writing
 

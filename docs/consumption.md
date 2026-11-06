@@ -28,8 +28,8 @@ See [releases](https://github.com/arielvalentin/agent-packages/releases).
 ## Personal agent variants
 
 [`personal-agents`](../packages/personal-agents/README.md) is an optional,
-MIT-licensed bundle of four Awesome Copilot agents with only their top-level
-`model` fields removed. Replace the matching four supplier dependencies before
+MIT-licensed bundle of three Awesome Copilot agents with only their top-level
+`model` fields removed. Replace the matching three supplier dependencies before
 installing it; do not install both sources or rely on filename shadowing.
 Names, tools and prompt bodies are preserved. Model inheritance and tool
 availability remain client-specific.
@@ -41,7 +41,6 @@ separate dependencies for profiles you intend to remove.
 
 Pin a published commit SHA or a real `personal-agents-vX.Y.Z` tag from
 [releases](https://github.com/arielvalentin/agent-packages/releases).
-The `0.0.0` bootstrap version is not a release; do not infer a tag from it.
 
 ## Deprecated coordinator package
 
