@@ -118,6 +118,8 @@ for rule in ("fail closed as `HUMAN_STOP`", "Missing mandatory safeguards block"
              "mandatory audience-specific disclosure check",
              "overrides body-preservation, tracking, and citation",
              "behavior-defining configuration", "explicit_multi_review",
+             "Reusing review-gate acceptance",
+             "exact unchanged diff, review scope, context, and requirements",
              "Unresolved blocker/major findings"):
     assert rule in gates, f"skill-gates: missing gate: {rule}"
 public_boundary = " ".join(Path("AGENTS.md").read_text().split()).lower()
@@ -152,7 +154,10 @@ for rule in ("validate both the subject format and length before committing",
 for rule in ("use the draft default", "require a tracking issue only when"):
     assert rule not in git_policy, \
         f"git-publishing-safety: duplicates PR lifecycle policy: {rule}"
-pr_lifecycle_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+pr_lifecycle_dir = skills / "pr-lifecycle"
+pr_lifecycle_text = (pr_lifecycle_dir / "SKILL.md").read_text() + "\n" + "\n".join(
+    path.read_text() for path in sorted((pr_lifecycle_dir / "references").glob("*.md"))
+)
 pr_lifecycle_flat = " ".join(pr_lifecycle_text.split())
 pr_lifecycle_policy = pr_lifecycle_flat.lower()
 for rule in (
@@ -793,6 +798,43 @@ assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
 for name in ("handoff-envelope", "consensus-panel", "review-fix-loop"):
     text = (defaults / ".apm/skills" / name / "SKILL.md").read_text()
     assert "explicit_multi_review" in text and "STOP_INVALID_HANDOFF" in text, name
+consensus_panel = " ".join((skills / "consensus-panel/SKILL.md").read_text().split())
+assert "`true` requires the adaptive 2+1 panel" in consensus_panel \
+    and "`false` permits the ordinary scope classification" in consensus_panel, \
+    "consensus-panel: explicit_multi_review must affect reviewer dispatch"
+assert "behavior-defining agent instructions, skills" in consensus_panel \
+    and "Markdown extensions do not make behavior-defining" in consensus_panel, \
+    "consensus-panel: behavior-defining Markdown must not use prose-only fast path"
+review_fix_loop = (skills / "review-fix-loop/SKILL.md").read_text()
+for rule in ("accepted_findings", "do not repeat the intake review",
+             "post-fix review is mandatory", "preserving `explicit_multi_review` unchanged"):
+    assert rule in review_fix_loop, f"review-fix-loop: missing caller handoff contract: {rule}"
+pr_lifecycle = skills / "pr-lifecycle"
+lifecycle_files = [pr_lifecycle / "SKILL.md", *sorted((pr_lifecycle / "references").glob("*.md"))]
+assert {path.name for path in lifecycle_files[1:]} == {
+    "cleanup.md", "feedback.md", "readiness.md"
+}, "pr-lifecycle: phase reference set changed"
+root_lifecycle = lifecycle_files[0].read_text()
+assert "If a required reference is missing or unreadable, stop" in root_lifecycle, \
+    "pr-lifecycle: unreadable phase references must fail closed"
+for section in ("## Skill fallbacks", "## Pre-requisites"):
+    assert section in root_lifecycle, \
+        f"pr-lifecycle: global guidance must remain in the root skill: {section}"
+assert "## Skill fallbacks" not in lifecycle_files[1].read_text() \
+    and "## Pre-requisites" not in lifecycle_files[1].read_text(), \
+    "pr-lifecycle: global guidance must not be hidden in the Phase 8 reference"
+lifecycle_contract = " ".join(
+    " ".join(path.read_text().split()) for path in lifecycle_files
+)
+for rule in ("explicit_multi_review` JSON boolean",
+             "Pass them as `accepted_findings`",
+             "must perform the required post-fix review",
+             "stop the entire current PR lifecycle",
+             "This stricter lifecycle rule takes precedence"):
+    assert rule in lifecycle_contract, \
+        f"pr-lifecycle: missing caller/stop contract: {rule}"
+for rule in ("`BLOCKED`", "`DIRTY`", "`UNKNOWN`", "strict/up-to-date requirement"):
+    assert rule in lifecycle_contract, f"pr-lifecycle: missing merge-state exit: {rule}"
 for package in Path("packages").iterdir():
     config = package / "tests/promptfooconfig.yaml"
     if not config.is_file():
@@ -812,8 +854,12 @@ review_cases = {
     case["description"]: case
     for case in yaml.safe_load((defaults / "tests/promptfooconfig.yaml").read_text())["tests"]
 }
-lifecycle_text = (skills / "pr-lifecycle/SKILL.md").read_text()
-draft_entrypoint = lifecycle_text.split("## Existing PR entrypoint", 1)[1].split(
+lifecycle_root_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+lifecycle_text = lifecycle_root_text + "\n" + "\n".join(
+    path.read_text()
+    for path in sorted((skills / "pr-lifecycle/references").glob("*.md"))
+)
+draft_entrypoint = lifecycle_root_text.split("## Existing PR entrypoint", 1)[1].split(
     "## Standalone waits", 1
 )[0]
 draft_entrypoint = " ".join(draft_entrypoint.split())

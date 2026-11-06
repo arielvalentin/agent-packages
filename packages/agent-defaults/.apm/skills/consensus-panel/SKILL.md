@@ -10,16 +10,15 @@ description: >
 
 # Consensus Panel
 
-**Single reviewer for trivial scopes, adaptive 2+1 for substantive code.**
-Non-code-only and genuinely tiny changes get exactly one mid- or
-high-capability reviewer. Substantive code changes get two reviewers, plus a
-third only when it can change the answer.
+The caller-owned `explicit_multi_review` boolean selects review mode first.
+`true` always uses the adaptive 2+1 panel; `false` uses one reviewer for
+fast-path-exempt scopes and the adaptive panel for substantive changes.
 
 ## When to use
 
-Use before any specialist review dispatch, **except** scopes that qualify for
-the single-reviewer fast path below. Skipping this is a bug unless the role is
-explicitly designated single-model or the scope is fast-path exempt.
+Use before every specialist review dispatch, except when the role is explicitly
+designated single-model or the scope qualifies for the single-reviewer fast path
+and `explicit_multi_review` is `false`.
 
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
@@ -31,21 +30,29 @@ The calling agent owns orchestration; no coordinator agent is required.
 For review handoffs, require the caller-owned `explicit_multi_review` JSON
 boolean and preserve it unchanged. Missing or invalid values stop as
 `STOP_INVALID_HANDOFF` before dispatch. This field records user intent and
-does not weaken the scope classification or review safety rules below.
+affects the review mode: `true` requires the adaptive 2+1 panel even when a
+scope would otherwise qualify for the single-reviewer fast path. `false`
+permits the ordinary scope classification below. It never weakens review
+safety rules.
 
 Classify the review scope **before** selecting any model. Re-classify at the
 start of every review cycle; a fix that grows the scope also changes its class.
 
 A scope is **fast-path exempt** when either of these holds:
 
-1. **Non-code change** — every changed file is a text artifact with no
-   executable effect: documentation, prose, markdown, comments, changelog,
-   license, or similar. No source, config, schema, script, or workflow file is
-   changed.
+1. **Non-behavioral editorial change** — every changed file is a text artifact
+   with no executable or behavior-defining effect: ordinary documentation,
+   editorial prose, comments, changelog, license, or similar. Markdown
+   extensions do not make behavior-defining agent instructions, skills,
+   prompts, policies, workflows, or configuration non-code. Review those as
+   substantive code changes when they alter agent behavior, gates, or contracts.
+   No source, config, schema, script, or workflow file is changed.
 2. **Tiny change** — at most **10 changed lines** (added + removed, ignoring
    pure-whitespace lines) across at most **2 files**, including one-line
    changes, with no new or materially altered control flow, no new dependency,
-   and no change to a public API contract.
+   no change to a public API contract, and no behavior-defining instruction,
+   policy, prompt, or contract change that alters agent behavior, gates, or
+   decisions.
 
 Operational definitions, so two agents classify the same diff identically:
 
@@ -71,12 +78,22 @@ touches any of the following, however small the diff:
 4. A public API contract.
 5. Concurrency, locking, or shared mutable state.
 6. Data migration, deletion, or any other irreversible data operation.
+7. A behavior-defining instruction, policy, prompt, or contract that changes
+   agent behavior, gates, or decisions. This always takes the full panel, even
+   when it changes one line, only changes Markdown, or meets the tiny-change
+   limit. Only editorial changes that do not alter behavior remain eligible for
+   the tiny-change exemption.
 
 This list is closed: a scope that touches none of these and meets the size
 threshold is fast-path exempt.
 
 Everything else is a **substantive code change** and takes the adaptive 2+1
 panel.
+
+After classifying the scope and validating the handoff, dispatch the single-
+reviewer fast path only when the scope is fast-path exempt and
+`explicit_multi_review` is `false`. A `true` value selects the adaptive 2+1
+panel for any scope, including non-behavioral editorial and tiny changes.
 
 ## Step 2a — Single-reviewer fast path (fast-path exempt scopes)
 
@@ -96,14 +113,16 @@ model, and do not synthesize across models.
 - **Report** — still write the report artifact, recording
   `panel: single-reviewer fast path` and which exemption applied.
 
-This exemption **takes precedence** over any general "every specialist review
-runs a panel" rule in caller instructions or `review-fix-loop`. A single
-`blocker`/`major` finding does not promote a fast-path scope to a panel; only
-re-classification under Step 1 does. The safety argument is the size and
-disqualifier bounds, not the finding: a scope this small that touches none of
-the six disqualified categories has a blast radius one reviewer can hold.
+When `explicit_multi_review` is `false`, this exemption **takes precedence**
+over any general "every specialist review runs a panel" rule in caller
+instructions or `review-fix-loop`. A `blocker`/`major` finding does not promote
+that fast-path scope to a panel; only re-classification under Step 1 does. A
+`true` value selects the panel before this exemption is applied. The safety
+argument for the false-valued fast path is the size and disqualifier bounds,
+not the finding: a scope this small that touches none of the disqualified
+categories has a blast radius one reviewer can hold.
 
-## Step 2b — Panel selection for substantive code changes
+## Step 2b — Panel selection for adaptive 2+1 reviews
 
 Select panelists from models available in the current runtime/session:
 
@@ -122,7 +141,7 @@ Select panelists from models available in the current runtime/session:
 5. If explicit model discovery is unavailable, dispatch without model
    overrides (runtime auto-selection) and record that fallback in the report.
 
-## Dispatch (substantive code changes only)
+## Dispatch (adaptive 2+1 panel mode)
 
 ### Wave 1 — always exactly 2, in parallel
 
@@ -150,8 +169,12 @@ independently. Never dispatch a fourth reviewer for a single panel.
 
 ## Escalation triggers
 
-Escalation triggers apply only to substantive code changes. A fast-path scope
-never escalates to a panel — it is complete after its single reviewer.
+Escalation triggers apply to every scope dispatched through the adaptive 2+1
+panel, including a fast-path-exempt scope selected for a panel by
+`explicit_multi_review: true`. A scope dispatched through the single-reviewer
+fast path is complete after its one reviewer and has no tiebreaker.
+In particular, a `blocker` or `major` finding always triggers one tiebreaker in
+panel mode, regardless of file type or size.
 
 Dispatch the tiebreaker when **any** of these hold:
 
@@ -209,6 +232,11 @@ required field is present with a value from its enum. Prose without that one
 object, malformed JSON, a missing or out-of-enum `confidence` or verdict axis
 is invalid after the one retry in § Failure modes, and does not count toward
 trigger 4. Wrapping alone is not a reason to retry or escalate.
+
+The top-level object must include `verdict`, `confidence`, `findings`, and
+`notes`; `findings` must be an array, including an empty array when there are
+no findings. A missing, `null`, or non-array `findings` value makes the payload
+invalid.
 
 Findings are covered by that rule: every entry in `findings` must carry
 `severity`, `location`, `issue` and `fix`, and `severity` must be one of

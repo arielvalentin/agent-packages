@@ -9,6 +9,7 @@ policy="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/SK
 acting="$root/packages/agent-defaults/.apm/skills/acting-on-behalf/SKILL.md"
 feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
+lifecycle_feedback="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/feedback.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
 
@@ -283,7 +284,7 @@ require "$policy" "missing-skill fallback remains closed" \
   'If this skill is unavailable, fail closed'
 forbid "$policy" "phantom GraphQL app classification" \
   'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
-for downstream in "$acting" "$feedback" "$lifecycle" "$agent"; do
+for downstream in "$acting" "$feedback" "$lifecycle_feedback" "$agent"; do
   require "$downstream" "canonical single-action deferral" 'single-action'
   require "$downstream" "confirmation policy routing" 'confirmation'
 done
@@ -291,11 +292,11 @@ require "$acting" "posting backstop defers only to canonical policy" \
   'Only `human-interaction-safeguard` can authorize its single-action exception'
 require "$feedback" "human warning and scoped confirmation" \
   'Warn that the chain includes human interaction.{0,100}scoped confirmation'
-require "$lifecycle" "separate implementation instruction boundary" \
+require "$lifecycle_feedback" "separate implementation instruction boundary" \
   'later, separate, explicit implementation instruction'
 require "$feedback" "feedback chain taint deferral" \
   'any `HUMAN_STOP` item taints the whole chain'
-require "$lifecycle" "lifecycle chain taint rule" \
+require "$lifecycle_feedback" "lifecycle chain taint rule" \
   'Any `HUMAN_STOP` item taints the entire chain'
 require "$agent" "coordinator chain taint fallback" \
   'Treat the entire chain as `HUMAN_STOP`'

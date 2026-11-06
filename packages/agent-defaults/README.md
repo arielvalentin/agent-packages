@@ -67,9 +67,12 @@ top-level JSON object. `consensus-panel` extracts the unique payload before
 applying the same schema and finding checks; ambiguous or malformed payloads
 remain invalid.
 
-Install this package alongside `development-workflow` or `code-reviewers`,
-which reference its handoff, lifecycle, and review skills. These agent packages
-do not bundle shared skills themselves.
+Install this package alone for its defaults and shared skills. Add
+`development-workflow` for its agents or `code-reviewers` for its reviewers
+and Datadog routing; both packages require the shared skills in this package.
+Without `code-reviewers`, the Datadog gate deliberately stops access because
+`datadog-url-router` is unavailable. See the [package compatibility
+matrix](../../docs/package-catalog.md#package-compatibility).
 
 ## Unconditional Copilot deployment
 

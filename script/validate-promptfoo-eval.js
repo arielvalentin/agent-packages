@@ -51,11 +51,27 @@ if (suite === "smoke") {
   }
 }
 
-const contentKeys = ["skill_content", "companion_content", "review_mode_content"];
-const lifecyclePath = path.resolve(
-  __dirname, "../packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
+const lifecycleKeys = ["skill_content", "companion_content", "review_mode_content"];
+const lifecycleContextKeys = [
+  ...lifecycleKeys,
+  "lifecycle_readiness_content",
+  "lifecycle_feedback_content",
+  "lifecycle_cleanup_content",
+];
+const lifecycleDir = path.resolve(
+  __dirname, "../packages/agent-defaults/.apm/skills/pr-lifecycle"
 );
-const lifecycleContent = fs.readFileSync(lifecyclePath, "utf8").trim();
+const lifecyclePath = path.join(lifecycleDir, "SKILL.md");
+const lifecycleReferencePaths = ["readiness.md", "feedback.md", "cleanup.md"]
+  .map((name) => path.join(lifecycleDir, "references", name));
+let lifecycleSourceContents;
+try {
+  lifecycleSourceContents = [lifecyclePath, ...lifecycleReferencePaths]
+    .map((sourcePath) => fs.readFileSync(sourcePath, "utf8").trim());
+} catch (error) {
+  console.error(`Unable to read required PR-lifecycle source: ${error.message}`);
+  process.exit(1);
+}
 
 function sourceContent(value) {
   if (typeof value !== "string") return "";
@@ -70,11 +86,28 @@ function valuesFor(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+function lifecycleSourcePath(value) {
+  if (typeof value !== "string" || !value.startsWith("file://")) return null;
+  const resolved = path.resolve(path.dirname(configPath), value.slice("file://".length));
+  return resolved === lifecyclePath || resolved.startsWith(`${lifecycleDir}${path.sep}`)
+    ? resolved
+    : null;
+}
+
 function isLifecycleValue(value) {
   if (typeof value !== "string") return false;
-  if (value.includes(lifecycleContent)) return true;
-  if (!value.startsWith("file://")) return false;
-  return path.resolve(path.dirname(configPath), value.slice("file://".length)) === lifecyclePath;
+  if (lifecycleSourceContents.some((content) => content && value.includes(content))) return true;
+  return lifecycleSourcePath(value) !== null;
+}
+
+function matchesLifecycleSource(expected, actual) {
+  const expectedPath = lifecycleSourcePath(expected);
+  const actualPath = lifecycleSourcePath(actual);
+  if (expectedPath && actualPath) return expectedPath === actualPath;
+
+  const expectedContent = sourceContent(expected).trim();
+  const actualContent = sourceContent(actual).trim();
+  return expectedContent.length > 0 && actualContent.includes(expectedContent);
 }
 
 function testVars(testCase) {
@@ -90,11 +123,18 @@ function matchesExpectedCase(row, expected) {
 
 const expectedLifecycleCases = (Array.isArray(config?.tests) ? config.tests : [])
   .filter((testCase) => suite !== "smoke" || testCase?.metadata?.suite === "smoke")
-  .map((testCase) => ({
-    description: typeof testCase?.description === "string" ? testCase.description : "",
-    userInput: testCase?.vars?.user_input,
-    keys: contentKeys.filter((key) => valuesFor(testCase?.vars?.[key]).some(isLifecycleValue)),
-  }))
+  .map((testCase) => {
+    const sources = Object.fromEntries(lifecycleKeys.map((key) => [
+      key,
+      valuesFor(testCase?.vars?.[key]).filter(isLifecycleValue),
+    ]).filter(([, values]) => values.length > 0));
+    return {
+      description: typeof testCase?.description === "string" ? testCase.description : "",
+      userInput: testCase?.vars?.user_input,
+      sources,
+      keys: Object.keys(sources),
+    };
+  })
   .filter((testCase) => testCase.keys.length > 0);
 
 const matchedRows = new Set();
@@ -102,7 +142,11 @@ for (const expected of expectedLifecycleCases) {
   const rowIndex = rows.findIndex((row, index) => {
     if (matchedRows.has(index) || !matchesExpectedCase(row, expected)) return false;
     const vars = testVars(row);
-    return expected.keys.every((key) => valuesFor(vars[key]).some(isLifecycleValue));
+    return expected.keys.every((key) => expected.sources[key].some((source) =>
+      valuesFor(vars[key]).some((value) =>
+        isLifecycleValue(value) && matchesLifecycleSource(source, value)
+      )
+    ));
   });
   if (rowIndex === -1) {
     const identity = expected.description || expected.userInput || "unnamed test case";
@@ -113,7 +157,7 @@ for (const expected of expectedLifecycleCases) {
   }
 }
 
-const lifecycleRows = rows.filter((row) => contentKeys.some((key) =>
+const lifecycleRows = rows.filter((row) => lifecycleKeys.some((key) =>
   valuesFor(testVars(row)[key]).some(isLifecycleValue)
 ));
 
@@ -142,7 +186,7 @@ for (const row of lifecycleRows) {
     console.error(`Missing rendered prompt for ${row.description || row.testCase?.description || "?"}.`);
     invalid = true;
   } else {
-    for (const key of contentKeys) {
+    for (const key of lifecycleContextKeys) {
       for (const value of valuesFor(vars[key])) {
         const content = sourceContent(value);
         if (content && !promptIncludes(prompt, content)) {

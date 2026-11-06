@@ -6,7 +6,10 @@ const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
 
 const lifecyclePath = path.resolve("packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md");
-const lifecycle = fs.readFileSync(lifecyclePath, "utf8");
+const lifecycleReferencePath = path.resolve(
+  "packages/agent-defaults/.apm/skills/pr-lifecycle/references/readiness.md"
+);
+const lifecycleReference = fs.readFileSync(lifecycleReferencePath, "utf8");
 const contentKeys = ["skill_content", "companion_content", "review_mode_content"];
 const validatorPath = "script/validate-promptfoo-eval.js";
 
@@ -32,11 +35,13 @@ function runValidator(configFile, suite, rows) {
 function fixtureRow(key, {
   tokens = 9000, complete = true, expanded = false, trim = false,
 } = {}) {
-  const reference = `file://${lifecyclePath}`;
-  const vars = { skill_content: "Primary instructions", [key]: expanded ? lifecycle : [reference] };
-  let prompt = complete ? Object.values(vars).map((value) =>
-    Array.isArray(value) ? lifecycle : value
-  ).join("\n") : "Truncated instructions";
+  const reference = `file://${lifecycleReferencePath}`;
+  const vars = {
+    skill_content: "Primary instructions",
+    [key]: expanded ? lifecycleReference : [reference],
+  };
+  let prompt = complete ? Object.values(vars).flatMap(valuesFor).map(sourceContent).join("\n")
+    : "Truncated instructions";
   if (trim) prompt = prompt.trim();
   return {
     success: true,
@@ -51,13 +56,26 @@ function fixtureRow(key, {
   };
 }
 
+function valuesFor(value) {
+  return Array.isArray(value) ? value : [value];
+}
+
+function sourceContent(value) {
+  if (typeof value !== "string") return "";
+  if (!value.startsWith("file://")) return value;
+  return fs.readFileSync(
+    path.resolve(path.dirname(validatorPath), value.slice("file://".length)),
+    "utf8"
+  );
+}
+
 function validateFixture(key, options) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lifecycle-config-"));
   try {
     const configFile = makeConfig(directory, [{
       description: "lifecycle fixture",
       metadata: { suite: "smoke" },
-      vars: { [key]: `file://${lifecyclePath}` },
+      vars: { [key]: `file://${lifecycleReferencePath}` },
     }]);
     return runValidator(configFile, "smoke", [fixtureRow(key, options)]);
   } finally {
@@ -104,6 +122,71 @@ test("agent-defaults results must include each selected lifecycle case", () => {
   const result = runValidator(configFile, "smoke", [unrelatedRow()]);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Missing lifecycle eval case from the selected smoke suite: pr-lifecycle: applies event eligibility only to Actions jobs/);
+});
+
+test("phase references are recognized as complete PR-lifecycle eval cases", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lifecycle-config-"));
+  try {
+    const configFile = makeConfig(directory, [{
+      description: "lifecycle reference fixture",
+      metadata: { suite: "smoke" },
+      vars: {
+        companion_content: `file://${lifecycleReferencePath}`,
+      },
+    }]);
+    const result = runValidator(configFile, "smoke", [unrelatedRow()]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Missing lifecycle eval case from the selected smoke suite: lifecycle reference fixture/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a lifecycle phase reference cannot replace the configured root skill", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "lifecycle-config-"));
+  try {
+    const configFile = makeConfig(directory, [{
+      description: "lifecycle fixture",
+      metadata: { suite: "smoke" },
+      vars: { skill_content: `file://${lifecyclePath}` },
+    }]);
+    const row = fixtureRow("skill_content");
+    const result = runValidator(configFile, "smoke", [row]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Missing lifecycle eval case from the selected smoke suite: lifecycle fixture/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("missing required lifecycle references fail closed", () => {
+  const directory = fs.mkdtempSync(path.join(__dirname, "lifecycle-validator-"));
+  try {
+    const scriptDirectory = path.join(directory, "script");
+    const lifecycleDirectory = path.join(
+      directory, "packages/agent-defaults/.apm/skills/pr-lifecycle"
+    );
+    fs.mkdirSync(scriptDirectory, { recursive: true });
+    fs.mkdirSync(lifecycleDirectory, { recursive: true });
+    fs.copyFileSync(validatorPath, path.join(scriptDirectory, "validate-promptfoo-eval.js"));
+    fs.writeFileSync(path.join(lifecycleDirectory, "SKILL.md"), "root instructions");
+
+    const configFile = makeConfig(directory, []);
+    const resultFile = path.join(directory, "eval.json");
+    fs.writeFileSync(resultFile, JSON.stringify({ results: [unrelatedRow()] }));
+    const result = spawnSync(process.execPath, [
+      path.join(scriptDirectory, "validate-promptfoo-eval.js"),
+      resultFile,
+      "smoke",
+      configFile,
+    ], { encoding: "utf8" });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Unable to read required PR-lifecycle source/);
+    assert.match(result.stderr, /readiness\.md/);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("full development-workflow results must include every lifecycle case", () => {
