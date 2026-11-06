@@ -12,7 +12,7 @@ This repository ships independent installable packages so consumers can pick onl
 | `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Optional design advice + implementation | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
-| `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Four agents](packages/personal-agents/README.md#includes), MIT-licensed |
+| `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Three agents](packages/personal-agents/README.md#includes), MIT-licensed |
 
 ## Repository layout
 

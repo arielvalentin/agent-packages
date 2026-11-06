@@ -82,6 +82,9 @@ jobs:
       - name: Personal agent provenance and model inheritance checks
         run: bash script/check-personal-agents.sh
 
+      - name: Documentation claim checks
+        run: python3 script/check-doc-claims.py
+
   release-please-config:
     name: Validate release-please config
     runs-on: ubuntu-latest
