@@ -23,6 +23,12 @@ legacy = Path("packages/coordinator")
 skills = defaults / ".apm/skills"
 actual = {p.parent.name for p in skills.glob("*/SKILL.md")}
 assert actual == expected, f"{defaults}: missing or unexpected canonical skills"
+qualified_agent_reference = re.compile(
+    r"`[A-Za-z][A-Za-z0-9_-]*:[A-Za-z][A-Za-z0-9_-]*`"
+)
+for path in sorted(skills.glob("*/SKILL.md")):
+    assert not qualified_agent_reference.search(path.read_text()), \
+        f"{path}: use a generic placeholder for qualified agent references"
 for path in (Path("README.md"), Path("docs/package-catalog.md")):
     summary_lines = [
         line for line in path.read_text().splitlines()

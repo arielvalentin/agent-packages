@@ -15,7 +15,7 @@ code-review, and observability review gates.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
-| `reviewer` | yes | — | Agent or skill to dispatch for review (e.g., `adversarial-review`, `security-review`, `code-review`, `gho11y:telemetry-reviewer`) |
+| `reviewer` | yes | — | Agent or skill to dispatch for review (e.g., `adversarial-review`, `security-review`, `code-review`, `custom-observability-reviewer`) |
 | `fixer` | no | `implementer` | Agent dispatched to address findings |
 | `scope` | yes | — | What to review: diff ref, artifact path, or description of review target |
 | `context` | no | — | Additional context for the reviewer (intent summary, design doc, issue body) |
@@ -131,7 +131,7 @@ on_exhaust: warn
 
 ### Observability validation
 ```
-reviewer: gho11y:telemetry-reviewer
+reviewer: custom-observability-reviewer
 scope: cumulative diff (branch vs base)
 focus: metrics, logs, traces, alerting/SLO coverage
 max_retries: 2
@@ -145,7 +145,7 @@ skip_condition: documentation-only, dependency bumps, or user-marked observabili
 If the specified `reviewer` is unavailable:
 - `adversarial-review` → use `rubber-duck` through `consensus-panel`
 - `security-review` → use `se-security-reviewer` + `sast-sca-security-analyzer`
-- `gho11y:telemetry-reviewer` → fall back to manual 4-criteria checklist
+- `custom-observability-reviewer` → fall back to manual 4-criteria checklist
   (metrics, logs, traces, alerting)
 - `code-review` → use `rubber-duck` in diff-review mode
 
