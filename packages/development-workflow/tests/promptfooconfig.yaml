@@ -4,6 +4,7 @@ providers:
   - id: ollama:llama3.2:3b
     config: &local_model_config
       temperature: 0
+      seed: 42
       num_ctx: 32768
       num_predict: 512
     label: skill-under-test

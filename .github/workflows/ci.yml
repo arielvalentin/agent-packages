@@ -5,14 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     name: Structural validation
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -20,6 +26,15 @@ jobs:
         id: setup-node
         with:
           node-version: ">=22.22.0 <23"
+
+      - name: Test PR title validator
+        run: node --test script/validate-pr-title.test.js
+
+      - name: Validate PR title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node script/validate-pr-title.js
 
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -36,8 +51,20 @@ jobs:
       - name: Check dependency override compatibility
         run: npm run test:dependencies
 
-      - name: Install APM
-        run: curl -sSL https://aka.ms/apm-unix | sh
+      - name: Strict frontmatter validation
+        run: |
+          node --test script/validate-frontmatter.test.js
+          node script/validate-frontmatter.js
+
+      - name: Install APM v0.35.0
+        env:
+          APM_INSTALLER_SHA256: 0e813353630c02a9eb961fbad82cf916967e855aa84a533940975c5d699c9caa
+        run: |
+          installer="$RUNNER_TEMP/apm-install.sh"
+          curl -fsSL https://raw.githubusercontent.com/microsoft/apm/v0.35.0/install.sh -o "$installer"
+          printf '%s  %s\n' "$APM_INSTALLER_SHA256" "$installer" | sha256sum --check
+          sh "$installer" @v0.35.0
+          apm --version
 
       - name: Validate primitives (frontmatter + structure)
         run: |
@@ -88,6 +115,7 @@ jobs:
   release-please-config:
     name: Validate release-please config
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
