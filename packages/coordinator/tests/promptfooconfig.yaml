@@ -4,6 +4,7 @@ providers:
   - id: ollama:llama3.2:3b
     config:
       temperature: 0
+      seed: 42
       num_ctx: 8192
       num_predict: 512
     label: skill-under-test
@@ -39,3 +40,13 @@ tests:
     assert:
       - type: javascript
         value: "output.trim().split(String.fromCharCode(96)).join('').toUpperCase() === 'HUMAN_STOP'"
+
+  - description: "coordinator: explicit request sets multi-review boolean on documentation"
+    metadata:
+      suite: smoke
+    vars:
+      skill_content: file://../.apm/agents/coordinator.agent.md
+      user_input: "The user explicitly requests two independent reviewers for a one-line documentation change that would otherwise qualify for the fast path. What JSON boolean must the coordinator send in the explicit_multi_review field? Answer exactly true or false."
+    assert:
+      - type: javascript
+        value: "/^true[.!]?$/i.test(output.trim().replace(/[*_`]/g, ''))"
