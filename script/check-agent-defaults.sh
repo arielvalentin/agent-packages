@@ -23,6 +23,25 @@ legacy = Path("packages/coordinator")
 skills = defaults / ".apm/skills"
 actual = {p.parent.name for p in skills.glob("*/SKILL.md")}
 assert actual == expected, f"{defaults}: missing or unexpected canonical skills"
+qualified_agent_reference = re.compile(
+    r"`[A-Za-z][A-Za-z0-9_-]*:[A-Za-z][A-Za-z0-9_-]*`"
+    r"|(?:reviewer|agent|skill)\s*:\s*"
+    r"(?P<quote>['\"]?)[A-Za-z][A-Za-z0-9_-]*:"
+    r"[ \t]*[A-Za-z][A-Za-z0-9_-]*\b(?P=quote)"
+)
+assert qualified_agent_reference.search("reviewer: example:reviewer")
+assert qualified_agent_reference.search("agent: example:reviewer")
+assert qualified_agent_reference.search('agent: "example: reviewer"')
+assert qualified_agent_reference.search("reviewer: example: reviewer")
+assert qualified_agent_reference.search('skill: "example:reviewer"')
+assert qualified_agent_reference.search("reviewer: 'example:reviewer'")
+assert qualified_agent_reference.search("`example:reviewer`")
+assert not qualified_agent_reference.search("reviewer: custom-reviewer")
+assert not qualified_agent_reference.search("http://example.test:8080/path")
+assert not qualified_agent_reference.search("node-12:alpine")
+for path in sorted(skills.glob("*/SKILL.md")):
+    assert not qualified_agent_reference.search(path.read_text()), \
+        f"{path}: use a generic placeholder for qualified agent references"
 for path in (Path("README.md"), Path("docs/package-catalog.md")):
     summary_lines = [
         line for line in path.read_text().splitlines()
