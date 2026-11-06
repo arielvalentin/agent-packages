@@ -40,6 +40,24 @@ def read(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
+def stale_count_patterns(current_count: int) -> tuple[re.Pattern[str], ...]:
+    patterns = []
+    for number, word in NUMBER_WORDS.items():
+        if number == current_count:
+            continue
+        patterns.extend(
+            (
+                re.compile(rf"\b{word} (?:Awesome Copilot )?agents\b", re.IGNORECASE),
+                re.compile(rf"\bmatching {word} supplier dependencies\b", re.IGNORECASE),
+                re.compile(
+                    rf"\bthe {word} `github/awesome-copilot/agents/<filename>` dependencies\b",
+                    re.IGNORECASE,
+                ),
+            )
+        )
+    return tuple(patterns)
+
+
 count_claims = {
     "README.md": (f"[{word.title()} agents]",),
     "docs/package-catalog.md": (
@@ -55,10 +73,7 @@ count_claims = {
         f"the {word} `github/awesome-copilot/agents/<filename>` dependencies",
     ),
 }
-stale_count_claims = (
-    re.compile(r"\bfour (?:Awesome Copilot )?agents\b", re.IGNORECASE),
-    re.compile(r"\bmatching four supplier dependencies\b", re.IGNORECASE),
-)
+stale_count_claims = stale_count_patterns(count)
 for relative_path, claims in count_claims.items():
     content = read(relative_path)
     for claim in claims:
