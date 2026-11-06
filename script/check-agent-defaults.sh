@@ -27,10 +27,12 @@ qualified_agent_reference = re.compile(
     r"`[A-Za-z][A-Za-z0-9_-]*:[A-Za-z][A-Za-z0-9_-]*`"
     r"|(?:reviewer|agent|skill)\s*:\s*"
     r"(?P<quote>['\"]?)[A-Za-z][A-Za-z0-9_-]*:"
-    r"[A-Za-z][A-Za-z0-9_-]*\b(?P=quote)"
+    r"[ \t]*[A-Za-z][A-Za-z0-9_-]*\b(?P=quote)"
 )
 assert qualified_agent_reference.search("reviewer: example:reviewer")
 assert qualified_agent_reference.search("agent: example:reviewer")
+assert qualified_agent_reference.search('agent: "example: reviewer"')
+assert qualified_agent_reference.search("reviewer: example: reviewer")
 assert qualified_agent_reference.search('skill: "example:reviewer"')
 assert qualified_agent_reference.search("reviewer: 'example:reviewer'")
 assert qualified_agent_reference.search("`example:reviewer`")
