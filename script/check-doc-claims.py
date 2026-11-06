@@ -37,7 +37,10 @@ if word is None:
 
 
 def read(relative_path: str) -> str:
-    return (ROOT / relative_path).read_text(encoding="utf-8")
+    try:
+        return (ROOT / relative_path).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        fail(f"Required documentation source is missing: {relative_path}")
 
 
 def stale_count_patterns(current_count: int) -> tuple[re.Pattern[str], ...]:
