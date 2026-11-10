@@ -84,6 +84,9 @@ a finding the fixer cannot resolve.
 
 ## Usage examples
 
+Example values are illustrative; every handoff must preserve the caller's
+original `explicit_multi_review` value unchanged.
+
 ### Adversarial review gate
 ```
 reviewer: adversarial-review

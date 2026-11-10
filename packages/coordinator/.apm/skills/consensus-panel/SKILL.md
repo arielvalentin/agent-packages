@@ -77,6 +77,11 @@ threshold is fast-path exempt.
 Everything else is a **substantive code change** and takes the adaptive 2+1
 panel.
 
+After classifying the scope and validating the handoff, dispatch a
+single-reviewer fast path only when the scope is fast-path exempt and
+`explicit_multi_review` is `false`. A `true` value selects the adaptive 2+1
+panel for any scope, including non-behavioral editorial and tiny changes.
+
 ## Step 2a — Single-reviewer fast path (fast-path exempt scopes)
 
 Dispatch **exactly one** reviewer. Do not run a panel, do not select a second

@@ -62,7 +62,7 @@ for name in actual:
 snapshots = {}
 snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
 assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "05b4d10aeb464adbe4ab0051346d4c96ee685519ac75f2257eaca49e4c8981a9", \
+    "74362d3d53e287bf8847453407ad61da00b52c733ff59aa521476ee65e13f52e", \
     "frozen coordinator snapshot manifest changed"
 for line in snapshot_manifest.decode().splitlines():
     digest, path = line.split("  ", 1)
@@ -80,13 +80,22 @@ assert "The caller-owned `explicit_multi_review` boolean selects review mode fir
     in coordinator_panel
 assert "`true` always uses the adaptive 2+1 panel" in coordinator_panel
 assert "and `explicit_multi_review` is `false`" in coordinator_panel
+assert ("dispatch a single-reviewer fast path only when the scope is fast-path "
+        "exempt and `explicit_multi_review` is `false`") in coordinator_panel
+assert "A `true` value selects the adaptive 2+1 panel for any scope" \
+    in coordinator_panel
+assert "a `blocker` or `major` finding always triggers one tiebreaker in panel mode" \
+    in coordinator_panel
 coordinator_review_loop = " ".join(
     (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
 )
 assert "`explicit_multi_review` | yes" in coordinator_review_loop
 assert "A `true` value always selects the adaptive 2+1 panel." \
     in coordinator_review_loop
+assert "when it is `true`, use the adaptive 2+1 panel regardless of scope" \
+    in coordinator_review_loop
 assert "preserving `explicit_multi_review` unchanged" in coordinator_review_loop
+assert "Example values are illustrative" in coordinator_review_loop
 assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must not install agents"
 instructions = defaults / ".apm/instructions"
 assert {p.name for p in instructions.iterdir()} == {
