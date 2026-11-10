@@ -62,7 +62,7 @@ for name in actual:
 snapshots = {}
 snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
 assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "74362d3d53e287bf8847453407ad61da00b52c733ff59aa521476ee65e13f52e", \
+    "b30e7b5c6df4bec6ba0dd590f868f78f760f1113923493cb03b39f55a6241a0e", \
     "frozen coordinator snapshot manifest changed"
 for line in snapshot_manifest.decode().splitlines():
     digest, path = line.split("  ", 1)
@@ -86,6 +86,10 @@ assert "A `true` value selects the adaptive 2+1 panel for any scope" \
     in coordinator_panel
 assert "a `blocker` or `major` finding always triggers one tiebreaker in panel mode" \
     in coordinator_panel
+assert ("no behavior-defining instruction, policy, prompt, or contract change "
+        "that alters agent behavior, gates, or decisions") in coordinator_panel
+assert ("This always takes the full panel, even when it changes one line, only "
+        "changes Markdown, or meets the tiny-change limit") in coordinator_panel
 coordinator_review_loop = " ".join(
     (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
 )

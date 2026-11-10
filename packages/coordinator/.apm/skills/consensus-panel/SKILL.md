@@ -44,7 +44,9 @@ A scope is **fast-path exempt** when either of these holds:
 2. **Tiny change** — at most **10 changed lines** (added + removed, ignoring
    pure-whitespace lines) across at most **2 files**, including one-line
    changes, with no new or materially altered control flow, no new dependency,
-   and no change to a public API contract.
+   no change to a public API contract, and no behavior-defining instruction,
+   policy, prompt, or contract change that alters agent behavior, gates, or
+   decisions.
 
 Operational definitions, so two agents classify the same diff identically:
 
@@ -70,6 +72,11 @@ touches any of the following, however small the diff:
 4. A public API contract.
 5. Concurrency, locking, or shared mutable state.
 6. Data migration, deletion, or any other irreversible data operation.
+7. A behavior-defining instruction, policy, prompt, or contract that changes
+   agent behavior, gates, or decisions. This always takes the full panel, even
+   when it changes one line, only changes Markdown, or meets the tiny-change
+   limit. Only editorial changes that do not alter behavior remain eligible for
+   the tiny-change exemption.
 
 This list is closed: a scope that touches none of these and meets the size
 threshold is fast-path exempt.
