@@ -62,7 +62,7 @@ for name in actual:
 snapshots = {}
 snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
 assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "cd3b308f6a289208e6ee118e6b546e116ff204f58b7281f02712f133d49402fd", \
+    "9685b4fb07b37ea1e61e6ed7adb42abc3365e438df2acc818844733dae1ce6a3", \
     "frozen coordinator snapshot manifest changed"
 for line in snapshot_manifest.decode().splitlines():
     digest, path = line.split("  ", 1)
@@ -86,6 +86,8 @@ assert "A `true` value selects the adaptive 2+1 panel for any scope" \
     in coordinator_panel
 assert "a `blocker` or `major` finding always triggers one tiebreaker in panel mode" \
     in coordinator_panel
+assert ("A `true` value overrides any single-model designation and always selects the "
+        "adaptive 2+1 panel") in coordinator_panel
 assert ("no behavior-defining instruction, policy, prompt, or contract change "
         "that alters agent behavior, gates, or decisions") in coordinator_panel
 assert ("This always takes the full panel, even when it changes one line, only "
@@ -96,12 +98,21 @@ coordinator_review_loop = " ".join(
     (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
 )
 assert "`explicit_multi_review` | yes" in coordinator_review_loop
-assert "A `true` value always selects the adaptive 2+1 panel." \
+assert ("A `true` value overrides any single-model designation and always selects "
+        "the adaptive 2+1 panel") \
     in coordinator_review_loop
 assert "when it is `true`, use the adaptive 2+1 panel regardless of scope" \
     in coordinator_review_loop
 assert "preserving `explicit_multi_review` unchanged" in coordinator_review_loop
 assert "Example values are illustrative" in coordinator_review_loop
+assert ("that role is explicitly designated single-model and "
+        "`explicit_multi_review` is `false`") in coordinator_review_loop
+assert "A `true` value overrides any single-model designation" \
+    in coordinator_review_loop
+assert "It never allows the gate to pass with an unresolved finding at or above" \
+    in coordinator_review_loop
+assert ("If any finding at or above `severity_threshold` remains unresolved, "
+        "stop and escalate regardless of `on_exhaust`") in coordinator_review_loop
 assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must not install agents"
 instructions = defaults / ".apm/instructions"
 assert {p.name for p in instructions.iterdir()} == {

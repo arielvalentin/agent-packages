@@ -23,7 +23,7 @@ code-review, and observability review gates.
 | `focus` | no | — | Specific review focus or criteria (e.g., "intent-coverage", "exploitable vulnerabilities only") |
 | `max_retries` | no | 2 | Maximum fix-then-re-review cycles before escalation |
 | `severity_threshold` | no | `blocker,major` | Comma-separated severities that trigger a fix cycle |
-| `on_exhaust` | no | `escalate` | What to do when retries are exhausted: `escalate` (ask user) or `warn` (proceed with warning) |
+| `on_exhaust` | no | `escalate` | What to do when retries are exhausted: `escalate` (stop for a user decision) or `warn` (report below-threshold advisories only; never waive a required or threshold finding) |
 | `skip_condition` | no | — | Condition under which this gate is skipped (e.g., "refactor flow unless touching auth/crypto") |
 
 ## Protocol
@@ -36,11 +36,13 @@ value unchanged in every review and fix handoff.
    current context, skip the gate entirely. Record the skip reason.
 
 2. **Dispatch reviewer** — run the `reviewer` through `consensus-panel` unless
-   that role is explicitly designated single-model. `consensus-panel` classifies
-   the scope first. Send `scope`, `context`, and `explicit_multi_review`; if
-   `focus` is provided, include it as explicit review instructions. A `true`
-   value always selects the adaptive 2+1 panel. A `false` value permits the
-   single-reviewer fast path for eligible non-code or tiny scopes.
+   that role is explicitly designated single-model and
+   `explicit_multi_review` is `false`. `consensus-panel` classifies the scope
+   first. A `true` value overrides any single-model designation and always
+   selects the adaptive 2+1 panel. Send `scope`, `context`, and
+   `explicit_multi_review`; if `focus` is provided, include it as explicit
+   review instructions. A `false` value permits the single-reviewer fast path
+   for eligible non-code or tiny scopes.
 
 3. **Evaluate findings** — filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
@@ -63,8 +65,13 @@ value unchanged in every review and fix handoff.
 5. **Exhaustion** — if `max_retries` is reached with unresolved findings:
    - `on_exhaust: escalate` → stop and present unresolved findings to the
      user for a decision (fix manually, waive, or abort).
-   - `on_exhaust: warn` → proceed but record unresolved findings as warnings
-     in the final message. Flag as reduced-assurance.
+   - `on_exhaust: warn` → report below-threshold advisories as warnings and
+     flag reduced assurance. It never allows the gate to pass with an
+     unresolved finding at or above `severity_threshold`.
+
+   If any finding at or above `severity_threshold` remains unresolved, stop
+   and escalate regardless of `on_exhaust`; a warning cannot downgrade a
+   finding that blocks the gate.
 
 6. **Record outcome** — regardless of path, record:
    - Gate name (derived from `reviewer`)

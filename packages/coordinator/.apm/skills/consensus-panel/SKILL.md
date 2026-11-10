@@ -16,9 +16,11 @@ fast-path-exempt scopes and the adaptive panel for substantive changes.
 
 ## When to use
 
-Use before every specialist review dispatch, except when the role is explicitly
-designated single-model or the scope qualifies for the single-reviewer fast path
-and `explicit_multi_review` is `false`.
+Use before every specialist review dispatch unless the role is explicitly
+designated single-model and `explicit_multi_review` is `false`, or the scope
+qualifies for the single-reviewer fast path and `explicit_multi_review` is
+`false`. A `true` value overrides any single-model designation and always
+selects the adaptive 2+1 panel.
 
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
@@ -29,8 +31,9 @@ consensus.
 For review handoffs, require the caller-owned `explicit_multi_review` JSON
 boolean and preserve it unchanged. Missing or invalid values stop as
 `STOP_INVALID_HANDOFF` before dispatch. A `true` value requires the adaptive
-2+1 panel even when the scope qualifies for the single-reviewer fast path.
-`false` permits the ordinary scope classification below.
+2+1 panel even when the scope qualifies for the single-reviewer fast path or
+the role is designated single-model. `false` permits the ordinary scope
+classification below.
 
 Classify the review scope **before** selecting any model. Re-classify at the
 start of every review cycle; a fix that grows the scope also changes its class.

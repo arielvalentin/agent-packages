@@ -44,8 +44,10 @@ required.
 
 2. **Review intake** — when `accepted_findings` is absent or empty, run the
    `reviewer` through `consensus-panel` unless that role is explicitly
-   designated single-model. `consensus-panel` classifies the scope first. Send
-   `scope`, `context`, `explicit_multi_review`, and `focus` when provided.
+   designated single-model and `explicit_multi_review` is `false`.
+   `consensus-panel` classifies the scope first. A `true` value overrides any
+   single-model designation and always selects the panel. Send `scope`,
+   `context`, `explicit_multi_review`, and `focus` when provided.
    When `accepted_findings` is non-empty, do not repeat the intake review. The
    caller must have completed the applicable authorization and evidence gates
    and classified those findings as actionable. Treat every supplied finding

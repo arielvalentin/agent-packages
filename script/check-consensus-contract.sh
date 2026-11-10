@@ -191,6 +191,8 @@ require "$panel" "single-reviewer fast path completing without a tiebreaker" \
   'single-reviewer fast path is complete after its one reviewer and has no tiebreaker'
 require "$panel" "explicit multi-review selecting the panel before scope exemption" \
   '.true. always uses the adaptive 2\+1 panel; .false. uses one reviewer for'
+require "$panel" "explicit multi-review overriding a single-model designation" \
+  '.true. value overrides any single-model designation and always selects the adaptive 2\+1 panel'
 require "$panel" "explicit multi-review retaining panel escalation triggers" \
   'including a fast-path-exempt scope selected for a panel by .explicit_multi_review: true.'
 require "$panel" "major findings triggering a tiebreaker in any panel mode" \
@@ -202,13 +204,21 @@ require "$agent" "coordinator dispatching exactly one fast-path reviewer" \
 require "$agent" "coordinator dispatching panels for substantive or explicit multi-review scopes" \
   'adaptive 2\+1 panel \(substantive changes or explicit multi-review\)'
 require "$agent" "coordinator explicit multi-review overriding fast-path scope" \
-  'true. value selects the adaptive panel regardless of scope'
+  'true .explicit_multi_review. value selects the panel before this fast-path check'
+require "$agent" "coordinator explicit multi-review overriding single-model roles" \
+  'a .true. value overrides that designation and selects the adaptive panel regardless of role or scope'
+if [[ "$(grep -Fc 'explicit_multi_review: <caller-derived JSON boolean>' "$agent" || true)" -ne 5 ]]; then
+  echo "ERROR: $agent: every review-fix-loop handoff must carry explicit_multi_review"
+  errors=$((errors + 1))
+fi
 require "$coordinator_tests" "coordinator regression for explicit multi-review on documentation" \
   'coordinator: explicit request sets multi-review boolean on documentation'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   're-classify the scope at the start of every cycle'
 require "$loop" "explicit multi-review preserving the panel on every fix cycle" \
   'explicit_multi_review: true. always selects the adaptive 2\+1 panel, even when the scope is still non-code or tiny'
+require "$loop" "explicit multi-review overriding a single-model designation" \
+  '.true. value overrides any single-model designation and always selects the panel'
 require "$loop" "caller-supplied findings require evidence-backed resolution statuses" \
   'resolved., .unresolved., or .not applicable. in its report notes, with evidence'
 require "$loop" "accepted findings use a validated consensus finding record" \

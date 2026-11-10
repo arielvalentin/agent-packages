@@ -67,8 +67,9 @@ Apply this section only to direct chat responses to the user:
 - For panel work, prefer distinct suitable GPT model IDs; use non-GPT models
   only when too few suitable GPT choices are available. With
   `explicit_multi_review: true`, use the adaptive 2+1 panel even for a scope
-  that would otherwise qualify for the fast path. With `false`, follow the
-  canonical scope classification in § Review panel dispatch.
+  that would otherwise qualify for the fast path or a role otherwise marked
+  single-model. With `false`, follow the canonical scope classification in
+  § Review panel dispatch.
 
 ## Early draft PR (production changes only)
 
@@ -137,6 +138,7 @@ After each incremental implementer step completes, run `review-fix-loop`:
 ```
 reviewer: code-review
 scope: step diff
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 1
 severity_threshold: blocker
 on_exhaust: warn
@@ -153,6 +155,7 @@ run `review-fix-loop`:
 reviewer: code-review
 scope: cumulative diff (branch vs base)
 focus: integration issues, missing error handling, broken contracts between components
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -166,6 +169,7 @@ After the pre-commit code review passes, run `review-fix-loop`:
 reviewer: security-review
 scope: cumulative diff (branch vs base)
 focus: exploitable vulnerabilities only, with severity and confidence
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -192,6 +196,7 @@ reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)
 context: design doc, implementation summary, rubber-duck findings from each stage
 focus: systemic issues, security gaps, performance risks, design/implementation misalignment
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -268,11 +273,12 @@ unavailable, omit the model override and let the runtime auto-select.
 
 ## Review panel dispatch
 
-Every specialist review dispatch MUST go through `consensus-panel` unless its
-role is explicitly designated single-model, or the scope qualifies for the
-single-reviewer fast path and `explicit_multi_review` is `false`. A `true`
-value selects the adaptive panel regardless of scope. Research fact-finding
-never uses the panel.
+Every specialist review dispatch MUST go through `consensus-panel`. A role
+explicitly designated single-model may use one reviewer only when
+`explicit_multi_review` is `false`; a `true` value overrides that designation
+and selects the adaptive panel regardless of role or scope. When the value is
+`false`, the scope qualifies for the single-reviewer fast path only as defined
+below. Research fact-finding never uses the panel.
 
 ### Single-reviewer fast path (`explicit_multi_review: false`)
 
@@ -361,6 +367,7 @@ Before declaring PR-ready, run `review-fix-loop`:
 reviewer: gho11y:telemetry-reviewer
 scope: cumulative diff (branch vs base)
 focus: metrics, logs, traces, alerting/SLO coverage for new or changed behavior
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
