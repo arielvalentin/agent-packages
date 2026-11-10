@@ -869,7 +869,7 @@ for package_name, suite_map in evaluation_map["suites"].items():
                 assert isinstance(reference, str), \
                     f"{package_name}: invalid skill reference: {reference}"
                 if reference.startswith("file://"):
-                    source = config_directory / reference.removeprefix("file://")
+                    source = (config_directory / reference.removeprefix("file://")).resolve()
                     assert source.is_file(), \
                         f"{package_name}: broken reference: {reference}"
 
