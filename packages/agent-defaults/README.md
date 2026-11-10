@@ -11,9 +11,11 @@ Unconditional instructions in `.apm/instructions/`:
 - `skill-gates.instructions.md`: canonical entrypoints and mandatory interaction,
   posting, and bounded review gates.
 
-Both use `description` frontmatter with no `applyTo`. They are always-on defaults,
-not file-pattern rules or a substitute for repository guidance. Repository
-conventions prevail; safety and permission gates remain mandatory.
+Both use `description` frontmatter with no `applyTo` and are intended as
+always-on defaults, not file-pattern rules or a substitute for repository
+guidance. This source metadata and APM's no-`applyTo` classification do not
+guarantee that every client includes the files. Repository conventions
+prevail; safety and permission gates remain mandatory.
 
 Skills:
 
@@ -78,7 +80,12 @@ matrix](../../docs/package-catalog.md#package-compatibility).
 
 Source metadata is `description` only; there is deliberately no `applyTo`.
 With APM 0.32.0, project install deploys the two individual files under
-`.github/instructions/`. APM reports that omitted `applyTo` applies globally.
+`.github/instructions/`. APM reports that omitted `applyTo` applies globally;
+that classification is not a cross-client loading guarantee. In VS Code's
+Local harness, description-only instructions can be selected on demand, and
+`applyTo` has no default pattern. Copilot CLI documentation describes the
+native user-wide entrypoint below but does not establish a general loading
+guarantee for every modular no-`applyTo` file.
 
 For user-scope defaults from the global APM manifest:
 
@@ -184,11 +191,16 @@ and an unavailable safeguard cannot be overridden. Posting permission,
 identity, attribution, independent tool approvals, and higher-priority rules
 still apply. This is a skill policy, not host-enforced identity verification.
 
-Behavioral cases use the existing local Ollama providers to check warning,
-ordinary confirmation, denied/ambiguous/untrusted consent and action scope.
-Deterministic contracts preserve metadata, chain-taint, pagination and posting
-invariants and check the behavioral graders against unsafe answers. Test
-scenarios never authorize a live public action.
+Native Copilot Evals definitions cover warning, ordinary confirmation,
+denied/ambiguous/untrusted consent and action scope. The eight instruction-file
+cases are mapped by staging their source instructions as native custom
+instructions. Both smoke and full selections pass offline mapping and schema
+preflight; those checks do not prove model behavior. The latest full model run
+had assertion failures, including writing-voice case 121. Shell command
+execution is disabled in the native stimuli because the source evaluations
+used a text-only provider. Deterministic contracts preserve metadata,
+chain-taint, pagination and posting invariants. Test scenarios never authorize
+a live public action.
 
 Review handoff validation does not replace public-interaction safeguards.
 Research remains source-bounded fact finding, not duplicated consensus work.
