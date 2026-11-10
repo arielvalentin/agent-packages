@@ -5,22 +5,32 @@ on:
     branches: [main]
     paths:
       - "packages/code-reviewers/**"
-      - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
-      - "script/run-promptfoo-smoke.sh"
-      - "script/validate-promptfoo-eval.js"
+      - "script/run-evals.js"
+      - "script/validate-native-evals.js"
+      - "script/validate-native-evals.test.js"
+      - "script/native-eval-graders.mjs"
+      - "script/native-eval-graders.test.js"
+      - "script/vally-output.js"
+      - "script/vally-output.test.js"
+      - "docs/evaluations-migration-map.json"
       - ".github/workflows/eval-code-reviewers.yml"
       - ".github/actions/eval-package/**"
   pull_request:
     branches: [main]
     paths:
       - "packages/code-reviewers/**"
-      - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
-      - "script/run-promptfoo-smoke.sh"
-      - "script/validate-promptfoo-eval.js"
+      - "script/run-evals.js"
+      - "script/validate-native-evals.js"
+      - "script/validate-native-evals.test.js"
+      - "script/native-eval-graders.mjs"
+      - "script/native-eval-graders.test.js"
+      - "script/vally-output.js"
+      - "script/vally-output.test.js"
+      - "docs/evaluations-migration-map.json"
       - ".github/workflows/eval-code-reviewers.yml"
       - ".github/actions/eval-package/**"
   workflow_dispatch:
@@ -31,14 +41,19 @@ on:
         type: choice
         options: [smoke, full]
         default: smoke
-
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'auto' }}
+  cancel-in-progress: true
 
 jobs:
   eval:
     name: code-reviewers
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.suite == 'full' && 300 || 120 }}
     env:
       NODE_OPTIONS: --no-warnings
     steps:
@@ -47,3 +62,4 @@ jobs:
         with:
           package: code-reviewers
           suite: ${{ inputs.suite || 'smoke' }}
+          copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}

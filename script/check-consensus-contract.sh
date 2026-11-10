@@ -26,7 +26,8 @@ agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/agent-defaults/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/agent-defaults/.apm/skills/handoff-envelope/SKILL.md"
 adversarial="$root/packages/agent-defaults/.apm/skills/adversarial-review/SKILL.md"
-tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
+tests="$root/docs/evaluations-migration-map.json"
+coordinator_tests="$tests"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -153,7 +154,7 @@ require "$panel" "exactly one reviewer on the fast path" \
 require "$panel" "prohibition on a panel for fast-path scopes" \
   'do not run a panel'
 require "$panel" "non-code exemption" \
-  '\*\*non-code change\*\*'
+  '\*\*non-behavioral editorial change\*\*'
 require "$panel" "tiny-change exemption with a deterministic line threshold" \
   '\*\*10 changed lines\*\*'
 require "$panel" "deterministic file threshold for tiny changes" \
@@ -176,6 +177,8 @@ require "$panel" "concurrency listed as a disqualifier" \
   'concurrency, locking, or shared mutable state'
 require "$panel" "irreversible data operations listed as a disqualifier" \
   'irreversible data operation'
+require "$panel" "behavior-defining policy changes disqualify the tiny fast path" \
+  'behavior-defining instruction, policy, prompt, or contract that changes agent behavior, gates, or decisions'
 require "$panel" "operational definition of a pure-whitespace line" \
   '\*\*pure-whitespace line\*\*'
 require "$panel" "operational definition of altered control flow" \
@@ -184,16 +187,72 @@ require "$panel" "operational definition of a public API contract" \
   '\*\*public API contract\*\*'
 require "$panel" "deterministic confidence merge for the initial wave" \
   'lower\*\* of the two'
-require "$panel" "fast-path scopes never escalating to a panel" \
-  'never escalates to a panel'
-require "$agent" "coordinator single-reviewer fast path section" \
-  'single-reviewer fast path \(checked first, overrides the panel rule\)'
+require "$panel" "single-reviewer fast path completing without a tiebreaker" \
+  'single-reviewer fast path is complete after its one reviewer and has no tiebreaker'
+require "$panel" "explicit multi-review selecting the panel before scope exemption" \
+  '.true. always uses the adaptive 2\+1 panel; .false. uses one reviewer for'
+require "$panel" "explicit multi-review overriding a single-model designation" \
+  '.true. value overrides any single-model designation and always selects the adaptive 2\+1 panel'
+require "$panel" "explicit multi-review retaining panel escalation triggers" \
+  'including a fast-path-exempt scope selected for a panel by .explicit_multi_review: true.'
+require "$panel" "major findings triggering a tiebreaker in any panel mode" \
+  'a .blocker. or .major. finding always triggers one tiebreaker in panel mode, regardless of file type or size'
+require "$agent" "coordinator single-reviewer fast path requires false explicit intent" \
+  'single-reviewer fast path \(.explicit_multi_review: false.\)'
 require "$agent" "coordinator dispatching exactly one fast-path reviewer" \
   'exactly one\*\* mid- or high-capability reviewer'
-require "$agent" "coordinator restricting the panel to substantive code changes" \
-  'adaptive 2\+1 panel \(substantive code changes\)'
+require "$agent" "coordinator dispatching panels for substantive or explicit multi-review scopes" \
+  'adaptive 2\+1 panel \(substantive changes or explicit multi-review\)'
+require "$agent" "coordinator explicit multi-review overriding fast-path scope" \
+  'true .explicit_multi_review. value selects the panel before this fast-path check'
+require "$agent" "coordinator explicit multi-review overriding single-model roles" \
+  'a .true. value overrides that designation and selects the adaptive panel regardless of role or scope'
+if [[ "$(grep -Fc 'explicit_multi_review: <caller-derived JSON boolean>' "$agent" || true)" -ne 5 ]]; then
+  echo "ERROR: $agent: every review-fix-loop handoff must carry explicit_multi_review"
+  errors=$((errors + 1))
+fi
+require "$coordinator_tests" "coordinator regression for explicit multi-review on documentation" \
+  'coordinator: explicit request sets multi-review boolean on documentation'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
-  're-classify the scope each cycle'
+  're-classify the scope at the start of every cycle'
+require "$loop" "explicit multi-review preserving the panel on every fix cycle" \
+  'explicit_multi_review: true. always selects the adaptive 2\+1 panel, even when the scope is still non-code or tiny'
+require "$loop" "explicit multi-review overriding a single-model designation" \
+  '.true. value overrides any single-model designation and always selects the panel'
+require "$loop" "caller-supplied findings require evidence-backed resolution statuses" \
+  'resolved., .unresolved., or .not applicable. in its report notes, with evidence'
+require "$loop" "accepted findings use a validated consensus finding record" \
+  'recognized .severity. \(.blocker., .major., .minor., or .nit.\) and non-empty .location., .issue., and .fix. strings'
+require "$loop" "accepted findings below threshold cannot pass while unresolved" \
+  'a below-threshold label or omission from the latest findings list does not resolve a required finding'
+require "$loop" "accepted findings enter fix cycle regardless of severity" \
+  'non-empty caller-supplied .accepted_findings. set always proceeds to the fix cycle, regardless of severity'
+require "$loop" "intake threshold findings retain required status after fixes" \
+  'every caller-supplied finding and every intake finding at or above .severity_threshold.'
+require "$loop" "omitted or downgraded intake findings remain unresolved" \
+  'even if the reviewer omits it from the new findings list or lowers its severity'
+require "$loop" "warn cannot waive unresolved intake threshold findings" \
+  'intake finding at or above .severity_threshold. remains unresolved, stop and escalate regardless of .on_exhaust.'
+require "$tests" "regression for unresolved accepted findings below threshold" \
+  'review-fix-loop: unresolved accepted findings block passage below threshold'
+require "$tests" "regression for accepted minor findings" \
+  'review-fix-loop: accepted minor findings still require a fix cycle'
+require "$tests" "regression for intake finding severity downgrade" \
+  'review-fix-loop: intake major cannot be downgraded after a fix'
+require "$tests" "regression for omitted intake finding" \
+  'review-fix-loop: omitted intake major still requires resolution evidence'
+require "$tests" "regression for explicit multi-review persisting to post-fix panel" \
+  'review-fix-loop: explicit multi-review remains panelled after fixes'
+require "$tests" "regression for tiny behavior-defining Markdown changes" \
+  'consensus-panel: tiny behavior-defining Markdown change is substantive'
+require "$tests" "regression for warn exhaustion with intake blockers" \
+  'review-fix-loop: warn exhaustion cannot waive intake blockers'
+if [[ "$(grep -Ec '^[[:space:]]*explicit_multi_review: false$' "$loop" || true)" -lt 5 ]]; then
+  echo "ERROR: $loop: usage examples must include explicit_multi_review booleans"
+  errors=$((errors + 1))
+fi
+require "$panel" "behavior-defining edits override the tiny-change limit" \
+  'changes one line, only changes Markdown, or meets the tiny-change limit'
 
 # --- Dispatched reviewers never fan out (anti-recursion guard) ---
 require "$adversarial" "recursion guard covering panel members and fast-path singles" \
@@ -232,6 +291,25 @@ for case_name in \
 done
 require "$panel" "finding entries are covered by the validity rule" \
   'malformed finding entry is invalid'
+require "$panel" "findings must be a top-level array" \
+  'findings. must be an array, including an empty array'
+require "$panel" "missing, null, and non-array findings are invalid" \
+  'missing, .null., or non-array .findings. value makes the payload invalid'
+require "$tests" "regression for a missing findings field" \
+  'consensus-panel: missing findings field is invalid'
+require "$tests" "regression for a null findings field" \
+  'consensus-panel: null findings field is invalid'
+require "$tests" "regression for a non-array findings field" \
+  'consensus-panel: non-array findings field is invalid'
+require "$tests" "regression for warn exhaustion with accepted findings" \
+  'review-fix-loop: warn exhaustion cannot waive accepted findings'
+require "$tests" "regression for explicit multi-review retaining panel escalation" \
+  'consensus-panel: explicit multi-review retains tiebreaker on documentation'
+require "$tests" "regression for pending Copilot review in the blocked state" \
+  'pr-lifecycle: pending Copilot review continues to bounded review wait'
+require "$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/readiness.md" \
+  "blocked state allowing only the bounded Copilot review path" \
+  'sole unmet requirement is an already-requested Copilot review that Phase 5 can process'
 require "$panel" "total confidence rule" \
   'otherwise the \*\*lowest\*\* value among the valid responses'
 require "$agent" "coordinator deferring to canonical scope definitions" \
@@ -248,21 +326,21 @@ require "$adversarial" "standalone adversarial review rejecting local prose and 
   'do not emit prose, markdown headings, a local summary report, or .informational. findings'
 require "$adversarial" "standalone adversarial review using consensus-panel fallback and failure rules" \
   'fallback and failure rules'
-require "$tests" "promptfoo regression for consensus-panel source of truth" \
+require "$tests" "native evaluation mapping for consensus-panel source of truth" \
   'adversarial-review: standalone defers to consensus-panel as the source of truth'
-require "$tests" "promptfoo regression requiring consensus-panel JSON instead of markdown prose" \
+require "$tests" "native evaluation mapping requiring consensus-panel JSON instead of markdown prose" \
   'adversarial-review: standalone returns consensus-panel JSON instead of markdown prose'
-require "$tests" "promptfoo regression rejecting informational severity" \
+require "$tests" "native evaluation mapping rejecting informational severity" \
   'adversarial-review: standalone does not reintroduce informational severity'
-require "$tests" "promptfoo regression requiring the shared consensus report artifact" \
+require "$tests" "native evaluation mapping requiring the shared consensus report artifact" \
   'adversarial-review: standalone delegates the shared consensus report artifact'
-require "$tests" "promptfoo regression requiring consensus-panel failure handling" \
+require "$tests" "native evaluation mapping requiring consensus-panel failure handling" \
   'adversarial-review: standalone uses consensus-panel failure handling'
-require "$tests" "promptfoo regression rejecting GPT-host Opus-plus-Gemini substitution" \
+require "$tests" "native evaluation mapping rejecting GPT-host Opus-plus-Gemini substitution" \
   'consensus-panel: GPT host does not select Opus plus Gemini when GPT reviewers are available'
-require "$tests" "promptfoo regression rejecting mandatory cross-family reviewers on GPT hosts" \
+require "$tests" "native evaluation mapping rejecting mandatory cross-family reviewers on GPT hosts" \
   'consensus-panel: GPT host does not require cross-family reviewers'
-require "$tests" "promptfoo regression rejecting GPT-host family exclusion" \
+require "$tests" "native evaluation mapping rejecting GPT-host family exclusion" \
   'consensus-panel: GPT host does not exclude GPT reviewers from selection'
 if normalize "$adversarial" | grep -Eiq -- \
   'independent model lineages|different lineages|different families|reduced independence'; then

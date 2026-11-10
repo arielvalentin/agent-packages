@@ -43,7 +43,7 @@ remote URL owner if needed.
 ### 3. GitHub CLI auth cache (no network)
 
 ```bash
-gh auth status 2>&1 | grep -oP '(?<=Logged in to github.com account )\S+'
+gh auth status 2>&1 | sed -nE 's/.*Logged in to github\.com account ([^[:space:]]+).*/\1/p'
 ```
 
 This reads the local credential store — no API call required.

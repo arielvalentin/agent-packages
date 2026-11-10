@@ -5,6 +5,8 @@
 - APM installed (`apm --version`)
 - Git configured for signed commits if you plan to publish changes
 
+CI pins APM to v0.35.0 and prints the installed version in its logs.
+
 ## Working with package contents
 
 Use the canonical `.apm/` path while editing:
@@ -45,26 +47,11 @@ version used in CI. It runs manually, not through an automatic Git hook.
 
 ### Dependency hygiene
 
-Use the pinned npm version for dependency and lockfile changes. Start with
-compatible updates, not `npm audit fix --force`. Promptfoo 0.125.1 is the
-latest direct release at the time these overrides were reviewed; it cannot
-yet select all patched transitive dependencies itself.
-
-The root `package.json` limits overrides to the consumers that need them:
-
-| Consumer | Override | Compatibility and reason |
-| --- | --- | --- |
-| Promptfoo | `@modelcontextprotocol/server-filesystem` 1.0.0 | Replaces the deprecated date-based release. Keeps MCP SDK 1.x and the stdio entry point. The newer 2.x server requires Node 24, above this repository's Node 22 floor. |
-| Promptfoo and filesystem server | `glob` 14.0.3, `minimatch` 11.0.4 | Fix cancellation bypass and globparts amplification. The consumers use `globSync`, `hasMagic`, `escape`, and `minimatch`, not the removed regexp APIs. Both versions support Node 22. Matching edge cases follow the upstream major-version fixes. |
-| `get-uri` | `basic-ftp` 6.2.5 | Fixes directory-listing denial of service. Retains the Client methods used by `get-uri`. Version 6 denies separate transfer hosts by default to prevent FTP bounce attacks; unusual FTP servers relying on that behavior are no longer supported through this override. |
-
-Review the upstream [glob changelog](https://github.com/isaacs/node-glob/blob/v14.0.3/changelog.md),
-[minimatch changelog](https://github.com/isaacs/minimatch/blob/v11.0.4/changelog.md),
-and [basic-ftp 6.0 change](https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.0.0)
-when refreshing or removing these pins. `npm run test:dependencies` checks file
-discovery, scanner patterns, MCP tool calls and directory boundaries, FTP API
-compatibility, and the script-dependent toolchain. It runs in structural CI and
-before the default smoke suites.
+Use the pinned npm version for dependency and lockfile changes. The active
+evaluation runtime is the repository-pinned `@microsoft/vally-cli`; `js-yaml`
+supports deterministic validation of the native eval definitions and migration
+map. `npm run test:dependencies` checks the pinned tool, strict Vally schema
+validation, migration-map completeness, and result-validator regressions.
 
 npm 11 blocks dependency install scripts unless `allowScripts` approves them.
 Only `esbuild@0.28.2` is approved: its postinstall locates, validates, and
@@ -75,34 +62,48 @@ denied: the registry package already includes its native macOS binding and
 does not need an install-time build for this toolchain. Use
 `npm install-scripts ls` to find new unreviewed scripts.
 
-One upstream deprecation remains: `promptfoo` -> `gcp-metadata` -> `gaxios` ->
-`node-fetch` -> `fetch-blob` -> `node-domexception@1.0.0`. Google provider
-dependencies share that path. The latest gaxios and node-fetch releases still
-depend on it. `node-domexception` 2.x is also deprecated and removes the default
-export imported by fetch-blob, so overriding it is not compatible. Keep the
-warning visible until upstream removes the shim; do not hide deprecations or
-replace a package with a local stub.
-
 ### Behavioral tests
 
-Promptfoo smoke tests run by default with `npm test`. They cover a small set of
-package-specific core behaviors and safety boundaries. Run the full behavioral
-suite when changing behavior or investigating a failure:
+Native Vally smoke tests run by default with `npm test`. They require a
+Copilot-compatible token (`COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`)
+and may consume Copilot usage. Run the full behavioral suite when changing
+behavior or investigating a failure:
 
 ```bash
 npm run test:full
 ```
 
-For one package, use its existing full-suite command (for example,
-`npm run test:defaults`) or the corresponding `:smoke` command
-(`npm run test:defaults:smoke`). The package eval workflows use the smoke suite
-for affected packages on pull requests. Use the workflow's **Run workflow**
-control and select `full` to run a package's complete suite in CI. To validate
-an unmerged pull request, select its head branch in the workflow's ref
-selector; the default branch will not include the pull request's changes.
+For one package, use its full-suite command (for example,
+`npm run test:defaults`) or corresponding `:smoke` command
+(`npm run test:defaults:smoke`). Credentialed GitHub Actions smoke evaluations
+run only on pushes to `main`. They do not execute pull-request-controlled code
+with the Copilot token; pull-request CI runs offline validation instead.
 
-Smoke runners reject empty selections and cases missing `suite: smoke`
-metadata, both locally and in CI.
+The runner validates the source-to-native map before starting Copilot. It
+rejects empty selections, missing or duplicate stimuli, and every source row
+that does not have a native mapping. The migration map accounts for all 478
+source rows: 438 in agent-defaults, 4 in coordinator, 20 in
+development-workflow, and 16 in code-reviewers. None are omitted.
+
+Thirty-one rows exercise root policy behavior. Their unchanged source
+profiles, instructions, or reference files are staged at supported workspace
+instruction paths: `.github/copilot-instructions.md` and, when a second file
+is needed, `AGENTS.md`. Vally 0.19.0 enables Copilot SDK configuration
+discovery, and the SDK loads custom instructions by default. These rows test
+the policy text in a root agent context; they do not certify custom-agent
+discovery, profile registration, or profile-specific tool restrictions.
+The three pr-lifecycle reference files that the source prompt conditionally
+included are still embedded verbatim and in order in each native lifecycle
+stimulus. Shell command execution is blocked by Vally's supported tool
+simulation because the source evaluations used a text-only provider; this
+keeps the Copilot credential out of agent-launched shell commands.
+
+The two approved diagnostics are retained as native stimuli. Only their
+assertion failures are non-blocking; execution or grader errors, malformed or
+missing results, duplicate results, skill-invocation failures, and all other
+failed graders remain blocking. All four package suites pass offline mapping
+and strict-schema preflight. Those deterministic checks do not prove model
+behavior; credentialed runs use Copilot and may consume usage.
 
 From an individual package directory:
 
@@ -140,11 +141,10 @@ their frozen contents independently of the canonical defaults inventory.
 
 ## Troubleshooting
 
-- CI evals record the runtime versions, CPU architecture, and model digest.
-  When an eval produces `eval.json`, it is retained for seven days as an
-  `eval-<package>-<run>-<attempt>` artifact, including failed evaluations.
-  Use the failing row's source, provider, rendered prompt, and output rather than
-  its shared description alone. For local comparisons, use the locked npm
-  dependencies and match the recorded Ollama version and model digest.
+- CI records runtime versions and CPU architecture. Vally JSONL results and
+  run artifacts are retained for seven days, including failed evaluations.
+  Use the stimulus identity, grader evidence, and execution status to diagnose
+  a failure. The runner requires complete mapped case coverage and Copilot
+  credentials; it does not fall back to a local model.
 - Hidden directories not visible: use `ls -la` or `tree -a`.
 - Harness not auto-detected in consumer repo: pass `--target <harness>` or set `targets:` in consumer `apm.yml`.

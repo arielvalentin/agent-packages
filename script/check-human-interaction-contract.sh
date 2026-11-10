@@ -9,8 +9,9 @@ policy="$root/packages/agent-defaults/.apm/skills/human-interaction-safeguard/SK
 acting="$root/packages/agent-defaults/.apm/skills/acting-on-behalf/SKILL.md"
 feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
+lifecycle_feedback="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/feedback.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
-tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
+tests="$root/docs/evaluations-migration-map.json"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -283,7 +284,7 @@ require "$policy" "missing-skill fallback remains closed" \
   'If this skill is unavailable, fail closed'
 forbid "$policy" "phantom GraphQL app classification" \
   'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
-for downstream in "$acting" "$feedback" "$lifecycle" "$agent"; do
+for downstream in "$acting" "$feedback" "$lifecycle_feedback" "$agent"; do
   require "$downstream" "canonical single-action deferral" 'single-action'
   require "$downstream" "confirmation policy routing" 'confirmation'
 done
@@ -291,11 +292,11 @@ require "$acting" "posting backstop defers only to canonical policy" \
   'Only `human-interaction-safeguard` can authorize its single-action exception'
 require "$feedback" "human warning and scoped confirmation" \
   'Warn that the chain includes human interaction.{0,100}scoped confirmation'
-require "$lifecycle" "separate implementation instruction boundary" \
+require "$lifecycle_feedback" "separate implementation instruction boundary" \
   'later, separate, explicit implementation instruction'
 require "$feedback" "feedback chain taint deferral" \
   'any `HUMAN_STOP` item taints the whole chain'
-require "$lifecycle" "lifecycle chain taint rule" \
+require "$lifecycle_feedback" "lifecycle chain taint rule" \
   'Any `HUMAN_STOP` item taints the entire chain'
 require "$agent" "coordinator chain taint fallback" \
   'Treat the entire chain as `HUMAN_STOP`'
@@ -407,11 +408,17 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-import yaml
 
 root = Path(sys.argv[1])
-config = yaml.safe_load((root / "packages/agent-defaults/tests/promptfooconfig.yaml").read_text())
-cases = {case["description"]: case for case in config["tests"]}
+evaluation_map = json.loads((root / "docs/evaluations-migration-map.json").read_text())
+cases = {
+    entry["sourceDescription"]: {
+        "assert": [assertion["assertion"] for assertion in entry["assertions"]],
+        "vars": entry["sourceVariables"],
+    }
+    for entry in evaluation_map["cases"]
+    if entry["package"] == "agent-defaults"
+}
 required = (
     "warns and offers scoped user approval",
     "ordinary wording permits the named draft",

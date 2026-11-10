@@ -62,7 +62,7 @@ for name in actual:
 snapshots = {}
 snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
 assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "f7fddfcf6a6d2d60fb7e6dff9b51fe51f3d600e8be2555fbba59dd0519515c18", \
+    "9685b4fb07b37ea1e61e6ed7adb42abc3365e438df2acc818844733dae1ce6a3", \
     "frozen coordinator snapshot manifest changed"
 for line in snapshot_manifest.decode().splitlines():
     digest, path = line.split("  ", 1)
@@ -73,6 +73,46 @@ assert legacy_files == snapshots.keys(), "legacy snapshot inventory changed"
 for path, digest in snapshots.items():
     assert hashlib.sha256((legacy / path).read_bytes()).hexdigest() == digest, \
         f"frozen coordinator snapshot changed: {path}"
+coordinator_panel = " ".join(
+    (legacy / ".apm/skills/consensus-panel/SKILL.md").read_text().split()
+)
+assert "The caller-owned `explicit_multi_review` boolean selects review mode first." \
+    in coordinator_panel
+assert "`true` always uses the adaptive 2+1 panel" in coordinator_panel
+assert "and `explicit_multi_review` is `false`" in coordinator_panel
+assert ("dispatch a single-reviewer fast path only when the scope is fast-path "
+        "exempt and `explicit_multi_review` is `false`") in coordinator_panel
+assert "A `true` value selects the adaptive 2+1 panel for any scope" \
+    in coordinator_panel
+assert "a `blocker` or `major` finding always triggers one tiebreaker in panel mode" \
+    in coordinator_panel
+assert ("A `true` value overrides any single-model designation and always selects the "
+        "adaptive 2+1 panel") in coordinator_panel
+assert ("no behavior-defining instruction, policy, prompt, or contract change "
+        "that alters agent behavior, gates, or decisions") in coordinator_panel
+assert ("This always takes the full panel, even when it changes one line, only "
+        "changes Markdown, or meets the tiny-change limit") in coordinator_panel
+assert "none of the disqualified categories has a blast radius" in coordinator_panel
+assert "six disqualified categories" not in coordinator_panel
+coordinator_review_loop = " ".join(
+    (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
+)
+assert "`explicit_multi_review` | yes" in coordinator_review_loop
+assert ("A `true` value overrides any single-model designation and always selects "
+        "the adaptive 2+1 panel") \
+    in coordinator_review_loop
+assert "when it is `true`, use the adaptive 2+1 panel regardless of scope" \
+    in coordinator_review_loop
+assert "preserving `explicit_multi_review` unchanged" in coordinator_review_loop
+assert "Example values are illustrative" in coordinator_review_loop
+assert ("that role is explicitly designated single-model and "
+        "`explicit_multi_review` is `false`") in coordinator_review_loop
+assert "A `true` value overrides any single-model designation" \
+    in coordinator_review_loop
+assert "It never allows the gate to pass with an unresolved finding at or above" \
+    in coordinator_review_loop
+assert ("If any finding at or above `severity_threshold` remains unresolved, "
+        "stop and escalate regardless of `on_exhaust`") in coordinator_review_loop
 assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must not install agents"
 instructions = defaults / ".apm/instructions"
 assert {p.name for p in instructions.iterdir()} == {
@@ -107,6 +147,14 @@ for rule in (
 ):
     assert rule in implementer, f"implementer: missing policy: {rule}"
 gates = instruction_texts["skill-gates.instructions"]
+skill_gates_text = " ".join(
+    (defaults / ".apm/instructions/skill-gates.instructions.md").read_text().split()
+)
+assert (
+    "Agent/skill instructions, safeguards, workflows, and contract checks are "
+    "behavior-defining configuration: they require `adversarial-review` before completion"
+) in skill_gates_text, \
+    "skill-gates: behavior-defining configuration must receive adversarial review before completion"
 for name in (
     "writing-voice", "human-interaction-safeguard", "acting-on-behalf",
     "pr-lifecycle", "git-publishing-safety", "repository-access",
@@ -118,6 +166,8 @@ for rule in ("fail closed as `HUMAN_STOP`", "Missing mandatory safeguards block"
              "mandatory audience-specific disclosure check",
              "overrides body-preservation, tracking, and citation",
              "behavior-defining configuration", "explicit_multi_review",
+             "Reusing review-gate acceptance",
+             "exact unchanged diff, review scope, context, and requirements",
              "Unresolved blocker/major findings"):
     assert rule in gates, f"skill-gates: missing gate: {rule}"
 public_boundary = " ".join(Path("AGENTS.md").read_text().split()).lower()
@@ -152,7 +202,17 @@ for rule in ("validate both the subject format and length before committing",
 for rule in ("use the draft default", "require a tracking issue only when"):
     assert rule not in git_policy, \
         f"git-publishing-safety: duplicates PR lifecycle policy: {rule}"
-pr_lifecycle_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+pr_lifecycle_dir = skills / "pr-lifecycle"
+pr_lifecycle_root = pr_lifecycle_dir / "SKILL.md"
+readiness_reference = pr_lifecycle_dir / "references/readiness.md"
+for path in (pr_lifecycle_root, readiness_reference):
+    phase4_boundary = " ".join(path.read_text().split()).lower()
+    assert "never replies, resolves" in phase4_boundary \
+        and "dispatches a feedback fix" in phase4_boundary, \
+        f"{path}: Phase 4 routing must not reply, resolve, or dispatch feedback"
+pr_lifecycle_text = pr_lifecycle_root.read_text() + "\n" + "\n".join(
+    path.read_text() for path in sorted((pr_lifecycle_dir / "references").glob("*.md"))
+)
 pr_lifecycle_flat = " ".join(pr_lifecycle_text.split())
 pr_lifecycle_policy = pr_lifecycle_flat.lower()
 for rule in (
@@ -549,10 +609,22 @@ for rule in ("ask before pushing or opening a pr unless",
              "source for publication authorization and shared title-length limits"):
     assert rule in git_policy, \
         f"git-publishing-safety: missing publication boundary: {rule}"
-defaults_eval_config = yaml.safe_load(
-    (defaults / "tests/promptfooconfig.yaml").read_text()
+evaluation_map = json.loads(
+    Path("docs/evaluations-migration-map.json").read_text()
 )
-defaults_tests = defaults_eval_config["tests"]
+def source_test_cases(package_name):
+    return [{
+        "description": entry["sourceDescription"],
+        "vars": entry["sourceVariables"],
+        "providers": [entry["sourceProviderLabel"]],
+        "prompts": [entry["sourcePrompt"]],
+        "metadata": entry["sourceMetadata"],
+        "assert": [assertion["assertion"] for assertion in entry["assertions"]],
+    } for entry in evaluation_map["cases"] if entry["package"] == package_name]
+
+defaults_suite_map = evaluation_map["suites"]["agent-defaults"]
+defaults_eval_config = {"providers": defaults_suite_map["sourceProviders"]}
+defaults_tests = source_test_cases("agent-defaults")
 eval_providers = {
     provider["label"]: provider for provider in defaults_eval_config["providers"]
 }
@@ -560,28 +632,26 @@ for label in ("skill-under-test", "policy-chat"):
     config = eval_providers[label]["config"]
     assert config["num_ctx"] >= 32768 and config["num_predict"] == 512, \
         f"agent-defaults: {label} must provide room to measure the 16K input budget"
-for config_path in Path("packages").glob("*/tests/promptfooconfig.yaml"):
-    package_config = yaml.safe_load(config_path.read_text())
+for package_name, suite_map in evaluation_map["suites"].items():
+    package_cases = source_test_cases(package_name)
     providers = {
-        provider["label"]: provider for provider in package_config["providers"]
+        provider["label"]: provider for provider in suite_map["sourceProviders"]
     }
-    for case in package_config["tests"]:
+    for case in package_cases:
         if not any(
             "pr-lifecycle/SKILL.md" in str(case.get("vars", {}).get(key, ""))
             for key in ("skill_content", "companion_content", "review_mode_content")
         ):
             continue
-        selected_providers = case.get(
-            "providers", package_config["defaultTest"]["providers"]
-        )
+        selected_providers = case.get("providers")
         assert selected_providers and set(selected_providers) <= {
             "skill-under-test", "policy-chat",
-        }, f"{config_path}: {case.get('description')}: lifecycle tests require the full-context provider"
+        }, f"{package_name}: {case.get('description')}: lifecycle tests require the full-context provider"
         for label in selected_providers:
             config = providers[label]["config"]
             assert config.get("num_ctx", 0) >= 32768 \
                 and config.get("num_predict") == 512, \
-                f"{config_path}: {label}: lifecycle tests require explicit context and output reserve"
+                f"{package_name}: {label}: source cases require explicit context and output reserve"
 untrusted_test = next(
     test for test in defaults_tests
     if test.get("description") ==
@@ -590,22 +660,20 @@ untrusted_test = next(
 assert untrusted_test.get("providers") == ["policy-chat"] \
     and untrusted_test.get("prompts") == ["policy-chat"], \
     "git-publishing-safety: provenance regression must use the policy-chat system prompt"
-workflow_config = yaml.safe_load(
-    Path("packages/development-workflow/tests/promptfooconfig.yaml").read_text()
-)
+workflow_cases = source_test_cases("development-workflow")
 for description in (
     "routing: ordinary requests default to implementer",
     "implementer: ordinary direct requests do not recurse",
 ):
     test = next(
-        case for case in workflow_config["tests"]
+        case for case in workflow_cases
         if case.get("description") == description
     )
     assert test.get("providers") == ["policy-chat"] \
         and test.get("prompts") == ["policy-chat"], \
         f"{description}: regression must use the system-role policy-chat prompt"
 route_test = next(
-    case for case in workflow_config["tests"]
+    case for case in workflow_cases
     if case.get("description") == "routing: ordinary requests default to implementer"
 )
 assert "pr-lifecycle/SKILL.md" in \
@@ -793,27 +861,68 @@ assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
 for name in ("handoff-envelope", "consensus-panel", "review-fix-loop"):
     text = (defaults / ".apm/skills" / name / "SKILL.md").read_text()
     assert "explicit_multi_review" in text and "STOP_INVALID_HANDOFF" in text, name
-for package in Path("packages").iterdir():
-    config = package / "tests/promptfooconfig.yaml"
-    if not config.is_file():
-        continue
-    for case in yaml.safe_load(config.read_text())["tests"]:
+consensus_panel = " ".join((skills / "consensus-panel/SKILL.md").read_text().split())
+assert "`true` requires the adaptive 2+1 panel" in consensus_panel \
+    and "`false` permits the ordinary scope classification" in consensus_panel, \
+    "consensus-panel: explicit_multi_review must affect reviewer dispatch"
+assert "behavior-defining agent instructions, skills" in consensus_panel \
+    and "Markdown extensions do not make behavior-defining" in consensus_panel, \
+    "consensus-panel: behavior-defining Markdown must not use prose-only fast path"
+review_fix_loop = (skills / "review-fix-loop/SKILL.md").read_text()
+for rule in ("accepted_findings", "do not repeat the intake review",
+             "post-fix review is mandatory", "preserving `explicit_multi_review` unchanged"):
+    assert rule in review_fix_loop, f"review-fix-loop: missing caller handoff contract: {rule}"
+pr_lifecycle = skills / "pr-lifecycle"
+lifecycle_files = [pr_lifecycle / "SKILL.md", *sorted((pr_lifecycle / "references").glob("*.md"))]
+assert {path.name for path in lifecycle_files[1:]} == {
+    "cleanup.md", "feedback.md", "readiness.md"
+}, "pr-lifecycle: phase reference set changed"
+root_lifecycle = lifecycle_files[0].read_text()
+assert "If a required reference is missing or unreadable, stop" in root_lifecycle, \
+    "pr-lifecycle: unreadable phase references must fail closed"
+for section in ("## Skill fallbacks", "## Pre-requisites"):
+    assert section in root_lifecycle, \
+        f"pr-lifecycle: global guidance must remain in the root skill: {section}"
+assert "## Skill fallbacks" not in lifecycle_files[1].read_text() \
+    and "## Pre-requisites" not in lifecycle_files[1].read_text(), \
+    "pr-lifecycle: global guidance must not be hidden in the Phase 8 reference"
+lifecycle_contract = " ".join(
+    " ".join(path.read_text().split()) for path in lifecycle_files
+)
+for rule in ("explicit_multi_review` JSON boolean",
+             "Pass them as `accepted_findings`",
+             "must perform the required post-fix review",
+             "stop the entire current PR lifecycle",
+             "This stricter lifecycle rule takes precedence"):
+    assert rule in lifecycle_contract, \
+        f"pr-lifecycle: missing caller/stop contract: {rule}"
+for rule in ("`BLOCKED`", "`DIRTY`", "`UNKNOWN`", "strict/up-to-date requirement"):
+    assert rule in lifecycle_contract, f"pr-lifecycle: missing merge-state exit: {rule}"
+for package_name, suite_map in evaluation_map["suites"].items():
+    config_directory = Path(suite_map["sourceConfig"]).parent
+    for case in source_test_cases(package_name):
         for key in ("skill_content", "companion_content", "review_mode_content"):
             references = case.get("vars", {}).get(key, "")
             if not isinstance(references, list):
                 references = [references]
             for reference in references:
-                assert isinstance(reference, str), f"{config}: invalid skill reference: {reference}"
+                assert isinstance(reference, str), \
+                    f"{package_name}: invalid skill reference: {reference}"
                 if reference.startswith("file://"):
-                    source = config.parent / reference.removeprefix("file://")
-                    assert source.is_file(), f"{config}: broken reference: {reference}"
+                    source = (config_directory / reference.removeprefix("file://")).resolve()
+                    assert source.is_file(), \
+                        f"{package_name}: broken reference: {reference}"
 
 review_cases = {
     case["description"]: case
-    for case in yaml.safe_load((defaults / "tests/promptfooconfig.yaml").read_text())["tests"]
+    for case in defaults_tests
 }
-lifecycle_text = (skills / "pr-lifecycle/SKILL.md").read_text()
-draft_entrypoint = lifecycle_text.split("## Existing PR entrypoint", 1)[1].split(
+lifecycle_root_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+lifecycle_text = lifecycle_root_text + "\n" + "\n".join(
+    path.read_text()
+    for path in sorted((skills / "pr-lifecycle/references").glob("*.md"))
+)
+draft_entrypoint = lifecycle_root_text.split("## Existing PR entrypoint", 1)[1].split(
     "## Standalone waits", 1
 )[0]
 draft_entrypoint = " ".join(draft_entrypoint.split())
@@ -1116,4 +1225,4 @@ for package, version in release_manifest.items():
 print("OK: unconditional defaults, portable router, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
 PY
 
-node --test script/validate-promptfoo-eval.test.js
+node --test script/validate-native-evals.test.js

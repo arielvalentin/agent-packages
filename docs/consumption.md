@@ -90,5 +90,9 @@ targets:
 
 For always-on user-scope defaults, use the
 [verified native deployment contract](../packages/agent-defaults/README.md#unconditional-copilot-deployment).
-Package source files without `applyTo` are unconditional; installation, global
-compilation, native entrypoint discovery, and ownership checks are separate steps.
+These package defaults are intended to be always on, but APM's classification
+of source files without `applyTo` does not guarantee inclusion across clients.
+In VS Code's Local harness, description-only instructions can be selected on
+demand, and `applyTo` has no default pattern. Use the documented native
+user-wide entrypoint and verify installation, compilation, discovery, and
+ownership separately.

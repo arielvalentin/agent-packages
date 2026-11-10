@@ -2,6 +2,19 @@
 
 This document is the authoritative inventory of installable packages in this repository.
 
+## Package compatibility
+
+The package manifests do not declare companion-package relationships. Add each
+required package to the consuming repository's APM dependency list. Use an
+`agent-defaults` release that contains the shared skills required by its
+companions; `agent-defaults-v0.1.0` does not include `writing-voice`.
+
+| Package | Companion | Requirement and behavior |
+| --- | --- | --- |
+| `development-workflow` | `agent-defaults` | Required for the shared handoff, lifecycle, writing, and safety/review skills used by its agents. |
+| `code-reviewers` | `agent-defaults` | Required for the shared handoff, `consensus-panel`, writing, and safety/review skills used by its agents. |
+| `agent-defaults` | `code-reviewers` | Optional. `code-reviewers` supplies `datadog-url-router`; without it, the Datadog gate stops access and reports that the skill is unavailable. |
+
 ## personal-agents
 
 - Path: `packages/personal-agents`
