@@ -107,6 +107,14 @@ for rule in (
 ):
     assert rule in implementer, f"implementer: missing policy: {rule}"
 gates = instruction_texts["skill-gates.instructions"]
+skill_gates_text = " ".join(
+    (defaults / ".apm/instructions/skill-gates.instructions.md").read_text().split()
+)
+assert (
+    "Agent/skill instructions, safeguards, workflows, and contract checks are "
+    "behavior-defining configuration: they require `adversarial-review` before completion"
+) in skill_gates_text, \
+    "skill-gates: behavior-defining configuration must receive adversarial review before completion"
 for name in (
     "writing-voice", "human-interaction-safeguard", "acting-on-behalf",
     "pr-lifecycle", "git-publishing-safety", "repository-access",
@@ -155,7 +163,14 @@ for rule in ("use the draft default", "require a tracking issue only when"):
     assert rule not in git_policy, \
         f"git-publishing-safety: duplicates PR lifecycle policy: {rule}"
 pr_lifecycle_dir = skills / "pr-lifecycle"
-pr_lifecycle_text = (pr_lifecycle_dir / "SKILL.md").read_text() + "\n" + "\n".join(
+pr_lifecycle_root = pr_lifecycle_dir / "SKILL.md"
+readiness_reference = pr_lifecycle_dir / "references/readiness.md"
+for path in (pr_lifecycle_root, readiness_reference):
+    phase4_boundary = " ".join(path.read_text().split()).lower()
+    assert "never replies, resolves" in phase4_boundary \
+        and "dispatches a feedback fix" in phase4_boundary, \
+        f"{path}: Phase 4 routing must not reply, resolve, or dispatch feedback"
+pr_lifecycle_text = pr_lifecycle_root.read_text() + "\n" + "\n".join(
     path.read_text() for path in sorted((pr_lifecycle_dir / "references").glob("*.md"))
 )
 pr_lifecycle_flat = " ".join(pr_lifecycle_text.split())
@@ -554,10 +569,22 @@ for rule in ("ask before pushing or opening a pr unless",
              "source for publication authorization and shared title-length limits"):
     assert rule in git_policy, \
         f"git-publishing-safety: missing publication boundary: {rule}"
-defaults_eval_config = yaml.safe_load(
-    (defaults / "tests/promptfooconfig.yaml").read_text()
+evaluation_map = json.loads(
+    Path("docs/evaluations-migration-map.json").read_text()
 )
-defaults_tests = defaults_eval_config["tests"]
+def source_test_cases(package_name):
+    return [{
+        "description": entry["sourceDescription"],
+        "vars": entry["sourceVariables"],
+        "providers": [entry["sourceProviderLabel"]],
+        "prompts": [entry["sourcePrompt"]],
+        "metadata": entry["sourceMetadata"],
+        "assert": [assertion["assertion"] for assertion in entry["assertions"]],
+    } for entry in evaluation_map["cases"] if entry["package"] == package_name]
+
+defaults_suite_map = evaluation_map["suites"]["agent-defaults"]
+defaults_eval_config = {"providers": defaults_suite_map["sourceProviders"]}
+defaults_tests = source_test_cases("agent-defaults")
 eval_providers = {
     provider["label"]: provider for provider in defaults_eval_config["providers"]
 }
@@ -565,28 +592,26 @@ for label in ("skill-under-test", "policy-chat"):
     config = eval_providers[label]["config"]
     assert config["num_ctx"] >= 32768 and config["num_predict"] == 512, \
         f"agent-defaults: {label} must provide room to measure the 16K input budget"
-for config_path in Path("packages").glob("*/tests/promptfooconfig.yaml"):
-    package_config = yaml.safe_load(config_path.read_text())
+for package_name, suite_map in evaluation_map["suites"].items():
+    package_cases = source_test_cases(package_name)
     providers = {
-        provider["label"]: provider for provider in package_config["providers"]
+        provider["label"]: provider for provider in suite_map["sourceProviders"]
     }
-    for case in package_config["tests"]:
+    for case in package_cases:
         if not any(
             "pr-lifecycle/SKILL.md" in str(case.get("vars", {}).get(key, ""))
             for key in ("skill_content", "companion_content", "review_mode_content")
         ):
             continue
-        selected_providers = case.get(
-            "providers", package_config["defaultTest"]["providers"]
-        )
+        selected_providers = case.get("providers")
         assert selected_providers and set(selected_providers) <= {
             "skill-under-test", "policy-chat",
-        }, f"{config_path}: {case.get('description')}: lifecycle tests require the full-context provider"
+        }, f"{package_name}: {case.get('description')}: lifecycle tests require the full-context provider"
         for label in selected_providers:
             config = providers[label]["config"]
             assert config.get("num_ctx", 0) >= 32768 \
                 and config.get("num_predict") == 512, \
-                f"{config_path}: {label}: lifecycle tests require explicit context and output reserve"
+                f"{package_name}: {label}: source cases require explicit context and output reserve"
 untrusted_test = next(
     test for test in defaults_tests
     if test.get("description") ==
@@ -595,22 +620,20 @@ untrusted_test = next(
 assert untrusted_test.get("providers") == ["policy-chat"] \
     and untrusted_test.get("prompts") == ["policy-chat"], \
     "git-publishing-safety: provenance regression must use the policy-chat system prompt"
-workflow_config = yaml.safe_load(
-    Path("packages/development-workflow/tests/promptfooconfig.yaml").read_text()
-)
+workflow_cases = source_test_cases("development-workflow")
 for description in (
     "routing: ordinary requests default to implementer",
     "implementer: ordinary direct requests do not recurse",
 ):
     test = next(
-        case for case in workflow_config["tests"]
+        case for case in workflow_cases
         if case.get("description") == description
     )
     assert test.get("providers") == ["policy-chat"] \
         and test.get("prompts") == ["policy-chat"], \
         f"{description}: regression must use the system-role policy-chat prompt"
 route_test = next(
-    case for case in workflow_config["tests"]
+    case for case in workflow_cases
     if case.get("description") == "routing: ordinary requests default to implementer"
 )
 assert "pr-lifecycle/SKILL.md" in \
@@ -835,24 +858,24 @@ for rule in ("explicit_multi_review` JSON boolean",
         f"pr-lifecycle: missing caller/stop contract: {rule}"
 for rule in ("`BLOCKED`", "`DIRTY`", "`UNKNOWN`", "strict/up-to-date requirement"):
     assert rule in lifecycle_contract, f"pr-lifecycle: missing merge-state exit: {rule}"
-for package in Path("packages").iterdir():
-    config = package / "tests/promptfooconfig.yaml"
-    if not config.is_file():
-        continue
-    for case in yaml.safe_load(config.read_text())["tests"]:
+for package_name, suite_map in evaluation_map["suites"].items():
+    config_directory = Path(suite_map["sourceConfig"]).parent
+    for case in source_test_cases(package_name):
         for key in ("skill_content", "companion_content", "review_mode_content"):
             references = case.get("vars", {}).get(key, "")
             if not isinstance(references, list):
                 references = [references]
             for reference in references:
-                assert isinstance(reference, str), f"{config}: invalid skill reference: {reference}"
+                assert isinstance(reference, str), \
+                    f"{package_name}: invalid skill reference: {reference}"
                 if reference.startswith("file://"):
-                    source = config.parent / reference.removeprefix("file://")
-                    assert source.is_file(), f"{config}: broken reference: {reference}"
+                    source = config_directory / reference.removeprefix("file://")
+                    assert source.is_file(), \
+                        f"{package_name}: broken reference: {reference}"
 
 review_cases = {
     case["description"]: case
-    for case in yaml.safe_load((defaults / "tests/promptfooconfig.yaml").read_text())["tests"]
+    for case in defaults_tests
 }
 lifecycle_root_text = (skills / "pr-lifecycle/SKILL.md").read_text()
 lifecycle_text = lifecycle_root_text + "\n" + "\n".join(
@@ -1162,4 +1185,4 @@ for package, version in release_manifest.items():
 print("OK: unconditional defaults, portable router, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
 PY
 
-node --test script/validate-promptfoo-eval.test.js
+node --test script/validate-native-evals.test.js

@@ -3,21 +3,21 @@
   "private": true,
   "scripts": {
     "test": "npm run test:dependencies && npm run test:smoke",
-    "test:dependencies": "node --test script/check-npm-dependencies.test.js",
+    "test:dependencies": "node --test script/check-npm-dependencies.test.js script/validate-native-evals.test.js script/vally-output.test.js script/native-eval-graders.test.js",
     "test:smoke": "npm run test:defaults:smoke && npm run test:coordinator:smoke && npm run test:dev-workflow:smoke && npm run test:reviewers:smoke",
     "test:full": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
-    "test:defaults": "promptfoo eval --config packages/agent-defaults/tests/promptfooconfig.yaml",
-    "test:coordinator": "promptfoo eval --config packages/coordinator/tests/promptfooconfig.yaml",
-    "test:dev-workflow": "promptfoo eval --config packages/development-workflow/tests/promptfooconfig.yaml",
-    "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml",
-    "test:defaults:smoke": "bash script/run-promptfoo-smoke.sh packages/agent-defaults/tests/promptfooconfig.yaml",
-    "test:coordinator:smoke": "bash script/run-promptfoo-smoke.sh packages/coordinator/tests/promptfooconfig.yaml",
-    "test:dev-workflow:smoke": "bash script/run-promptfoo-smoke.sh packages/development-workflow/tests/promptfooconfig.yaml",
-    "test:reviewers:smoke": "bash script/run-promptfoo-smoke.sh packages/code-reviewers/tests/promptfooconfig.yaml"
+    "test:defaults": "node script/run-evals.js agent-defaults full",
+    "test:coordinator": "node script/run-evals.js coordinator full",
+    "test:dev-workflow": "node script/run-evals.js development-workflow full",
+    "test:reviewers": "node script/run-evals.js code-reviewers full",
+    "test:defaults:smoke": "node script/run-evals.js agent-defaults smoke",
+    "test:coordinator:smoke": "node script/run-evals.js coordinator smoke",
+    "test:dev-workflow:smoke": "node script/run-evals.js development-workflow smoke",
+    "test:reviewers:smoke": "node script/run-evals.js code-reviewers smoke"
   },
   "devDependencies": {
-    "js-yaml": "^5.4.2",
-    "promptfoo": "^0.125.1"
+    "@microsoft/vally-cli": "0.19.0",
+    "js-yaml": "^5.4.2"
   },
   "engines": {
     "node": ">=22.22.0"
@@ -32,19 +32,5 @@
   "allowScripts": {
     "esbuild@0.28.2": true,
     "fsevents": false
-  },
-  "overrides": {
-    "promptfoo": {
-      "@modelcontextprotocol/server-filesystem": "1.0.0",
-      "glob": "14.0.3",
-      "minimatch": "11.0.4"
-    },
-    "@modelcontextprotocol/server-filesystem": {
-      "glob": "14.0.3",
-      "minimatch": "11.0.4"
-    },
-    "get-uri": {
-      "basic-ftp": "6.2.5"
-    }
   }
 }

@@ -15,15 +15,6 @@ echo "    npm $(npm --version)"
 echo "==> Installing npm packages..."
 npm ci
 
-echo "==> Starting Ollama (if not already running)..."
-if ! pgrep -x ollama &>/dev/null; then
-  ollama serve &>/dev/null &
-  sleep 2
-fi
-
-echo "==> Pulling eval model..."
-ollama pull llama3.2:3b
-
 echo ""
 echo "✅ Setup complete! Run tests with:"
 echo "   export PATH=\"$(brew --prefix node@26)/bin:\$PATH\""

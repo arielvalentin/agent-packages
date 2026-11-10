@@ -1,5 +1,5 @@
-name: "Run promptfoo eval"
-description: "Sets up Ollama (pinned + SHA256 verified), pulls the model, installs deps, and runs promptfoo eval for a package"
+name: "Run Copilot Evals"
+description: "Installs the pinned project toolchain and runs a native Vally evaluation suite"
 
 inputs:
   package:
@@ -9,26 +9,13 @@ inputs:
     description: "Run the smoke suite or the full package suite"
     required: false
     default: "smoke"
-  model:
-    description: "Ollama model to use"
+  copilot-token:
+    description: "Copilot-compatible token used only for the evaluation step"
     required: false
-    default: "llama3.2:3b"
-  model-digest:
-    description: "Expected SHA256 manifest digest for the selected Ollama model"
-    required: false
-    default: "a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72"
   node-version:
     description: "Node.js version"
     required: false
     default: "26"
-  ollama-version:
-    description: "Pinned Ollama release version"
-    required: false
-    default: "0.32.5"
-  ollama-sha256:
-    description: "SHA256 checksum of ollama-linux-amd64.tar.zst"
-    required: false
-    default: "f7d6bdbcf71b83aa8670c4e7dc4b6936c0952fcf8b114eaf6a11cbadb9684214"
 
 runs:
   using: composite
@@ -48,129 +35,34 @@ runs:
       shell: bash
       run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
 
-    - name: Install Ollama (pinned + verified)
-      shell: bash
-      run: |
-        set -euo pipefail
-        TARBALL="ollama-linux-amd64.tar.zst"
-        URL="https://github.com/ollama/ollama/releases/download/v${{ inputs.ollama-version }}/${TARBALL}"
-
-        echo "Downloading Ollama v${{ inputs.ollama-version }}..."
-        curl -fSL -o "${TARBALL}" "${URL}"
-
-        echo "Verifying SHA256 checksum..."
-        echo "${{ inputs.ollama-sha256 }}  ${TARBALL}" | sha256sum -c -
-
-        echo "Extracting..."
-        tar --use-compress-program=unzstd -xf "${TARBALL}"
-        sudo mv bin/ollama /usr/local/bin/ollama
-        sudo mkdir -p /usr/local/lib/ollama
-        sudo mv lib/ollama/* /usr/local/lib/ollama/
-        rm -rf "${TARBALL}" bin/ lib/
-
-        echo "✅ Ollama v${{ inputs.ollama-version }} installed and verified"
-
-    - name: Cache Ollama model
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ~/.ollama
-        key: ollama-model-${{ inputs.model }}-${{ inputs.model-digest }}-v2
-
-    - name: Start Ollama and pull model
-      shell: bash
-      env:
-        MODEL_NAME: ${{ inputs.model }}
-      run: |
-        ollama serve &
-        sleep 2
-        ollama pull "$MODEL_NAME"
-
-    - name: Verify Ollama model digest
-      shell: bash
-      env:
-        MODEL_NAME: ${{ inputs.model }}
-        EXPECTED_MODEL_DIGEST: ${{ inputs.model-digest }}
-      run: |
-        set -euo pipefail
-        [[ "$EXPECTED_MODEL_DIGEST" =~ ^[0-9a-f]{64}$ ]] || {
-          echo "::error::Expected model digest must be a 64-character lowercase SHA256."
-          exit 1
-        }
-        actual_digest="$(
-          curl --fail --silent --show-error http://localhost:11434/api/tags |
-            node -e '
-              const { models } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
-              const model = models.find(({ name }) => name === process.env.MODEL_NAME);
-              if (!model) {
-                console.error(`Model not found: ${process.env.MODEL_NAME}`);
-                process.exit(1);
-              }
-              process.stdout.write(model.digest);
-            '
-        )"
-        if [[ "$actual_digest" != "$EXPECTED_MODEL_DIGEST" ]]; then
-          echo "::error::Ollama model digest mismatch for $MODEL_NAME: expected $EXPECTED_MODEL_DIGEST, got $actual_digest."
-          exit 1
-        fi
-
     - name: Install dependencies
       shell: bash
       run: npm ci
 
-    - name: Record eval runtime
+    - name: Record evaluation runtime
       shell: bash
       run: |
+        set -euo pipefail
         uname -sm
-        printf 'Logical CPUs: '
-        getconf _NPROCESSORS_ONLN
         node --version
         npm --version
-        npx --no-install promptfoo --version
-        ollama --version
-        curl --fail --silent --show-error http://localhost:11434/api/tags
+        npx --no-install vally --version
+        node -e "const fs=require('node:fs');const path=require('node:path');const manifest=path.resolve(path.dirname(require.resolve('@github/copilot-sdk')),'../../package.json');console.log(JSON.parse(fs.readFileSync(manifest,'utf8')).version)"
 
-    - name: Run evals
+    - name: Run native evaluation
       shell: bash
+      env:
+        VALLY_RESULTS_DIR: ${{ runner.temp }}/vally-results
+        GH_TOKEN: ${{ inputs.copilot-token }}
       run: |
-        suite="${{ inputs.suite }}"
-        case "$suite" in
-          smoke) eval_filter=(--filter-metadata suite=smoke) ;;
-          full) eval_filter=() ;;
-          *)
-            echo "::error::Unknown eval suite '$suite'; expected smoke or full."
-            exit 2
-            ;;
-        esac
+        set -euo pipefail
+        node script/run-evals.js "${{ inputs.package }}" "${{ inputs.suite }}"
 
-        # GitHub invokes this shell with -e, which would abort the step on a
-        # failing eval before the summary below can run. Take the exit code
-        # ourselves instead.
-        set +e
-        set -uo pipefail
-        npx promptfoo eval \
-          --config packages/${{ inputs.package }}/tests/promptfooconfig.yaml \
-          "${eval_filter[@]}" \
-          --no-cache \
-          --output "$RUNNER_TEMP/eval.json"
-        status=$?
-        if [[ ! -s "$RUNNER_TEMP/eval.json" ]]; then
-          echo "::error::Promptfoo did not produce eval results; refusing to report success."
-          status=1
-        else
-          node script/validate-promptfoo-eval.js "$RUNNER_TEMP/eval.json" "$suite" \
-            "packages/${{ inputs.package }}/tests/promptfooconfig.yaml"
-          summary_status=$?
-          if [[ $summary_status -ne 0 ]]; then
-            status=1
-          fi
-        fi
-        exit $status
-
-    - name: Upload eval results
+    - name: Upload Vally results
       if: ${{ always() }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: eval-${{ inputs.package }}-${{ github.run_id }}-${{ github.run_attempt }}
-        path: ${{ runner.temp }}/eval.json
+        path: ${{ runner.temp }}/vally-results
         if-no-files-found: warn
         retention-days: 7

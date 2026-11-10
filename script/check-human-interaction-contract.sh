@@ -11,7 +11,7 @@ feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
 lifecycle_feedback="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/feedback.md"
 agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
-tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
+tests="$root/docs/evaluations-migration-map.json"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -408,11 +408,17 @@ import json
 from pathlib import Path
 import subprocess
 import sys
-import yaml
 
 root = Path(sys.argv[1])
-config = yaml.safe_load((root / "packages/agent-defaults/tests/promptfooconfig.yaml").read_text())
-cases = {case["description"]: case for case in config["tests"]}
+evaluation_map = json.loads((root / "docs/evaluations-migration-map.json").read_text())
+cases = {
+    entry["sourceDescription"]: {
+        "assert": [assertion["assertion"] for assertion in entry["assertions"]],
+        "vars": entry["sourceVariables"],
+    }
+    for entry in evaluation_map["cases"]
+    if entry["package"] == "agent-defaults"
+}
 required = (
     "warns and offers scoped user approval",
     "ordinary wording permits the named draft",

@@ -26,8 +26,8 @@ agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/agent-defaults/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/agent-defaults/.apm/skills/handoff-envelope/SKILL.md"
 adversarial="$root/packages/agent-defaults/.apm/skills/adversarial-review/SKILL.md"
-tests="$root/packages/agent-defaults/tests/promptfooconfig.yaml"
-coordinator_tests="$root/packages/coordinator/tests/promptfooconfig.yaml"
+tests="$root/docs/evaluations-migration-map.json"
+coordinator_tests="$tests"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -316,21 +316,21 @@ require "$adversarial" "standalone adversarial review rejecting local prose and 
   'do not emit prose, markdown headings, a local summary report, or .informational. findings'
 require "$adversarial" "standalone adversarial review using consensus-panel fallback and failure rules" \
   'fallback and failure rules'
-require "$tests" "promptfoo regression for consensus-panel source of truth" \
+require "$tests" "native evaluation mapping for consensus-panel source of truth" \
   'adversarial-review: standalone defers to consensus-panel as the source of truth'
-require "$tests" "promptfoo regression requiring consensus-panel JSON instead of markdown prose" \
+require "$tests" "native evaluation mapping requiring consensus-panel JSON instead of markdown prose" \
   'adversarial-review: standalone returns consensus-panel JSON instead of markdown prose'
-require "$tests" "promptfoo regression rejecting informational severity" \
+require "$tests" "native evaluation mapping rejecting informational severity" \
   'adversarial-review: standalone does not reintroduce informational severity'
-require "$tests" "promptfoo regression requiring the shared consensus report artifact" \
+require "$tests" "native evaluation mapping requiring the shared consensus report artifact" \
   'adversarial-review: standalone delegates the shared consensus report artifact'
-require "$tests" "promptfoo regression requiring consensus-panel failure handling" \
+require "$tests" "native evaluation mapping requiring consensus-panel failure handling" \
   'adversarial-review: standalone uses consensus-panel failure handling'
-require "$tests" "promptfoo regression rejecting GPT-host Opus-plus-Gemini substitution" \
+require "$tests" "native evaluation mapping rejecting GPT-host Opus-plus-Gemini substitution" \
   'consensus-panel: GPT host does not select Opus plus Gemini when GPT reviewers are available'
-require "$tests" "promptfoo regression rejecting mandatory cross-family reviewers on GPT hosts" \
+require "$tests" "native evaluation mapping rejecting mandatory cross-family reviewers on GPT hosts" \
   'consensus-panel: GPT host does not require cross-family reviewers'
-require "$tests" "promptfoo regression rejecting GPT-host family exclusion" \
+require "$tests" "native evaluation mapping rejecting GPT-host family exclusion" \
   'consensus-panel: GPT host does not exclude GPT reviewers from selection'
 if normalize "$adversarial" | grep -Eiq -- \
   'independent model lineages|different lineages|different families|reduced independence'; then

@@ -1,4 +1,3 @@
 node_modules/
-.promptfoo/
-promptfoo-output/
+vally-results/
 *.db
