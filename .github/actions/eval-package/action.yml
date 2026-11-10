@@ -54,9 +54,11 @@ runs:
       env:
         VALLY_RESULTS_DIR: ${{ runner.temp }}/vally-results
         GH_TOKEN: ${{ inputs.copilot-token }}
+        EVAL_PACKAGE: ${{ inputs.package }}
+        EVAL_SUITE: ${{ inputs.suite }}
       run: |
         set -euo pipefail
-        node script/run-evals.js "${{ inputs.package }}" "${{ inputs.suite }}"
+        node script/run-evals.js "$EVAL_PACKAGE" "$EVAL_SUITE"
 
     - name: Upload Vally results
       if: ${{ always() }}

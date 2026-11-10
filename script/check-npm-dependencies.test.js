@@ -66,6 +66,10 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
   ));
   const runStep = action.runs.steps.find((step) => step.name === "Run native evaluation");
   assert.equal(runStep.env.GH_TOKEN, "${{ inputs.copilot-token }}");
+  assert.equal(runStep.env.EVAL_PACKAGE, "${{ inputs.package }}");
+  assert.equal(runStep.env.EVAL_SUITE, "${{ inputs.suite }}");
+  assert.match(runStep.run, /node script\/run-evals\.js "\$EVAL_PACKAGE" "\$EVAL_SUITE"/);
+  assert.doesNotMatch(runStep.run, /\$\{\{\s*inputs\.(?:package|suite)\s*\}\}/);
   for (const step of action.runs.steps) {
     if (step === runStep) continue;
     assert.equal(step.env?.GH_TOKEN, undefined, step.name);
