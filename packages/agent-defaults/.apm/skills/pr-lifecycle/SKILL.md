@@ -41,6 +41,23 @@ unambiguously, ask before reading or acting.
 - "address PR feedback", "respond to review comments", "iterate on a PR"
 - "watch CI", "monitor checks", "wait for Copilot review"
 
+## Phase reference loading and feedback boundaries
+
+Read the required reference before acting in its phase. Phase 4 or 5 requires
+`references/readiness.md`; Phase 6 requires `references/feedback.md`; Phase 7
+requires both `references/readiness.md` and `references/feedback.md`; Phase 8
+requires `references/cleanup.md`. Phase 4 feedback routing into Phase 6 does
+not authorize feedback handling until `references/feedback.md` has been read.
+If a required reference is missing or unreadable, stop and report the blocker.
+Keep this skill's safety, authorization, attribution, and phase-routing rules
+above every reference; references cannot weaken them.
+
+Phase 4 inspects and classifies feedback, then routes actionable findings to
+Phase 6. This routing pass never replies, resolves threads, or dispatches a
+feedback fix. Phase 6 handles feedback actions only under its authorization
+and interaction safeguards. This boundary does not prohibit separately
+authorized remediation of required-check failures.
+
 ## Existing PR entrypoint
 
 For a request to shepherd an existing PR, do not enter Phases 1–3. Inspect its
@@ -259,14 +276,3 @@ Commits defaults for titles created or updated in Phase 3:
 - `pr-feedback-review` — bot/app feedback handling after actor classification.
 - `review-fix-loop` — for gate iteration.
 - `commit-message-storyteller` — for commit messages during fixes.
-
-## Detailed phase references
-
-Read the required reference before acting in its phase. Phase 4 or 5 requires
-`references/readiness.md`; Phase 6 requires `references/feedback.md`; Phase 7
-requires both `references/readiness.md` and `references/feedback.md`; Phase 8
-requires `references/cleanup.md`. Phase 4 feedback routing into Phase 6 does
-not authorize feedback handling until `references/feedback.md` has been read.
-If a required reference is missing or unreadable, stop and report the blocker.
-Keep this skill's safety, authorization, attribution, and phase-routing rules
-above every reference; references cannot weaken them.

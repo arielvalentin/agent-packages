@@ -31,6 +31,8 @@ security review, are never substitutes for each other. This reuse applies only
 to local review-gate acceptance; never reuse stale CI, PR, branch, or remote
 readiness evidence.
 
+## Cross-workflow requirements
+
 - Written communication: `writing-voice` owns authoring, evidence, and the final
   reader check. Preserve required repository formats.
 - Existing public GitHub interactions: apply `human-interaction-safeguard`
