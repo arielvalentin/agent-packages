@@ -10,22 +10,27 @@ description: >
 
 # Consensus Panel
 
-**Single reviewer for trivial scopes, adaptive 2+1 for substantive code.**
-Non-code-only and genuinely tiny changes get exactly one mid- or
-high-capability reviewer. Substantive code changes get two reviewers, plus a
-third only when it can change the answer.
+The caller-owned `explicit_multi_review` boolean selects review mode first.
+`true` always uses the adaptive 2+1 panel; `false` uses one reviewer for
+fast-path-exempt scopes and the adaptive panel for substantive changes.
 
 ## When to use
 
-Use before any specialist review dispatch, **except** scopes that qualify for
-the single-reviewer fast path below. Skipping this is a bug unless the role is
-explicitly designated single-model or the scope is fast-path exempt.
+Use before every specialist review dispatch, except when the role is explicitly
+designated single-model or the scope qualifies for the single-reviewer fast path
+and `explicit_multi_review` is `false`.
 
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
 consensus.
 
 ## Step 1 — Classify the scope (always first)
+
+For review handoffs, require the caller-owned `explicit_multi_review` JSON
+boolean and preserve it unchanged. Missing or invalid values stop as
+`STOP_INVALID_HANDOFF` before dispatch. A `true` value requires the adaptive
+2+1 panel even when the scope qualifies for the single-reviewer fast path.
+`false` permits the ordinary scope classification below.
 
 Classify the review scope **before** selecting any model. Re-classify at the
 start of every review cycle; a fix that grows the scope also changes its class.
@@ -90,14 +95,16 @@ model, and do not synthesize across models.
 - **Report** — still write the report artifact, recording
   `panel: single-reviewer fast path` and which exemption applied.
 
-This exemption **takes precedence** over any general "every specialist review
-runs a panel" rule in the coordinator or `review-fix-loop`. A single
-`blocker`/`major` finding does not promote a fast-path scope to a panel; only
-re-classification under Step 1 does. The safety argument is the size and
-disqualifier bounds, not the finding: a scope this small that touches none of
-the six disqualified categories has a blast radius one reviewer can hold.
+When `explicit_multi_review` is `false`, this exemption **takes precedence**
+over any general "every specialist review runs a panel" rule in the coordinator
+or `review-fix-loop`. A `blocker`/`major` finding does not promote a fast-path
+scope to a panel; only re-classification under Step 1 does. A `true` value
+selects the panel before this exemption is applied. The safety argument is the
+size and disqualifier bounds, not the finding: a scope this small that touches
+none of the six disqualified categories has a blast radius one reviewer can
+hold.
 
-## Step 2b — Panel selection for substantive code changes
+## Step 2b — Panel selection for adaptive 2+1 reviews
 
 Select panelists from models available in the current runtime/session:
 
@@ -116,7 +123,7 @@ Select panelists from models available in the current runtime/session:
 5. If explicit model discovery is unavailable, dispatch without model
    overrides (runtime auto-selection) and record that fallback in the report.
 
-## Dispatch (substantive code changes only)
+## Dispatch (adaptive 2+1 panel mode)
 
 ### Wave 1 — always exactly 2, in parallel
 
@@ -144,8 +151,12 @@ independently. Never dispatch a fourth reviewer for a single panel.
 
 ## Escalation triggers
 
-Escalation triggers apply only to substantive code changes. A fast-path scope
-never escalates to a panel — it is complete after its single reviewer.
+Escalation triggers apply to every scope dispatched through the adaptive 2+1
+panel, including a fast-path-exempt scope selected for a panel by
+`explicit_multi_review: true`. A scope dispatched through the single-reviewer
+fast path is complete after its one reviewer and has no tiebreaker.
+In particular, a `blocker` or `major` finding always triggers one tiebreaker in
+panel mode, regardless of file type or size.
 
 Dispatch the tiebreaker when **any** of these hold:
 

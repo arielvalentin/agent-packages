@@ -19,6 +19,7 @@ code-review, and observability review gates.
 | `fixer` | no | `implementer` | Agent dispatched to address findings |
 | `scope` | yes | — | What to review: diff ref, artifact path, or description of review target |
 | `context` | no | — | Additional context for the reviewer (intent summary, design doc, issue body) |
+| `explicit_multi_review` | yes | — | Caller-owned JSON boolean, preserved unchanged across review and fix handoffs |
 | `focus` | no | — | Specific review focus or criteria (e.g., "intent-coverage", "exploitable vulnerabilities only") |
 | `max_retries` | no | 2 | Maximum fix-then-re-review cycles before escalation |
 | `severity_threshold` | no | `blocker,major` | Comma-separated severities that trigger a fix cycle |
@@ -27,17 +28,19 @@ code-review, and observability review gates.
 
 ## Protocol
 
+Before dispatch, validate `explicit_multi_review`: missing, null, string, or
+other non-boolean values stop as `STOP_INVALID_HANDOFF`. Preserve the caller's
+value unchanged in every review and fix handoff.
+
 1. **Check skip condition** — if `skip_condition` is defined and matches the
    current context, skip the gate entirely. Record the skip reason.
 
 2. **Dispatch reviewer** — run the `reviewer` through `consensus-panel` unless
    that role is explicitly designated single-model. `consensus-panel` classifies
-   the scope first: non-code and tiny scopes take the single-reviewer fast path
-   (exactly one mid- or high-capability reviewer, no panel), and substantive
-   code changes take the adaptive 2+1 panel — two reviewers in parallel with a
-   third added only when an escalation trigger fires. Send `scope` and
-   `context`; if `focus` is provided, include it as explicit review
-   instructions.
+   the scope first. Send `scope`, `context`, and `explicit_multi_review`; if
+   `focus` is provided, include it as explicit review instructions. A `true`
+   value always selects the adaptive 2+1 panel. A `false` value permits the
+   single-reviewer fast path for eligible non-code or tiny scopes.
 
 3. **Evaluate findings** — filter findings by `severity_threshold`.
    - No findings at or above threshold → **gate passes**. Record result.
@@ -46,8 +49,10 @@ code-review, and observability review gates.
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
    b. Re-run `reviewer` through the same panel policy against the updated
-      `scope`. Re-classify the scope each cycle: a scope that is still non-code
-      or tiny stays on the single-reviewer fast path, and a panelled scope
+      `scope`, preserving `explicit_multi_review` unchanged. Re-classify the
+      scope each cycle: when the value is `false`, eligible non-code or tiny
+      scopes use the single-reviewer fast path; when it is `true`, use the
+      adaptive 2+1 panel regardless of scope. A panelled scope
       starts a **fresh initial wave of 2** reviewers, escalating to a tiebreaker
       only if that cycle's own responses fire an escalation trigger — a previous
       cycle's escalation does not carry over.
@@ -84,6 +89,7 @@ a finding the fixer cannot resolve.
 reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)
 context: design doc, implementation summary, rubber-duck findings
+explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -94,6 +100,7 @@ on_exhaust: escalate
 reviewer: security-review
 scope: cumulative diff (branch vs base)
 focus: exploitable vulnerabilities only, with severity and confidence
+explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -104,6 +111,7 @@ skip_condition: refactor flow unless touching auth, crypto, input validation, or
 ```
 reviewer: code-review
 scope: docs-only diff (branch vs base)
+explicit_multi_review: false
 max_retries: 1
 severity_threshold: blocker,major
 on_exhaust: warn
@@ -115,6 +123,7 @@ mid-tier reviewer — no panel.
 ```
 reviewer: code-review
 scope: step diff
+explicit_multi_review: false
 max_retries: 1
 severity_threshold: blocker
 on_exhaust: warn
@@ -125,6 +134,7 @@ on_exhaust: warn
 reviewer: gho11y:telemetry-reviewer
 scope: cumulative diff (branch vs base)
 focus: metrics, logs, traces, alerting/SLO coverage
+explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate

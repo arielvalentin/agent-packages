@@ -62,7 +62,7 @@ for name in actual:
 snapshots = {}
 snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
 assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "f7fddfcf6a6d2d60fb7e6dff9b51fe51f3d600e8be2555fbba59dd0519515c18", \
+    "05b4d10aeb464adbe4ab0051346d4c96ee685519ac75f2257eaca49e4c8981a9", \
     "frozen coordinator snapshot manifest changed"
 for line in snapshot_manifest.decode().splitlines():
     digest, path = line.split("  ", 1)
@@ -73,6 +73,20 @@ assert legacy_files == snapshots.keys(), "legacy snapshot inventory changed"
 for path, digest in snapshots.items():
     assert hashlib.sha256((legacy / path).read_bytes()).hexdigest() == digest, \
         f"frozen coordinator snapshot changed: {path}"
+coordinator_panel = " ".join(
+    (legacy / ".apm/skills/consensus-panel/SKILL.md").read_text().split()
+)
+assert "The caller-owned `explicit_multi_review` boolean selects review mode first." \
+    in coordinator_panel
+assert "`true` always uses the adaptive 2+1 panel" in coordinator_panel
+assert "and `explicit_multi_review` is `false`" in coordinator_panel
+coordinator_review_loop = " ".join(
+    (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
+)
+assert "`explicit_multi_review` | yes" in coordinator_review_loop
+assert "A `true` value always selects the adaptive 2+1 panel." \
+    in coordinator_review_loop
+assert "preserving `explicit_multi_review` unchanged" in coordinator_review_loop
 assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must not install agents"
 instructions = defaults / ".apm/instructions"
 assert {p.name for p in instructions.iterdir()} == {
