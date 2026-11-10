@@ -113,8 +113,7 @@ or `review-fix-loop`. A `blocker`/`major` finding does not promote a fast-path
 scope to a panel; only re-classification under Step 1 does. A `true` value
 selects the panel before this exemption is applied. The safety argument is the
 size and disqualifier bounds, not the finding: a scope this small that touches
-none of the six disqualified categories has a blast radius one reviewer can
-hold.
+none of the disqualified categories has a blast radius one reviewer can hold.
 
 ## Step 2b — Panel selection for adaptive 2+1 reviews
 

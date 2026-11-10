@@ -62,7 +62,7 @@ for name in actual:
 snapshots = {}
 snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
 assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "b30e7b5c6df4bec6ba0dd590f868f78f760f1113923493cb03b39f55a6241a0e", \
+    "cd3b308f6a289208e6ee118e6b546e116ff204f58b7281f02712f133d49402fd", \
     "frozen coordinator snapshot manifest changed"
 for line in snapshot_manifest.decode().splitlines():
     digest, path = line.split("  ", 1)
@@ -90,6 +90,8 @@ assert ("no behavior-defining instruction, policy, prompt, or contract change "
         "that alters agent behavior, gates, or decisions") in coordinator_panel
 assert ("This always takes the full panel, even when it changes one line, only "
         "changes Markdown, or meets the tiny-change limit") in coordinator_panel
+assert "none of the disqualified categories has a blast radius" in coordinator_panel
+assert "six disqualified categories" not in coordinator_panel
 coordinator_review_loop = " ".join(
     (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
 )
