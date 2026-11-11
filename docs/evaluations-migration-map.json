@@ -14919,7 +14919,7 @@
           "name": "agent-defaults-case-169-row-01-assertion-1-avoids-r-cd553830",
           "type": "output-matches",
           "scope": "parent",
-          "configSha256": "9191f1a9d19010040c7a248628ce100ad3eab1099938ceaaead984d6d6e50429"
+          "configSha256": "7cef767bce81b786fe5534d1627b083b8d8990b8e23919750209862a4b23ce62"
         },
         {
           "name": "agent-defaults-case-169-row-01-assertion-1-referenc-31c1aa17",
@@ -27158,7 +27158,14 @@
         }
       ],
       "requiredSkills": [],
-      "nativeContextFixture": "fixtures/context-dc162b141deefd73.md"
+      "nativeContextFixture": "fixtures/context-dc162b141deefd73.md",
+      "nativeEnvironmentFiles": [
+        {
+          "src": "fixtures/repository-context-011.md",
+          "dest": "AGENTS.md",
+          "sha256": "bf38321dbea54e3442b3b2a4957021b38111985d926182d51cd6f19f646a0010"
+        }
+      ]
     },
     {
       "package": "development-workflow",
@@ -27535,7 +27542,7 @@
           "name": "development-workflow-case-020-row-01-a1-output-text-contract",
           "type": "output-text-contract",
           "scope": "parent",
-          "configSha256": "a8d7f593212e6175cf2fcd6e68a452800e5bd257c0dd89f2844949b9ae0e31cd"
+          "configSha256": "f06159ea80d2a9f980e8237d81e154a88353c958aa0ef8eaad2596163223e2e0"
         },
         {
           "name": "development-workflow-case-020-row-01-a2-output-matches",

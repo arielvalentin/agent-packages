@@ -330,13 +330,17 @@ test("mapped instructions, skills, and diagnostics preserve their source context
       const stagedPolicyFiles = (stimulus.agent_environment?.files || [])
         .filter((file) => file.dest === ".github/copilot-instructions.md"
           || file.dest === "AGENTS.md");
+      const expectedNativeFiles = (entry.nativeEnvironmentFiles || []).map((file) => ({
+        src: file.src,
+        dest: file.dest,
+      }));
       if (entry.nativeContextFixture) {
         const fixturePath = path.resolve(path.dirname(path.join(root, suite.evalFile)),
           entry.nativeContextFixture);
         assert.deepEqual(stagedPolicyFiles, [{
           src: entry.nativeContextFixture,
           dest: ".github/copilot-instructions.md",
-        }], entry.sourceDescription);
+        }, ...expectedNativeFiles], entry.sourceDescription);
         assert.equal(
           fs.readFileSync(fixturePath, "utf8"),
           sourceInstructionContent(
@@ -354,7 +358,15 @@ test("mapped instructions, skills, and diagnostics preserve their source context
           dest: index === 0 ? ".github/copilot-instructions.md" : "AGENTS.md",
         })), entry.sourceDescription);
       } else {
-        assert.deepEqual(stagedPolicyFiles, [], entry.sourceDescription);
+        assert.deepEqual(stagedPolicyFiles, expectedNativeFiles, entry.sourceDescription);
+      }
+      for (const file of entry.nativeEnvironmentFiles || []) {
+        const fixturePath = path.resolve(path.dirname(path.join(root, suite.evalFile)), file.src);
+        assert.equal(
+          crypto.createHash("sha256").update(fs.readFileSync(fixturePath)).digest("hex"),
+          file.sha256,
+          `${entry.sourceDescription}: native environment file hash`
+        );
       }
       if (typeof variables.skill_content === "string"
         && /\.apm\/skills\/pr-lifecycle\/SKILL\.md$/.test(variables.skill_content)) {

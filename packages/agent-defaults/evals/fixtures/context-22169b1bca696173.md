@@ -176,7 +176,7 @@ Before posting or replying to a PR/issue comment:
 
 ## Posting template
 
-Use this exact final paragraph when a disclaimer is required:
+Use this exact final paragraph, including the leading `> `, when a disclaimer is required:
 
 > _AI Assisted._
 

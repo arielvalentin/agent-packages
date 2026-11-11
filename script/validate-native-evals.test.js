@@ -250,6 +250,68 @@ test("native suite preflight rejects prompt changes and extra staged context", (
   }
 });
 
+test("native suite preflight accepts only pinned supplemental context files", () => {
+  const { root, entries, stimuli } = fixture();
+  try {
+    const entry = entries[2];
+    const stimulus = stimuli[2];
+    const sourcePath = "fixtures/repository-context.md";
+    const destination = "AGENTS.md";
+    const content = "Verified repository context for this test.\n";
+    const fixtureDirectory = path.join(root, "packages/agent-defaults/evals/fixtures");
+    fs.mkdirSync(fixtureDirectory, { recursive: true });
+    fs.writeFileSync(path.join(fixtureDirectory, "repository-context.md"), content);
+    entry.nativeEnvironmentFiles = [{
+      src: sourcePath,
+      dest: destination,
+      sha256: crypto.createHash("sha256").update(content).digest("hex"),
+    }];
+    stimulus.agent_environment.files.push({ src: sourcePath, dest: destination });
+    const mapPath = path.join(root, "docs/evaluations-migration-map.json");
+    const map = JSON.parse(fs.readFileSync(mapPath, "utf8"));
+    map.cases = entries;
+    fs.writeFileSync(
+      path.join(root, evalFile),
+      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
+    );
+    fs.writeFileSync(mapPath, JSON.stringify(map));
+
+    const result = validateNativeSuite(root, packageName, "smoke");
+    assert.deepEqual(result.errors, []);
+
+    fs.writeFileSync(path.join(fixtureDirectory, "repository-context.md"), "Tampered.\n");
+    const tampered = validateNativeSuite(root, packageName, "smoke");
+    assert.ok(tampered.errors.some((error) =>
+      error.includes("native environment file hash does not match")
+    ));
+
+    fs.writeFileSync(path.join(fixtureDirectory, "repository-context.md"), content);
+    for (const invalidDestination of [
+      "C:../outside",
+      "C:/outside",
+      "../outside",
+      "safe\\..\\outside",
+      "folder /outside",
+      "folder./outside",
+      ".GITHUB/COPILOT-INSTRUCTIONS.MD",
+    ]) {
+      entry.nativeEnvironmentFiles[0].dest = invalidDestination;
+      stimulus.agent_environment.files.at(-1).dest = invalidDestination;
+      fs.writeFileSync(mapPath, JSON.stringify(map));
+      fs.writeFileSync(
+        path.join(root, evalFile),
+        yaml.dump({ name: "agent-defaults-behavioral", stimuli })
+      );
+      const invalid = validateNativeSuite(root, packageName, "smoke");
+      assert.ok(invalid.errors.some((error) =>
+        error.includes("invalid native environment file mapping")
+      ), `expected ${invalidDestination} to be rejected`);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("native suite preflight rejects any source row without a faithful mapping", () => {
   const { root, entries } = fixture();
   try {

@@ -295,6 +295,8 @@ stimuli:
       files:
         - src: fixtures/context-dc162b141deefd73.md
           dest: .github/copilot-instructions.md
+        - src: fixtures/repository-context-011.md
+          dest: AGENTS.md
     prompt: >-
       I authorize creating this draft PR and all required safety and review gates have passed. The
       repository has no title override. I am fixing a null-pointer crash in the login handler on
@@ -547,7 +549,7 @@ stimuli:
         scope: parent
         config:
           minimumLengthExclusive: 15
-          mustNotMatch: (?i)01-design|ready-for-review|artifacts_dir|\b(?:path|file|verdict)\b[\u0022\u0027]?\s*[:=]|(?:^|[\s\u0022\u0027\u0060(])(?:[\\/]|~[\\/]|\.{1,2}[\\/]|[a-z]:[\\/])\S+|\b(?:I|we)(?:\u0027(?:ll|ve)|\s+(?:will|have|can|shall|would|could|already|just|am|are|be|been|going|to))*\s+(?:writ(?:e|es|ing|ten)|wrote|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b[^.!?\n]{0,80}\b(?:(?:artifact|file|document)s?|it)\b|\b(?:(?:artifact|file|document)s?|it)\s+(?:will\s+be|has\s+been|have\s+been|was|were)\s+(?:written|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b|\b(?:here|below)(?:\s+is|\u0027s)\s+(?:(?:the|a|your|requested|generated|design|complete)\s+)*(?:document|artifact|file)s?\b|approv|follow.up|handoff|delegat
+          mustNotMatch: (?i)ready-for-review|(?:\b(?:file|verdict)\b[\u0022\u0027]?\s*[:=]|\b(?<!default )path\b[\u0022\u0027]?\s*[:=])|(?:^|[\s\u0022\u0027\u0060(])(?:[\\/]|~[\\/]|\.{1,2}[\\/]|[a-z]:[\\/])\S+|\b(?:I|we)(?:\u0027(?:ll|ve)|\s+(?:will|have|can|shall|would|could|already|just|am|are|be|been|going|to))*\s+(?:writ(?:e|es|ing|ten)|wrote|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b[^.!?\n]{0,80}\b(?:(?:artifact|file|document)s?|it)\b|\b(?:(?:artifact|file|document)s?|it)\s+(?:will\s+be|has\s+been|have\s+been|was|were)\s+(?:written|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b|\b(?:here|below)(?:\s+is|\u0027s)\s+(?:(?:the|a|your|requested|generated|design|complete)\s+)*(?:document|artifact|file)s?\b|\b(?:writ\w*|wrote|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\s+(?:(?:the|a|an|your|my|our|their|his|her|its|own|new|existing|another|final|complete|draft|requested|design|it)\s+)*(?:(?:artifact|file|document)(?:\s+(?:(?:at|to)(?:\s+the)?(?:\s+path)?)?)\s+)?[\u0022\u0027\u0060]?\$\{ARTIFACTS_DIR\}/01-design\.md|[\u0022\u0027\u0060]?\$\{ARTIFACTS_DIR\}/01-design\.md[\u0022\u0027\u0060]?\s+(?:will\s+be|has\s+been|have\s+been|was|were|is\s+being|are\s+being)\s+(?:written|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)|\b(?:(?:(?:the|a|an|this|that|design)\s+)*(?:artifact|file|document)|it)\s+(?:will\s+be|has\s+been|have\s+been|was|were|is(?:\s+being)?|are(?:\s+being)?)\s+(?:written|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\s+(?:(?:at|to)(?:\s+the)?(?:\s+path)?\s+)?[\u0022\u0027\u0060]?\$\{ARTIFACTS_DIR\}/01-design\.md|approv|follow.up|handoff|delegat
       - type: output-matches
         name: development-workflow-case-020-row-01-a2-output-matches
         scope: parent

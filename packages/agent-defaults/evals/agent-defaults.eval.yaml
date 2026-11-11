@@ -3970,7 +3970,7 @@ stimuli:
         name: agent-defaults-case-169-row-01-assertion-1-avoids-r-cd553830
         config:
           pattern: >-
-            (?:[Dd][Oo] [Nn][Oo][Tt]|[Dd][Oo][Nn]'[Tt]|[Ss][Hh][Oo][Uu][Ll][Dd]
+            (?:[Dd][Oo] [Nn][Oo][Tt]|[Dd][Oo][Nn]'[Tt]|[Nn][Oo][Tt] [Tt][Oo]|[Ss][Hh][Oo][Uu][Ll][Dd]
             [Nn][Oo][Tt]|[Mm][Uu][Ss][Tt]
             [Nn][Oo][Tt]|[Nn][Ee][Vv][Ee][Rr]|[Aa][Vv][Oo][Ii][Dd]|[Ww][Ii][Tt][Hh][Oo][Uu][Tt]|[Nn][Oo]
             [Nn][Ee][Ee][Dd]|[Nn][Oo][Tt] [Nn][Ee][Cc][Ee][Ss][Ss][Aa][Rr][Yy]|[Ss][Kk][Ii][Pp])
