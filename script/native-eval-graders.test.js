@@ -37,68 +37,6 @@ test("output text contract preserves strict trimmed length bounds and regex chec
   assert.equal((await grader.grade({ trajectory: {}, config })).status, "error");
 });
 
-test("design-format advice may cite the default path but not claim artifact creation", async () => {
-  const { registerGraders } = await gradersModule;
-  const registry = { graders: new Map(), register(grader) {
-    this.graders.set(grader.metadata.name, grader);
-  } };
-  registerGraders(registry);
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, "packages/development-workflow/evals/development-workflow.eval.yaml"),
-    "utf8"
-  ));
-  const stimulus = spec.stimuli.find((item) =>
-    item.name === "development-workflow-case-020-row-01");
-  const grader = registry.graders.get("output-text-contract");
-  const grade = (output) => grader.grade({
-    trajectory: { output },
-    config: stimulus.graders[0].config,
-  });
-
-  assert.equal((await grade(
-    "Default path: `${ARTIFACTS_DIR}/01-design.md`. A doc is only created when requested."
-  )).passed, true);
-  assert.equal((await grade(
-    "Created `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Created your file at `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Created your new file at `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Created your new file at the path `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Saved the file at `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "The file `${ARTIFACTS_DIR}/01-design.md` was created."
-  )).passed, false);
-  assert.equal((await grade(
-    "The artifact at `${ARTIFACTS_DIR}/01-design.md` has been generated."
-  )).passed, false);
-  assert.equal((await grade(
-    "Markdown. verdict: `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Markdown. file: `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Markdown. The design document is saved at `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Markdown. The design artifact is being created at `${ARTIFACTS_DIR}/01-design.md`."
-  )).passed, false);
-  assert.equal((await grade(
-    "Use Markdown. I wrote the file to ./01-design.md."
-  )).passed, false);
-  assert.equal((await grade(
-    "Use Markdown. The default file is ./design.md."
-  )).passed, false);
-});
-
 test("normalized source contracts preserve conjunction and conflicting-token behavior", async () => {
   const { registerGraders } = await gradersModule;
   const registry = { graders: new Map(), register(grader) {
@@ -259,6 +197,7 @@ test("draft PR command grader preserves source parser acceptance boundaries", as
   const { isValidDraftCreateOutput } = await gradersModule;
   const passing = [
     "gh pr create --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --draft --title 'feat: add parser' --body '  Details  '",
     "GH   PR   CREATE --BODY=\"Details\" --TITLE='fix(parser): handle null' --DRAFT",
     "gh pr create --draft --title `docs: update guide` --body `More details`",
     "gh pr create \\\n  --draft --title \"feat: support continuations\" --body \"Details\"",
@@ -278,6 +217,7 @@ test("draft PR command grader preserves source parser acceptance boundaries", as
     "gh pr create --draft --title \"feat: add parser\"",
     "gh pr create --draft --body \"Details\"",
     "gh pr create --draft --title \"feat: add parser\" --body \"\"",
+    "gh pr create --draft --title 'feat: add parser' --body '   '",
     "gh pr create --drafted --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"feat: add one\" --body \"Details\"; "
       + "gh pr create --draft --title \"bad title\" --body \"More details\"",

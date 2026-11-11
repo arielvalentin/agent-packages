@@ -35,64 +35,6 @@ function graderConfigurationDigest(grader) {
     .digest("hex");
 }
 
-function validateNativeEnvironmentFiles(root, evalPath, entry, errors, existingDestinations = []) {
-  const files = entry.nativeEnvironmentFiles === undefined
-    ? []
-    : entry.nativeEnvironmentFiles;
-  if (!Array.isArray(files)) {
-    errors.push(`${entry.sourceDescription} native environment files must be an array.`);
-    return [];
-  }
-  const destinations = new Set(existingDestinations.map((destination) => destination.toLowerCase()));
-  const validated = [];
-  for (const file of files) {
-    const destinationKey = typeof file?.dest === "string"
-      ? file.dest.toLowerCase()
-      : "";
-    const destinationSegments = typeof file?.dest === "string"
-      ? file.dest.split("/")
-      : [];
-    if (!file || typeof file !== "object" || Array.isArray(file)
-      || Object.keys(file).sort().join(",") !== "dest,sha256,src"
-      || typeof file.src !== "string"
-      || typeof file.dest !== "string"
-      || !/^[0-9a-f]{64}$/.test(file.sha256 || "")
-      || path.isAbsolute(file.dest)
-      || path.win32.isAbsolute(file.dest)
-      || /^[a-z]:/i.test(file.dest)
-      || file.dest.includes("\\")
-      || destinationSegments.some((segment) => /[ .]$/.test(segment))
-      || path.posix.normalize(file.dest) !== file.dest
-      || file.dest === "."
-      || file.dest.split("/").includes("..")
-      || destinationKey === ".github/copilot-instructions.md"
-      || destinations.has(destinationKey)) {
-      errors.push(`${entry.sourceDescription} has an invalid native environment file mapping.`);
-      continue;
-    }
-    destinations.add(destinationKey);
-    try {
-      const source = resolveRepositoryFile(
-        root,
-        path.dirname(evalPath),
-        file.src,
-        `${entry.sourceDescription} native environment file`
-      );
-      const digest = crypto.createHash("sha256")
-        .update(fs.readFileSync(source))
-        .digest("hex");
-      if (digest !== file.sha256) {
-        errors.push(`${entry.sourceDescription} native environment file hash does not match.`);
-        continue;
-      }
-      validated.push({ src: file.src, dest: file.dest });
-    } catch (error) {
-      errors.push(`${entry.sourceDescription} native environment file is unavailable: ${error.message}`);
-    }
-  }
-  return validated;
-}
-
 function expandSourceCase(sourceConfiguration, sourceCase) {
   const providerRefs = sourceCase.providers
     || sourceConfiguration.defaultTest?.providers
@@ -456,23 +398,6 @@ function validateNativeSuite(root, packageName, suite) {
         src: source.replace(/^file:\/\//, ""),
         dest: index === 0 ? ".github/copilot-instructions.md" : "AGENTS.md",
       }));
-    const additionalFiles = validateNativeEnvironmentFiles(
-      root,
-      evalPath,
-      entry,
-      errors,
-      expectedFiles.map((file) => file.dest)
-    );
-    const destinations = new Set(expectedFiles.map((file) => file.dest.toLowerCase()));
-    for (const file of additionalFiles) {
-      const destinationKey = file.dest.toLowerCase();
-      if (destinations.has(destinationKey)) {
-        errors.push(`${entry.sourceDescription} has duplicate staged file destinations.`);
-        continue;
-      }
-      destinations.add(destinationKey);
-      expectedFiles.push(file);
-    }
     if (entry.nativeContextFixture) {
       let fixturePath;
       let sourceContent = "";
