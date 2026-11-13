@@ -11,6 +11,12 @@ disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+When presenting a plain shell command, distinguish an outer wrapper around the
+whole command from quotes delimiting its arguments. A request for no outer
+quotes does not remove shell syntax needed to keep argument values intact.
+For example, `cmd --option "two words"` has a quoted argument but no outer
+wrapper; the unquoted form passes two separate words.
+
 ## Public/shared disclosure boundary
 
 Before drafting any public/shared content, identify the destination audience

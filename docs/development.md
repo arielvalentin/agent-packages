@@ -66,23 +66,26 @@ does not need an install-time build for this toolchain. Use
 
 Native Vally smoke tests run by default with `npm test`. They require a
 Copilot-compatible token (`COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`)
-and may consume Copilot usage. Run the full behavioral suite when changing
+and may consume Copilot usage. Set `VALLY_MODEL=gpt-5.3-codex` to match the
+hosted evaluation model. Run the full behavioral suite when changing
 behavior or investigating a failure:
 
 ```bash
-npm run test:full
+VALLY_MODEL=gpt-5.3-codex npm run test:full
 ```
 
-For one package, use its full-suite command (for example,
-`npm run test:defaults`) or corresponding `:smoke` command
-(`npm run test:defaults:smoke`). Credentialed GitHub Actions evaluations run
+For one package, use the same environment setting with its full-suite command
+(for example, `VALLY_MODEL=gpt-5.3-codex npm run test:defaults`) or
+corresponding `:smoke` command (`npm run test:defaults:smoke`). Credentialed
+GitHub Actions evaluations run
 only on pushes to `main` or manual dispatches on `main`. They use the built-in
 GitHub Actions token with `copilot-requests: write`, unless the optional
 `COPILOT_GITHUB_TOKEN` secret overrides it. The built-in token's use requires
 the repository owner's Copilot entitlement and may consume usage. Evaluations
-run only when both the original actor and the actor triggering a rerun are the
-repository owner. Pull-request CI runs offline validation instead. These guards
-rely on trusting repository writers, who can modify workflow definitions.
+run with `gpt-5.3-codex` and only when both the original actor and the actor
+triggering a rerun are the repository owner. Pull-request CI runs offline
+validation instead. These guards rely on trusting repository writers, who can
+modify workflow definitions.
 
 The runner validates the source-to-native map before starting Copilot. It
 rejects empty selections, missing or duplicate stimuli, and every source row
@@ -102,6 +105,8 @@ included are still embedded verbatim and in order in each native lifecycle
 stimulus. Shell command execution is blocked by Vally's supported tool
 simulation because the source evaluations used a text-only provider; this
 keeps the Copilot credential out of agent-launched shell commands.
+The clone-notice case also stops after one model iteration, matching its
+source's single-completion boundary while retaining its exact-output grader.
 
 The two approved diagnostics are retained as native stimuli. Only their
 assertion failures are non-blocking; execution or grader errors, malformed or

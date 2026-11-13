@@ -20,6 +20,12 @@ strategy on consumers.
 Permission, human-interaction, attribution, and mandatory safety/review gates
 still apply.
 
+When presenting a plain shell command, distinguish an outer wrapper around the
+whole command from quotes delimiting its arguments. A request for no outer
+quotes does not remove shell syntax needed to keep argument values intact.
+For example, `cmd --option "two words"` has a quoted argument but no outer
+wrapper; the unquoted form passes two separate words.
+
 For PR titles and bodies, load `writing-voice` and its
 `references/artifact-authoring.md` for authoring and the final pre-post reader
 check. Use `acting-on-behalf` for posting permission and conditional attribution.
