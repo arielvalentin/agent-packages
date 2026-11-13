@@ -68,6 +68,7 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
   ));
   const runStep = action.runs.steps.find((step) => step.name === "Run native evaluation");
   assert.equal(runStep.env.GH_TOKEN, "${{ inputs.copilot-token }}");
+  assert.equal(runStep.env.VALLY_MODEL, "gpt-5.3-codex");
   assert.equal(runStep.env.EVAL_PACKAGE, "${{ inputs.package }}");
   assert.equal(runStep.env.EVAL_SUITE, "${{ inputs.suite }}");
   assert.match(runStep.run, /node script\/run-evals\.js "\$EVAL_PACKAGE" "\$EVAL_SUITE"/);
@@ -150,7 +151,10 @@ test("evaluation runner requires a token and forwards it to Vally", async () => 
       const fs = require("node:fs");
       require("node:child_process").spawnSync = (command, args, options) => {
         if (!command.endsWith("node_modules/.bin/vally")) throw new Error("Unexpected subprocess");
-        fs.writeFileSync(process.env.TEST_CAPTURE, options.env.GH_TOKEN);
+        fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
+          token: options.env.GH_TOKEN,
+          args,
+        }));
         return { status: 1 };
       };
     `);
@@ -158,28 +162,43 @@ test("evaluation runner requires a token and forwards it to Vally", async () => 
       ...process.env,
       NODE_OPTIONS: `--require=${hook}`,
       TEST_CAPTURE: captured,
+      VALLY_MODEL: "gpt-5.3-codex",
       VALLY_RESULTS_DIR: path.join(temp, "results"),
     };
     delete env.COPILOT_GITHUB_TOKEN;
     delete env.GH_TOKEN;
     delete env.GITHUB_TOKEN;
-    const run = (token) => spawnSync(process.execPath, [
-      path.join(root, "script/run-evals.js"), "agent-defaults", "smoke",
-    ], { cwd: root, env: { ...env, GH_TOKEN: token }, encoding: "utf8" });
-    const missing = run("");
+    const run = (token, model) => {
+      const runEnv = { ...env, GH_TOKEN: token };
+      if (model === undefined) delete runEnv.VALLY_MODEL;
+      else runEnv.VALLY_MODEL = model;
+      return spawnSync(process.execPath, [
+        path.join(root, "script/run-evals.js"), "agent-defaults", "smoke",
+      ], { cwd: root, env: runEnv, encoding: "utf8" });
+    };
+    const missing = run("", "gpt-5.3-codex");
     assert.equal(missing.status, 1);
     assert.match(missing.stderr, /Copilot Evals requires COPILOT_GITHUB_TOKEN/);
     assert.equal(fs.existsSync(captured), false);
     for (const token of ["synthetic-actions-token", "synthetic-override-token"]) {
-      const selected = run(token);
+      const selected = run(token, "gpt-5.3-codex");
       assert.equal(selected.status, 1);
       assert.match(selected.stderr, /Unable to locate valid Vally results/);
-      assert.equal(fs.readFileSync(captured, "utf8"), token);
+      const invocation = JSON.parse(fs.readFileSync(captured, "utf8"));
+      assert.equal(invocation.token, token);
+      const modelIndex = invocation.args.indexOf("--model");
+      assert.notEqual(modelIndex, -1);
+      assert.equal(invocation.args[modelIndex + 1], "gpt-5.3-codex");
       process.env.GH_TOKEN = token;
       const executor = new CopilotSdkExecutor();
       assert.equal(executor.clientEnv(executor.currentRun).GH_TOKEN, token);
       await executor.shutdown();
     }
+    const localDefault = run("synthetic-local-token");
+    assert.equal(localDefault.status, 1);
+    const defaultInvocation = JSON.parse(fs.readFileSync(captured, "utf8"));
+    assert.equal(defaultInvocation.token, "synthetic-local-token");
+    assert.equal(defaultInvocation.args.includes("--model"), false);
   } finally {
     if (originalGhToken === undefined) delete process.env.GH_TOKEN;
     else process.env.GH_TOKEN = originalGhToken;
@@ -479,6 +498,26 @@ test("mapped instructions, skills, and diagnostics preserve their source context
     const spec = yaml.load(fs.readFileSync(path.join(root, map.suites[entry.package].evalFile), "utf8"));
     assert.equal(spec.stimuli.find((item) => item.name === entry.targetStimulus)
       ?.tags?.diagnostic, "assertion-only");
+  }
+});
+
+test("clone notice keeps the single-completion exact-output contract", () => {
+  const entry = map.cases.find((item) =>
+    item.package === "agent-defaults" && item.sourceCaseIndex === 88
+  );
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, map.suites["agent-defaults"].evalFile), "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
+  const grader = stimulus.graders.find((item) => item.name === entry.assertionGraders[0].name);
+  const notice = "I will clone octocat/Hello-World from https://github.com/octocat/Hello-World.";
+  assert.equal(stimulus.simulation.max_iterations, 1);
+  for (const output of [
+    notice, ` \n${notice}\t`, "", `${notice}\nClone failed.`,
+    `Notice: ${notice}`, notice.slice(0, -1), notice.toLowerCase(),
+  ]) {
+    assert.equal(new RegExp(grader.config.pattern).test(output), output.trim() === notice,
+      JSON.stringify(output));
   }
 });
 

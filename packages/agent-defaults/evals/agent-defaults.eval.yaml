@@ -2088,6 +2088,7 @@ stimuli:
         config:
           pattern: ^\s*I will clone octocat/Hello-World from https://github\.com/octocat/Hello-World\.\s*$
     simulation:
+      max_iterations: 1
       tool_overrides:
         bash:
           output: Shell execution is disabled in this text-only evaluation.
