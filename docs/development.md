@@ -75,9 +75,14 @@ npm run test:full
 
 For one package, use its full-suite command (for example,
 `npm run test:defaults`) or corresponding `:smoke` command
-(`npm run test:defaults:smoke`). Credentialed GitHub Actions smoke evaluations
-run only on pushes to `main`. They do not execute pull-request-controlled code
-with the Copilot token; pull-request CI runs offline validation instead.
+(`npm run test:defaults:smoke`). Credentialed GitHub Actions evaluations run
+only on pushes to `main` or manual dispatches on `main`. They use the built-in
+GitHub Actions token with `copilot-requests: write`, unless the optional
+`COPILOT_GITHUB_TOKEN` secret overrides it. The built-in token's use requires
+the repository owner's Copilot entitlement and may consume usage. Evaluations
+run only when both the original actor and the actor triggering a rerun are the
+repository owner. Pull-request CI runs offline validation instead. These guards
+rely on trusting repository writers, who can modify workflow definitions.
 
 The runner validates the source-to-native map before starting Copilot. It
 rejects empty selections, missing or duplicate stimuli, and every source row

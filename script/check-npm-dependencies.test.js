@@ -1,9 +1,11 @@
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
+const vm = require("node:vm");
 const yaml = require("js-yaml");
 const { sourceInstructionContent } = require("./validate-native-evals.js");
 const gradersModule = import("./native-eval-graders.mjs");
@@ -84,13 +86,35 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       path.join(root, ".github/workflows", workflowName),
       "utf8"
     ));
-    assert.deepEqual(Object.keys(workflow.on), ["push", "pull_request", "workflow_dispatch"], workflowName);
-    assert.equal(
-      workflow.jobs.eval.if,
-      "github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')",
+    assert.deepEqual(Object.keys(workflow.on), ["push", "workflow_dispatch"], workflowName);
+    const condition = workflow.jobs.eval.if;
+    assert.match(condition, /^(?:github\.(?:actor|triggering_actor|repository_owner|event_name|ref)|==|&&|\|\||[()\s]|'[^']*')+$/);
+    const owner = {
+      repository_owner: "owner",
+      actor: "owner",
+      triggering_actor: "owner",
+      event_name: "push",
+      ref: "refs/heads/main",
+    };
+    for (const [changes, allowed] of [
+      [{}, true],
+      [{ event_name: "workflow_dispatch" }, true],
+      [{ event_name: "workflow_dispatch", actor: "other", triggering_actor: "other" }, false],
+      [{ triggering_actor: "other" }, false],
+      [{ actor: "other" }, false],
+      [{ event_name: "workflow_dispatch", ref: "refs/heads/feature" }, false],
+      [{ event_name: "push", ref: "refs/heads/feature" }, false],
+      [{ event_name: "pull_request", ref: "refs/pull/1/merge", actor: "other", triggering_actor: "other" }, false],
+    ]) {
+      assert.equal(vm.runInNewContext(condition, { github: { ...owner, ...changes } }), allowed, workflowName);
+    }
+    assert.deepEqual(workflow.permissions, { contents: "read" }, workflowName);
+    assert.deepEqual(
+      workflow.jobs.eval.permissions,
+      { contents: "read", "copilot-requests": "write" },
       workflowName
     );
-    for (const trigger of ["push", "pull_request"]) {
+    for (const trigger of ["push"]) {
       assert.deepEqual(workflow.on[trigger].branches, ["main"], `${workflowName} ${trigger}`);
       assert.ok(workflow.on[trigger].paths.includes("script/native-eval-graders.mjs"));
       assert.ok(workflow.on[trigger].paths.includes("script/native-eval-graders.test.js"));
@@ -104,7 +128,7 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
     const evalStep = workflow.jobs.eval.steps.find((step) =>
       step.uses === "./.github/actions/eval-package"
     );
-    assert.equal(evalStep.with["copilot-token"], "${{ secrets.COPILOT_GITHUB_TOKEN }}");
+    assert.equal(evalStep.with["copilot-token"], "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}");
     assert.equal(evalStep.with.suite, "${{ inputs.suite || 'smoke' }}");
     assert.equal(workflow.jobs.eval.env?.GH_TOKEN, undefined, workflowName);
   }
@@ -113,6 +137,54 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
   assert.ok(ci.jobs.validate.steps.some((step) =>
     step.run === "npm run test:dependencies"
   ));
+});
+
+test("evaluation runner requires a token and forwards it to Vally", async () => {
+  const { CopilotSdkExecutor } = await import("@microsoft/vally/executor");
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "eval-auth-test-"));
+  const originalGhToken = process.env.GH_TOKEN;
+  try {
+    const hook = path.join(temp, "capture.js");
+    const captured = path.join(temp, "captured");
+    fs.writeFileSync(hook, `
+      const fs = require("node:fs");
+      require("node:child_process").spawnSync = (command, args, options) => {
+        if (!command.endsWith("node_modules/.bin/vally")) throw new Error("Unexpected subprocess");
+        fs.writeFileSync(process.env.TEST_CAPTURE, options.env.GH_TOKEN);
+        return { status: 1 };
+      };
+    `);
+    const env = {
+      ...process.env,
+      NODE_OPTIONS: `--require=${hook}`,
+      TEST_CAPTURE: captured,
+      VALLY_RESULTS_DIR: path.join(temp, "results"),
+    };
+    delete env.COPILOT_GITHUB_TOKEN;
+    delete env.GH_TOKEN;
+    delete env.GITHUB_TOKEN;
+    const run = (token) => spawnSync(process.execPath, [
+      path.join(root, "script/run-evals.js"), "agent-defaults", "smoke",
+    ], { cwd: root, env: { ...env, GH_TOKEN: token }, encoding: "utf8" });
+    const missing = run("");
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /Copilot Evals requires COPILOT_GITHUB_TOKEN/);
+    assert.equal(fs.existsSync(captured), false);
+    for (const token of ["synthetic-actions-token", "synthetic-override-token"]) {
+      const selected = run(token);
+      assert.equal(selected.status, 1);
+      assert.match(selected.stderr, /Unable to locate valid Vally results/);
+      assert.equal(fs.readFileSync(captured, "utf8"), token);
+      process.env.GH_TOKEN = token;
+      const executor = new CopilotSdkExecutor();
+      assert.equal(executor.clientEnv(executor.currentRun).GH_TOKEN, token);
+      await executor.shutdown();
+    }
+  } finally {
+    if (originalGhToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalGhToken;
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
 });
 
 test("migration map identifies and hashes its pre-migration source snapshots", () => {
