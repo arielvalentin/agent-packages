@@ -305,66 +305,129 @@ function splitShellCommands(text) {
   };
 }
 
-function extractArgument(segment, flag) {
-  const options = findUnquotedOptions(segment, flag);
-  return options.length === 1
-    ? extractOptionArgument(segment, options[0], flag)
-    : null;
-}
+function tokenizeShellWords(segment) {
+  const words = [];
+  let index = 0;
+  while (index < segment.length) {
+    while (/\s/.test(segment[index] || "")) index += 1;
+    if (index >= segment.length || segment[index] === "#") break;
 
-function findUnquotedOptions(segment, flag) {
-  const option = `--${flag}`;
-  const positions = [];
-  let quote = null;
-  let atWordStart = true;
-  for (let index = 0; index < segment.length; index += 1) {
-    const character = segment[index];
-    if (quote) {
-      if (character === "\\" && quote !== SINGLE_QUOTE) {
-        index += 1;
-      } else if (character === quote) {
-        quote = null;
-        atWordStart = false;
-      }
-      continue;
-    }
-    if (character === "\\") {
-      index += 1;
-      atWordStart = false;
-      continue;
-    }
-    if (/\s/.test(character)) {
-      atWordStart = true;
-      continue;
-    }
-    if (character === "#" && atWordStart) break;
-    if ([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(character)) {
-      quote = character;
-      atWordStart = false;
-      continue;
-    }
-    if (atWordStart
-      && segment.slice(index, index + option.length).toLowerCase() === option) {
-      const next = segment[index + option.length];
-      if (next === undefined || next === "=" || /\s/.test(next)) {
-        positions.push(index);
-        index += option.length - 1;
-        atWordStart = false;
+    const start = index;
+    let quote = null;
+    while (index < segment.length) {
+      const character = segment[index];
+      if (quote) {
+        if (character === "\\" && quote !== SINGLE_QUOTE) {
+          if (index + 1 >= segment.length) return null;
+          index += 2;
+        } else {
+          if (character === quote) quote = null;
+          index += 1;
+        }
         continue;
       }
+      if (character === "\\") {
+        if (index + 1 >= segment.length) return null;
+        index += 2;
+      } else if ([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(character)) {
+        quote = character;
+        index += 1;
+      } else if (/\s/.test(character)) {
+        break;
+      } else {
+        index += 1;
+      }
     }
-    if (character !== "\n" && character !== "\r") {
-      atWordStart = false;
-    }
+    if (quote !== null) return null;
+    words.push({ raw: segment.slice(start, index), start, end: index });
   }
-  return positions;
+  return words;
 }
 
-function extractOptionArgument(segment, optionIndex, flag) {
-  let start = optionIndex + `--${flag}`.length;
+const valueOptions = new Map([
+  ["--assignee", "assignee"],
+  ["--attach", "attach"],
+  ["--base", "base"],
+  ["--body", "body"],
+  ["--body-file", "body-file"],
+  ["--head", "head"],
+  ["--label", "label"],
+  ["--milestone", "milestone"],
+  ["--project", "project"],
+  ["--recover", "recover"],
+  ["--repo", "repo"],
+  ["--reviewer", "reviewer"],
+  ["--template", "template"],
+  ["--title", "title"],
+  ["-R", "repo"],
+  ["-a", "assignee"],
+  ["-B", "base"],
+  ["-b", "body"],
+  ["-F", "body-file"],
+  ["-H", "head"],
+  ["-l", "label"],
+  ["-m", "milestone"],
+  ["-p", "project"],
+  ["-r", "reviewer"],
+  ["-t", "title"],
+  ["-T", "template"],
+]);
+
+const flagOptions = new Map([
+  ["--draft", "draft"],
+  ["--dry-run", "dry-run"],
+  ["--editor", "editor"],
+  ["--fill", "fill"],
+  ["--fill-first", "fill-first"],
+  ["--fill-verbose", "fill-verbose"],
+  ["--help", "help"],
+  ["--no-maintainer-edit", "no-maintainer-edit"],
+  ["--web", "web"],
+  ["-d", "draft"],
+  ["-e", "editor"],
+  ["-f", "fill"],
+  ["-h", "help"],
+  ["-w", "web"],
+]);
+
+function getOptionDefinition(raw) {
+  if (raw.startsWith("--")) {
+    const equalsIndex = raw.indexOf("=");
+    const spelling = (equalsIndex === -1 ? raw : raw.slice(0, equalsIndex))
+      .toLowerCase();
+    const key = valueOptions.get(spelling) ?? flagOptions.get(spelling);
+    if (key === undefined) return null;
+    return {
+      key,
+      spelling,
+      takesValue: valueOptions.has(spelling),
+      inline: equalsIndex !== -1,
+      attached: false,
+    };
+  }
+  if (!raw.startsWith("-") || raw.length < 2) return null;
+
+  const spelling = raw.slice(0, 2);
+  const key = valueOptions.get(spelling) ?? flagOptions.get(spelling);
+  if (key === undefined) return null;
+  const suffix = raw.slice(2);
+  return {
+    key,
+    spelling,
+    takesValue: valueOptions.has(spelling),
+    inline: suffix.startsWith("="),
+    attached: suffix !== "" && !suffix.startsWith("="),
+  };
+}
+
+function extractOptionArgument(segment, optionIndex, flag, spelling = `--${flag}`) {
+  let start = optionIndex + spelling.length;
   if (segment[start] === "=") {
     start += 1;
     if (/\s/.test(segment[start] || "")) return null;
+  } else if (spelling.length === 2 && spelling[0] === "-"
+    && !/\s/.test(segment[start] || "")) {
+    // Short value options may attach their value directly to the option.
   } else {
     if (!/\s/.test(segment[start] || "")) return null;
     while (/\s/.test(segment[start] || "")) start += 1;
@@ -394,17 +457,92 @@ function extractOptionArgument(segment, optionIndex, flag) {
       quote,
       sourceStart: start,
       sourceEnd: end + 1,
+      raw: segment.slice(start, end + 1),
     };
   }
 
   let end = start;
-  while (end < segment.length && !/[\s;|&]/.test(segment[end])) end += 1;
+  while (end < segment.length) {
+    if (segment[end] === "\\" && end + 1 < segment.length) {
+      end += 2;
+    } else if (/[\s;|&]/.test(segment[end])) {
+      break;
+    } else {
+      end += 1;
+    }
+  }
   return {
     value: segment.slice(start, end).trim(),
     quote: null,
     sourceStart: start,
     sourceEnd: end,
+    raw: segment.slice(start, end),
   };
+}
+
+function parseDraftCreateOptions(segment) {
+  const words = tokenizeShellWords(segment);
+  if (!words || words.length < 3
+    || words[0].raw.toLowerCase() !== "gh"
+    || words[1].raw.toLowerCase() !== "pr"
+    || words[2].raw.toLowerCase() !== "create") {
+    return null;
+  }
+
+  const found = { repo: [], title: [], body: [], draft: [] };
+  let index = 3;
+  while (index < words.length) {
+    const word = words[index];
+    const option = getOptionDefinition(word.raw);
+    if (!option) return null;
+
+    if (!option.takesValue) {
+      if (option.inline || option.attached) return null;
+      if (option.key === "draft") found.draft.push(true);
+      index += 1;
+      continue;
+    }
+
+    let argument;
+    if (option.inline || option.attached) {
+      argument = extractOptionArgument(
+        segment,
+        word.start,
+        option.key,
+        option.spelling
+      );
+      index += 1;
+    } else {
+      const valueWord = words[index + 1];
+      if (!valueWord || valueWord.raw === "--"
+        || getOptionDefinition(valueWord.raw)
+        || valueWord.raw.startsWith("-")) {
+        return null;
+      }
+      argument = extractOptionArgument(
+        segment,
+        word.start,
+        option.key,
+        option.spelling
+      );
+      if (!argument || argument.sourceStart !== valueWord.start
+        || argument.sourceEnd !== valueWord.end) {
+        return null;
+      }
+      index += 2;
+    }
+    if (!argument || argument.value === "") return null;
+    if (Object.hasOwn(found, option.key)) found[option.key].push(argument);
+  }
+
+  return found.repo.length === 1 && found.title.length === 1
+      && found.body.length === 1 && found.draft.length === 1
+    ? {
+      repo: found.repo[0],
+      title: found.title[0],
+      body: found.body[0],
+    }
+    : null;
 }
 
 function isValidRepositoryTarget(value) {
@@ -422,7 +560,7 @@ function isValidRepositoryTarget(value) {
 
 function isSafeLiteralArgument(argument) {
   if (argument.quote === BACKTICK) return false;
-  return argument.quote === SINGLE_QUOTE || !/[$`]/.test(argument.value);
+  return !containsShellExpansion(argument.raw);
 }
 
 function containsShellExpansion(text) {
@@ -475,15 +613,9 @@ export function isValidDraftCreateOutput(output) {
     || !/^gh\s+pr\s+create(?:\s|$)/i.test(segment)) return false;
   const conventionalTitle = /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S/;
   const wipTitle = /^wip\b/i;
-  const draftOptions = findUnquotedOptions(segment, "draft");
-  if (draftOptions.length !== 1
-    || /^\s*=/.test(segment.slice(draftOptions[0] + "--draft".length))) return false;
-  const repoOptions = findUnquotedOptions(segment, "repo");
-  const repo = repoOptions.length !== 1
-    ? null
-    : extractOptionArgument(segment, repoOptions[0], "repo");
-  const title = extractArgument(segment, "title");
-  const body = extractArgument(segment, "body");
+  const options = parseDraftCreateOptions(segment);
+  if (!options) return false;
+  const { repo, title, body } = options;
   const titleValue = title?.value;
   const bodyValue = body?.value;
   return repo !== null
