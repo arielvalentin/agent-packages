@@ -288,7 +288,7 @@ function splitShellCommands(text) {
       start = index + 1;
       continue;
     }
-    if (";&|<>".includes(character)) {
+    if (";&|<>()".includes(character)) {
       hasShellOperator = true;
       commands.push(text.slice(start, index));
       if ((character === "&" || character === "|")
@@ -553,9 +553,11 @@ function isValidRepositoryTarget(value) {
       && repository !== "." && repository !== "..";
   }
   const originTarget = /^\$\(\s*git\s+remote\s+get-url\s+origin\s*\|\s*sed\s+-E\s+'([^']+)'\s*\)$/.exec(target);
-  return originTarget !== null
-    && originTarget[1]
-      === "s#^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$#\\2#";
+  if (!originTarget) return false;
+  const delimiter = originTarget[1][1];
+  const pattern = String.raw`^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\.git)?$`;
+  return ["#", "%"].includes(delimiter)
+    && originTarget[1] === `s${delimiter}${pattern}${delimiter}\\2${delimiter}`;
 }
 
 function isSafeLiteralArgument(argument) {
@@ -587,6 +589,12 @@ function containsShellExpansion(text) {
       quote = character;
     } else if (character === "$" || character === BACKTICK) {
       return true;
+    } else if (character === "{") {
+      const end = text.indexOf("}", index + 1);
+      if (end !== -1) {
+        const expansion = text.slice(index + 1, end);
+        if (expansion.includes(",") || expansion.includes("..")) return true;
+      }
     }
   }
   return false;

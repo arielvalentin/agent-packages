@@ -200,8 +200,21 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create -R owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create -R=owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create -Rowner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body '# Details'",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body=#Details",
+    "gh pr create --repo owner/repo --draft --title \"feat: preserve \\$HOME literally\" "
+      + "--body \"Details " + String.fromCharCode(92, 96) + "literally\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details (login)\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" "
+      + "--body \"{Details,--repo=attacker/repo}\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body "
+      + String.fromCharCode(92, 123) + "Details,--repo=attacker/repo"
+      + String.fromCharCode(92, 125),
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"\n",
     "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$#\\2#')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E "
+      + "'s%^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$%\\2%')\" "
       + "--draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo owner/repo --head feature --draft "
       + "--title \"fix: handle null\" --body \"Details\"",
@@ -301,6 +314,17 @@ test("draft PR command grader requires explicit repository targeting", async () 
       + "--body \"Details\" -Rattacker/repo",
     "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
       + "--body \"Details\" --repo=attacker/repo",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body {Details,--repo=attacker/repo}",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body # Details",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body Details(login)",
+    "gh pr create -- --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E "
+      + "'s%^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$%\\1%')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
   ];
 
   for (const output of passing) {
