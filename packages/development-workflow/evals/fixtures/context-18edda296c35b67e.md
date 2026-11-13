@@ -50,12 +50,27 @@ This applies to initial creation and later updates. Check applicable PR template
 in the repository root, `docs/`, and `.github/`, including template directories,
 before either phase; apply the canonical template and content rules there.
 
-Resolve the exact repository first; resolve the PR once one exists. A bare PR number means the active
-repository only; pass `--repo <owner>/<repo>` to every repository-scoped
-`gh` command, including `gh pr` and `gh run`, and use that exact repository in
-`gh api` paths. Replace placeholders in command examples with the resolved
-owner, repository, and PR number. If the target cannot be identified
-unambiguously, ask before reading or acting.
+When summarizing lifecycle procedures, preserve the policy's defined terms and
+target scope. State plainly when a step is skipped or required; do not
+paraphrase away the stage or SHA being discussed.
+When restating a named target or qualifier, keep its exact phrase contiguous.
+Put clarifying modifiers outside the named phrase, not between its terms.
+
+Resolve the exact repository first; resolve the PR once one exists. A bare PR
+number means the active repository only. Pass `--repo <owner>/<repo>` to every
+repository-scoped `gh` command, including `gh pr` and `gh run`, and use that
+exact repository in `gh api` paths. Do not rely on implicit repository
+selection or `GH_REPO` unless it has been verified against the exact target.
+For a command targeting the active checkout when its owner/repository is not
+already known, derive `--repo` from `git remote get-url origin`, normalize it
+to `owner/repo`, and pass it explicitly; never nest a `gh` command substitution
+inside another `gh` command. Use `origin` only when it is the user's exact
+target. Replace placeholders in command examples with the resolved owner,
+repository, and PR number. If the target cannot be identified unambiguously,
+ask before reading or acting.
+When deriving `--repo` from `origin`, use one anchored `sed -E` expression
+that captures exactly the `owner/repo` path. Do not chain substitutions or
+rewrite the target to a constant.
 
 ## Trigger phrases
 
