@@ -194,6 +194,18 @@ function normalizeLineContinuations(text) {
       continue;
     }
 
+    const previousIndex = normalized.length - 1;
+    if (quote === null && character === "#"
+      && (previousIndex < 0 || /\s/.test(normalized[previousIndex]))
+      && !isEscaped(normalized, previousIndex)) {
+      while (index < text.length && text[index] !== "\n" && text[index] !== "\r") {
+        normalized += text[index];
+        index += 1;
+      }
+      index -= 1;
+      continue;
+    }
+
     if (character === "\\") {
       let end = index + 1;
       while (text[end] === "\\") end += 1;
@@ -476,6 +488,7 @@ export function isValidDraftCreateOutput(output) {
   const bodyValue = body?.value;
   return repo !== null
     && isValidRepositoryTarget(repo.value)
+    && repo.quote !== BACKTICK
     && (!repo.value.startsWith("$(") || repo.quote === DOUBLE_QUOTE)
     && !hasUnapprovedShellExpansion(segment, repo)
     && title !== null

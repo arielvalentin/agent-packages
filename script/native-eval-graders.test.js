@@ -260,6 +260,13 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create --repo owner/repo --draft --title 'feat: add parser' "
       + "--body Details\\ #; echo injected",
     "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" # comment" + String.fromCharCode(92) + "\necho injected",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" " + String.fromCharCode(92)
+      + "\n# comment" + String.fromCharCode(92) + "\necho injected",
+    "gh pr create --repo " + String.fromCharCode(96) + "owner/repo"
+      + String.fromCharCode(96) + " --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
       + "--body \"Details\" " + String.fromCharCode(92),
     "gh pr create --repo 'owner/repo" + String.fromCharCode(92)
       + "\nfoo' --draft --title \"feat: add parser\" --body \"Details\"",
