@@ -197,6 +197,7 @@ test("draft PR command grader preserves source parser acceptance boundaries", as
   const { isValidDraftCreateOutput } = await gradersModule;
   const passing = [
     "gh pr create --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --draft --title 'feat: add parser' --body '  Details  '",
     "GH   PR   CREATE --BODY=\"Details\" --TITLE='fix(parser): handle null' --DRAFT",
     "gh pr create --draft --title `docs: update guide` --body `More details`",
     "gh pr create \\\n  --draft --title \"feat: support continuations\" --body \"Details\"",
@@ -216,6 +217,7 @@ test("draft PR command grader preserves source parser acceptance boundaries", as
     "gh pr create --draft --title \"feat: add parser\"",
     "gh pr create --draft --body \"Details\"",
     "gh pr create --draft --title \"feat: add parser\" --body \"\"",
+    "gh pr create --draft --title 'feat: add parser' --body '   '",
     "gh pr create --drafted --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"feat: add one\" --body \"Details\"; "
       + "gh pr create --draft --title \"bad title\" --body \"More details\"",
