@@ -10,6 +10,10 @@ description: >
 
 # Consensus Panel
 
+When explaining a named trigger, state its defined threshold and validity
+phrase as one contiguous unit before adding context. Do not insert modifiers
+between its count and validity terms or count a different subject.
+
 The caller-owned `explicit_multi_review` boolean selects review mode first.
 `true` always uses the adaptive 2+1 panel; `false` uses one reviewer for
 fast-path-exempt scopes and the adaptive panel for substantive changes.

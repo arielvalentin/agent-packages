@@ -182,94 +182,483 @@ function gradeTextContract(input) {
 const BACKTICK = String.fromCharCode(96);
 const DOUBLE_QUOTE = String.fromCharCode(34);
 const SINGLE_QUOTE = String.fromCharCode(39);
-const SENTINEL = String.fromCharCode(1);
 
-function caseInsensitiveIndexOf(text, needle, from) {
-  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\s+/g, "\\s+");
-  const relative = text.slice(from || 0).search(new RegExp(escaped, "i"));
-  return relative === -1 ? -1 : relative + (from || 0);
+function normalizeLineContinuations(text) {
+  let normalized = "";
+  let quote = null;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quote === SINGLE_QUOTE) {
+      normalized += character;
+      if (character === SINGLE_QUOTE) quote = null;
+      continue;
+    }
+
+    const previousIndex = normalized.length - 1;
+    if (quote === null && character === "#"
+      && (previousIndex < 0 || /\s/.test(normalized[previousIndex]))
+      && !isEscaped(normalized, previousIndex)) {
+      while (index < text.length && text[index] !== "\n" && text[index] !== "\r") {
+        normalized += text[index];
+        index += 1;
+      }
+      index -= 1;
+      continue;
+    }
+
+    if (character === "\\") {
+      let end = index + 1;
+      while (text[end] === "\\") end += 1;
+      const newlineLength = text[end] === "\r" && text[end + 1] === "\n"
+        ? 2
+        : text[end] === "\n" ? 1 : 0;
+      if (newlineLength) {
+        if (end - index !== 1) return null;
+        index = end + newlineLength - 1;
+        continue;
+      }
+
+      normalized += text.slice(index, end);
+      if ((end - index) % 2 === 1
+        && [DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(text[end])) {
+        normalized += text[end];
+        index = end;
+        continue;
+      }
+      index = end - 1;
+      continue;
+    }
+
+    normalized += character;
+    if (quote !== null) {
+      if (character === quote) quote = null;
+    } else if ([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(character)) {
+      quote = character;
+    }
+  }
+  return normalized;
 }
 
-function maskBacktickArgument(text, flag) {
-  const pattern = new RegExp(
-    `(--${flag}\\s*=?\\s*)${BACKTICK}([^${BACKTICK}]*)${BACKTICK}`,
-    "gi"
-  );
-  return text.replace(pattern, (_match, prefix, value) =>
-    prefix + SENTINEL + value + SENTINEL);
+function isEscaped(text, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === "\\"; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
 }
 
-function extractCreateSegments(text) {
-  const segments = [];
-  const anchor = "gh pr create";
-  const ghPattern = /\bgh\b/gi;
-  let index = caseInsensitiveIndexOf(text, anchor);
-  while (index !== -1) {
-    const searchFrom = index + anchor.length;
-    const nextCreate = caseInsensitiveIndexOf(text, anchor, searchFrom);
-    const nextBacktick = text.indexOf(BACKTICK, searchFrom);
-    const nextNewline = text.indexOf("\n", searchFrom);
-    ghPattern.lastIndex = searchFrom;
-    const ghMatch = ghPattern.exec(text);
-    const nextGh = ghMatch ? ghMatch.index : -1;
-    const stops = [nextCreate, nextBacktick, nextNewline, nextGh]
-      .filter((position) => position !== -1);
-    const end = stops.length ? Math.min(...stops) : text.length;
-    segments.push(text.slice(index, end));
-    index = nextCreate;
+function splitShellCommands(text) {
+  const commands = [];
+  let quote = null;
+  let start = 0;
+  let hasShellOperator = false;
+  let hasTrailingEscape = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quote) {
+      if (character === "\\" && quote !== SINGLE_QUOTE) {
+        index += 1;
+      } else if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (character === "\\") {
+      if (index + 1 >= text.length) {
+        hasTrailingEscape = true;
+        break;
+      }
+      index += 1;
+      continue;
+    }
+    if ([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(character)) {
+      quote = character;
+      continue;
+    }
+    if (character === "#" && (index === 0 || /\s/.test(text[index - 1]))
+      && !isEscaped(text, index - 1)) {
+      while (index + 1 < text.length
+        && text[index + 1] !== "\n"
+        && text[index + 1] !== "\r") index += 1;
+      continue;
+    }
+    if (character === "\n" || character === "\r") {
+      hasShellOperator = true;
+      commands.push(text.slice(start, index));
+      start = index + 1;
+      continue;
+    }
+    if (";&|<>()".includes(character)) {
+      hasShellOperator = true;
+      commands.push(text.slice(start, index));
+      if ((character === "&" || character === "|")
+        && text[index + 1] === character) index += 1;
+      start = index + 1;
+    }
   }
-  return segments.map((segment) =>
-    segment.split(/\s*(?:&&|;|\|\|)\s*/)[0]);
+  commands.push(text.slice(start));
+  return {
+    commands,
+    hasShellOperator,
+    hasTrailingEscape,
+    hasUnclosedQuote: quote !== null,
+  };
 }
 
-function extractArgument(segment, flag) {
-  const anchor = new RegExp(`--${flag}\\s*=?\\s*`, "i").exec(segment);
-  if (!anchor) return null;
-  const rest = segment.slice(anchor.index + anchor[0].length);
-  if (rest[0] === DOUBLE_QUOTE) {
-    const end = rest.indexOf(DOUBLE_QUOTE, 1);
-    return (end === -1 ? rest.slice(1) : rest.slice(1, end)).trim();
+function tokenizeShellWords(segment) {
+  const words = [];
+  let index = 0;
+  while (index < segment.length) {
+    while (/\s/.test(segment[index] || "")) index += 1;
+    if (index >= segment.length || segment[index] === "#") break;
+
+    const start = index;
+    let quote = null;
+    while (index < segment.length) {
+      const character = segment[index];
+      if (quote) {
+        if (character === "\\" && quote !== SINGLE_QUOTE) {
+          if (index + 1 >= segment.length) return null;
+          index += 2;
+        } else {
+          if (character === quote) quote = null;
+          index += 1;
+        }
+        continue;
+      }
+      if (character === "\\") {
+        if (index + 1 >= segment.length) return null;
+        index += 2;
+      } else if ([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(character)) {
+        quote = character;
+        index += 1;
+      } else if (/\s/.test(character)) {
+        break;
+      } else {
+        index += 1;
+      }
+    }
+    if (quote !== null) return null;
+    words.push({ raw: segment.slice(start, index), start, end: index });
   }
-  if (rest[0] === SINGLE_QUOTE) {
-    const end = rest.indexOf(SINGLE_QUOTE, 1);
-    return (end === -1 ? rest.slice(1) : rest.slice(1, end)).trim();
+  return words;
+}
+
+const valueOptions = new Map([
+  ["--assignee", "assignee"],
+  ["--attach", "attach"],
+  ["--base", "base"],
+  ["--body", "body"],
+  ["--body-file", "body-file"],
+  ["--head", "head"],
+  ["--label", "label"],
+  ["--milestone", "milestone"],
+  ["--project", "project"],
+  ["--recover", "recover"],
+  ["--repo", "repo"],
+  ["--reviewer", "reviewer"],
+  ["--template", "template"],
+  ["--title", "title"],
+  ["-R", "repo"],
+  ["-a", "assignee"],
+  ["-B", "base"],
+  ["-b", "body"],
+  ["-F", "body-file"],
+  ["-H", "head"],
+  ["-l", "label"],
+  ["-m", "milestone"],
+  ["-p", "project"],
+  ["-r", "reviewer"],
+  ["-t", "title"],
+  ["-T", "template"],
+]);
+
+const flagOptions = new Map([
+  ["--draft", "draft"],
+  ["--dry-run", "dry-run"],
+  ["--editor", "editor"],
+  ["--fill", "fill"],
+  ["--fill-first", "fill-first"],
+  ["--fill-verbose", "fill-verbose"],
+  ["--help", "help"],
+  ["--no-maintainer-edit", "no-maintainer-edit"],
+  ["--web", "web"],
+  ["-d", "draft"],
+  ["-e", "editor"],
+  ["-f", "fill"],
+  ["-h", "help"],
+  ["-w", "web"],
+]);
+
+function getOptionDefinition(raw) {
+  if (raw.startsWith("--")) {
+    const equalsIndex = raw.indexOf("=");
+    const spelling = (equalsIndex === -1 ? raw : raw.slice(0, equalsIndex))
+      .toLowerCase();
+    const key = valueOptions.get(spelling) ?? flagOptions.get(spelling);
+    if (key === undefined) return null;
+    return {
+      key,
+      spelling,
+      takesValue: valueOptions.has(spelling),
+      inline: equalsIndex !== -1,
+      attached: false,
+    };
   }
-  if (rest[0] === SENTINEL) {
-    const end = rest.indexOf(SENTINEL, 1);
-    return (end === -1 ? rest.slice(1) : rest.slice(1, end)).trim();
+  if (!raw.startsWith("-") || raw.length < 2) return null;
+
+  const spelling = raw.slice(0, 2);
+  const key = valueOptions.get(spelling) ?? flagOptions.get(spelling);
+  if (key === undefined) return null;
+  const suffix = raw.slice(2);
+  return {
+    key,
+    spelling,
+    takesValue: valueOptions.has(spelling),
+    inline: suffix.startsWith("="),
+    attached: suffix !== "" && !suffix.startsWith("="),
+  };
+}
+
+function extractOptionArgument(segment, optionIndex, flag, spelling = `--${flag}`) {
+  let start = optionIndex + spelling.length;
+  if (segment[start] === "=") {
+    start += 1;
+    if (/\s/.test(segment[start] || "")) return null;
+  } else if (spelling.length === 2 && spelling[0] === "-"
+    && !/\s/.test(segment[start] || "")) {
+    // Short value options may attach their value directly to the option.
+  } else {
+    if (!/\s/.test(segment[start] || "")) return null;
+    while (/\s/.test(segment[start] || "")) start += 1;
+    if (segment[start] === "=") return null;
   }
-  const nextFlag = rest.match(/\s+--[a-z]/i);
-  const nextLine = rest.indexOf("\n");
-  const stops = [
-    nextFlag ? nextFlag.index : -1,
-    nextLine,
-  ].filter((position) => position !== -1);
-  const end = stops.length ? Math.min(...stops) : rest.length;
-  return rest.slice(0, end).trim();
+  if (start >= segment.length) return null;
+
+  const quote = [DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(segment[start])
+    ? segment[start]
+    : null;
+  if (quote) {
+    let end = start + 1;
+    for (; end < segment.length; end += 1) {
+      if (segment[end] === "\\" && quote !== SINGLE_QUOTE) {
+        end += 1;
+      } else if (segment[end] === quote) {
+        break;
+      }
+    }
+    if (end >= segment.length) return null;
+    const next = segment[end + 1];
+    if (next !== undefined && !/[\s;|&]/.test(next)) {
+      return null;
+    }
+    return {
+      value: segment.slice(start + 1, end).trim(),
+      quote,
+      sourceStart: start,
+      sourceEnd: end + 1,
+      raw: segment.slice(start, end + 1),
+    };
+  }
+
+  let end = start;
+  while (end < segment.length) {
+    if (segment[end] === "\\" && end + 1 < segment.length) {
+      end += 2;
+    } else if (/[\s;|&]/.test(segment[end])) {
+      break;
+    } else {
+      end += 1;
+    }
+  }
+  return {
+    value: segment.slice(start, end).trim(),
+    quote: null,
+    sourceStart: start,
+    sourceEnd: end,
+    raw: segment.slice(start, end),
+  };
+}
+
+function parseDraftCreateOptions(segment) {
+  const words = tokenizeShellWords(segment);
+  if (!words || words.length < 3
+    || words[0].raw.toLowerCase() !== "gh"
+    || words[1].raw.toLowerCase() !== "pr"
+    || words[2].raw.toLowerCase() !== "create") {
+    return null;
+  }
+
+  const found = { repo: [], title: [], body: [], draft: [] };
+  let index = 3;
+  while (index < words.length) {
+    const word = words[index];
+    const option = getOptionDefinition(word.raw);
+    if (!option) return null;
+
+    if (!option.takesValue) {
+      if (option.inline || option.attached) return null;
+      if (option.key === "draft") found.draft.push(true);
+      index += 1;
+      continue;
+    }
+
+    let argument;
+    if (option.inline || option.attached) {
+      argument = extractOptionArgument(
+        segment,
+        word.start,
+        option.key,
+        option.spelling
+      );
+      index += 1;
+    } else {
+      const valueWord = words[index + 1];
+      if (!valueWord || valueWord.raw === "--"
+        || getOptionDefinition(valueWord.raw)
+        || valueWord.raw.startsWith("-")) {
+        return null;
+      }
+      argument = extractOptionArgument(
+        segment,
+        word.start,
+        option.key,
+        option.spelling
+      );
+      if (!argument || argument.sourceStart !== valueWord.start
+        || argument.sourceEnd !== valueWord.end) {
+        return null;
+      }
+      index += 2;
+    }
+    if (!argument || argument.value === "") return null;
+    if (Object.hasOwn(found, option.key)) found[option.key].push(argument);
+  }
+
+  return found.repo.length === 1 && found.title.length === 1
+      && found.body.length === 1 && found.draft.length === 1
+    ? {
+      repo: found.repo[0],
+      title: found.title[0],
+      body: found.body[0],
+    }
+    : null;
+}
+
+function isValidRepositoryTarget(value) {
+  const target = value.trim();
+  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(target)) {
+    const [owner, repository] = target.split("/");
+    return owner !== "." && owner !== ".."
+      && repository !== "." && repository !== "..";
+  }
+  const hostTarget = /^([A-Za-z0-9.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(target);
+  if (hostTarget) {
+    const [, host, owner, repository] = hostTarget;
+    return host !== "." && host !== ".."
+      && owner !== "." && owner !== ".."
+      && repository !== "." && repository !== "..";
+  }
+  const urlTarget = /^https:\/\/([A-Za-z0-9.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(target);
+  if (urlTarget) {
+    const [, host, owner, repository] = urlTarget;
+    return host !== "." && host !== ".."
+      && owner !== "." && owner !== ".."
+      && repository !== "." && repository !== "..";
+  }
+  const originTarget = /^https:\/\/\$\(\s*git\s+remote\s+get-url\s+origin\s*\|\s*sed\s+-nE\s+'([^']+)'\s*\)$/.exec(target);
+  if (!originTarget) return false;
+  const delimiter = originTarget[1][1];
+  const httpsPattern = String.raw`^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$`;
+  const scpPattern = String.raw`^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$`;
+  const expression = `s${delimiter}${httpsPattern}${delimiter}\\3/\\4${delimiter}p`
+    + `;s${delimiter}${scpPattern}${delimiter}\\2/\\3${delimiter}p`;
+  return ["#", "%"].includes(delimiter)
+    && originTarget[1] === expression;
+}
+
+function isSafeLiteralArgument(argument) {
+  if (argument.quote === BACKTICK) return false;
+  return !containsShellExpansion(argument.raw);
+}
+
+function containsShellExpansion(text) {
+  let quote = null;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (quote === SINGLE_QUOTE) {
+      if (character === SINGLE_QUOTE) quote = null;
+      continue;
+    }
+    if (character === "\\" && index + 1 < text.length) {
+      index += 1;
+      continue;
+    }
+    if (quote === DOUBLE_QUOTE) {
+      if (character === DOUBLE_QUOTE) {
+        quote = null;
+      } else if (character === "$" || character === BACKTICK) {
+        return true;
+      }
+      continue;
+    }
+    if (character === DOUBLE_QUOTE || character === SINGLE_QUOTE) {
+      quote = character;
+    } else if (character === "$" || character === BACKTICK) {
+      return true;
+    } else if (character === "{") {
+      const end = text.indexOf("}", index + 1);
+      if (end !== -1) {
+        const expansion = text.slice(index + 1, end);
+        if (expansion.includes(",") || expansion.includes("..")) return true;
+      }
+    } else if (character === "*" || character === "?" || character === "["
+      || (character === "~" && index === 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasUnapprovedShellExpansion(segment, repo) {
+  return containsShellExpansion(segment.slice(0, repo.sourceStart))
+    || containsShellExpansion(segment.slice(repo.sourceEnd));
 }
 
 export function isValidDraftCreateOutput(output) {
   if (typeof output !== "string") return false;
-  const normalized = output.replace(/\\\s*\n\s*/g, " ");
-  const masked = maskBacktickArgument(
-    maskBacktickArgument(normalized, "title"),
-    "body"
-  );
-  const createSegments = extractCreateSegments(masked);
+  const normalized = normalizeLineContinuations(output);
+  if (normalized === null) return false;
+  const commandText = normalized.trim();
+  const { commands, hasShellOperator, hasTrailingEscape, hasUnclosedQuote } =
+    splitShellCommands(commandText);
+  if (hasUnclosedQuote || hasShellOperator || hasTrailingEscape
+    || commands.length !== 1) {
+    return false;
+  }
+  const segment = commands[0].trim();
+  if (segment !== commandText
+    || !/^gh\s+pr\s+create(?:\s|$)/i.test(segment)) return false;
   const conventionalTitle = /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S/;
   const wipTitle = /^wip\b/i;
-  const draftSegments = createSegments.filter((segment) => /--draft\b/i.test(segment));
-  return draftSegments.length > 0 && draftSegments.every((segment) => {
-    const title = extractArgument(segment, "title");
-    const body = extractArgument(segment, "body");
-    return title !== null
-      && title !== ""
-      && conventionalTitle.test(title)
-      && !wipTitle.test(title)
-      && body !== null
-      && body !== "";
-  });
+  const options = parseDraftCreateOptions(segment);
+  if (!options) return false;
+  const { repo, title, body } = options;
+  const titleValue = title?.value;
+  const bodyValue = body?.value;
+  return repo !== null
+    && isValidRepositoryTarget(repo.value)
+    && repo.quote !== BACKTICK
+    && (!repo.value.includes("$(") || repo.quote === DOUBLE_QUOTE)
+    && !hasUnapprovedShellExpansion(segment, repo)
+    && title !== null
+    && isSafeLiteralArgument(title)
+    && titleValue !== ""
+    && conventionalTitle.test(titleValue)
+    && !wipTitle.test(titleValue)
+    && body !== null
+    && isSafeLiteralArgument(body)
+    && bodyValue !== "";
 }
 
 function gradeDraftCreate(input) {
@@ -284,8 +673,8 @@ function gradeDraftCreate(input) {
     name,
     passed,
     passed
-      ? "Every draft create command has a conventional non-WIP title and a non-empty body."
-      : "No valid draft create command satisfies the source assertion."
+      ? "The exact draft create command has an explicit repository, a conventional non-WIP title, and a non-empty body."
+      : "No valid exact draft create command satisfies the source assertion."
   );
 }
 

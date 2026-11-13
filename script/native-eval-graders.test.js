@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const gradersModule = import("./native-eval-graders.mjs");
@@ -193,24 +194,125 @@ test("source output patterns apply only the requested source normalizations", as
   })).passed, false);
 });
 
-test("draft PR command grader preserves source parser acceptance boundaries", async () => {
+test("draft PR command grader requires explicit repository targeting", async () => {
   const { isValidDraftCreateOutput } = await gradersModule;
   const passing = [
-    "gh pr create --draft --title \"feat: add parser\" --body \"Details\"",
-    "GH   PR   CREATE --BODY=\"Details\" --TITLE='fix(parser): handle null' --DRAFT",
-    "gh pr create --draft --title `docs: update guide` --body `More details`",
-    "gh pr create \\\n  --draft --title \"feat: support continuations\" --body \"Details\"",
-    "gh pr create --draft --title=fix: correct lookup --body=Details",
-    "gh pr create --draft --title = \"test: cover edge cases\" --body = \"Details\"",
-    "gh pr create --draft --title \"feat: add one\" --body \"Details\"; "
-      + "gh pr create --title \"not conventional\"",
-    "gh pr create --draft --title \"feat: add one\" --body \"Details\" && "
-      + "gh pr create --draft --title \"fix: add two\" --body \"More details\"",
-    "Prose before `gh pr create --draft --title 'feat: add parser' --body 'Details'`.",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://github.example/owner/repo.git --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create -R owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create -R=owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create -Rowner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body '# Details'",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body=#Details",
+    "gh pr create --repo owner/repo --draft --title \"feat: preserve \\$HOME literally\" "
+      + "--body \"Details " + String.fromCharCode(92, 96) + "literally\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details (login)\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: literal *\" --body \"*.md [ab] ~\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: escaped wildcard\" --body \\*.md",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" "
+      + "--body \"{Details,--repo=attacker/repo}\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body "
+      + String.fromCharCode(92, 123) + "Details,--repo=attacker/repo"
+      + String.fromCharCode(92, 125),
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"\n",
+    "gh pr create --repo \"https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\\3/\\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\\2/\\3#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"https://$(git remote get-url origin | sed -nE "
+      + "'s%^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$%\\3/\\4%p;s%^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$%\\2/\\3%p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --head feature --draft "
+      + "--title \"fix: handle null\" --body \"Details\"",
+    "GH   PR   CREATE --REPO owner/repo --BODY=\"Details\" --TITLE='fix(parser): handle null' --DRAFT",
+    "gh pr create --repo owner/repo --draft --title 'feat: $(literal)' --body 'Details'",
+    "gh pr create --repo owner/repo \\\n  --draft --title \"feat: support continuations\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title=\"test: cover edge cases\" --body=\"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" "
+      + "--body 'First line\ngh pr create is literal; `so is this`'",
   ];
   const failing = [
     "I will open a pull request after review.",
+    "gh pr create --draft --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --draft --title \"feat: add parser\" --body \"Details --repo owner/repo\"",
+    "gh pr create --draft --title \"feat: add parser\" --body \"Details\" # --repo owner/repo",
+    "gh pr create --repo = owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title = 'fix: handle null' --body 'Details'",
+    "gh pr create --repo \"owner/repo\"#suffix --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo ../repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin)\" --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo github.example:8443/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://github.example:8443/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://user:token@github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -nE 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+)([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#https://\\3/\\5#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+):([0-9]+)([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\\3:\\4/\\7#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+)(:[0-9]+)?([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#https://\\3\\4/\\6#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -nE 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+):([0-9]+)([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#https://\\3:\\4/\\7#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$#\\2#')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/.. --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title 'fix: handle null' --body 'Details' '",
+    "gh pr create > --repo owner/repo --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"\" --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$GH_REPO\" --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: $(id)\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" --body \"Details $(id)\"",
+    "gh pr create --repo owner/repo --head \"$(id)\" --draft "
+      + "--title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: `id`\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title `feat: add parser` --body \"Details\"",
+    "gh pr create --repo owner/repo --title \"feat: add parser\" --body \"Details\" # --draft",
+    "gh pr create --repo owner/repo --draft --body \"Details\" # --title \"feat: add parser\"",
+    "gh pr create --repo owner/repo --draft --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --drafted --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" --repo \"$GH_REPO\"",
+    "gh pr create --repo \"owner/repo\"$(printf suffix) --draft "
+      + "--title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin)\" --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E "
+      + "'s#^git@github.com:##; s#^https://github.com/##; s#\\.git$##')\" "
+      + "--draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E "
+      + "'s#(git@github.com:|https://github.com/)##; s#\\.git$##')\" "
+      + "--draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#.*#attacker/repo#')\" "
+      + "--draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 'e printf owner/repo')\" --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#.*#attacker/repo#;e printf x')\" --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo | echo owner/repo --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\"; "
+      + "gh pr create --title \"not conventional\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" && "
+      + "gh pr create --repo owner/repo --draft --title \"fix: add two\" --body \"More details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\"; echo done",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\"\necho injected",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" # comment\necho injected",
+    "gh pr create --repo owner/repo --draft --title 'feat: add parser' "
+      + "--body Details\\ #; echo injected",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" # comment" + String.fromCharCode(92) + "\necho injected",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" " + String.fromCharCode(92)
+      + "\n# comment" + String.fromCharCode(92) + "\necho injected",
+    "gh pr create --repo " + String.fromCharCode(96) + "owner/repo"
+      + String.fromCharCode(96) + " --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" " + String.fromCharCode(92),
+    "gh pr create --repo 'owner/repo" + String.fromCharCode(92)
+      + "\nfoo' --draft --title \"feat: add parser\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" > /tmp/output",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" | cat",
+    "gh pr create --repo owner/repo --draft --title \"feat: hi\" --body foo\\\"; echo injected",
+    "gh pr create --repo owner/repo --title \"feat: hi\" --body Details\\ --draft",
+    "gh pr create --title \"feat: hi\" --body Details\\ --repo owner/repo --draft",
+    "gh pr create --repo owner/repo --draft --title \"feat: hi\" --body \"Details\"\\\\\n echo injected",
+    "Prose before `gh pr create --repo owner/repo --draft --title 'feat: add parser' --body 'Details'`.",
     "gh pr create --draft --title \"WIP feat: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"<type>: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"feat: add parser\"",
@@ -219,6 +321,35 @@ test("draft PR command grader preserves source parser acceptance boundaries", as
     "gh pr create --drafted --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"feat: add one\" --body \"Details\"; "
       + "gh pr create --draft --title \"bad title\" --body \"More details\"",
+    "gh pr create --repo \"$(gh repo view --json nameWithOwner -q .nameWithOwner)\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --title \"feat: add parser\" --body --draft",
+    "gh pr create --repo owner/repo --head --draft --title \"feat: add parser\" "
+      + "--body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" -R attacker/repo",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" -R=attacker/repo",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" -Rattacker/repo",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" --repo=attacker/repo",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body {Details,--repo=attacker/repo}",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body # Details",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body Details(login)",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body *",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body ?.md",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body [ab]",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body ~",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body=*.md",
+    "gh pr create -- --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E "
+      + "'s%^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$%\\1%')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
   ];
 
   for (const output of passing) {
@@ -229,6 +360,20 @@ test("draft PR command grader preserves source parser acceptance boundaries", as
   }
 });
 
+test("origin normalization preserves supported formats and rejects malformed remotes", () => {
+  const script = String.raw`s#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p`;
+  const normalize = (origin) => execFileSync("sed", ["-nE", script], {
+    input: `${origin}\n`,
+    encoding: "utf8",
+  }).trim();
+
+  assert.equal(normalize("https://user:token@github.example/owner/repo.git"), "github.example/owner/repo.git");
+  assert.equal(normalize("ssh://git@github.example/owner/repo"), "github.example/owner/repo");
+  assert.equal(normalize("git@github.example:owner/repo"), "github.example/owner/repo");
+  assert.equal(normalize("https://github.example:123/repo"), "");
+  assert.equal(normalize("git@github.example/owner/repo"), "");
+});
+
 test("draft PR command grader reports malformed input as an error", async () => {
   const { registerGraders } = await gradersModule;
   const registry = { graders: new Map(), register(grader) {
@@ -237,7 +382,7 @@ test("draft PR command grader reports malformed input as an error", async () => 
   registerGraders(registry);
   const grader = registry.graders.get("draft-pr-create-command");
   assert.equal((await grader.grade({
-    trajectory: { output: "gh pr create --draft --title 'feat: x' --body 'details'" },
+    trajectory: { output: "gh pr create --repo owner/repo --draft --title 'feat: x' --body 'details'" },
     config: {},
   })).passed, true);
   assert.equal((await grader.grade({
