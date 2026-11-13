@@ -57,20 +57,32 @@ When restating a named target or qualifier, keep its exact phrase contiguous.
 Put clarifying modifiers outside the named phrase, not between its terms.
 
 Resolve the exact repository first; resolve the PR once one exists. A bare PR
-number means the active repository only. Pass `--repo <owner>/<repo>` to every
-repository-scoped `gh` command, including `gh pr` and `gh run`, and use that
-exact repository in `gh api` paths. Do not rely on implicit repository
+number means the active repository only. Pass an explicit `--repo` target to
+every repository-scoped `gh` command, including `gh pr` and `gh run`, and use
+that exact repository in `gh api` paths. Do not rely on implicit repository
 selection or `GH_REPO` unless it has been verified against the exact target.
 For a command targeting the active checkout when its owner/repository is not
-already known, derive `--repo` from `git remote get-url origin`, normalize it
-to `owner/repo`, and pass it explicitly; never nest a `gh` command substitution
-inside another `gh` command. Use `origin` only when it is the user's exact
-target. Replace placeholders in command examples with the resolved owner,
-repository, and PR number. If the target cannot be identified unambiguously,
-ask before reading or acting.
-When deriving `--repo` from `origin`, use one anchored `sed -E` expression
-that captures exactly the `owner/repo` path. Do not chain substitutions or
-rewrite the target to a constant.
+already known, derive `--repo` from `git remote get-url origin`, preserve its
+host, and pass the host-qualified repository explicitly; never nest a `gh`
+command substitution inside another `gh` command. Use `origin` only when it is
+the user's exact target. Replace placeholders in command examples with the
+resolved owner, repository, and PR number. If the target cannot be identified
+unambiguously, ask before reading or acting.
+When deriving `--repo` from `origin`, use one anchored `sed -nE` script
+that emits `HOST/OWNER/REPO[.git]`, preserving the host and optional `.git`
+suffix while omitting URL user information. Keep the literal `https://`
+outside the quoted command substitution:
+
+```sh
+--repo "https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p')"
+```
+
+The `p` flag emits no path when the origin does not match; the resulting
+`https://` target is rejected by `gh` with `no hostname detected` before any
+request, rather than falling back to `GH_REPO` or another repository context.
+Origins with explicit ports intentionally do not match this form. Resolve a
+`gh`-supported host-qualified target without stripping the port before acting.
+Do not add further substitutions or rewrite the target to a constant.
 
 ## Trigger phrases
 

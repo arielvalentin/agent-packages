@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
 const gradersModule = import("./native-eval-graders.mjs");
@@ -197,6 +198,9 @@ test("draft PR command grader requires explicit repository targeting", async () 
   const { isValidDraftCreateOutput } = await gradersModule;
   const passing = [
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://github.example/owner/repo.git --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create -R owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create -R=owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create -Rowner/repo --draft --title \"fix: handle null\" --body \"Details\"",
@@ -213,10 +217,10 @@ test("draft PR command grader requires explicit repository targeting", async () 
       + String.fromCharCode(92, 123) + "Details,--repo=attacker/repo"
       + String.fromCharCode(92, 125),
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"\n",
-    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$#\\2#')\" "
+    "gh pr create --repo \"https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\\3/\\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\\2/\\3#p')\" "
       + "--draft --title \"fix: handle null\" --body \"Details\"",
-    "gh pr create --repo \"$(git remote get-url origin | sed -E "
-      + "'s%^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$%\\2%')\" "
+    "gh pr create --repo \"https://$(git remote get-url origin | sed -nE "
+      + "'s%^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$%\\3/\\4%p;s%^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$%\\2/\\3%p')\" "
       + "--draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo owner/repo --head feature --draft "
       + "--title \"fix: handle null\" --body \"Details\"",
@@ -237,6 +241,20 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create --repo owner/repo --draft --title = 'fix: handle null' --body 'Details'",
     "gh pr create --repo \"owner/repo\"#suffix --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo ../repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin)\" --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo github.example:8443/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://github.example:8443/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo https://user:token@github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -nE 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+)([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#https://\\3/\\5#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+):([0-9]+)([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\\3:\\4/\\7#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+)(:[0-9]+)?([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#https://\\3\\4/\\6#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -nE 's#^(https?://|ssh://|[^/@:]+@)([^/@]+@)?([A-Za-z0-9.-]+):([0-9]+)([:/])([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#https://\\3:\\4/\\7#p')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$#\\2#')\" "
+      + "--draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo owner/.. --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo owner/repo --draft --title 'fix: handle null' --body 'Details' '",
     "gh pr create > --repo owner/repo --draft --title \"feat: add parser\" --body \"Details\"",
@@ -340,6 +358,20 @@ test("draft PR command grader requires explicit repository targeting", async () 
   for (const output of failing) {
     assert.equal(isValidDraftCreateOutput(output), false, output);
   }
+});
+
+test("origin normalization preserves supported formats and rejects malformed remotes", () => {
+  const script = String.raw`s#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p`;
+  const normalize = (origin) => execFileSync("sed", ["-nE", script], {
+    input: `${origin}\n`,
+    encoding: "utf8",
+  }).trim();
+
+  assert.equal(normalize("https://user:token@github.example/owner/repo.git"), "github.example/owner/repo.git");
+  assert.equal(normalize("ssh://git@github.example/owner/repo"), "github.example/owner/repo");
+  assert.equal(normalize("git@github.example:owner/repo"), "github.example/owner/repo");
+  assert.equal(normalize("https://github.example:123/repo"), "");
+  assert.equal(normalize("git@github.example/owner/repo"), "");
 });
 
 test("draft PR command grader reports malformed input as an error", async () => {

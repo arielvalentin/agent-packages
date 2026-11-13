@@ -552,12 +552,29 @@ function isValidRepositoryTarget(value) {
     return owner !== "." && owner !== ".."
       && repository !== "." && repository !== "..";
   }
-  const originTarget = /^\$\(\s*git\s+remote\s+get-url\s+origin\s*\|\s*sed\s+-E\s+'([^']+)'\s*\)$/.exec(target);
+  const hostTarget = /^([A-Za-z0-9.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(target);
+  if (hostTarget) {
+    const [, host, owner, repository] = hostTarget;
+    return host !== "." && host !== ".."
+      && owner !== "." && owner !== ".."
+      && repository !== "." && repository !== "..";
+  }
+  const urlTarget = /^https:\/\/([A-Za-z0-9.-]+)\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(target);
+  if (urlTarget) {
+    const [, host, owner, repository] = urlTarget;
+    return host !== "." && host !== ".."
+      && owner !== "." && owner !== ".."
+      && repository !== "." && repository !== "..";
+  }
+  const originTarget = /^https:\/\/\$\(\s*git\s+remote\s+get-url\s+origin\s*\|\s*sed\s+-nE\s+'([^']+)'\s*\)$/.exec(target);
   if (!originTarget) return false;
   const delimiter = originTarget[1][1];
-  const pattern = String.raw`^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\.git)?$`;
+  const httpsPattern = String.raw`^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$`;
+  const scpPattern = String.raw`^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$`;
+  const expression = `s${delimiter}${httpsPattern}${delimiter}\\3/\\4${delimiter}p`
+    + `;s${delimiter}${scpPattern}${delimiter}\\2/\\3${delimiter}p`;
   return ["#", "%"].includes(delimiter)
-    && originTarget[1] === `s${delimiter}${pattern}${delimiter}\\2${delimiter}`;
+    && originTarget[1] === expression;
 }
 
 function isSafeLiteralArgument(argument) {
@@ -632,7 +649,7 @@ export function isValidDraftCreateOutput(output) {
   return repo !== null
     && isValidRepositoryTarget(repo.value)
     && repo.quote !== BACKTICK
-    && (!repo.value.startsWith("$(") || repo.quote === DOUBLE_QUOTE)
+    && (!repo.value.includes("$(") || repo.quote === DOUBLE_QUOTE)
     && !hasUnapprovedShellExpansion(segment, repo)
     && title !== null
     && isSafeLiteralArgument(title)
