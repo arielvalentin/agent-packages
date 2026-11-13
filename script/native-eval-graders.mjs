@@ -183,35 +183,56 @@ const BACKTICK = String.fromCharCode(96);
 const DOUBLE_QUOTE = String.fromCharCode(34);
 const SINGLE_QUOTE = String.fromCharCode(39);
 
-function caseInsensitiveIndexOf(text, needle, from) {
-  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    .replace(/\s+/g, "\\s+");
-  const relative = text.slice(from || 0).search(new RegExp(escaped, "i"));
-  return relative === -1 ? -1 : relative + (from || 0);
-}
-
 function normalizeLineContinuations(text) {
   let normalized = "";
+  let quote = null;
   for (let index = 0; index < text.length; index += 1) {
-    if (text[index] !== "\\") {
-      normalized += text[index];
+    const character = text[index];
+    if (quote === SINGLE_QUOTE) {
+      normalized += character;
+      if (character === SINGLE_QUOTE) quote = null;
       continue;
     }
 
-    let end = index + 1;
-    while (text[end] === "\\") end += 1;
-    const newlineLength = text[end] === "\r" && text[end + 1] === "\n"
-      ? 2
-      : text[end] === "\n" ? 1 : 0;
-    if (newlineLength) {
-      if (end - index !== 1) return null;
-      index = end + newlineLength - 1;
+    if (character === "\\") {
+      let end = index + 1;
+      while (text[end] === "\\") end += 1;
+      const newlineLength = text[end] === "\r" && text[end + 1] === "\n"
+        ? 2
+        : text[end] === "\n" ? 1 : 0;
+      if (newlineLength) {
+        if (end - index !== 1) return null;
+        index = end + newlineLength - 1;
+        continue;
+      }
+
+      normalized += text.slice(index, end);
+      if ((end - index) % 2 === 1
+        && [DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(text[end])) {
+        normalized += text[end];
+        index = end;
+        continue;
+      }
+      index = end - 1;
       continue;
     }
-    normalized += text.slice(index, end);
-    index = end - 1;
+
+    normalized += character;
+    if (quote !== null) {
+      if (character === quote) quote = null;
+    } else if ([DOUBLE_QUOTE, SINGLE_QUOTE, BACKTICK].includes(character)) {
+      quote = character;
+    }
   }
   return normalized;
+}
+
+function isEscaped(text, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === "\\"; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
 }
 
 function splitShellCommands(text) {
@@ -219,6 +240,7 @@ function splitShellCommands(text) {
   let quote = null;
   let start = 0;
   let hasShellOperator = false;
+  let hasTrailingEscape = false;
   for (let index = 0; index < text.length; index += 1) {
     const character = text[index];
     if (quote) {
@@ -230,6 +252,10 @@ function splitShellCommands(text) {
       continue;
     }
     if (character === "\\") {
+      if (index + 1 >= text.length) {
+        hasTrailingEscape = true;
+        break;
+      }
       index += 1;
       continue;
     }
@@ -237,8 +263,18 @@ function splitShellCommands(text) {
       quote = character;
       continue;
     }
-    if (character === "#" && (index === 0 || /\s/.test(text[index - 1]))) {
-      break;
+    if (character === "#" && (index === 0 || /\s/.test(text[index - 1]))
+      && !isEscaped(text, index - 1)) {
+      while (index + 1 < text.length
+        && text[index + 1] !== "\n"
+        && text[index + 1] !== "\r") index += 1;
+      continue;
+    }
+    if (character === "\n" || character === "\r") {
+      hasShellOperator = true;
+      commands.push(text.slice(start, index));
+      start = index + 1;
+      continue;
     }
     if (";&|<>".includes(character)) {
       hasShellOperator = true;
@@ -249,32 +285,12 @@ function splitShellCommands(text) {
     }
   }
   commands.push(text.slice(start));
-  return { commands, hasShellOperator };
-}
-
-function extractCreateSegments(text) {
-  const segments = [];
-  const anchor = "gh pr create";
-  const ghPattern = /\bgh\b/gi;
-  let index = caseInsensitiveIndexOf(text, anchor);
-  while (index !== -1) {
-    const searchFrom = index + anchor.length;
-    const nextCreate = caseInsensitiveIndexOf(text, anchor, searchFrom);
-    const nextBacktick = text.indexOf(BACKTICK, searchFrom);
-    const nextNewline = text.indexOf("\n", searchFrom);
-    ghPattern.lastIndex = searchFrom;
-    const ghMatch = ghPattern.exec(text);
-    const nextGh = ghMatch ? ghMatch.index : -1;
-    const stops = [nextCreate, nextBacktick, nextNewline, nextGh]
-      .filter((position) => position !== -1);
-    const end = stops.length ? Math.min(...stops) : text.length;
-    segments.push(text.slice(index, end));
-    index = nextCreate;
-  }
-  return segments.map((segment) => {
-    const { commands, hasShellOperator } = splitShellCommands(segment);
-    return { command: commands[0].trim(), hasShellOperator };
-  });
+  return {
+    commands,
+    hasShellOperator,
+    hasTrailingEscape,
+    hasUnclosedQuote: quote !== null,
+  };
 }
 
 function extractArgument(segment, flag) {
@@ -334,10 +350,13 @@ function findUnquotedOptions(segment, flag) {
 
 function extractOptionArgument(segment, optionIndex, flag) {
   let start = optionIndex + `--${flag}`.length;
-  while (/\s/.test(segment[start] || "")) start += 1;
   if (segment[start] === "=") {
     start += 1;
+    if (/\s/.test(segment[start] || "")) return null;
+  } else {
+    if (!/\s/.test(segment[start] || "")) return null;
     while (/\s/.test(segment[start] || "")) start += 1;
+    if (segment[start] === "=") return null;
   }
   if (start >= segment.length) return null;
 
@@ -355,7 +374,7 @@ function extractOptionArgument(segment, optionIndex, flag) {
     }
     if (end >= segment.length) return null;
     const next = segment[end + 1];
-    if (next !== undefined && !/[\s;|&]/.test(next) && next !== "#") {
+    if (next !== undefined && !/[\s;|&]/.test(next)) {
       return null;
     }
     return {
@@ -378,7 +397,11 @@ function extractOptionArgument(segment, optionIndex, flag) {
 
 function isValidRepositoryTarget(value) {
   const target = value.trim();
-  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(target)) return true;
+  if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(target)) {
+    const [owner, repository] = target.split("/");
+    return owner !== "." && owner !== ".."
+      && repository !== "." && repository !== "..";
+  }
   const originTarget = /^\$\(\s*git\s+remote\s+get-url\s+origin\s*\|\s*sed\s+-E\s+'([^']+)'\s*\)$/.exec(target);
   return originTarget !== null
     && originTarget[1]
@@ -428,11 +451,16 @@ export function isValidDraftCreateOutput(output) {
   if (typeof output !== "string") return false;
   const normalized = normalizeLineContinuations(output);
   if (normalized === null) return false;
-  const createSegments = extractCreateSegments(normalized);
-  if (createSegments.length !== 1
-    || createSegments[0].command !== normalized.trim()
-    || createSegments[0].hasShellOperator) return false;
-  const segment = createSegments[0].command;
+  const commandText = normalized.trim();
+  const { commands, hasShellOperator, hasTrailingEscape, hasUnclosedQuote } =
+    splitShellCommands(commandText);
+  if (hasUnclosedQuote || hasShellOperator || hasTrailingEscape
+    || commands.length !== 1) {
+    return false;
+  }
+  const segment = commands[0].trim();
+  if (segment !== commandText
+    || !/^gh\s+pr\s+create(?:\s|$)/i.test(segment)) return false;
   const conventionalTitle = /^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S/;
   const wipTitle = /^wip\b/i;
   const draftOptions = findUnquotedOptions(segment, "draft");

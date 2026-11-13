@@ -197,6 +197,7 @@ test("draft PR command grader requires explicit repository targeting", async () 
   const { isValidDraftCreateOutput } = await gradersModule;
   const passing = [
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"\n",
     "gh pr create --repo \"$(git remote get-url origin | sed -E 's#^(https?://[^/]+/|ssh://[^/]+/|[^@]+@[^:]+:)([^/]+/[^/]+)(\\.git)?$#\\2#')\" "
       + "--draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo owner/repo --head feature --draft "
@@ -204,7 +205,9 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "GH   PR   CREATE --REPO owner/repo --BODY=\"Details\" --TITLE='fix(parser): handle null' --DRAFT",
     "gh pr create --repo owner/repo --draft --title 'feat: $(literal)' --body 'Details'",
     "gh pr create --repo owner/repo \\\n  --draft --title \"feat: support continuations\" --body \"Details\"",
-    "gh pr create --repo owner/repo --draft --title = \"test: cover edge cases\" --body = \"Details\"",
+    "gh pr create --repo owner/repo --draft --title=\"test: cover edge cases\" --body=\"Details\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: handle null\" "
+      + "--body 'First line\ngh pr create is literal; `so is this`'",
   ];
   const failing = [
     "I will open a pull request after review.",
@@ -212,6 +215,12 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"feat: add parser\" --body \"Details --repo owner/repo\"",
     "gh pr create --draft --title \"feat: add parser\" --body \"Details\" # --repo owner/repo",
+    "gh pr create --repo = owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title = 'fix: handle null' --body 'Details'",
+    "gh pr create --repo \"owner/repo\"#suffix --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo ../repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/.. --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title 'fix: handle null' --body 'Details' '",
     "gh pr create > --repo owner/repo --draft --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --repo \"\" --draft --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --repo \"$GH_REPO\" --draft --title \"feat: add parser\" --body \"Details\"",
@@ -246,6 +255,14 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" && "
       + "gh pr create --repo owner/repo --draft --title \"fix: add two\" --body \"More details\"",
     "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\"; echo done",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\"\necho injected",
+    "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" # comment\necho injected",
+    "gh pr create --repo owner/repo --draft --title 'feat: add parser' "
+      + "--body Details\\ #; echo injected",
+    "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
+      + "--body \"Details\" " + String.fromCharCode(92),
+    "gh pr create --repo 'owner/repo" + String.fromCharCode(92)
+      + "\nfoo' --draft --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" > /tmp/output",
     "gh pr create --repo owner/repo --draft --title \"feat: add one\" --body \"Details\" | cat",
     "gh pr create --repo owner/repo --draft --title \"feat: hi\" --body foo\\\"; echo injected",
