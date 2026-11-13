@@ -595,6 +595,9 @@ function containsShellExpansion(text) {
         const expansion = text.slice(index + 1, end);
         if (expansion.includes(",") || expansion.includes("..")) return true;
       }
+    } else if (character === "*" || character === "?" || character === "["
+      || (character === "~" && index === 0)) {
+      return true;
     }
   }
   return false;

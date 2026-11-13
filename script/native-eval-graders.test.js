@@ -205,6 +205,8 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create --repo owner/repo --draft --title \"feat: preserve \\$HOME literally\" "
       + "--body \"Details " + String.fromCharCode(92, 96) + "literally\"",
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details (login)\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: literal *\" --body \"*.md [ab] ~\"",
+    "gh pr create --repo owner/repo --draft --title \"fix: escaped wildcard\" --body \\*.md",
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" "
       + "--body \"{Details,--repo=attacker/repo}\"",
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body "
@@ -320,6 +322,11 @@ test("draft PR command grader requires explicit repository targeting", async () 
       + "--body # Details",
     "gh pr create --repo owner/repo --draft --title \"feat: add parser\" "
       + "--body Details(login)",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body *",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body ?.md",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body [ab]",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body ~",
+    "gh pr create --repo owner/repo --draft --title \"fix: add parser\" --body=*.md",
     "gh pr create -- --repo owner/repo --draft --title \"feat: add parser\" "
       + "--body \"Details\"",
     "gh pr create --repo \"$(git remote get-url origin | sed -E "
