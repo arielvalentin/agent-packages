@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.5.0...code-reviewers-v0.6.0) (2026-11-14)
+
+
+### Features
+
+* improve agent guidance and migrate evaluations ([#101](https://github.com/arielvalentin/agent-packages/issues/101)) ([0cb804c](https://github.com/arielvalentin/agent-packages/commit/0cb804c2d98ee574222b120696762eaf85cacd57))
+
 ## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.4.0...code-reviewers-v0.5.0) (2026-11-04)
 
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.10.0...development-workflow-v0.11.0) (2026-11-14)
+
+
+### Features
+
+* improve agent guidance and migrate evaluations ([#101](https://github.com/arielvalentin/agent-packages/issues/101)) ([0cb804c](https://github.com/arielvalentin/agent-packages/commit/0cb804c2d98ee574222b120696762eaf85cacd57))
+
+
+### Bug Fixes
+
+* align draft PR quoting with grader ([#110](https://github.com/arielvalentin/agent-packages/issues/110)) ([b6a302d](https://github.com/arielvalentin/agent-packages/commit/b6a302d1758e041cacbcf2cf706a90fd4ec97560))
+* defer draft PR creation until local review passes ([faafa8b](https://github.com/arielvalentin/agent-packages/commit/faafa8bcefb9e04eccdf26809de29676e00b959b))
+* harden Vally command validation ([#108](https://github.com/arielvalentin/agent-packages/issues/108)) ([92dc1bf](https://github.com/arielvalentin/agent-packages/commit/92dc1bf8d8fe7d25a6f7aed5de38e45c454127f9))
+* stabilize Vally behavioral evaluations ([#107](https://github.com/arielvalentin/agent-packages/issues/107)) ([2bac342](https://github.com/arielvalentin/agent-packages/commit/2bac342d0b41b859c0b1e203a7b80130f087628a))
+
 ## [0.10.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.9.0...development-workflow-v0.10.0) (2026-11-04)
 
 
