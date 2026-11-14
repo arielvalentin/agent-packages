@@ -665,7 +665,7 @@ rather than report ready after 10 iterations.
 
 | Condition | Action |
 |-----------|--------|
-| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected governing SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
+| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
 | Head changed or required-check evidence is stale | Rerun Phase 4/5 for the current head; revalidate earlier findings against the current diff; do not report ready |
 | Required CI is still pending after the bounded wait | Report pending checks and stop; do not report ready |
 | Phase 5 wait for current head is still active and no current-head review has appeared | Continue the bounded wait; do not report ready |
@@ -851,8 +851,9 @@ Take a fresh state snapshot before fixing feedback and after every push. These
 are separate refresh points; a push invalidates earlier CI and review evidence.
 Record the PR state (open, closed, or merged), current head SHA, review-thread
 state, CI rollup, and merge state.
-Use the selected governing SHA for required checks and the head SHA for review
-coverage. Do not report a clean state from stale checks or review data.
+Use the selected SHA for required checks; it is the revision that governs them.
+Use the head SHA for review coverage. Do not report a clean state from stale
+checks or review data.
 After a head change, earlier CI and review coverage is stale; repeat the
 relevant checks for the new head. The older review cannot count as new-head
 coverage. Complete the Phase 5 wait for that head once; do not restart it just
@@ -1164,7 +1165,7 @@ rather than report ready after 10 iterations.
 
 | Condition | Action |
 |-----------|--------|
-| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected governing SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
+| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
 | Head changed or required-check evidence is stale | Rerun Phase 4/5 for the current head; revalidate earlier findings against the current diff; do not report ready |
 | Required CI is still pending after the bounded wait | Report pending checks and stop; do not report ready |
 | Phase 5 wait for current head is still active and no current-head review has appeared | Continue the bounded wait; do not report ready |
