@@ -3721,7 +3721,9 @@ stimuli:
         config:
           pattern: >-
             [sS][kK][iI][pP]|[nN][oO][tT] [rR][eE][pP][eE][aA][tT]|[nN][oO]
-            [dD][uU][pP][lL][iI][cC][aA][tT][eE]
+            [dD][uU][pP][lL][iI][cC][aA][tT][eE]|[dD][oO][eE][sS] [nN][oO][tT]
+            [rR][uU][nN] [aA] [nN][eE][wW] [iI][nN][tT][aA][kK][eE]
+            [rR][eE][vV][iI][eE][wW]
     simulation:
       tool_overrides:
         bash:
