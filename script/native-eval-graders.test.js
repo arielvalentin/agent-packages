@@ -390,3 +390,30 @@ test("draft PR command grader reports malformed input as an error", async () => 
     config: { unsafe: true },
   })).status, "error");
 });
+
+test("case 158 preserves feedback-routing meaning across an equivalent paraphrase", () => {
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
+    "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) =>
+    item.name === "agent-defaults-case-158-row-01"
+  );
+  const grader = stimulus.graders.find((item) =>
+    item.name === "agent-defaults-case-158-row-01-assertion-1-feedback-routing"
+  );
+  const matches = new RegExp(grader.config.pattern);
+
+  assert.equal(matches.test(
+    "With accepted_findings present, the loop does not run a new intake review."
+  ), true);
+  assert.equal(matches.test(
+    "The loop does not repeat the intake review."
+  ), true);
+  assert.equal(matches.test(
+    "The loop runs a new intake review before the post-fix review."
+  ), false);
+  assert.equal(matches.test(
+    "The mandatory post-fix review still runs."
+  ), false);
+});

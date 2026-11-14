@@ -68,6 +68,10 @@ command substitution inside another `gh` command. Use `origin` only when it is
 the user's exact target. Replace placeholders in command examples with the
 resolved owner, repository, and PR number. If the target cannot be identified
 unambiguously, ask before reading or acting.
+Pass `--title` and `--body` as ordinary single- or double-quoted shell literals.
+For a brief, single-paragraph body, keep the value on one line; use a multiline
+ordinary quoted literal only when the requested body needs multiple paragraphs.
+Do not use ANSI-C `$'...'` quoting or shell expansions in either value.
 When deriving `--repo` from `origin`, use one anchored `sed -nE` script
 that emits `HOST/OWNER/REPO[.git]`, preserving the host and optional `.git`
 suffix while omitting URL user information. Keep the literal `https://`
