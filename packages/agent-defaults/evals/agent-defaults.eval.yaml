@@ -5087,8 +5087,7 @@ stimuli:
         name: agent-defaults-case-211-row-01-assertion-1-boolean-contract
         config:
           pattern: >-
-            ^(?=[\s\S]*[sS][eE][lL][eE][cC][tT][eE][dD]
-            [sS][hH][aA])(?:(?=[\s\S]*[aA][pP][iI])|(?=[\s\S]*[cC][hH][eE][cC][kK]/[sS][tT][aA][tT][uU][sS]))[\s\S]*$
+            ^(?=[\s\S]*[sS][eE][lL][eE][cC][tT][eE][dD] (?:[gG][oO][vV][eE][rR][nN][iI][nN][gG] )?[sS][hH][aA])(?:(?=[\s\S]*[aA][pP][iI])|(?=[\s\S]*[cC][hH][eE][cC][kK]/[sS][tT][aA][tT][uU][sS]))[\s\S]*$
     simulation:
       tool_overrides:
         bash:

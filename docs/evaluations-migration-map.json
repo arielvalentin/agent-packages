@@ -17036,7 +17036,7 @@
           "name": "agent-defaults-case-211-row-01-assertion-1-boolean-contract",
           "type": "output-matches",
           "scope": "parent",
-          "configSha256": "82dd60f4c191c97f1490d098bc0dfb62bb5e2c6a5ae2f676005aaedb9d34e6a0"
+          "configSha256": "d89dbbec2f9a777b232fad672a38d90091f5b6065231d9070ff2171e49b65315"
         }
       ],
       "requiredSkills": [],
@@ -28210,6 +28210,7 @@
     "Description-only APM instruction files are staged unchanged at .github/copilot-instructions.md for the eval session so the Copilot SDK loads their content as native custom instructions.",
     "The three lifecycle references appended by the source prompt are included verbatim, in source order, in staged instruction context; they are not moved into the user prompt.",
     "Native stimuli deny shell command execution through Vally tool simulation, matching the source text-only provider and preventing agent-launched commands from inheriting eval credentials.",
-    "Exact-answer source assertions with simple anchored literals preserve trim and Markdown-format normalization in the native regex graders."
+    "Exact-answer source assertions with simple anchored literals preserve trim and Markdown-format normalization in the native regex graders.",
+    "Agent-defaults case 211 additionally accepts 'selected governing SHA' as the selected SHA named in its unchanged prompt; its API or check/status requirement is unchanged."
   ]
 }

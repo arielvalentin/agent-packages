@@ -417,3 +417,63 @@ test("case 158 preserves feedback-routing meaning across an equivalent paraphras
     "The mandatory post-fix review still runs."
   ), false);
 });
+
+test("case 211 accepts the prompt's selected governing SHA wording", () => {
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
+    "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) =>
+    item.name === "agent-defaults-case-211-row-01"
+  );
+  const matches = new RegExp(stimulus.graders[0].config.pattern);
+  const governingShaOutput = [
+    "Use the **selected governing SHA’s APIs**, not `gh pr checks`.",
+    "",
+    "When `watch-ci` can’t monitor that exact SHA in the full lifecycle, the fallback is to poll every 30s via:",
+    "- check runs (`/commits/<selected-sha>/check-runs?filter=all`)",
+    "- commit statuses (`/commits/<selected-sha>/status`)",
+    "- applicable workflow runs (`/actions/runs?head_sha=<selected-sha>`)",
+    "",
+    "`gh pr checks` is explicitly **not** the required-check gate in that path.",
+  ].join("\n");
+
+  assert.equal(matches.test(
+    "Use the selected SHA's check/status APIs, not `gh pr checks`."
+  ), true);
+  assert.equal(matches.test(governingShaOutput), true);
+  assert.equal(matches.test(
+    "Use the selected governing SHA's APIs and poll its check/status endpoints, not `gh pr checks`."
+  ), true);
+  assert.equal(matches.test(
+    "Use the current head SHA's check/status APIs, not `gh pr checks`."
+  ), false);
+  assert.equal(matches.test(
+    "Use the selected governing SHA, but poll `gh pr checks`."
+  ), false);
+  assert.equal(matches.test(
+    "Use the selected\tgoverning SHA's APIs."
+  ), false);
+
+  const sourceCase = migrationMap.cases.find((item) =>
+    item.package === "agent-defaults" && item.sourceCaseIndex === 211 && item.sourceRow === 1
+  );
+  assert.equal(sourceCase.assertions[0].assertion.value,
+    "const l = output.toLowerCase(); l.includes('selected sha') && (l.includes('api') || l.includes('check/status'))");
+  const sourceMatches = (output) => {
+    const lower = output.toLowerCase();
+    return lower.includes("selected sha") && (lower.includes("api") || lower.includes("check/status"));
+  };
+  for (const output of [
+    "Use the selected SHA check/status endpoints.",
+    "Use the SELECTED SHA APIs.",
+    "Use the current SHA APIs.",
+    "Use the selected SHA.",
+    "Use the governing SHA check/status endpoints.",
+    "Use the selected governing governing SHA APIs.",
+  ]) {
+    assert.equal(matches.test(output), sourceMatches(output), output);
+  }
+  assert.equal(sourceMatches("Use the selected governing SHA check/status endpoints."), false);
+  assert.equal(matches.test("Use the selected governing SHA check/status endpoints."), true);
+});
