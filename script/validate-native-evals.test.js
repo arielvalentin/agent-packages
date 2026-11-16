@@ -15,15 +15,24 @@ const {
 } = require("./validate-native-evals.js");
 
 const diagnosticNames = [
+  "acting-on-behalf: omits internal model identifiers",
+  "pr-lifecycle: breaking changes use the optional ! marker",
+  "pr-lifecycle: full-loop fallback polls the selected SHA",
+  "pr-lifecycle: rejects a 73-character Conventional PR title",
   "skill-gates: policy configuration requires review",
   "pr-lifecycle: keeps feedback routing read only",
+  "tech-research: hands off durable synthesis without re-querying",
+  "tech-research: requires evidence and one synthesis",
+  "writing-voice: PR output shows value without issue or routine-check noise",
 ];
+const diagnosticStimulusNames = diagnosticNames.map((_, index) => `diagnostic-${index + 1}`);
+const fixtureStimulusNames = [...diagnosticStimulusNames, "blocking-case"];
 const packageName = "agent-defaults";
 const evalFile = "packages/agent-defaults/evals/agent-defaults.eval.yaml";
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "native-eval-validator-"));
-  const names = ["diagnostic-one", "diagnostic-two", "blocking-case"];
+  const names = fixtureStimulusNames;
   const sourceDescriptions = [...diagnosticNames, "blocking case"];
   const sourceConfiguration = {
     providers: [{ id: "provider", label: "provider" }],
@@ -65,7 +74,7 @@ function fixture() {
     })),
     {
       package: packageName,
-      sourceCaseIndex: 3,
+      sourceCaseIndex: diagnosticNames.length + 1,
       sourceRow: 1,
       sourceProviderLabel: "provider",
       sourcePrompt: "prompt-1",
@@ -79,9 +88,9 @@ function fixture() {
       diagnostic: false,
       status: "mapped",
       targetEval: evalFile,
-      targetStimulus: names[2],
+      targetStimulus: names[diagnosticNames.length],
       assertionGraders: [{
-        name: `${names[2]}-assertion`,
+        name: `${names[diagnosticNames.length]}-assertion`,
         type: "output-matches",
       }],
     },
@@ -179,7 +188,7 @@ function trial(stimulus, passed = true, overrides = {}) {
   };
 }
 
-function summary(passed, count = 3, overrides = {}) {
+function summary(passed, count = fixtureStimulusNames.length, overrides = {}) {
   return {
     type: "run-summary",
     runId: "test-run",
@@ -200,8 +209,7 @@ function summary(passed, count = 3, overrides = {}) {
 }
 
 function rows(outcomes = {}) {
-  const stimuli = ["diagnostic-one", "diagnostic-two", "blocking-case"];
-  const records = stimuli.map((name) => {
+  const records = fixtureStimulusNames.map((name) => {
     const outcome = outcomes[name];
     if (outcome === "error") {
       return trial(name, false, {
@@ -217,12 +225,20 @@ function rows(outcomes = {}) {
         gradeResult: null,
       });
     }
+    if (outcome === "timeout") {
+      return trial(name, false, {
+        status: "error",
+        error: "execution timed out",
+        gradeResult: null,
+      });
+    }
     const passed = outcome !== "fail";
     const result = trial(name, passed);
     return result;
   });
-  const onlyDiagnosticFailures = outcomes["diagnostic-one"] === "fail"
-    || outcomes["diagnostic-two"] === "fail";
+  const onlyDiagnosticFailures = diagnosticStimulusNames.some((name) =>
+    outcomes[name] === "fail"
+  );
   return [...records, summary(!onlyDiagnosticFailures)];
 }
 
@@ -535,7 +551,7 @@ test("non-agent-defaults rows cannot opt into the diagnostic exemption", () => {
     );
     const result = validateNativeSuite(root, packageName, "smoke");
     assert.ok(result.errors.some((error) =>
-      error.includes("not restricted to the two approved cases")
+      error.includes("not restricted to the approved cases")
     ));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -581,7 +597,7 @@ test("same-named assertion failures in other packages remain blocking", () => {
       path.join(root, coordinatorEvalFile),
       yaml.dump({ name: "coordinator-behavioral", stimuli })
     );
-    const records = rows({ "diagnostic-one": "fail" });
+    const records = rows({ [diagnosticStimulusNames[0]]: "fail" });
     for (const record of records) {
       if (record.type === "trial-result") {
         record.evalName = "coordinator-behavioral";
@@ -741,7 +757,7 @@ test("reference files and root policy profiles use native workspace instruction 
   }
 });
 
-test("both approved diagnostics must have native stimuli", () => {
+test("every approved diagnostic must have a native stimulus", () => {
   const { root, entries } = fixture();
   try {
     entries[0].status = "unsupported";
@@ -762,38 +778,54 @@ test("both approved diagnostics must have native stimuli", () => {
     );
     const result = validateNativeSuite(root, packageName, "smoke");
     assert.ok(result.errors.some((error) =>
-      error.includes("Both approved diagnostics require native stimuli")
+      error.includes("Every selected diagnostic must have native stimuli")
     ));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("only output assertion failures from the two exact diagnostics are non-blocking", () => {
+test("only assertion failures from approved diagnostics are non-blocking and reported", () => {
   const { root } = fixture();
   try {
-    const result = validateRun(root, packageName, "smoke", rows({
-      "diagnostic-one": "fail",
-      "diagnostic-two": "fail",
-    }));
+    const result = validateRun(root, packageName, "smoke", rows(Object.fromEntries(
+      diagnosticStimulusNames.map((name) => [name, "fail"])
+    )));
     assert.deepEqual(result.errors, []);
-    assert.equal(result.diagnostics.length, 2);
+    assert.deepEqual(
+      result.diagnostics.map((diagnostic) => diagnostic.stimulus).sort(),
+      [...diagnosticStimulusNames].sort()
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("execution errors and skipped results block diagnostics", () => {
+test("timeouts, execution errors, and skipped results block diagnostics", () => {
   const { root } = fixture();
   try {
     for (const [name, outcome] of [
-      ["diagnostic-one", "error"],
-      ["diagnostic-one", "skip"],
+      [diagnosticStimulusNames[0], "error"],
+      [diagnosticStimulusNames[0], "timeout"],
+      [diagnosticStimulusNames[0], "skip"],
     ]) {
       const result = validateRun(root, packageName, "smoke", rows({ [name]: outcome }));
       assert.ok(result.errors.length > 0, `${outcome} must block`);
       assert.equal(result.diagnostics.length, 0);
     }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("grader execution errors block diagnostic assertion failures", () => {
+  const { root } = fixture();
+  try {
+    const records = rows({ [diagnosticStimulusNames[0]]: "fail" });
+    records[0].gradeResult.details[0].status = "error";
+    const result = validateRun(root, packageName, "smoke", records);
+    assert.ok(result.errors.some((error) => error.includes("grader execution error")));
+    assert.equal(result.diagnostics.length, 0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -847,7 +879,7 @@ test("trial item IDs must match their stimulus and one-run identity", () => {
       error.includes("Vally itemId does not match its planned identity")
     ));
 
-    records[0].itemId = `${evalFile}::default::_::diagnostic-one::trial-1`;
+    records[0].itemId = `${evalFile}::default::_::${diagnosticStimulusNames[0]}::trial-1`;
     const changedTrial = validateRun(root, packageName, "smoke", records);
     assert.ok(changedTrial.errors.some((error) =>
       error.includes("Vally itemId does not match its planned identity")

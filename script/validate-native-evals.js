@@ -16,8 +16,15 @@ const PACKAGES = new Set([
 const GRADER_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MAX_GRADER_NAME_LENGTH = 60;
 const DIAGNOSTICS = new Set([
-  "skill-gates: policy configuration requires review",
+  "acting-on-behalf: omits internal model identifiers",
+  "pr-lifecycle: breaking changes use the optional ! marker",
+  "pr-lifecycle: full-loop fallback polls the selected SHA",
   "pr-lifecycle: keeps feedback routing read only",
+  "pr-lifecycle: rejects a 73-character Conventional PR title",
+  "skill-gates: policy configuration requires review",
+  "tech-research: hands off durable synthesis without re-querying",
+  "tech-research: requires evidence and one synthesis",
+  "writing-voice: PR output shows value without issue or routine-check noise",
 ]);
 
 function readJson(file) {
@@ -279,7 +286,7 @@ function validateNativeSuite(root, packageName, suite) {
       && (allDiagnostics.length !== DIAGNOSTICS.size
         || [...DIAGNOSTICS].some((name) =>
           allDiagnostics.filter((entry) => entry.sourceDescription === name).length !== 1)))) {
-    errors.push("Migration map diagnostics are not restricted to the two approved cases.");
+    errors.push("Migration map diagnostics are not restricted to the approved cases.");
   }
   const unsupported = entries.filter((entry) => entry.status !== "mapped");
   if (unsupported.length) {
@@ -499,10 +506,12 @@ function validateNativeSuite(root, packageName, suite) {
       entry.diagnostic && entry.status === "mapped"
     );
     const diagnosticNames = mappedDiagnostics.map((entry) => entry.sourceDescription);
-    if (diagnosticNames.length !== DIAGNOSTICS.size
-      || [...DIAGNOSTICS].some((name) => diagnosticNames.filter((item) => item === name).length !== 1)
+    const expectedDiagnostics = entries.filter((entry) => entry.diagnostic);
+    if (diagnosticNames.length !== expectedDiagnostics.length
+      || expectedDiagnostics.some((entry) =>
+        diagnosticNames.filter((name) => name === entry.sourceDescription).length !== 1)
       || diagnosticNames.some((name) => !DIAGNOSTICS.has(name))) {
-      errors.push("Both approved diagnostics require native stimuli; they must not be skipped.");
+      errors.push("Every selected diagnostic must have native stimuli; they must not be skipped.");
     }
     for (const entry of mappedDiagnostics) {
       const stimulus = stimuli.find((candidate) => candidate.name === entry.targetStimulus);

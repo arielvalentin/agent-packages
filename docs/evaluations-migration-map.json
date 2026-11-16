@@ -12822,7 +12822,7 @@
         "companion_content": "file://../.apm/skills/writing-voice/references/artifact-authoring.md",
         "user_input": "Synthetic private exercise, not a public interaction. Write only a new PR description. Verified behavior: token=a=b previously yielded a; the fix yields a=b. Issue #42 already contains TRACE-101 debug logs and the full investigation. The diff changes parseHeader in src/header.ts. All 48 unit tests, npm test, npm run lint, and CI passed. No PR template or requested validation detail."
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
@@ -14690,7 +14690,7 @@
         "skill_content": "file://../.apm/skills/tech-research/SKILL.md",
         "user_input": "What should each researcher return, and who performs the single synthesis?"
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
@@ -14895,7 +14895,7 @@
         "skill_content": "file://../.apm/skills/tech-research/SKILL.md",
         "user_input": "How do I hand durable synthesized research to another agent, and should that agent repeat the covered backend queries?"
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
@@ -16057,7 +16057,7 @@
         "skill_content": "file://../.apm/skills/pr-lifecycle/SKILL.md",
         "user_input": "According to the Title format section, exactly how do I write a breaking-change PR title? Quote the format."
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
@@ -16150,7 +16150,7 @@
         "companion_content": "file://../.apm/skills/git-publishing-safety/SKILL.md",
         "user_input": "A 73-character Conventional PR title matches the format regex. Repository guidance has no other title format. Is it valid? Answer one word: Yes or No."
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
@@ -17018,7 +17018,7 @@
         "skill_content": "file://../.apm/skills/pr-lifecycle/SKILL.md",
         "user_input": "When `watch-ci` cannot monitor the selected governing SHA in the full lifecycle, what should the fallback poll: the selected SHA's check/status APIs or `gh pr checks`?"
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
@@ -24670,7 +24670,7 @@
         "skill_content": "file://../.apm/skills/acting-on-behalf/SKILL.md",
         "user_input": "The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
       },
-      "diagnostic": false,
+      "diagnostic": true,
       "assertions": [
         {
           "sourceIndex": 1,
