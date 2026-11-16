@@ -15,6 +15,11 @@ const PACKAGES = new Set([
 ]);
 const GRADER_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const MAX_GRADER_NAME_LENGTH = 60;
+const DIAGNOSTIC_ASSERTION_GRADER_TYPES = new Set([
+  "output-contains",
+  "output-matches",
+  "output-not-matches",
+]);
 const DIAGNOSTICS = new Set([
   "acting-on-behalf: omits internal model identifiers",
   "pr-lifecycle: breaking changes use the optional ! marker",
@@ -651,13 +656,17 @@ function validateRun(root, packageName, suite, records) {
       continue;
     }
     if (grade.passed) continue;
-    const assertionNames = new Set((entry.assertionGraders || []).map((grader) => grader.name));
+    const assertionTypes = new Map((entry.assertionGraders || []).map((grader) => [
+      grader.name,
+      grader.type,
+    ]));
     const diagnosticOnly = packageName === "agent-defaults"
       && entry.diagnostic === true
       && DIAGNOSTICS.has(entry.sourceDescription)
       && failedGraders.length > 0
-      && failedGraders.every((grader) => assertionNames.has(grader.configuredName)
-        && grader.graderType === "output-matches");
+      && failedGraders.every((grader) => assertionTypes.has(grader.configuredName)
+        && assertionTypes.get(grader.configuredName) === grader.graderType
+        && DIAGNOSTIC_ASSERTION_GRADER_TYPES.has(grader.graderType));
     if (!diagnosticOnly) {
       errors.push(`${record.stimulus} failed required graders: ${
         failedGraders.map((grader) => grader.configuredName || grader.name).join(", ")

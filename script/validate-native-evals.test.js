@@ -155,6 +155,57 @@ function fixture() {
   return { root, entries, stimuli };
 }
 
+function fixtureWithMixedDiagnosticGraders() {
+  const state = fixture();
+  const stimulus = state.stimuli[0];
+  const graders = [
+    {
+      type: "output-matches",
+      name: `${stimulus.name}-matches`,
+      config: { pattern: "ok" },
+    },
+    {
+      type: "output-not-matches",
+      name: `${stimulus.name}-not-matches`,
+      config: { pattern: "bad" },
+    },
+    {
+      type: "output-contains",
+      name: `${stimulus.name}-contains`,
+      config: { substring: "ok", case_sensitive: true },
+    },
+    {
+      type: "output-text-contract",
+      name: `${stimulus.name}-text-contract`,
+      config: { minimumLengthExclusive: 0, mustMatch: "ok" },
+    },
+  ];
+  stimulus.graders = graders;
+
+  const mapPath = path.join(state.root, "docs/evaluations-migration-map.json");
+  const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
+  const entry = migrationMap.cases.find((candidate) =>
+    candidate.targetStimulus === stimulus.name
+  );
+  entry.assertionGraders = graders.map((grader) => {
+    const { name, ...configuration } = grader;
+    return {
+      name,
+      type: grader.type,
+      configSha256: crypto.createHash("sha256")
+        .update(JSON.stringify(configuration))
+        .digest("hex"),
+    };
+  });
+
+  fs.writeFileSync(mapPath, JSON.stringify(migrationMap));
+  fs.writeFileSync(
+    path.join(state.root, evalFile),
+    yaml.dump({ name: "agent-defaults-behavioral", stimuli: state.stimuli })
+  );
+  return { ...state, graders };
+}
+
 function trial(stimulus, passed = true, overrides = {}) {
   const grader = {
     name: `${stimulus}-assertion`,
@@ -796,6 +847,121 @@ test("only assertion failures from approved diagnostics are non-blocking and rep
       result.diagnostics.map((diagnostic) => diagnostic.stimulus).sort(),
       [...diagnosticStimulusNames].sort()
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("mixed diagnostic assertion types remain non-blocking", () => {
+  const { root, stimuli, graders } = fixtureWithMixedDiagnosticGraders();
+  try {
+    const stimulus = stimuli[0].name;
+    for (const failedTypes of [
+      ["output-not-matches"],
+      ["output-contains"],
+      ["output-matches", "output-not-matches"],
+      ["output-matches", "output-contains"],
+      ["output-not-matches", "output-contains"],
+      ["output-matches", "output-not-matches", "output-contains"],
+    ]) {
+      const records = rows({ [stimulus]: "fail" });
+      const record = records.find((item) => item.stimulus === stimulus);
+      record.gradeResult.details = graders.map((grader) => {
+        const passed = !failedTypes.includes(grader.type);
+        return {
+          name: grader.name,
+          configuredName: grader.name,
+          graderType: grader.type,
+          kind: "code",
+          passed,
+          score: passed ? 1 : 0,
+          evidence: passed ? "passed" : "failed",
+          status: "success",
+        };
+      });
+
+      const result = validateRun(root, packageName, "smoke", records);
+      assert.deepEqual(result.errors, [], `${failedTypes.join(", ")} misses must be diagnostic`);
+      assert.deepEqual(
+        result.diagnostics[0].failedGraders,
+        graders.filter((grader) => failedTypes.includes(grader.type)).map((grader) => grader.name)
+      );
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("non-allowlisted diagnostic assertion types remain blocking", () => {
+  const { root, stimuli, graders } = fixtureWithMixedDiagnosticGraders();
+  try {
+    const stimulus = stimuli[0].name;
+    const records = rows({ [stimulus]: "fail" });
+    const record = records.find((item) => item.stimulus === stimulus);
+    record.gradeResult.details = graders.map((grader) => {
+      const passed = grader.type !== "output-text-contract";
+      return {
+        name: grader.name,
+        configuredName: grader.name,
+        graderType: grader.type,
+        kind: "code",
+        passed,
+        score: passed ? 1 : 0,
+        evidence: passed ? "passed" : "failed",
+        status: "success",
+      };
+    });
+
+    const result = validateRun(root, packageName, "smoke", records);
+    assert.ok(result.errors.some((error) =>
+      error.includes("failed required graders")
+    ));
+    assert.equal(result.diagnostics.length, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("diagnostic failures with mismatched grader types remain blocking", () => {
+  const { root, stimuli, graders } = fixtureWithMixedDiagnosticGraders();
+  try {
+    const stimulus = stimuli[0].name;
+    for (const scenario of [
+      {
+        failedTypes: ["output-contains"],
+        mismatchedType: "output-contains",
+        reportedType: "output-not-matches",
+      },
+      {
+        failedTypes: ["output-matches", "output-contains"],
+        mismatchedType: "output-matches",
+        reportedType: "output-contains",
+      },
+    ]) {
+      const records = rows({ [stimulus]: "fail" });
+      const record = records.find((item) => item.stimulus === stimulus);
+      record.gradeResult.details = graders.map((grader) => {
+        const passed = !scenario.failedTypes.includes(grader.type);
+        return {
+          name: grader.name,
+          configuredName: grader.name,
+          graderType: grader.type === scenario.mismatchedType
+            ? scenario.reportedType
+            : grader.type,
+          kind: "code",
+          passed,
+          score: passed ? 1 : 0,
+          evidence: passed ? "passed" : "failed",
+          status: "success",
+        };
+      });
+
+      const result = validateRun(root, packageName, "smoke", records);
+      assert.ok(result.errors.some((error) =>
+        error.includes("failed required graders")
+      ));
+      assert.equal(result.diagnostics.length, 0);
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
