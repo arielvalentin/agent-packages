@@ -490,8 +490,15 @@ test("mapped instructions, skills, and diagnostics preserve their source context
 
   const diagnostics = map.cases.filter((entry) => entry.diagnostic === true);
   assert.deepEqual(diagnostics.map((entry) => entry.sourceDescription).sort(), [
+    "acting-on-behalf: omits internal model identifiers",
+    "pr-lifecycle: breaking changes use the optional ! marker",
+    "pr-lifecycle: full-loop fallback polls the selected SHA",
     "pr-lifecycle: keeps feedback routing read only",
+    "pr-lifecycle: rejects a 73-character Conventional PR title",
     "skill-gates: policy configuration requires review",
+    "tech-research: hands off durable synthesis without re-querying",
+    "tech-research: requires evidence and one synthesis",
+    "writing-voice: PR output shows value without issue or routine-check noise",
   ]);
   assert.ok(diagnostics.every((entry) => entry.status === "mapped"));
   for (const entry of diagnostics) {
