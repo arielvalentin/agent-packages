@@ -857,6 +857,14 @@ assert "documented absence of issue tracking when repository guidance requires i
     "acting-on-behalf: unqualified missing-tracking boilerplate"
 lifecycle = (skills / "pr-lifecycle/SKILL.md").read_text()
 assert "Rewrite body to include:" not in lifecycle, "forced PR outline"
+readiness = " ".join(
+    (skills / "pr-lifecycle/references/readiness.md").read_text().split()
+)
+for rule in (
+    "Use one monitoring owner per repository/PR/head",
+    "the coordinator and worker must not start duplicate watches or waits",
+):
+    assert rule in readiness, f"pr-lifecycle: missing monitoring boundary: {rule}"
 
 for name in ("handoff-envelope", "consensus-panel", "review-fix-loop"):
     text = (defaults / ".apm/skills" / name / "SKILL.md").read_text()

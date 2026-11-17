@@ -683,6 +683,11 @@ Yield control between iterations.
 
 ## Phase 4 — Monitor CI
 
+Use one monitoring owner per repository/PR/head. When monitoring is delegated,
+the designated owner handles CI and Copilot-review monitoring for that exact
+head; the coordinator and worker must not start duplicate watches or waits. A
+changed head invalidates prior results and requires one owner for the new head.
+
 After every push, refresh the PR head and required-check policy. Inspect the
 base branch's protection settings and all active rules that apply to it, even
 when `gh pr checks --required` reports checks. Read classic branch-protection
