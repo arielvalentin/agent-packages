@@ -97,9 +97,9 @@ function inventory(root) {
   });
 }
 
-function isPackageTestPath(changed, name) {
+function isPackageTestOrEvalPath(changed, name) {
   return changed.startsWith(`packages/${name}/tests/`)
-    || new RegExp(`^packages/${name}/evals/[^/]+\\.eval\\.ya?ml$`).test(changed);
+    || changed.startsWith(`packages/${name}/evals/`);
 }
 
 function isPackageApMPath(changed, name) {
@@ -126,8 +126,8 @@ function select(changes, configs) {
   if (!changes.length) allSmoke("No local changes: all-package smoke fallback.");
   for (const changed of changes) {
     const owner = configs.find((config) => changed.startsWith(`packages/${config.name}/`));
-    const packageTestPath = owner && isPackageTestPath(changed, owner.name);
-    if (packageTestPath) {
+    const packageTestOrEvalPath = owner && isPackageTestOrEvalPath(changed, owner.name);
+    if (packageTestOrEvalPath) {
       addSmoke(owner);
       reasons.push(`${changed}: package test/eval configuration -> owning package smoke.`);
     }
@@ -151,7 +151,7 @@ function select(changes, configs) {
         + "this does not establish coverage for the changed file.");
     } else if (isAllowlistedNonInput(changed)) {
       reasons.push(`${changed}: allowlisted documentation/workflow non-input.`);
-    } else if (!packageTestPath) {
+    } else if (!packageTestOrEvalPath) {
       allSmoke(`${changed}: unmapped/shared input -> all-package smoke fallback.`);
     }
   }

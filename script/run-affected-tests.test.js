@@ -33,32 +33,51 @@ test("native inventories validate the entire migration map before selection", ()
   assert.ok(allCases.every((item) => item.inputs instanceof Set && item.directories instanceof Set));
 });
 
-test("each declared native input selects smoke cases or full cases when smoke is absent", () => {
+test("declared native inputs select matching cases and package smoke fallbacks", () => {
   const inputs = new Set(allCases.flatMap((item) => [...item.inputs]));
   for (const input of inputs) {
     const matches = allCases.filter((item) => item.inputs.has(input));
     const smoke = matches.filter((item) => item.suite === "smoke");
-    const expected = smoke.length ? smoke : matches;
+    const expected = new Set((smoke.length ? smoke : matches).map((item) => item.stimulus));
+    const owner = packages.find((name) =>
+      input.startsWith(`packages/${name}/tests/`) || input.startsWith(`packages/${name}/evals/`)
+    );
+    if (owner) {
+      allCases
+        .filter((item) => item.package === owner && item.suite === "smoke")
+        .forEach((item) => expected.add(item.stimulus));
+    }
     assert.deepEqual(selected(select([input], configs)),
-      new Set(expected.map((item) => item.stimulus)), input);
+      expected, input);
   }
 });
 
-test("package test changes preserve owning smoke selection and cross-package declared matches", () => {
-  const changed = "packages/agent-defaults/tests/fixture.md";
+test("package test and nested eval fixture changes preserve owning smoke and cross-package matches", () => {
+  const testFixture = "packages/agent-defaults/tests/fixture.md";
+  const evalFixture = "packages/agent-defaults/evals/fixtures/context.md";
   const fixtureConfigs = [
     { name: "agent-defaults", cases: [{
       stimulus: "defaults-smoke", suite: "smoke", inputs: new Set(), directories: new Set(),
     }] },
     { name: "coordinator", cases: [{
-      stimulus: "coordinator-fixture", suite: "smoke", inputs: new Set([changed]), directories: new Set(),
+      stimulus: "coordinator-fixture",
+      suite: "smoke",
+      inputs: new Set([testFixture, evalFixture]),
+      directories: new Set(),
     }] },
     ...packages.slice(2).map((name) => ({ name, cases: [] })),
   ];
-  const plan = select([changed], fixtureConfigs);
-  assert.deepEqual(plan.runs.map((run) => [run.name, ...run.stimuli]), [
+  for (const changed of [testFixture, evalFixture]) {
+    const plan = select([changed], fixtureConfigs);
+    assert.deepEqual(plan.runs.map((run) => [run.name, ...run.stimuli]), [
+      ["agent-defaults", "defaults-smoke"],
+      ["coordinator", "coordinator-fixture"],
+    ]);
+  }
+
+  const unmapped = select(["packages/agent-defaults/evals/fixtures/unmapped.md"], fixtureConfigs);
+  assert.deepEqual(unmapped.runs.map((run) => [run.name, ...run.stimuli]), [
     ["agent-defaults", "defaults-smoke"],
-    ["coordinator", "coordinator-fixture"],
   ]);
 });
 
