@@ -527,7 +527,7 @@ function validateNativeSuite(root, packageName, suite) {
     errors.push("Non-agent-defaults suites may not declare non-blocking diagnostics.");
   }
 
-  return { errors, map, suiteMap, entries, evalSpec, stimuli, expectedEntries };
+  return { errors, map, suiteMap, entries, evalSpec, evalPath, stimuli, expectedEntries };
 }
 
 function flattenGraders(result, output = []) {
@@ -553,11 +553,61 @@ function validateTrialItemId(record) {
     && (record.totalTrials === undefined || record.totalTrials === 1);
 }
 
-function validateRun(root, packageName, suite, records) {
+function validateRun(root, packageName, suite, records, options = {}) {
   const preflight = validateNativeSuite(root, packageName, suite);
   const errors = [...preflight.errors];
   const diagnostics = [];
   if (errors.length) return { errors, diagnostics };
+
+  let expectedEntries = preflight.expectedEntries;
+  let stimuli = preflight.stimuli;
+  let evalFilePath = path.resolve(root, preflight.suiteMap.evalFile);
+  if (options.stimulusNames !== undefined) {
+    const names = options.stimulusNames;
+    if (!Array.isArray(names) || !names.length
+      || names.some((name) => typeof name !== "string" || !name)
+      || new Set(names).size !== names.length) {
+      return { errors: ["Selected Vally stimulus names must be a nonempty unique string array."], diagnostics };
+    }
+    const selectedNames = new Set(names);
+    expectedEntries = preflight.expectedEntries.filter((entry) =>
+      selectedNames.has(entry.targetStimulus)
+    );
+    if (expectedEntries.length !== names.length) {
+      return { errors: ["Selected Vally stimuli are not in the validated suite inventory."], diagnostics };
+    }
+    if (typeof options.evalFilePath !== "string" || !options.evalFilePath) {
+      return { errors: ["Selected Vally results require their temporary eval specification path."], diagnostics };
+    }
+    evalFilePath = path.resolve(options.evalFilePath);
+    let selectedEvalDirectory;
+    try {
+      selectedEvalDirectory = fs.realpathSync(path.dirname(evalFilePath));
+    } catch (error) {
+      return {
+        errors: [`Unable to resolve selected Vally eval directory: ${error.message}`],
+        diagnostics,
+      };
+    }
+    if (selectedEvalDirectory !== path.dirname(preflight.evalPath)) {
+      return { errors: ["Selected Vally eval specification must stay beside its validated source spec."], diagnostics };
+    }
+    const expectedSpec = {
+      ...preflight.evalSpec,
+      stimuli: preflight.stimuli.filter((stimulus) => selectedNames.has(stimulus.name)),
+    };
+    try {
+      if (!isDeepStrictEqual(readYaml(evalFilePath), expectedSpec)) {
+        errors.push("Selected Vally eval specification differs from the validated stimuli.");
+      }
+    } catch (error) {
+      errors.push(`Unable to validate selected Vally eval specification: ${error.message}`);
+    }
+    if (errors.length) return { errors, diagnostics };
+    stimuli = expectedSpec.stimuli;
+  } else if (options.evalFilePath !== undefined) {
+    return { errors: ["An eval specification path requires selected Vally stimuli."], diagnostics };
+  }
 
   if (!Array.isArray(records) || !records.length) {
     return { errors: ["Vally result stream is empty."], diagnostics };
@@ -572,11 +622,11 @@ function validateRun(root, packageName, suite, records) {
     errors.push(`Expected one run-summary record, received ${summaryRecords.length}.`);
   }
 
-  const expectedByName = new Map(preflight.expectedEntries.map((entry) => [
+  const expectedByName = new Map(expectedEntries.map((entry) => [
     entry.targetStimulus,
     entry,
   ]));
-  const stimuliByName = new Map(preflight.stimuli.map((stimulus) => [
+  const stimuliByName = new Map(stimuli.map((stimulus) => [
     stimulus.name,
     stimulus,
   ]));
@@ -722,18 +772,18 @@ function validateRun(root, packageName, suite, records) {
         && typeof evalSummary.hadExecutionErrors !== "boolean") {
         errors.push("Vally eval summary has a malformed execution-error flag.");
       }
-      const expectedEvalPath = path.resolve(root, preflight.suiteMap.evalFile);
+      const expectedEvalPath = path.resolve(evalFilePath);
       if (path.resolve(root, evalSummary.evalFilePath) !== expectedEvalPath
         || trialRecords.some((record) => record.evalName !== evalSummary.name
           || path.resolve(root, record.evalFilePath) !== expectedEvalPath
           || record.variant !== evalSummary.variant)) {
         errors.push("Vally trial and eval-summary identities do not match the requested suite.");
       }
-      if (evalSummary.stimuliRun !== preflight.expectedEntries.length
-        || evalSummary.stimuliTotal !== preflight.stimuli.length
+      if (evalSummary.stimuliRun !== expectedEntries.length
+        || evalSummary.stimuliTotal !== stimuli.length
         || stimuliSkipped !== 0) {
         errors.push(
-          `Vally run-summary count mismatch (ran ${evalSummary.stimuliRun}; expected ${preflight.expectedEntries.length}; total ${evalSummary.stimuliTotal}; expected total ${preflight.stimuli.length}; skipped ${stimuliSkipped}).`
+          `Vally run-summary count mismatch (ran ${evalSummary.stimuliRun}; expected ${expectedEntries.length}; total ${evalSummary.stimuliTotal}; expected total ${stimuli.length}; skipped ${stimuliSkipped}).`
         );
       }
       if (typeof evalSummary.passed !== "boolean") {
@@ -768,11 +818,12 @@ function parseJsonl(file) {
 }
 
 function main(argv) {
-  const [mode, packageName, suite, file] = argv;
+  const [mode, packageName, suite, file, ...optionArgs] = argv;
   if (!["--check", "--results"].includes(mode) || !packageName || !suite
-    || (mode === "--results" && !file)) {
+    || (mode === "--results" && !file)
+    || (mode === "--check" && optionArgs.length)) {
     console.error("Usage: node script/validate-native-evals.js --check <package> <smoke|full>");
-    console.error("   or: node script/validate-native-evals.js --results <package> <smoke|full> <results.jsonl>");
+    console.error("   or: node script/validate-native-evals.js --results <package> <smoke|full> <results.jsonl> [--stimuli <JSON array> --eval-file <path>]");
     return 2;
   }
   const root = path.resolve(__dirname, "..");
@@ -785,14 +836,31 @@ function main(argv) {
       }
       return result.errors.length ? 1 : 0;
     }
-    const result = validateRun(root, packageName, suite, parseJsonl(file));
+    let options = {};
+    if (optionArgs.length) {
+      if (optionArgs.length !== 4
+        || optionArgs[0] !== "--stimuli"
+        || optionArgs[2] !== "--eval-file"
+        || !optionArgs[3]) {
+        console.error("Selected results require --stimuli <JSON array> and --eval-file <path>.");
+        return 2;
+      }
+      options = {
+        stimulusNames: JSON.parse(optionArgs[1]),
+        evalFilePath: optionArgs[3],
+      };
+    }
+    const result = validateRun(root, packageName, suite, parseJsonl(file), options);
     for (const error of result.errors) console.error(error);
     for (const diagnostic of result.diagnostics) {
       console.log(`DIAGNOSTIC ASSERTION FAILURE (non-blocking): ${diagnostic.description}`);
       console.log(`  graders: ${diagnostic.failedGraders.join(", ")}`);
     }
     if (!result.errors.length && !result.diagnostics.length) {
-      console.log(`${packageName} ${suite}: all required native stimuli passed.`);
+      const count = options.stimulusNames?.length;
+      console.log(count
+        ? `${packageName} ${suite}: ${count} selected native stimuli passed.`
+        : `${packageName} ${suite}: all required native stimuli passed.`);
     }
     return result.errors.length ? 1 : result.diagnostics.length ? 10 : 0;
   } catch (error) {

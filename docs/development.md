@@ -115,6 +115,51 @@ failed graders remain blocking. All four package suites pass offline mapping
 and strict-schema preflight. Those deterministic checks do not prove model
 behavior; credentialed runs use Copilot and may consume usage.
 
+### Affected local tests
+
+Use the opt-in selector for routine local feedback:
+
+```bash
+npm run test:selector
+npm run test:affected -- --dry-run
+npm run test:affected
+npm run test:affected -- --base main
+```
+
+The selector unions staged, unstaged, and nonignored untracked paths. With
+`--base <ref>`, it also includes committed changes since the merge-base with
+that ref. It runs sequentially and does not change `npm test`, `test:full`,
+or CI.
+
+The selector validates the complete native source-to-stimulus map before
+planning runs. It matches changed files against source `file://` variables,
+native context fixtures, and Vally `agent_environment.files` and `skills`
+inputs. For each changed file, it selects matching smoke stimuli across all
+packages; when none match, it selects the matching full-suite stimuli.
+
+Changes under a package's `tests/` or `evals/` directory also select that
+package's smoke suite. The selector still checks all packages for declared
+inputs before continuing, so a test fixture change can select both its owning
+package's smoke cases and cross-package cases that load the fixture. A changed
+`.apm` file with no declared match reports a coverage gap and selects the
+owning package's smoke suite; this fallback does not establish coverage for
+that file. Shared tooling, unknown paths, and an empty change set select all
+four smoke suites.
+
+Markdown under `docs/`, root and package `README.md`/`CHANGELOG.md`, and YAML
+workflow files under `.github/workflows/` are explicit non-input exceptions.
+They can select nothing unless a native stimulus declares the changed file as
+an input. `--dry-run` prints each path classification and the execution plan.
+Selected runs validate the exact stimulus result inventory; approved
+diagnostic assertion failures remain visible and non-blocking, while execution,
+grader, malformed-result, missing-result, and other failed-result errors block.
+
+This is declared-input selection, not a coverage-adequacy check. Keep using
+full behavioral suites for behavior changes and existing static checks for
+package, policy, and release contracts. Smoke fallbacks do not claim full
+coverage. CI remains unchanged; selector and native runner selection contracts
+run offline through `test:selector`.
+
 From an individual package directory:
 
 ```bash

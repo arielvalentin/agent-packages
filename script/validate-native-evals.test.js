@@ -1053,3 +1053,104 @@ test("trial item IDs must match their stimulus and one-run identity", () => {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+function selectedRun(root, names, outcomes = {}) {
+  const preflight = validateNativeSuite(root, packageName, "smoke");
+  assert.deepEqual(preflight.errors, []);
+  const selected = new Set(names);
+  const evalFilePath = path.join(path.dirname(preflight.evalPath), "affected-selection.eval.yaml");
+  fs.writeFileSync(evalFilePath, yaml.dump({
+    ...preflight.evalSpec,
+    stimuli: preflight.stimuli.filter((stimulus) => selected.has(stimulus.name)),
+  }));
+  const records = names.map((name) => {
+    const record = trial(name, outcomes[name] !== "fail");
+    record.evalFilePath = evalFilePath;
+    record.itemId = `${evalFilePath}::default::_::${name}::trial-0`;
+    return record;
+  });
+  const diagnosticFailure = names.some((name) =>
+    diagnosticStimulusNames.includes(name) && outcomes[name] === "fail"
+  );
+  const runSummary = summary(!diagnosticFailure, names.length);
+  runSummary.evals[0].evalFilePath = evalFilePath;
+  return {
+    evalFilePath,
+    records: [...records, runSummary],
+  };
+}
+
+test("selected native runs enforce exact inventory and keep approved diagnostics non-blocking", () => {
+  const { root, entries } = fixture();
+  try {
+    const selection = selectedRun(root, ["blocking-case"]);
+    const valid = validateRun(root, packageName, "smoke", selection.records, {
+      stimulusNames: ["blocking-case"],
+      evalFilePath: selection.evalFilePath,
+    });
+    assert.deepEqual(valid.errors, []);
+    assert.deepEqual(valid.diagnostics, []);
+
+    const missing = validateRun(
+      root,
+      packageName,
+      "smoke",
+      selection.records.filter((record) => record.type !== "trial-result"),
+      { stimulusNames: ["blocking-case"], evalFilePath: selection.evalFilePath }
+    );
+    assert.ok(missing.errors.some((error) => error.includes("expected one result")));
+
+    const extra = trial(diagnosticStimulusNames[0], true);
+    extra.evalFilePath = selection.evalFilePath;
+    extra.itemId = `${selection.evalFilePath}::default::_::${extra.stimulus}::trial-0`;
+    const unexpected = validateRun(
+      root,
+      packageName,
+      "smoke",
+      [...selection.records.slice(0, -1), extra, selection.records.at(-1)],
+      { stimulusNames: ["blocking-case"], evalFilePath: selection.evalFilePath }
+    );
+    assert.ok(unexpected.errors.some((error) => error.includes("Unexpected Vally stimulus result")));
+
+    const diagnostic = selectedRun(root, [diagnosticStimulusNames[0]], {
+      [diagnosticStimulusNames[0]]: "fail",
+    });
+    const diagnosticResult = validateRun(root, packageName, "smoke", diagnostic.records, {
+      stimulusNames: [diagnosticStimulusNames[0]],
+      evalFilePath: diagnostic.evalFilePath,
+    });
+    assert.deepEqual(diagnosticResult.errors, []);
+    assert.deepEqual(
+      diagnosticResult.diagnostics.map((item) => item.stimulus),
+      [diagnosticStimulusNames[0]]
+    );
+
+    entries[0].status = "unsupported";
+    entries[0].reason = "fixture unsupported row";
+    fs.writeFileSync(
+      path.join(root, "docs/evaluations-migration-map.json"),
+      JSON.stringify({
+        suites: {
+          [packageName]: {
+            evalFile,
+            sourceConfiguration: JSON.parse(
+              fs.readFileSync(path.join(root, "docs/evaluations-migration-map.json"), "utf8")
+            ).suites[packageName].sourceConfiguration,
+            sourceExpandedRowCount: entries.length,
+            sourceSmokeRowCount: entries.length,
+            nativeStimulusCount: entries.length,
+            mappedRowCount: entries.length - 1,
+          },
+        },
+        cases: entries,
+      })
+    );
+    const incompleteSuite = validateRun(root, packageName, "smoke", selection.records, {
+      stimulusNames: ["blocking-case"],
+      evalFilePath: selection.evalFilePath,
+    });
+    assert.ok(incompleteSuite.errors.some((error) => error.includes("cannot run without dropping")));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
