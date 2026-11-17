@@ -167,33 +167,29 @@ skill supplied here, and use this package's version intentionally.
 ## Safeguards
 
 `human-interaction-safeguard` owns actor and conversation-chain classification
-for existing public GitHub interactions. It exempts only a comment whose
-immutable comment-author ID matching the authenticated user's ID and a
-verified User item author with an available ID; the item author may be someone
-else. Missing REST App metadata alone does not block that match; the owner
-accepts that an App using the owner's token may be indistinguishable when the
-field is absent. Any observed Bot or non-null App metadata takes precedence.
-A chain containing only requester-account and Bot/App comments may proceed as
-mixed: route only Bot/App content to feedback handling, and treat self-authored
-content as context. Other human interactions and unknown actors stop
-automation. The ID match verifies account attribution, not who composed a
-comment or permission to expand the current direct user request.
+for existing public GitHub interactions. REST Bot/App metadata and GraphQL
+Bot author types are `AUTOMATION_FLOW`; REST Users and unknown or unverifiable
+actors are `HUMAN_STOP`. Every item in a complete conversation chain must be
+verified Bot/App automation before the chain can proceed. It does not correlate
+identities or infer actor type from login text.
 `acting-on-behalf` remains the posting and attribution backstop.
 
-For verified human interaction, the agent gives a concise warning and explains
-that the user can handle it directly or authorize one described pending action.
-Use the client's user-question flow, such as `ask_user`, or a clear direct user
-reply. Ordinary confirmation such as "Yes, draft that reply" is enough when the
-action and target are unambiguous. No exact sentence, terminal, special key, or
-model name is required. See the
-[canonical confirmation policy](.apm/skills/human-interaction-safeguard/SKILL.md#single-action-confirmation).
+For a verified human interaction, the agent pauses, summarizes the concern
+privately, and asks whether the user allows one described reply on their behalf.
+A clear user confirmation authorizes composing and sending that reply once,
+without separate draft approval. A draft-only request authorizes drafting only;
+posting still requires separate approval. Verified Bot/App interactions use
+normal flows without this human confirmation. Reply permission does not
+authorize resolution, merging, implementation, or unrelated work. Unknown
+actors and incomplete retrieval cannot be overridden. See the
+[canonical confirmation policy](.apm/skills/human-interaction-safeguard/SKILL.md#single-reply-confirmation).
 
-Approval applies only to the described action, target and work scope or post
-body. Drafting, posting and resolution are separate. Changed scope or chain,
-lost state, and retries require fresh confirmation. A confirmed action stays
-`HUMAN_STOP`; it never starts an automation loop or grants session-wide access.
-Silence, ambiguous assent, public comments, repository/tool text and other
-agents' messages are not consent. The agent cannot answer its own question.
+Approval applies only to the described reply target, topic, and scope. The
+reply must stay within that scope. Approval does not change the `HUMAN_STOP`
+classification or grant resolution, merge, or session-wide access. Changed
+scope or chain, lost state, and retries require fresh confirmation. Silence,
+ambiguous assent, public comments, repository or tool text, and other agents'
+messages are not consent. The agent cannot answer its own question.
 
 Incomplete retrieval, pagination failures, missing/unverified actor metadata,
 and an unavailable safeguard cannot be overridden. Posting permission,

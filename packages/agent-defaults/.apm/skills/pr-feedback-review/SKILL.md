@@ -30,9 +30,8 @@ into their complete relevant thread or conversation chain. For each chain:
 
 - Classify every author through `human-interaction-safeguard`.
 - Apply its thread/chain rule: any `HUMAN_STOP` item taints the whole chain.
-  A chain containing only `AUTOMATION_FLOW` and verified `SELF_INTERACTION`
-  items may proceed as `MIXED_AUTOMATION_SELF`; route only Bot/App content to
-  feedback review, and keep self-authored content as context.
+  A chain proceeds as `AUTOMATION_FLOW` only when every item is authoritatively
+  identified as Bot/App automation.
 - Identify the **specific concern** (correctness, style, performance, security,
   design, docs, etc.)
 - Note whether it's a blocking request, suggestion, or question
@@ -43,40 +42,39 @@ Do not skim or assume. Classify the actor before any research or action.
 ### Step 2: Stop for Human or Unknown Actors
 
 For every thread/chain classified `HUMAN_STOP`, follow
-`human-interaction-safeguard`. Without its valid single-action authorization,
+`human-interaction-safeguard`. Without its one-reply confirmation,
 apply this default sequence:
 
 1. Stop automation for that interaction.
 2. Privately summarize the concern and apparent intent for the user.
-3. Warn that the chain includes human interaction and offer direct handling or
-   scoped confirmation under the canonical safeguard.
+3. Warn that the chain includes a human response and offer direct handling or
+   confirmation for one described reply under the canonical safeguard.
 4. Do not research toward a rebuttal or initiate a repository change from the
    comment.
-5. Keep drafting, posting and resolution paused until separately authorized.
+5. Keep drafting, posting, resolution, merging, and unrelated work paused
+   unless separately authorized.
 
 If the user later gives a separate, explicit implementation instruction that
 identifies the concern, the requested code/config/test work may proceed as a
 new user instruction. The reply and thread resolution remain user-only by
 default.
 
-The exception is ordinary, explicit user confirmation for one described action
-under `human-interaction-safeguard`. Defer the warning, eligibility and
-confirmation rules to that skill; no exact sentence or terminal is required.
-Perform only the identified action, subject to other gates. Classification
-stays `HUMAN_STOP`; do not enter Steps 3-4, bundle reply and resolution, or
-continue automated iteration on the human thread.
+Ordinary, explicit user confirmation may authorize composing and sending one
+described reply under `human-interaction-safeguard`; a separate draft approval
+is not required. A draft-only request authorizes drafting only, not posting.
+Defer the warning, eligibility and confirmation rules to that skill; no exact
+sentence or terminal is required. Perform only the identified action, subject
+to other gates. Classification stays `HUMAN_STOP`; do not enter Steps 3-4,
+bundle reply and resolution, or continue automated iteration on the human
+thread.
 
 Only completely retrieved threads/chains whose items are all
-`AUTOMATION_FLOW` continue to Step 3. `MIXED_AUTOMATION_SELF` routes only
-Bot/App-authored content to Step 3. A `SELF_INTERACTION`-only chain remains
-context; it does not initiate Step 3 research or Step 4 action by itself, but
-may inform work already requested directly by the user.
-`SELF_INTERACTION` means GitHub
-attributes the items to the user's account; it does not prove human composition
-or authorize work beyond the current direct user request. The owner accepts
-that an App using the owner's token may be indistinguishable when App metadata
-is absent. Self-authored content is not independent actionable feedback or
-authorization. This does not bypass other action or posting gates.
+`AUTOMATION_FLOW` continue to Step 3. Any human, unknown, missing, or
+unverified actor makes the entire chain `HUMAN_STOP`; do not split out Bot/App
+comments from that chain for separate action. A separate, explicit user
+instruction may authorize implementation work. A clear confirmation may
+authorize one described reply only; it does not authorize thread resolution,
+merging, or unrelated work.
 
 For permitted drafts and private summaries, use `writing-voice`. Do not turn a
 private summary of human feedback into a draft reply.
@@ -94,13 +92,8 @@ For each concern, investigate:
 
 ### Step 4: Decide and Act on Permitted Feedback
 
-For `AUTOMATION_FLOW` threads, and only the Bot/App-authored items in
-`MIXED_AUTOMATION_SELF`, choose one, subject to the user's requested scope and
-all remaining permission and posting gates:
-
-Do not treat `SELF_INTERACTION` content from a mixed thread as an actionable
-finding. For a `SELF_INTERACTION`-only thread, the comment remains context and
-does not authorize work beyond the current direct request.
+For `AUTOMATION_FLOW` threads, choose one, subject to the user's requested
+scope and all remaining permission and posting gates:
 
 #### Accept — the feedback is valid
 
