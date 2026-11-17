@@ -54,6 +54,7 @@ runs:
       env:
         VALLY_RESULTS_DIR: ${{ runner.temp }}/vally-results
         GH_TOKEN: ${{ inputs.copilot-token }}
+        VALLY_MODEL: gpt-5.3-codex
         EVAL_PACKAGE: ${{ inputs.package }}
         EVAL_SUITE: ${{ inputs.suite }}
       run: |

@@ -2088,6 +2088,7 @@ stimuli:
         config:
           pattern: ^\s*I will clone octocat/Hello-World from https://github\.com/octocat/Hello-World\.\s*$
     simulation:
+      max_iterations: 1
       tool_overrides:
         bash:
           output: Shell execution is disabled in this text-only evaluation.
@@ -2831,6 +2832,7 @@ stimuli:
       suite: full
       source_case: '121'
       source_row: '1'
+      diagnostic: assertion-only
       coverage: root-policy-behavior
     agent_environment:
       files:
@@ -3720,7 +3722,9 @@ stimuli:
         config:
           pattern: >-
             [sS][kK][iI][pP]|[nN][oO][tT] [rR][eE][pP][eE][aA][tT]|[nN][oO]
-            [dD][uU][pP][lL][iI][cC][aA][tT][eE]
+            [dD][uU][pP][lL][iI][cC][aA][tT][eE]|[dD][oO][eE][sS] [nN][oO][tT]
+            [rR][uU][nN] [aA] [nN][eE][wW] [iI][nN][tT][aA][kK][eE]
+            [rR][eE][vV][iI][eE][wW]
     simulation:
       tool_overrides:
         bash:
@@ -3843,6 +3847,7 @@ stimuli:
       suite: full
       source_case: '164'
       source_row: '1'
+      diagnostic: assertion-only
     agent_environment:
       files:
         - src: ../.apm/skills/tech-research/SKILL.md
@@ -3954,6 +3959,7 @@ stimuli:
       suite: full
       source_case: '169'
       source_row: '1'
+      diagnostic: assertion-only
     agent_environment:
       files:
         - src: ../.apm/skills/tech-research/SKILL.md
@@ -4585,6 +4591,7 @@ stimuli:
       suite: full
       source_case: '189'
       source_row: '1'
+      diagnostic: assertion-only
     agent_environment:
       files:
         - src: fixtures/context-05a1215ce1d3b39f.md
@@ -4634,6 +4641,7 @@ stimuli:
       suite: smoke
       source_case: '191'
       source_row: '1'
+      diagnostic: assertion-only
     agent_environment:
       files:
         - src: fixtures/context-7200cd64cec876cc.md
@@ -5072,6 +5080,7 @@ stimuli:
       suite: smoke
       source_case: '211'
       source_row: '1'
+      diagnostic: assertion-only
     agent_environment:
       files:
         - src: fixtures/context-05a1215ce1d3b39f.md
@@ -9172,6 +9181,7 @@ stimuli:
       suite: full
       source_case: '367'
       source_row: '1'
+      diagnostic: assertion-only
     agent_environment:
       files:
         - src: ../.apm/skills/acting-on-behalf/SKILL.md

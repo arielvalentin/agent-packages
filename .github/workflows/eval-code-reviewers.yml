@@ -17,22 +17,6 @@ on:
       - "docs/evaluations-migration-map.json"
       - ".github/workflows/eval-code-reviewers.yml"
       - ".github/actions/eval-package/**"
-  pull_request:
-    branches: [main]
-    paths:
-      - "packages/code-reviewers/**"
-      - "package.json"
-      - "package-lock.json"
-      - "script/run-evals.js"
-      - "script/validate-native-evals.js"
-      - "script/validate-native-evals.test.js"
-      - "script/native-eval-graders.mjs"
-      - "script/native-eval-graders.test.js"
-      - "script/vally-output.js"
-      - "script/vally-output.test.js"
-      - "docs/evaluations-migration-map.json"
-      - ".github/workflows/eval-code-reviewers.yml"
-      - ".github/actions/eval-package/**"
   workflow_dispatch:
     inputs:
       suite:
@@ -51,7 +35,14 @@ concurrency:
 jobs:
   eval:
     name: code-reviewers
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner
+    permissions:
+      contents: read
+      copilot-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.suite == 'full' && 300 || 120 }}
     env:
@@ -62,4 +53,4 @@ jobs:
         with:
           package: code-reviewers
           suite: ${{ inputs.suite || 'smoke' }}
-          copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
