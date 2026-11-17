@@ -16,7 +16,7 @@
     "test:reviewers:smoke": "node script/run-evals.js code-reviewers smoke"
   },
   "devDependencies": {
-    "@microsoft/vally-cli": "0.19.0",
+    "@microsoft/vally-cli": "0.21.0",
     "js-yaml": "^5.5.0"
   },
   "engines": {
