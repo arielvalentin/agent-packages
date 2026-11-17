@@ -5,7 +5,7 @@
     "test": "npm run test:dependencies && npm run test:smoke",
     "test:dependencies": "node --test script/check-npm-dependencies.test.js script/validate-native-evals.test.js script/vally-output.test.js script/native-eval-graders.test.js",
     "test:affected": "node script/run-affected-tests.js",
-    "test:selector": "node --test script/run-affected-tests.test.js",
+    "test:selector": "node --test script/run-affected-tests.test.js script/run-evals.test.js",
     "test:smoke": "npm run test:defaults:smoke && npm run test:coordinator:smoke && npm run test:dev-workflow:smoke && npm run test:reviewers:smoke",
     "test:full": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
     "test:defaults": "node script/run-evals.js agent-defaults full",

@@ -83,7 +83,7 @@ script/setup
 npm test                              # all package smoke suites
 npm run test:affected                 # affected local cases, safe smoke fallback
 npm run test:affected -- --dry-run     # explain selection without running evals
-npm run test:selector                 # selector and offline Promptfoo contracts
+npm run test:selector                 # selector and native-runner contracts
 npm run test:full                     # all full behavioral suites
 npm run test:defaults                  # full canonical shared skills suite
 npm run test:defaults:smoke            # canonical shared skills smoke suite
