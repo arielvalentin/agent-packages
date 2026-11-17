@@ -198,7 +198,8 @@ classify_chain() {
       end;
     . as $root
     |
-    if ((.comments? | type) != "array")
+    if (has("retrieval_complete") and (.retrieval_complete != true))
+       or ((.comments? | type) != "array")
        or ((.comments | length) == 0)
     then "HUMAN_STOP"
     else
@@ -738,6 +739,12 @@ assert_eq "HUMAN_STOP" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "stale complete flag cannot override incomplete pagination"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":false,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "complete pagination cannot override explicit retrieval failure"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":null,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "complete pagination cannot override invalid explicit retrieval status"
 assert_eq "SELF_INTERACTION" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"pr_review_comment","user":{"type":"User","id":42},"performed_via_github_app":null}]}' | classify_chain)" \
   "all-self-interaction chain"
