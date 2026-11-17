@@ -54,6 +54,10 @@ const args = [
   "--grader-plugin",
   path.join(__dirname, "native-eval-graders.mjs"),
 ];
+if (typeof process.env.VALLY_MODEL === "string" && process.env.VALLY_MODEL.trim()) {
+  args.push("--model", process.env.VALLY_MODEL.trim());
+  console.log(`Evaluation model: ${process.env.VALLY_MODEL.trim()}`);
+}
 if (suite === "smoke") args.push("--tag", "suite=smoke");
 
 console.log(`Running ${packageName} ${suite} with GitHub Copilot Evals (Vally).`);

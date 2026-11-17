@@ -13,8 +13,9 @@ Keep that material in a private repository.
 ## Commit authoring
 
 For this repository, all commit subjects and PR titles must follow
-[Conventional Commits](https://www.conventionalcommits.org/) and be at most
-72 characters. The default, expected form is:
+[Conventional Commits](https://www.conventionalcommits.org/). Commit subjects
+must be at most 72 characters; PR titles have no repository-specific length
+limit. The default, expected form is:
 
 ```
 <type>: <short summary>
@@ -69,7 +70,7 @@ When used, the scope should be the package or directory name most affected (e.g.
 4. **Body explains intent** — if the summary alone doesn't convey _why_, add a body paragraph.
 5. **No generated noise** — do not include tool output, debug logs, or LLM reasoning in commit messages.
 6. **Reference issues** — if the work relates to a GitHub issue, include `Closes #N` or `Refs #N` in the body or footer.
-7. **Validate before use** — for this repository, check the subject/title against `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*` and ensure it is no more than 72 characters before committing, creating a PR, or marking a PR ready for review (via built-in PR tools or `gh`).
+7. **Validate before use** — for this repository, check the subject/title against `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*` before committing, creating a PR, or marking a PR ready for review (via built-in PR tools or `gh`). Ensure the commit subject is no more than 72 characters before committing.
 
 ### Example
 

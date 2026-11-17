@@ -20,6 +20,12 @@ strategy on consumers.
 Permission, human-interaction, attribution, and mandatory safety/review gates
 still apply.
 
+When presenting a plain shell command, distinguish an outer wrapper around the
+whole command from quotes delimiting its arguments. A request for no outer
+quotes does not remove shell syntax needed to keep argument values intact.
+For example, `cmd --option "two words"` has a quoted argument but no outer
+wrapper; the unquoted form passes two separate words.
+
 For PR titles and bodies, load `writing-voice` and its
 `references/artifact-authoring.md` for authoring and the final pre-post reader
 check. Use `acting-on-behalf` for posting permission and conditional attribution.
@@ -27,12 +33,43 @@ This applies to initial creation and later updates. Check applicable PR template
 in the repository root, `docs/`, and `.github/`, including template directories,
 before either phase; apply the canonical template and content rules there.
 
-Resolve the exact repository first; resolve the PR once one exists. A bare PR number means the active
-repository only; pass `--repo <owner>/<repo>` to every repository-scoped
-`gh` command, including `gh pr` and `gh run`, and use that exact repository in
-`gh api` paths. Replace placeholders in command examples with the resolved
-owner, repository, and PR number. If the target cannot be identified
+When summarizing lifecycle procedures, preserve the policy's defined terms and
+target scope. State plainly when a step is skipped or required; do not
+paraphrase away the stage or SHA being discussed.
+When restating a named target or qualifier, keep its exact phrase contiguous.
+Put clarifying modifiers outside the named phrase, not between its terms.
+
+Resolve the exact repository first; resolve the PR once one exists. A bare PR
+number means the active repository only. Pass an explicit `--repo` target to
+every repository-scoped `gh` command, including `gh pr` and `gh run`, and use
+that exact repository in `gh api` paths. Do not rely on implicit repository
+selection or `GH_REPO` unless it has been verified against the exact target.
+For a command targeting the active checkout when its owner/repository is not
+already known, derive `--repo` from `git remote get-url origin`, preserve its
+host, and pass the host-qualified repository explicitly; never nest a `gh`
+command substitution inside another `gh` command. Use `origin` only when it is
+the user's exact target. Replace placeholders in command examples with the
+resolved owner, repository, and PR number. If the target cannot be identified
 unambiguously, ask before reading or acting.
+Pass `--title` and `--body` as ordinary single- or double-quoted shell literals.
+For a brief, single-paragraph body, keep the value on one line; use a multiline
+ordinary quoted literal only when the requested body needs multiple paragraphs.
+Do not use ANSI-C `$'...'` quoting or shell expansions in either value.
+When deriving `--repo` from `origin`, use one anchored `sed -nE` script
+that emits `HOST/OWNER/REPO[.git]`, preserving the host and optional `.git`
+suffix while omitting URL user information. Keep the literal `https://`
+outside the quoted command substitution:
+
+```sh
+--repo "https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p')"
+```
+
+The `p` flag emits no path when the origin does not match; the resulting
+`https://` target is rejected by `gh` with `no hostname detected` before any
+request, rather than falling back to `GH_REPO` or another repository context.
+Origins with explicit ports intentionally do not match this form. Resolve a
+`gh`-supported host-qualified target without stripping the port before acting.
+Do not add further substitutions or rewrite the target to a constant.
 
 ## Trigger phrases
 
@@ -454,8 +491,9 @@ Take a fresh state snapshot before fixing feedback and after every push. These
 are separate refresh points; a push invalidates earlier CI and review evidence.
 Record the PR state (open, closed, or merged), current head SHA, review-thread
 state, CI rollup, and merge state.
-Use the selected governing SHA for required checks and the head SHA for review
-coverage. Do not report a clean state from stale checks or review data.
+Use the selected SHA for required checks; it is the revision that governs them.
+Use the head SHA for review coverage. Do not report a clean state from stale
+checks or review data.
 After a head change, earlier CI and review coverage is stale; repeat the
 relevant checks for the new head. The older review cannot count as new-head
 coverage. Complete the Phase 5 wait for that head once; do not restart it just
@@ -767,7 +805,7 @@ rather than report ready after 10 iterations.
 
 | Condition | Action |
 |-----------|--------|
-| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected governing SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
+| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
 | Head changed or required-check evidence is stale | Rerun Phase 4/5 for the current head; revalidate earlier findings against the current diff; do not report ready |
 | Required CI is still pending after the bounded wait | Report pending checks and stop; do not report ready |
 | Phase 5 wait for current head is still active and no current-head review has appeared | Continue the bounded wait; do not report ready |

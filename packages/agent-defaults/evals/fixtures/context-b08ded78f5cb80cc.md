@@ -40,7 +40,9 @@ format regex alone does not enforce the 72-character maximum.
 After a commit, amend, rebase, or other history rewrite, validate the format
 and length of every resulting commit subject before publishing. Apply any
 repository-required subject format instead of the Conventional default.
-Conventional PR titles also follow the 72-character maximum here;
+Conventional PR titles also follow the 72-character maximum here. Count the
+complete title; 73 or more characters is invalid even when its format regex
+matches.
 `pr-lifecycle` owns PR title format and repository-format precedence.
 
 ## Co-author trailer
