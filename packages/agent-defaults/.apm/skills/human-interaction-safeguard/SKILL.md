@@ -193,6 +193,15 @@ retrieved, correlate the same comment only when the REST comment's immutable
 integer. Do not correlate by author ID, body, login, or other mutable content.
 Count a correlated comment once when applying chain taint.
 
+Before applying Bot/App precedence or self attribution, compare the comment
+authors across a correlated pair. REST `user.type` and GraphQL
+`author.__typename` must agree exactly as `User` or `Bot`. If both immutable
+comment-author IDs are present, they must be positive integers and match.
+An actor-type disagreement or conflicting comment-author IDs makes the pair
+`HUMAN_STOP`, even with App metadata or a requester-account ID. This is
+contradictory metadata for one comment, not a restriction on verified self
+comments or separate Bot/self replies.
+
 When relying on self attribution for a correlated REST/GraphQL review comment,
 validate the PR item author separately on both surfaces: REST `user.type` and
 `user.id`, and GraphQL `author.__typename` and `author.databaseId`. Both types
@@ -201,14 +210,17 @@ and the IDs must match. If either surface is missing or the IDs disagree, the
 correlated comment is `HUMAN_STOP`; do not reuse one surface's item-author
 metadata to validate the other. Do not apply this `User`-only requirement to
 observations that are conclusively Bot/App-authored. An all-Bot/App correlated
-comment remains `AUTOMATION_FLOW` regardless of the PR author's actor type.
+comment does not require item-author metadata or a `User` PR author. However,
+if both item-author IDs are present and disagree, the pair is `HUMAN_STOP`
+even when all observations are Bot/App-authored.
 
 Reconcile the observations for that one comment in this order:
 
 1. If any observation is `HUMAN_STOP` because its actor is unknown, another
    human, or its identity metadata is missing, invalid, or inconsistent, the
    correlated comment is `HUMAN_STOP`.
-2. Otherwise, if any observation has a non-null
+2. Otherwise, after the correlated actor and item-author checks pass, if any
+   observation has a non-null
    `performed_via_github_app` or authoritative `Bot` type, classify the
    correlated comment as `AUTOMATION_FLOW`; never downgrade observed Bot/App
    attribution to `SELF_INTERACTION`.
@@ -235,7 +247,11 @@ surface or REST/GraphQL item-author IDs that differ makes the correlated
 comment `HUMAN_STOP`. Never return `SELF_INTERACTION` on the strength of only
 one surface's item-author metadata. A correlated pair with only conclusive
 Bot/App observations does not depend on item-author metadata and remains
-`AUTOMATION_FLOW`.
+`AUTOMATION_FLOW` only when there is no contradictory actor or item-author
+metadata. App-attributed REST `User` plus GraphQL self-`User` observations
+still require the per-surface item-author checks: missing item-author metadata
+makes that pair `HUMAN_STOP`. App precedence does not repair unverifiable
+self attribution on the other surface.
 
 ## Residual risk (owner-accepted)
 

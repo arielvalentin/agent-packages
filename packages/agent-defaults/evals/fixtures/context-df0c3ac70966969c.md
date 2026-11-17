@@ -681,13 +681,19 @@ pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
 Correlate REST review-comment `id` with GraphQL comment `databaseId` before
 chain classification; absent REST App metadata alone does not block a verified
 `SELF_INTERACTION` under the owner-accepted residual risk. Any observed Bot or
-non-null App metadata still takes precedence.
+non-null App metadata takes precedence only after the canonical consistency
+checks pass. For the same correlated comment, conflicting actor types or
+present-but-disagreeing author IDs stop as `HUMAN_STOP`; this does not change
+the handling of separate Bot and verified-self comments.
 For correlated REST/GraphQL review comments, independently verify the REST
 item author's exact `User` type and `id` and the GraphQL PR author's exact
 `User` type and `databaseId` when relying on self attribution; require the
 immutable IDs to match, or stop as `HUMAN_STOP`. Do not require a `User`
 item author for observations conclusively authored by Bot/App; an all-Bot/App
-correlated comment remains `AUTOMATION_FLOW`.
+correlated comment remains `AUTOMATION_FLOW` unless the correlated metadata
+contradicts itself. Present item-author IDs that disagree stop even on that
+path. App-attributed REST `User` plus GraphQL self-`User` observations with
+missing item-author metadata remain `HUMAN_STOP`.
 Apply the thread/chain taint rule after retrieval: a chain may continue only
 when every root comment and reply is verified as `AUTOMATION_FLOW` or
 `SELF_INTERACTION`. A chain containing both is `MIXED_AUTOMATION_SELF`, not

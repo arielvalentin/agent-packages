@@ -154,17 +154,40 @@ classify_chain() {
       then ($root.graphql_item_author // $root.item_author)
       else ($root.rest_item_author // $root.item_author)
       end;
+    def correlated_actor_consistent($observations):
+      if (any($observations[]; .surface == "pr_review_comment"))
+        and (any($observations[]; .surface == "graphql"))
+      then ([$observations[] |
+          if .surface == "graphql"
+          then {type: .author.__typename, id: .author.databaseId}
+          else {type: .user.type, id: .user.id}
+          end]) as $actors
+        | ([$actors[].id | select(. != null)]) as $ids
+        | (all($actors[]; .type == "User" or .type == "Bot")
+          and all($ids[]; positive_integer)
+          and (($ids | unique | length) <= 1)
+          and (([$actors[].type] | unique | length) == 1))
+      else true
+      end;
     def correlated_item_author_consistent($root; $observations):
       if (any($observations[]; .surface == "pr_review_comment"))
         and (any($observations[]; .surface == "graphql"))
-        and (any($observations[];
-          self_interaction($root.authenticated_user_id;
-            item_author_for_surface($root))))
-      then (($root.rest_item_author.type? == "User")
-        and ($root.graphql_item_author.__typename? == "User")
-        and ($root.rest_item_author.id? | positive_integer)
-        and ($root.graphql_item_author.databaseId? | positive_integer)
-        and ($root.rest_item_author.id == $root.graphql_item_author.databaseId))
+      then
+        if ($root.rest_item_author.id? != null)
+          and ($root.graphql_item_author.databaseId? != null)
+          and ($root.rest_item_author.id != $root.graphql_item_author.databaseId)
+        then false
+        elif any($observations[];
+          (automated | not)
+          and self_interaction($root.authenticated_user_id;
+            item_author_for_surface($root)))
+        then (($root.rest_item_author.type? == "User")
+          and ($root.graphql_item_author.__typename? == "User")
+          and ($root.rest_item_author.id? | positive_integer)
+          and ($root.graphql_item_author.databaseId? | positive_integer)
+          and ($root.rest_item_author.id == $root.graphql_item_author.databaseId))
+        else true
+        end
       else true
       end;
     def classify($account_id; $item_author):
@@ -183,7 +206,8 @@ classify_chain() {
         | map(select(review_key != null) | . + {_review_key: review_key})
         | group_by(._review_key)
         | map(
-            if (correlated_item_author_consistent($root; .) | not)
+            if (correlated_actor_consistent(.) | not)
+              or (correlated_item_author_consistent($root; .) | not)
             then "HUMAN_STOP"
             elif any(.[];
               classify($root.authenticated_user_id;
@@ -378,7 +402,13 @@ require "$policy" "Bot/App precedence applies only without a human stop" \
 require "$policy" "self item-author mismatch stops" \
   'When self attribution is used for a correlated pair, missing valid item-author metadata.{0,220}makes the correlated comment `HUMAN_STOP`'
 require "$policy" "Bot/App correlation does not require a User item author" \
-  'A correlated pair with only conclusive Bot/App observations does not depend on item-author metadata and remains `AUTOMATION_FLOW`'
+  'A correlated pair with only conclusive Bot/App observations does not depend on item-author metadata and remains `AUTOMATION_FLOW` only when there is no contradictory actor or item-author metadata'
+require "$policy" "correlated actor-type contradictions stop" \
+  'An actor-type disagreement or conflicting comment-author IDs makes the pair `HUMAN_STOP`'
+require "$policy" "all-automation item-author contradictions stop" \
+  'if both item-author IDs are present and disagree, the pair is `HUMAN_STOP` even when all observations are Bot/App-authored'
+require "$policy" "App/self correlation retains item-author checks" \
+  'App-attributed REST `User` plus GraphQL self-`User` observations still require the per-surface item-author checks'
 require "$policy" "self account includes agent-posted replies" \
   'agent-posted replies attributed to the same account are also `SELF_INTERACTION`'
 require "$policy" "self-interaction is scoped to direct request" \
@@ -669,6 +699,27 @@ assert_eq "AUTOMATION_FLOW" \
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"rest_item_author":{"type":"Bot","id":97},"graphql_item_author":{"__typename":"Bot","databaseId":97},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"Bot","id":99}},{"surface":"graphql","databaseId":700,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
   "correlated all-Bot feedback on a Bot-authored PR"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"pr_review_comment","id":701,"user":{"type":"Bot","id":99}},{"surface":"graphql","databaseId":701,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
+  "correlated all-Bot feedback without item-author metadata"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"pr_review_comment","id":702,"user":{"type":"Bot","id":99},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":702,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
+  "correlated App/Bot observations without GraphQL item-author metadata"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":703,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":703,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
+  "correlated self/Bot comment-author ID contradiction"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":704,"user":{"type":"Bot","id":99}},{"surface":"graphql","databaseId":704,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated Bot/self comment-author ID contradiction"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"comments":[{"surface":"pr_review_comment","id":705,"user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":705,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
+  "App attribution cannot override correlated comment-author ID contradiction"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":97},"comments":[{"surface":"pr_review_comment","id":706,"user":{"type":"Bot","id":99}},{"surface":"graphql","databaseId":706,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
+  "all-Bot correlation rejects contradictory item-author IDs"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"comments":[{"surface":"pr_review_comment","id":707,"user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":707,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "App/self correlation without item-author metadata fails closed"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)" \
   "Bot root with User reply"
@@ -717,9 +768,15 @@ assert_eq "AUTOMATION_FLOW" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":97},"graphql_item_author":{"__typename":"User","databaseId":97},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":43}}]}' | classify_chain)" \
   "Bot/App observation does not override conflicting human identity"
-assert_eq "AUTOMATION_FLOW" \
-  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"Bot"}}]}' | classify_chain)" \
-  "correlated Bot metadata takes precedence over incomplete REST App metadata"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"Bot","databaseId":42}}]}' | classify_chain)" \
+  "correlated actor-type contradiction stops even when author IDs agree"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "correlated actor-type contradiction stops with a missing Bot author ID"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":708,"user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":708,"author":{"__typename":"Bot","databaseId":42}}]}' | classify_chain)" \
+  "App attribution cannot override a correlated actor-type contradiction"
 assert_eq "MIXED_AUTOMATION_SELF" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42,"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"graphql","databaseId":701,"author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "different review-comment IDs retain the Bot/self mixed classification"
