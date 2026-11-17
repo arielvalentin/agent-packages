@@ -65,9 +65,11 @@ Apply this section only to direct chat responses to the user:
 - Match model capability to task complexity (see § Incremental dispatch
   → Model selection for dispatch).
 - For panel work, prefer distinct suitable GPT model IDs; use non-GPT models
-  only when too few suitable GPT choices are available. Reviews are
-  single-reviewer for non-code and tiny scopes, and adaptive 2+1 for
-  substantive code changes — see § Review panel dispatch.
+  only when too few suitable GPT choices are available. With
+  `explicit_multi_review: true`, use the adaptive 2+1 panel even for a scope
+  that would otherwise qualify for the fast path or a role otherwise marked
+  single-model. With `false`, follow the canonical scope classification in
+  § Review panel dispatch.
 
 ## Early draft PR (production changes only)
 
@@ -136,6 +138,7 @@ After each incremental implementer step completes, run `review-fix-loop`:
 ```
 reviewer: code-review
 scope: step diff
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 1
 severity_threshold: blocker
 on_exhaust: warn
@@ -152,6 +155,7 @@ run `review-fix-loop`:
 reviewer: code-review
 scope: cumulative diff (branch vs base)
 focus: integration issues, missing error handling, broken contracts between components
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -165,6 +169,7 @@ After the pre-commit code review passes, run `review-fix-loop`:
 reviewer: security-review
 scope: cumulative diff (branch vs base)
 focus: exploitable vulnerabilities only, with severity and confidence
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -191,6 +196,7 @@ reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)
 context: design doc, implementation summary, rubber-duck findings from each stage
 focus: systemic issues, security gaps, performance risks, design/implementation misalignment
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -267,40 +273,51 @@ unavailable, omit the model override and let the runtime auto-select.
 
 ## Review panel dispatch
 
-Every specialist review dispatch MUST go through `consensus-panel` unless its
-role is explicitly designated single-model **or the scope qualifies for the
-single-reviewer fast path**. Research fact-finding never uses the panel.
+Every specialist review dispatch MUST go through `consensus-panel`. A role
+explicitly designated single-model may use one reviewer only when
+`explicit_multi_review` is `false`; a `true` value overrides that designation
+and selects the adaptive panel regardless of role or scope. When the value is
+`false`, the scope qualifies for the single-reviewer fast path only as defined
+below. Research fact-finding never uses the panel.
 
-### Single-reviewer fast path (checked first, overrides the panel rule)
+### Single-reviewer fast path (`explicit_multi_review: false`)
 
 Classify the review scope before selecting any model, and re-classify at the
-start of every review cycle. Dispatch **exactly one** mid- or high-capability
-reviewer — no panel, no second model, no synthesis — when either holds:
+start of every review cycle. When `explicit_multi_review` is `false`, dispatch
+**exactly one** mid- or high-capability reviewer — no panel, no second model,
+no synthesis — when either holds:
 
 - **Non-code change** — every changed file is a text artifact with no
-  executable effect (documentation, prose, markdown, comments, changelog,
-  license). No source, config, schema, script, or workflow file changed.
+  executable or behavior-defining effect (ordinary documentation, editorial
+  prose, comments, changelog, license). Markdown changes to instructions,
+  skills, policies, prompts, workflows, or contracts that alter behavior,
+  gates, or decisions are substantive.
 - **Tiny change** — at most 10 changed lines (added + removed, ignoring
   pure-whitespace lines) across at most 2 files, including one-line changes,
-  with no new or materially altered control flow, no new dependency, and no
-  public API contract change.
+  with no new or materially altered control flow, no new dependency, no public
+  API contract change, and no behavior-defining instruction change.
 
 Pick the tier by complexity and risk: mid-tier for prose and mechanical edits,
 high-capability when the tiny change is semantically subtle (boundary
 condition, regex, format string, arithmetic). Never a fast/light model. Set
 `consensus_role: single` and omit `model_index`/`panel_wave`.
 
-A fast-path scope is disqualified — and takes the full panel — when it touches
-authentication, authorization, access control, cryptography, secrets, input
-validation, a public API contract, concurrency, locking, or shared mutable
-state, or an irreversible data operation, however small the diff. That list is
-closed. A
-`blocker`/`major` finding does not by itself promote a fast-path scope to a
-panel; only re-classification does. `consensus-panel` § Step 1 holds the
-operational definitions for pure-whitespace lines, altered control flow, public
-API contracts, and new dependencies — classify against those, not from memory.
+A false-valued fast-path scope is disqualified — and takes the full panel —
+when it touches authentication, authorization, access control, cryptography,
+secrets, input validation, a public API contract, concurrency, locking, shared
+mutable state, an irreversible data operation, or a behavior-defining
+instruction, policy, prompt, or contract that changes agent behavior, gates, or
+decisions, however small the diff. That list is closed. A `blocker`/`major`
+finding does not by itself promote a fast-path scope to a panel; only
+re-classification does. A true `explicit_multi_review` value selects the panel
+before this fast-path check. This rule controls only initial panel selection;
+it does not suppress escalation after panel mode is selected. In panel mode,
+either initial reviewer reporting a `blocker`/`major` finding requires exactly
+one tiebreaker, regardless of scope. `consensus-panel` § Step 1 holds the operational
+definitions for pure-whitespace lines, altered control flow, public API
+contracts, and new dependencies — classify against those, not from memory.
 
-### Adaptive 2+1 panel (substantive code changes)
+### Adaptive 2+1 panel (substantive changes or explicit multi-review)
 
 Panels are **adaptive 2+1** — never dispatch a third reviewer
 unconditionally:
@@ -350,6 +367,7 @@ Before declaring PR-ready, run `review-fix-loop`:
 reviewer: gho11y:telemetry-reviewer
 scope: cumulative diff (branch vs base)
 focus: metrics, logs, traces, alerting/SLO coverage for new or changed behavior
+explicit_multi_review: <caller-derived JSON boolean>
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
@@ -604,10 +622,11 @@ surface it in the final message.
 ## Never
 
 - Guess when the ask is ambiguous.
-- Skip a required review panel for a substantive code change. Non-code and tiny
-  scopes use the single-reviewer fast path by design, not by omission. Research
-  fact-finding remains single-model per source and must not be duplicated for
-  consensus.
+- Skip a required review panel for a substantive change or when
+  `explicit_multi_review` is `true`. Non-code and tiny scopes use the
+  single-reviewer fast path only when the caller-derived value is `false`.
+  Research fact-finding remains single-model per source and must not be
+  duplicated for consensus.
 - Continue past a gate without user approval.
 - Rewrite marketplace agent behavior — pass the schema in the prompt
   instead.

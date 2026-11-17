@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.4.0...code-reviewers-v0.5.0) (2026-11-04)
+
+
+### Features
+
+* **code-reviewers:** route Datadog through MCP first ([ea8fc3a](https://github.com/arielvalentin/agent-packages/commit/ea8fc3a94ce32d5b53a1705c788370e6d1817846))
+
 ## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.3.2...code-reviewers-v0.4.0) (2026-10-19)
 
 

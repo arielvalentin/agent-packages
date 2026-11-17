@@ -46,4 +46,6 @@ questions and user gates return to the user.
 The implementer follows `pr-lifecycle` for PR creation timing, title validation,
 and templates instead of duplicating its policy. Repository-required title
 formats override the generic Conventional Commits default; safety gates remain
-in force.
+in force. Implementation and required adversarial review/fix cycles stay local.
+Draft creation follows local acceptance and still needs publication permission;
+no PR number is required to begin or resume local work.

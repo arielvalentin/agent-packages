@@ -2,7 +2,9 @@
 
 Reusable APM producer monorepo for custom agents and skills.
 
-This repository ships independent installable packages so consumers can pick only the workflow bundles they need.
+This repository ships individually installable APM packages. Some workflow
+bundles require companions; see the
+[package compatibility matrix](docs/package-catalog.md#package-compatibility).
 
 ## What is in this repository
 
@@ -12,7 +14,7 @@ This repository ships independent installable packages so consumers can pick onl
 | `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Optional design advice + implementation | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
-| `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Four agents](packages/personal-agents/README.md#includes), MIT-licensed |
+| `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Three agents](packages/personal-agents/README.md#includes), MIT-licensed |
 
 ## Repository layout
 
@@ -68,10 +70,13 @@ apm install
 
 ## Running behavioral tests locally
 
-Tests use [promptfoo](https://promptfoo.dev) + [Ollama](https://ollama.com) (local LLM, no API keys needed).
+Behavioral suites use native [GitHub Copilot Evals](https://github.com/github/evals)
+definitions in `packages/*/evals/`, executed by the pinned Vally CLI.
+Evaluation runs require Copilot-compatible credentials and may consume Copilot
+usage. Setup installs Node and project dependencies but does not run evaluations.
 
 ```bash
-# One-time setup (installs Ollama, Node, npm deps, pulls model)
+# One-time setup
 script/setup
 
 # Run tests
@@ -90,14 +95,14 @@ npm run test:reviewers                 # full code-reviewers suite
 npm run test:reviewers:smoke           # code-reviewers smoke suite
 ```
 
-The smoke suites cover a small set of package-specific core behaviors and
-safety boundaries. The package commands without `:smoke` run their full
-behavioral suites; `npm run test:full` runs all four.
+The smoke commands select stimuli tagged `suite: smoke`; commands without
+`:smoke` run the full package suite. The migration map at
+`docs/evaluations-migration-map.json` tracks each legacy case and its native
+equivalent. The runner fails closed when any selected source row lacks a
+faithful native mapping; it never silently skips such rows.
 
-Dependencies are declared in `Brewfile` — `script/setup` is idempotent and safe to re-run.
-
-> **Note:** CI uses a pinned Ollama binary with SHA256 verification for supply chain safety.
-> Locally, the Homebrew-managed version is fine.
+Dependencies are declared in `Brewfile`; `script/setup` is idempotent and safe
+to re-run.
 
 ## License
 

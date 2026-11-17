@@ -43,9 +43,10 @@ Replace this dependency with the skills-only `agent-defaults` package, then
 remove mandatory coordinator routing. `development-workflow` uses
 `handoff-envelope` and `pr-lifecycle`; `code-reviewers` uses
 `handoff-envelope` and `consensus-panel`. Those packages do not bundle these
-skills themselves. `agent-defaults` supplies all 13 shared skills, including
-the public-interaction safeguards below. Avoid installing both packages unless
-you still need the legacy agent, because the skill names overlap.
+skills themselves. Install `agent-defaults` to provide their shared skills,
+including the public-interaction safeguards below. Avoid installing both
+packages unless you still need the legacy agent, because the skill names
+overlap.
 
 `human-interaction-safeguard` is the source of truth for public interaction
 safety: human-authored and unknown-actor GitHub comments stop automation and

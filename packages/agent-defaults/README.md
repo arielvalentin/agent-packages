@@ -7,14 +7,15 @@ This package installs no coordinator agent and requires no coordinator routing.
 
 Unconditional instructions in `.apm/instructions/`:
 
-- `repository-work.instructions.md`: repository precedence, task ownership,
-  surgical changes, evidence, and focused validation.
+- `repository-work.instructions.md`: repository precedence, evidence, and a conditional default implementation owner when `development-workflow` is installed.
 - `skill-gates.instructions.md`: canonical entrypoints and mandatory interaction,
   posting, and bounded review gates.
 
-Both use `description` frontmatter with no `applyTo`. They are always-on defaults,
-not file-pattern rules or a substitute for repository guidance. Repository
-conventions prevail; safety and permission gates remain mandatory.
+Both use `description` frontmatter with no `applyTo` and are intended as
+always-on defaults, not file-pattern rules or a substitute for repository
+guidance. This source metadata and APM's no-`applyTo` classification do not
+guarantee that every client includes the files. Repository conventions
+prevail; safety and permission gates remain mandatory.
 
 Skills:
 
@@ -45,20 +46,46 @@ dependencies:
 Replace the placeholder with a [published package tag](https://github.com/arielvalentin/agent-packages/releases)
 that includes `writing-voice`; `agent-defaults-v0.1.0` predates this skill.
 Run `apm install --target copilot`. Invoke the appropriate agent directly and load skills when
-their triggers apply. Delegate only when specialist context helps the task.
+their triggers apply. Follow the installed execution package's default implementation owner.
 The calling agent owns task scope, review handoffs, synthesis, and user gates.
 For review dispatches, the caller records `explicit_multi_review` as a JSON
 boolean in every handoff; missing or invalid values fail closed.
 
-Install this package alongside `development-workflow` or `code-reviewers`,
-which reference its handoff, lifecycle, and review skills. These agent packages
-do not bundle shared skills themselves.
+Unanswered authorization uses `human-interaction-safeguard`'s canonical
+unattended decision handling. Synthetic unavailable-user responses are not
+consent. Agents park gated work without repeating the question, finish
+independent work, and surface pending decisions with reply phrases in their
+final summary or coordinated handoff. Clear direct user authorization still
+opens an eligible gate.
+
+New PR work stays local through implementation, validation, and the required
+adversarial review/fix cycle. Only after local acceptance may `pr-lifecycle`
+create an authorized draft PR. Passing local review does not grant publication
+permission or bypass the later CI, remote-review, and readiness gates. Local
+tracking does not need a PR number or URL.
+
+Reviewer output may be raw JSON, one fenced JSON block, or one embedded
+top-level JSON object. `consensus-panel` extracts the unique payload before
+applying the same schema and finding checks; ambiguous or malformed payloads
+remain invalid.
+
+Install this package alone for its defaults and shared skills. Add
+`development-workflow` for its agents or `code-reviewers` for its reviewers
+and Datadog routing; both packages require the shared skills in this package.
+Without `code-reviewers`, the Datadog gate deliberately stops access because
+`datadog-url-router` is unavailable. See the [package compatibility
+matrix](../../docs/package-catalog.md#package-compatibility).
 
 ## Unconditional Copilot deployment
 
 Source metadata is `description` only; there is deliberately no `applyTo`.
 With APM 0.32.0, project install deploys the two individual files under
-`.github/instructions/`. APM reports that omitted `applyTo` applies globally.
+`.github/instructions/`. APM reports that omitted `applyTo` applies globally;
+that classification is not a cross-client loading guarantee. In VS Code's
+Local harness, description-only instructions can be selected on demand, and
+`applyTo` has no default pattern. Copilot CLI documentation describes the
+native user-wide entrypoint below but does not establish a general loading
+guarantee for every modular no-`applyTo` file.
 
 For user-scope defaults from the global APM manifest:
 
@@ -84,8 +111,9 @@ success while skipping its deployment. Treat missing canonical content as a
 blocked migration, not success; reconcile ownership without force-overwriting
 authored policy. Keep personal/local overrides in a separate native
 `~/.copilot/instructions/*.instructions.md` module rather than editing APM's
-managed root. This package contains no personal identity, signing-key paths,
-host setup, or private tooling policy.
+managed root. This package includes a public writing-voice reference to
+`@arielvalentin`; it contains no signing-key paths, host setup, or private
+tooling policy.
 
 ## Writing
 
@@ -163,11 +191,16 @@ and an unavailable safeguard cannot be overridden. Posting permission,
 identity, attribution, independent tool approvals, and higher-priority rules
 still apply. This is a skill policy, not host-enforced identity verification.
 
-Behavioral cases use the existing local Ollama providers to check warning,
-ordinary confirmation, denied/ambiguous/untrusted consent and action scope.
-Deterministic contracts preserve metadata, chain-taint, pagination and posting
-invariants and check the behavioral graders against unsafe answers. Test
-scenarios never authorize a live public action.
+Native Copilot Evals definitions cover warning, ordinary confirmation,
+denied/ambiguous/untrusted consent and action scope. The eight instruction-file
+cases are mapped by staging their source instructions as native custom
+instructions. Both smoke and full selections pass offline mapping and schema
+preflight; those checks do not prove model behavior. The latest full model run
+had assertion failures, including writing-voice case 121. Shell command
+execution is disabled in the native stimuli because the source evaluations
+used a text-only provider. Deterministic contracts preserve metadata,
+chain-taint, pagination and posting invariants. Test scenarios never authorize
+a live public action.
 
 Review handoff validation does not replace public-interaction safeguards.
 Research remains source-bounded fact finding, not duplicated consensus work.

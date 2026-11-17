@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.9.0...development-workflow-v0.10.0) (2026-11-04)
+
+
+### Features
+
+* consolidate PR shepherding into pr-lifecycle ([4db83b7](https://github.com/arielvalentin/agent-packages/commit/4db83b7bd71eca255e4c33395b1b1450955bb883))
+
+## [0.9.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.8.1...development-workflow-v0.9.0) (2026-11-01)
+
+
+### Features
+
+* clarify implementation and publishing ownership ([#84](https://github.com/arielvalentin/agent-packages/issues/84)) ([d81f568](https://github.com/arielvalentin/agent-packages/commit/d81f56881b2b5eda5b6f5618097b605822048f9c))
+
 ## [0.8.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.8.0...development-workflow-v0.8.1) (2026-10-29)
 
 

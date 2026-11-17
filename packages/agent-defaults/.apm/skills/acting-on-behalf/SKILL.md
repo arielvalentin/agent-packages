@@ -11,6 +11,12 @@ disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+When presenting a plain shell command, distinguish an outer wrapper around the
+whole command from quotes delimiting its arguments. A request for no outer
+quotes does not remove shell syntax needed to keep argument values intact.
+For example, `cmd --option "two words"` has a quoted argument but no outer
+wrapper; the unquoted form passes two separate words.
+
 ## Public/shared disclosure boundary
 
 Before drafting any public/shared content, identify the destination audience
@@ -43,6 +49,10 @@ are defaults when the repository is silent, not new repository requirements.
 An issue is required only when repository guidance requires one; never invent
 a tracking gate or reference. Repository conventions do not waive permission,
 human-interaction, attribution, or mandatory review gates.
+
+For unanswered or unavailable confirmation, follow
+`human-interaction-safeguard`'s **Unattended decision handling**, including
+posting identity and disclosure blockers. This does not waive any posting gate.
 
 ## Human-interaction posting backstop
 
@@ -178,7 +188,8 @@ Use this exact final paragraph when a disclaimer is required:
 
 ## PR safety gate
 
-Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
+Before any PR creation for code changes, including drafts, built-in tools,
+and the `pr-lifecycle`-missing fallback:
 
 1. Run `adversarial-review`.
 2. Address high-confidence blocker/major findings.
@@ -216,7 +227,9 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> after PR creation is authorized, follow the
+2. `pr-lifecycle` missing -> complete the local PR safety gate above before
+   any creation; keep implementation and review/fix cycles local until it
+   passes. Then, after PR creation is authorized, follow the
    repository's workflow. If no different workflow is specified, draft mode
    is the default. Before running `gh pr create`, confirm that the head branch
    is already published or that the request or repository guidance also

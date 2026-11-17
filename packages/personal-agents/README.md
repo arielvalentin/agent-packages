@@ -29,7 +29,6 @@ repository instructions, interaction safeguards or user confirmation.
 
 Use a published `personal-agents-vX.Y.Z` tag from
 [releases](https://github.com/arielvalentin/agent-packages/releases).
-The `0.0.0` bootstrap version is not a release.
 
 ```yaml
 dependencies:

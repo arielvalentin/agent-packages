@@ -29,7 +29,7 @@ assert provenance["agents"].keys() == expected.keys(), "unexpected provenance in
 assert {p.relative_to(package / ".apm").as_posix()
         for p in (package / ".apm").rglob("*") if p.is_file()} == {
     f"agents/{name}" for name in expected
-}, "personal-agents must contain only the four native agent resources"
+}, "personal-agents must contain only the three native agent resources"
 assert not any(p.is_symlink() for p in package.rglob("*")), "no symlinked resources"
 
 def digest(data):
