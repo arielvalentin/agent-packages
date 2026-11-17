@@ -195,11 +195,18 @@ function changedPaths(root, base) {
   return [...new Set(outputs.flatMap((output) => output.split("\0").filter(Boolean)))].sort();
 }
 
-function execute(root, plan, spawn = spawnSync) {
+function execute(root, plan, spawn = spawnSync, env = process.env) {
   for (const run of plan.runs) {
     const args = [path.join(root, "script/run-evals.js"), run.name, run.suite];
     if (run.stimuli) args.push("--stimuli", JSON.stringify(run.stimuli));
-    const result = spawn(process.execPath, args, { cwd: root, stdio: "inherit" });
+    const options = { cwd: root, stdio: "inherit" };
+    if (env.VALLY_RESULTS_DIR) {
+      options.env = {
+        ...env,
+        VALLY_RESULTS_DIR: path.join(path.resolve(root, env.VALLY_RESULTS_DIR), run.name),
+      };
+    }
+    const result = spawn(process.execPath, args, options);
     if (result.error) throw result.error;
     if (result.status !== 0) return result.status ?? 1;
   }

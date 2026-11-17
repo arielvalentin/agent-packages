@@ -165,8 +165,9 @@ test("Git change union includes staged, unstaged, renames, deletions, untracked,
   assert.throws(() => changedPaths(temporary(t)), /git diff failed/);
 });
 
-test("execution forwards exact selected native stimuli and stops on the first failure", () => {
+test("execution isolates results per package and stops on the first failure", () => {
   const calls = [];
+  const resultsDirectory = "affected-test-results";
   const status = execute(root, {
     runs: [
       { name: "agent-defaults", suite: "smoke", stimuli: ["case-1"] },
@@ -175,9 +176,16 @@ test("execution forwards exact selected native stimuli and stops on the first fa
   }, (executable, args, options) => {
     calls.push({ executable, args, options });
     return { status: calls.length === 1 ? 0 : 7 };
+  }, {
+    ...process.env,
+    VALLY_RESULTS_DIR: resultsDirectory,
+    AFFECTED_TESTS_TEST_ENV: "preserved",
   });
   assert.equal(status, 7);
   assert.equal(calls.length, 2);
   assert.deepEqual(JSON.parse(calls[0].args.at(-1)), ["case-1"]);
   assert.deepEqual(JSON.parse(calls[1].args.at(-1)), ["case-2", "case-3"]);
+  assert.equal(calls[0].options.env.VALLY_RESULTS_DIR, path.join(root, resultsDirectory, "agent-defaults"));
+  assert.equal(calls[1].options.env.VALLY_RESULTS_DIR, path.join(root, resultsDirectory, "coordinator"));
+  assert.equal(calls[0].options.env.AFFECTED_TESTS_TEST_ENV, "preserved");
 });
