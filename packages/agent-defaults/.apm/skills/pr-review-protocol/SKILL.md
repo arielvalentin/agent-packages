@@ -12,6 +12,9 @@ Use this protocol whenever the user asks to review a pull request authored by
 someone else. The goal is a thorough, context-aware review, not just a diff
 scan.
 
+When a question explicitly requests a Yes/No answer, begin with the plain,
+unformatted answer token; add a brief explanation only when requested.
+
 Resolve the canonical `owner/repo` and PR number or URL once. Pass both through
 every command and handoff; never rely on the current working directory to select
 the repository.

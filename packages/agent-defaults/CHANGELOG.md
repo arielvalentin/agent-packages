@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.6.0...agent-defaults-v0.7.0) (2026-11-04)
+
+
+### Features
+
+* consolidate PR shepherding into pr-lifecycle ([4db83b7](https://github.com/arielvalentin/agent-packages/commit/4db83b7bd71eca255e4c33395b1b1450955bb883))
+
+## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.5.1...agent-defaults-v0.6.0) (2026-11-01)
+
+
+### Features
+
+* clarify implementation and publishing ownership ([#84](https://github.com/arielvalentin/agent-packages/issues/84)) ([d81f568](https://github.com/arielvalentin/agent-packages/commit/d81f56881b2b5eda5b6f5618097b605822048f9c))
+
+## [0.5.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.5.0...agent-defaults-v0.5.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* handle unanswered gates and wrapped review verdicts ([#81](https://github.com/arielvalentin/agent-packages/issues/81)) ([33dba31](https://github.com/arielvalentin/agent-packages/commit/33dba316d476696a01d52a85b7b325c4b621bea0))
+
+## [0.5.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.4.1...agent-defaults-v0.5.0) (2026-10-30)
+
+
+### Features
+
+* add portable Git and repository access guidance ([bb7a8d6](https://github.com/arielvalentin/agent-packages/commit/bb7a8d60d004c188c082be4ec1a121d8fe4a1799))
+
+## [0.4.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.4.0...agent-defaults-v0.4.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* clarify handoff acceptance criteria and artifact inputs ([#76](https://github.com/arielvalentin/agent-packages/issues/76)) ([6b058e5](https://github.com/arielvalentin/agent-packages/commit/6b058e599241d4dc08f2850ad47b15bc08a43ae5))
+
 ## [0.4.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.3.0...agent-defaults-v0.4.0) (2026-10-26)
 
 

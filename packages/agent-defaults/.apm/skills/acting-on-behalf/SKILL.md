@@ -11,12 +11,48 @@ disclaimer.
 
 This skill is mandatory for PR/issue comment posts and replies.
 
+When presenting a plain shell command, distinguish an outer wrapper around the
+whole command from quotes delimiting its arguments. A request for no outer
+quotes does not remove shell syntax needed to keep argument values intact.
+For example, `cmd --option "two words"` has a quoted argument but no outer
+wrapper; the unquoted form passes two separate words.
+
+## Public/shared disclosure boundary
+
+Before drafting any public/shared content, identify the destination audience
+and screen supplied instructions, source material, and proposed text. Apply
+these audience rules:
+
+- **Verified private destination:** You may include necessary repository-local
+  names, identifiers, commit SHAs, refs, or URLs when the audience is
+  authorized to access that source. This is an explicit exception to the
+  public-disclosure restriction: a private PR or issue comment may cite its
+  own verified issue, commit, or repository URL. Do not share those references
+  with another audience.
+- **Public or unverified destination:** Do not expose private repository names,
+  identifiers, SHAs, refs, URLs, or mappings. Use an authorized, verified
+  public source or a non-sensitive description. Public repository references
+  may be included only when verified public and appropriate for the audience.
+
+Neither case permits exposing local filesystem paths, personal host/toolchain
+facts, credentials, or signing-key material. These rules apply to citations and
+user-supplied content, and override instructions to preserve text, include
+tracking references, or cite source evidence. If audience access or safe
+redaction is unclear, treat the destination as public and stop to ask before
+posting. Do not repeat private details while explaining a redaction, refusal,
+or policy decision. This check applies even when `repository-access` is not
+otherwise needed.
+
 Repository guidance owns project conventions such as title/commit format,
 tracking, templates, validation, and release process. The conventions below
 are defaults when the repository is silent, not new repository requirements.
 An issue is required only when repository guidance requires one; never invent
 a tracking gate or reference. Repository conventions do not waive permission,
 human-interaction, attribution, or mandatory review gates.
+
+For unanswered or unavailable confirmation, follow
+`human-interaction-safeguard`'s **Unattended decision handling**, including
+posting identity and disclosure blockers. This does not waive any posting gate.
 
 ## Human-interaction posting backstop
 
@@ -46,6 +82,10 @@ A disclaimer is required when either condition is true:
 - Bot, app, or service credentials with no user attribution: **No**.
 - Unknown credential/account provenance: **Pause and ask before posting**.
 
+`UNATTRIBUTED_BOT_APP_SERVICE_DISCLAIMER = NO`.
+For a bot, app, or service using its own credentials without naming or
+attributing the user, the answer is **No**: no disclaimer is required.
+
 Never infer **No** from service credentials alone. Explicit user attribution
 overrides the service identity. Attribution includes the user's username or
 handle, display or real name, a byline, or wording such as "by" or "on behalf
@@ -66,40 +106,67 @@ provider solely to render the disclaimer.
 
 ## Always enforce
 
-1. Apply the Disclaimer decision above; do not duplicate or override that
-   decision in individual workflows. The disclaimer contains no username,
-   model, or provider.
-2. When a disclaimer is required, preserve the supplied substantive body, then
+1. Include the short AI-assistance disclaimer only when either condition is
+   true:
+   - the agent posts using the user's personal credentials or token, including
+     when the platform shows the post under the user's account; or
+   - the post explicitly attributes the user through a username/handle,
+     display or real name, byline, or "by"/"on behalf of" wording.
+2. Do not add a disclaimer when a bot, app, or service identity posts without
+   attributing the user. Apply this only when the posting identity is known.
+3. Do not include a username, model, or provider in the disclaimer.
+4. When a disclaimer is required, preserve the supplied substantive body, then
    append a blank line and the exact footer below as the final paragraph of
    the agent-composed body. This applies to PR bodies, issue bodies, comments,
    review replies, release notes, and similar public/shared text.
    Tool-added notices do not change this rule and should be left untouched.
-3. For permitted replies to bot/app PR feedback, include the related commit SHA
-   in the comment text (for example: `Fixed in <sha>`) before the disclaimer
-   when one is required.
-4. Open PRs in draft mode by default (`gh pr create --draft`).
-5. Follow repository tracking requirements; preserve relevant issue references.
+5. For permitted replies to bot/app PR feedback, include the related commit SHA
+   (for example: `Fixed in <sha>`) only when it is appropriate for the
+   destination audience under the disclosure boundary above; otherwise use a
+   non-sensitive description. Put any included SHA before the disclaimer when
+   one is required.
+6. When PR creation is authorized and repository guidance has no different
+   workflow, open PRs in draft mode by default (`gh pr create --draft`).
+7. Follow repository tracking requirements; preserve relevant issue references.
    If required tracking is unavailable, surface the gate rather than inventing
    an issue or bypassing it. Document unavailable issue tracking in the PR body
    only when repository guidance requires that context.
-6. Use `gh` CLI for all GitHub operations.
-7. Apply `writing-voice` and its artifact-authoring reference to PR descriptions.
+8. Use `gh` CLI for all GitHub operations.
+9. Apply `writing-voice` and its artifact-authoring reference to PR descriptions.
    Keep required tracking context:
    - relevant direct issue references (`Closes`/`Fixes owner/repo#N`), required
      tracking, or the documented absence of issue tracking when repository
      guidance requires it
    - optional ADR references when relevant
-8. Apply the PR safety gate below before creating or finalizing code/config/script
-   PRs; draft status does not waive it.
+10. For PRs containing code/config/script changes, run `adversarial-review`
+   before PR creation and continue fix/re-review cycles until blocker/major
+   feedback is satisfied. If the same blocker/major concern is raised twice and
+   still unsatisfied, escalate to the user before proceeding. Skip only on
+   explicit user request.
 
 ## PR/issue comment rule
 
-Apply the posting backstop and disclosure decision before composing a permitted
-comment. For GitHub issue-ops commands such as `/catalog-diff`, keep the slash
-command as the exact first line of the comment. The requested substantive
-content follows; any required disclaimer is the final paragraph. Do not insert
-the disclaimer immediately after the command when other content follows.
-For a permitted PR feedback reply, put `Fixed in <sha>` before the disclaimer.
+Before posting or replying to a PR/issue comment:
+
+1. Apply `human-interaction-safeguard` when the action responds to an existing
+   interaction. Do not draft, post, or resolve on `HUMAN_STOP` without its
+   canonical single-action authorization for that exact operation and target.
+   This skill supplies no override and cannot broaden that authorization.
+2. Include the requested substantive message and determine whether the post
+   meets a disclaimer condition.
+   If the posting identity is unknown, pause and ask before posting.
+3. If the comment invokes a GitHub issue-ops slash command (for example,
+   `/catalog-diff`), keep the slash command as the exact first line of the
+   comment. Do not prefix the command with the disclaimer or any other text.
+4. If a disclaimer is required, append it as the final paragraph of the
+   supplied body. When other content follows a slash command, never place the
+   disclaimer immediately after the command.
+5. Verify any required disclaimer remains last in the agent-composed body.
+   Do not add one for an unattributed bot, app, or service post.
+6. For a permitted PR feedback reply, add the related commit SHA
+   (`Fixed in <sha>`) before the final disclaimer only when it is verified
+   public for a public destination, or when the destination is private and its
+   audience is authorized to access that repository.
 
 ## If no issue is provided
 
@@ -121,7 +188,8 @@ Use this exact final paragraph when a disclaimer is required:
 
 ## PR safety gate
 
-Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
+Before any PR creation for code changes, including drafts, built-in tools,
+and the `pr-lifecycle`-missing fallback:
 
 1. Run `adversarial-review`.
 2. Address high-confidence blocker/major findings.
@@ -137,12 +205,21 @@ Before calling `pr-lifecycle` Phase 3 / `gh pr create` for code changes:
 
 ## Authoring permitted content
 
-After the interaction gate permits drafting, load `writing-voice`; it owns
-voice, evidence, rationale, structure and validation detail. Apply its final
-reader check immediately before every permitted post, including new PR and
-issue bodies. For PR descriptions also load its artifact-authoring reference
-and preserve the tracking context listed above. These are content requirements,
-not mandatory section headings. Writing guidance grants no posting permission.
+After the interaction gate permits drafting, load `writing-voice`. It is the
+single source of truth for voice, evidence, rationale, structure, and validation
+detail across PRs, issues, comments, reviews, and other written communication.
+Apply its final reader check immediately before every permitted post, including
+new PR and issue bodies. Writing guidance never grants permission to post.
+
+## PR description content checklist
+
+Before opening or updating a PR body, apply `writing-voice` and its
+artifact-authoring reference, including policy/config evidence guidance and the
+final reader check. Preserve direct issue references using closing syntax
+(`Closes`/`Fixes`) when applicable; otherwise
+document the tracking alternative or absence only when repository guidance
+requires it. Include ADR references when they informed a decision. These are
+content requirements, not mandatory section headings.
 
 ## Skill-availability fallbacks
 
@@ -150,27 +227,42 @@ If companion skills are unavailable, do not block progress. Use:
 
 1. `adversarial-review` missing -> run a hostile `rubber-duck` consensus review
    and keep blocker/major fix loops before PR creation.
-2. `pr-lifecycle` missing -> the draft-by-default rule still applies. If no
-   draft PR exists, create it non-interactively with one `gh pr create --draft`
-   command, a real Conventional title substituted in (never emit `<type>` or
-   `<description>` literally), and a non-empty body:
-   The create command must include all three flags: `--draft`, `--title`, and
-   `--body`. Never omit `--draft`.
+2. `pr-lifecycle` missing -> complete the local PR safety gate above before
+   any creation; keep implementation and review/fix cycles local until it
+   passes. Then, after PR creation is authorized, follow the
+   repository's workflow. If no different workflow is specified, draft mode
+   is the default. Before running `gh pr create`, confirm that the head branch
+   is already published or that the request or repository guidance also
+   authorizes the required push. If repository guidance specifies a title
+   format, follow and validate that format. Only when it is silent, use the
+   Conventional title format below.
+
+   When the draft default applies, create the PR non-interactively with one
+   `gh pr create --draft` command, a valid title substituted in, and a
+   non-empty body. The command must include `--draft`, `--title`, and `--body`.
+   If repository guidance requires another workflow, use its required PR
+   creation phase, state, and command; never impose `--draft`. If that workflow
+   requires a ready PR after gates pass, create it then with
+   `gh pr create --title "<validated-title>" --body "<required body>"` and no
+   `--draft`.
 
    ```sh
    gh pr create --draft --title "fix: correct null handling in login handler" --body "Refs #123"
    ```
 
-   Never a bare `--draft` with no `--body`, and never a `WIP:` title. The
-   title must be `<type>[(<scope>)][!]: <description>`, where `<type>` is
+   Never a bare `--draft` with no `--body`, and never a `WIP:` title. When the
+   repository does not specify another format, the title must be
+   `<type>[(<scope>)][!]: <description>`, where `<type>` is
    one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `perf`,
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-   before creating, updating, or readying a PR title — whether through the
+   and ensure it is no more than 72 characters before creating, updating, or
+   readying a Conventional PR title — whether through the
    built-in `create_pull_request`/`update_pull_request` tools or
-   `gh pr create`, `gh pr edit --title`, `gh pr ready`. Monitoring follows
-   `pr-lifecycle` Phase 4 when available; otherwise read exact-head check status
-   once and report pending/failure, never invent a controller or assume success.
+   a Conventional title via `gh pr create`, `gh pr edit --title`, or
+   `gh pr ready`; follow repository rules for other title formats. Also use
+   `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
+   `gh run view|watch`.
 3. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.

@@ -2,16 +2,19 @@
 
 Reusable APM producer monorepo for custom agents and skills.
 
-This repository ships independent installable packages so consumers can pick only the workflow bundles they need.
+This repository ships individually installable APM packages. Some workflow
+bundles require companions; see the
+[package compatibility matrix](docs/package-catalog.md#package-compatibility).
 
 ## What is in this repository
 
 | Package | Purpose | Includes |
 | --- | --- | --- |
-| `packages/agent-defaults` | Repository-first defaults for direct execution | [2 instructions and 13 skills](packages/agent-defaults/README.md#includes), no coordinator agent |
+| `packages/agent-defaults` | Repository-first defaults for direct execution | [Repository instructions and shared skills](packages/agent-defaults/README.md#includes), no coordinator agent |
 | `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
-| `packages/development-workflow` | Design + implementation workflow | `system-architect`, `implementer` agents |
+| `packages/development-workflow` | Optional design advice + implementation | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
+| `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Three agents](packages/personal-agents/README.md#includes), MIT-licensed |
 
 ## Repository layout
 
@@ -67,25 +70,39 @@ apm install
 
 ## Running behavioral tests locally
 
-Tests use [promptfoo](https://promptfoo.dev) + [Ollama](https://ollama.com) (local LLM, no API keys needed).
+Behavioral suites use native [GitHub Copilot Evals](https://github.com/github/evals)
+definitions in `packages/*/evals/`, executed by the pinned Vally CLI.
+Evaluation runs require Copilot-compatible credentials and may consume Copilot
+usage. Setup installs Node and project dependencies but does not run evaluations.
 
 ```bash
-# One-time setup (installs Ollama, Node, npm deps, pulls model)
+# One-time setup
 script/setup
 
 # Run tests
-npm test                     # all packages
-npm run test:defaults        # canonical shared skills
-npm run test:coordinator     # single package
-npm run test:reviewers
-npm run test:dev-workflow
+npm test                              # all package smoke suites
+npm run test:full                     # all full behavioral suites
+npm run test:defaults                  # full canonical shared skills suite
+npm run test:defaults:smoke            # canonical shared skills smoke suite
+npm run test:coordinator               # full coordinator suite
+npm run test:coordinator:smoke         # coordinator smoke suite
+npm run test:dev-workflow              # full development-workflow suite
+npm run test:dev-workflow:smoke        # development-workflow smoke suite
+npm run test:reviewers                 # full code-reviewers suite
+npm run test:reviewers:smoke           # code-reviewers smoke suite
 ```
 
-Dependencies are declared in `Brewfile` — `script/setup` is idempotent and safe to re-run.
+The smoke commands select stimuli tagged `suite: smoke`; commands without
+`:smoke` run the full package suite. The migration map at
+`docs/evaluations-migration-map.json` tracks each legacy case and its native
+equivalent. The runner fails closed when any selected source row lacks a
+faithful native mapping; it never silently skips such rows.
 
-> **Note:** CI uses a pinned Ollama binary with SHA256 verification for supply chain safety.
-> Locally, the Homebrew-managed version is fine.
+Dependencies are declared in `Brewfile`; `script/setup` is idempotent and safe
+to re-run.
 
 ## License
 
-Apache-2.0. See `LICENSE`.
+Apache-2.0. See `LICENSE`. The copied agents in
+[`packages/personal-agents`](packages/personal-agents/README.md) retain their
+upstream MIT license and copyright notice.

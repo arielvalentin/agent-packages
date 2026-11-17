@@ -34,7 +34,8 @@ APM 0.32.0 rejects that directory symlink when preparing Git dependencies.
 
 ## Packaging model
 
-- Package boundaries are explicit and independent.
+- Packages are individually installable, but some workflows require companion
+  packages; see the [compatibility matrix](package-catalog.md#package-compatibility).
 - Consumers install package subpaths, not the entire repository.
 - `agent-defaults` supplies canonical shared skills and unconditional behavioral
   instructions, not a coordinator agent.

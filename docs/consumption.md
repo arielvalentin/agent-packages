@@ -25,6 +25,23 @@ development and review agents require an `agent-defaults` release containing
 `writing-voice`, which is absent from `agent-defaults-v0.1.0`.
 See [releases](https://github.com/arielvalentin/agent-packages/releases).
 
+## Personal agent variants
+
+[`personal-agents`](../packages/personal-agents/README.md) is an optional,
+MIT-licensed bundle of three Awesome Copilot agents with only their top-level
+`model` fields removed. Replace the matching three supplier dependencies before
+installing it; do not install both sources or rely on filename shadowing.
+Names, tools and prompt bodies are preserved. Model inheritance and tool
+availability remain client-specific.
+
+Context Architect and Meta Agentic Project Scaffold were removed from the
+bundle. After upgrading an earlier source pin, verify that their managed native
+files are gone and refresh the client session's agent catalog. Do not retain
+separate dependencies for profiles you intend to remove.
+
+Pin a published commit SHA or a real `personal-agents-vX.Y.Z` tag from
+[releases](https://github.com/arielvalentin/agent-packages/releases).
+
 ## Deprecated coordinator package
 
 The coordinator agent is deprecated. Prefer direct agent execution and remove
@@ -73,5 +90,9 @@ targets:
 
 For always-on user-scope defaults, use the
 [verified native deployment contract](../packages/agent-defaults/README.md#unconditional-copilot-deployment).
-Package source files without `applyTo` are unconditional; installation, global
-compilation, native entrypoint discovery, and ownership checks are separate steps.
+These package defaults are intended to be always on, but APM's classification
+of source files without `applyTo` does not guarantee inclusion across clients.
+In VS Code's Local harness, description-only instructions can be selected on
+demand, and `applyTo` has no default pattern. Use the documented native
+user-wide entrypoint and verify installation, compilation, discovery, and
+ownership separately.

@@ -2,16 +2,35 @@
   "name": "agent-packages",
   "private": true,
   "scripts": {
-    "test": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
-    "test:defaults": "promptfoo eval --config packages/agent-defaults/tests/promptfooconfig.yaml",
-    "test:coordinator": "promptfoo eval --config packages/coordinator/tests/promptfooconfig.yaml",
-    "test:dev-workflow": "promptfoo eval --config packages/development-workflow/tests/promptfooconfig.yaml",
-    "test:reviewers": "promptfoo eval --config packages/code-reviewers/tests/promptfooconfig.yaml"
+    "test": "npm run test:dependencies && npm run test:smoke",
+    "test:dependencies": "node --test script/check-npm-dependencies.test.js script/validate-native-evals.test.js script/vally-output.test.js script/native-eval-graders.test.js",
+    "test:smoke": "npm run test:defaults:smoke && npm run test:coordinator:smoke && npm run test:dev-workflow:smoke && npm run test:reviewers:smoke",
+    "test:full": "npm run test:defaults && npm run test:coordinator && npm run test:dev-workflow && npm run test:reviewers",
+    "test:defaults": "node script/run-evals.js agent-defaults full",
+    "test:coordinator": "node script/run-evals.js coordinator full",
+    "test:dev-workflow": "node script/run-evals.js development-workflow full",
+    "test:reviewers": "node script/run-evals.js code-reviewers full",
+    "test:defaults:smoke": "node script/run-evals.js agent-defaults smoke",
+    "test:coordinator:smoke": "node script/run-evals.js coordinator smoke",
+    "test:dev-workflow:smoke": "node script/run-evals.js development-workflow smoke",
+    "test:reviewers:smoke": "node script/run-evals.js code-reviewers smoke"
   },
   "devDependencies": {
-    "promptfoo": "^0.123.0"
+    "@microsoft/vally-cli": "0.19.0",
+    "js-yaml": "^5.5.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "11.20.0",
+      "onFail": "error"
+    }
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents": false
   }
 }

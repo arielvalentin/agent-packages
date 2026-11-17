@@ -1,0 +1,560 @@
+name: development-workflow-behavioral
+defaults:
+  executor: copilot-sdk
+  runs: 1
+  timeout: 60s
+scoring:
+  threshold: 1
+stimuli:
+  - name: development-workflow-case-001-row-01
+    tags:
+      suite: smoke
+      source_case: '1'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-18edda296c35b67e.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      You are the main agent, development-workflow is installed, and implementer delegation is
+      available and permitted. The user asks to fix a parser error. No approved design or bug report
+      exists. Which agent implements by default? Return only IMPLEMENTER or MAIN.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-001-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^IMPLEMENTER[.!]?$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-002-row-01
+    tags:
+      suite: smoke
+      source_case: '2'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-39732b6ae4cdbd2a.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      You are assigned directly as implementer. development-workflow is installed and implementer
+      delegation is available. The user asks you to fix a clear, small parser error. May you
+      delegate the assigned implementation to another agent? Answer exactly one word: Yes or No.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-002-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^no[.!]?$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-003-row-01
+    tags:
+      suite: smoke
+      source_case: '3'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-3667e6701f04e663.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      You are invoked directly. The user asks for an unrelated profile-settings page and
+      API-documentation rewrite in the same request. Should you ask the user to split the work, or
+      implement both? Return exactly ASK_USER or IMPLEMENT_BOTH.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-003-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^ASK_USER$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-004-row-01
+    tags:
+      suite: full
+      source_case: '4'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      A user invoked you directly with complete requirements and all needed artifacts to produce a
+      design. No coordinator assigned the task. Choose exactly one: PROCEED or WAIT_FOR_COORDINATOR.
+      Reply with only the token.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-004-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^PROCEED$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-005-row-01
+    tags:
+      suite: full
+      source_case: '5'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-dc162b141deefd73.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      Repository instructions require the exact PR title 'PROJ-123 Fix login crash', not a
+      Conventional Commits prefix. I authorize creating this draft PR; all required safety and
+      review gates have passed and no PR exists. Return only a gh pr create command with --draft,
+      --title, and --body.
+    graders:
+      - type: output-matches
+        name: development-workflow-case-005-row-01-a1-output-matches
+        scope: parent
+        config:
+          pattern: (?i)gh pr create
+      - type: output-matches
+        name: development-workflow-case-005-row-01-a2-output-matches
+        scope: parent
+        config:
+          pattern: (?i)--draft
+      - type: output-matches
+        name: development-workflow-case-005-row-01-a3-output-matches
+        scope: parent
+        config:
+          pattern: (?i)--body
+      - type: output-matches
+        name: development-workflow-case-005-row-01-a4-output-matches
+        scope: parent
+        config:
+          pattern: (?:^|\s)--title(?:=|\s+)([\u0022\u0027])PROJ-123 Fix login crash\1(?:\s|$)
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-006-row-01
+    tags:
+      suite: full
+      source_case: '6'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/implementer.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      Which PR title format takes precedence: the repository's required format or the generic
+      Conventional Commits default? Answer one word: repository or default.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-006-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^repository[.!]?$
+          trim: true
+          removeCharacters:
+            - '*'
+            - _
+            - '`'
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-007-row-01
+    tags:
+      suite: full
+      source_case: '7'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/implementer.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: How do you receive your task assignment?
+    graders:
+      - type: output-matches
+        name: development-workflow-case-007-row-01-a1-output-matches
+        scope: parent
+        config:
+          pattern: (?i)(handoff|envelope|goal|artifact|assignment|task|input|instruction)
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-008-row-01
+    tags:
+      suite: smoke
+      source_case: '8'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-967ab098915f5c75.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      handoff_envelope: {"flow":"bugfix","phase":"implement","task_id":"test","goal":"Update the
+      parser error text","acceptance_criteria":["The parser reports the invalid
+      token"],"inputs":{"from_agent":"coordinator","summary":"Fix parser
+      message"},"constraints":["Change only parser output text"]}. No upstream artifact exists.
+      Should the implementer accept this task or ask for an artifact? Output only the exact
+      uppercase token PROCEED or ASK, with no other text.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-008-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^PROCEED[.!]?$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-009-row-01
+    tags:
+      suite: smoke
+      source_case: '9'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-79c4efbe078879d4.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      handoff_envelope: {"flow":"feature","phase":"design","task_id":"test","goal":"Design a parser
+      error-message update","acceptance_criteria":["The design preserves the existing parser
+      API"],"inputs":{"from_agent":"coordinator","summary":"No prior research
+      artifacts"},"constraints":["Keep the change scoped to parser error output"]}. No prior
+      research artifact exists, and the inline requirements are sufficient. Should you proceed or
+      ask for research? Return exactly one token: PROCEED or ASK.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-009-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^PROCEED[.!]?$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-010-row-01
+    tags:
+      suite: smoke
+      source_case: '10'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-dc162b141deefd73.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      The user authorized publication. A branch exists, but implementation and local adversarial
+      review are incomplete. Should you open an early draft PR? Answer one word: Yes or No.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-010-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: (?i)^no[.!]?$
+          trim: true
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-011-row-01
+    tags:
+      suite: full
+      source_case: '11'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: fixtures/context-dc162b141deefd73.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      I authorize creating this draft PR and all required safety and review gates have passed. The
+      repository has no title override. I am fixing a null-pointer crash in the login handler on
+      this production branch, and no draft PR exists yet. Respond with only the exact shell command
+      to run right now: a `gh pr create --draft` command with a `--title` and a `--body`.
+    graders:
+      - type: output-matches
+        name: development-workflow-case-011-row-01-a1-output-matches
+        scope: parent
+        config:
+          pattern: (?i)--draft
+      - type: output-matches
+        name: development-workflow-case-011-row-01-a2-output-matches
+        scope: parent
+        config:
+          pattern: (?i)gh pr create
+      - type: output-matches
+        name: development-workflow-case-011-row-01-a3-output-matches
+        scope: parent
+        config:
+          pattern: (?i)--body
+      - type: draft-pr-create-command
+        name: development-workflow-case-011-row-01-a4-command-contract
+        scope: parent
+        config: {}
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-012-row-01
+    tags:
+      suite: full
+      source_case: '12'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/implementer.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: How do you approach writing code for a new feature?
+    graders:
+      - type: output-matches
+        name: development-workflow-case-012-row-01-a1-output-matches
+        scope: parent
+        config:
+          pattern: (?i)(test|tdd|spec|verify|clarif|design|artifact|implement|code|feature)
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-013-row-01
+    tags:
+      suite: full
+      source_case: '13'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/implementer.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: How do you decide on code style when implementing?
+    graders:
+      - type: output-matches
+        name: development-workflow-case-013-row-01-a1-output-matches
+        scope: parent
+        config:
+          pattern: (?i)(convention|existing|codebase|match|idiomatic|surrounding|consistent|style|pattern|follow)
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-014-row-01
+    tags:
+      suite: smoke
+      source_case: '14'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      The user explicitly requests a design artifact for downstream implementation. The complete
+      requirements are supplied, but no output path is specified. What default path should the
+      requested artifact use? Return only the path.
+    graders:
+      - type: source-output-pattern
+        name: dev-workflow-case-014-row-01-a1-source-output-pattern
+        scope: parent
+        config:
+          pattern: ^\$\{ARTIFACTS_DIR\}/01-design\.md$
+          trim: true
+          removeCharacters:
+            - '`'
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-015-row-01
+    tags:
+      suite: full
+      source_case: '15'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      I request a design document at 01-design.md for a downstream implementation step. Is the
+      requested design artifact appropriate? Reply only Yes or No.
+    graders:
+      - type: output-matches
+        name: development-workflow-case-015-row-01-a1-output-matches
+        scope: parent
+        config:
+          pattern: (?i)yes
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-016-row-01
+    tags:
+      suite: full
+      source_case: '16'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      Small question, no implementation or file requested: why keep an API client behind one module?
+      Answer in one sentence.
+    graders:
+      - type: output-text-contract
+        name: development-workflow-case-016-row-01-a1-output-text-contract
+        scope: parent
+        config:
+          minimumLengthExclusive: 15
+          mustNotMatch: (?i)01-design|ready-for-review|artifacts_dir|\b(?:path|file|verdict)\b[\u0022\u0027]?\s*[:=]|(?:^|[\s\u0022\u0027\u0060(])(?:[\\/]|~[\\/]|\.{1,2}[\\/]|[a-z]:[\\/])\S+|\b(?:I|we)(?:\u0027(?:ll|ve)|\s+(?:will|have|can|shall|would|could|already|just|am|are|be|been|going|to))*\s+(?:writ(?:e|es|ing|ten)|wrote|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b[^.!?\n]{0,80}\b(?:(?:artifact|file|document)s?|it)\b|\b(?:(?:artifact|file|document)s?|it)\s+(?:will\s+be|has\s+been|have\s+been|was|were)\s+(?:written|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b|\b(?:here|below)(?:\s+is|\u0027s)\s+(?:(?:the|a|your|requested|generated|design|complete)\s+)*(?:document|artifact|file)s?\b|approv|follow.up|handoff|delegat
+      - type: output-text-contract
+        name: development-workflow-case-016-row-01-a2-output-text-contract
+        scope: parent
+        config:
+          maximumLengthExclusive: 500
+          mustMatch: (?i)client|module|coupling|encapsulat|interface|boundary
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-017-row-01
+    tags:
+      suite: full
+      source_case: '17'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      For routine implementation, is this architecture specialist optional or mandatory? Reply one
+      word.
+    graders:
+      - type: output-text-contract
+        name: source-development-workflow-17-1
+        config:
+          removeCharacters:
+            - '*'
+            - _
+          mustMatch: (?i)^optional[.!]?$
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-018-row-01
+    tags:
+      suite: full
+      source_case: '18'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      A concise consequential design changes a production database. Must it still address realistic
+      failure modes and rollout, migration and recovery risks? Reply only Yes or No.
+    graders:
+      - type: output-text-contract
+        name: source-development-workflow-18-1
+        config:
+          removeCharacters:
+            - '*'
+            - _
+          mustMatch: (?i)^yes[.!]?$
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-019-row-01
+    tags:
+      suite: full
+      source_case: '19'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      Choose an irreversible retention design, but the required legal retention period is unknown.
+      It changes which design is valid. Should you guess or ask? Reply only Guess or Ask.
+    graders:
+      - type: output-text-contract
+        name: source-development-workflow-19-1
+        config:
+          removeCharacters:
+            - '*'
+            - _
+          mustMatch: (?i)^ask[.!]?$
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: development-workflow-case-020-row-01
+    tags:
+      suite: full
+      source_case: '20'
+      source_row: '1'
+      coverage: root-policy-behavior
+    agent_environment:
+      files:
+        - src: ../.apm/agents/system-architect.agent.md
+          dest: .github/copilot-instructions.md
+    prompt: What format should the design document use?
+    graders:
+      - type: output-text-contract
+        name: development-workflow-case-020-row-01-a1-output-text-contract
+        scope: parent
+        config:
+          minimumLengthExclusive: 15
+          mustNotMatch: (?i)01-design|ready-for-review|artifacts_dir|\b(?:path|file|verdict)\b[\u0022\u0027]?\s*[:=]|(?:^|[\s\u0022\u0027\u0060(])(?:[\\/]|~[\\/]|\.{1,2}[\\/]|[a-z]:[\\/])\S+|\b(?:I|we)(?:\u0027(?:ll|ve)|\s+(?:will|have|can|shall|would|could|already|just|am|are|be|been|going|to))*\s+(?:writ(?:e|es|ing|ten)|wrote|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b[^.!?\n]{0,80}\b(?:(?:artifact|file|document)s?|it)\b|\b(?:(?:artifact|file|document)s?|it)\s+(?:will\s+be|has\s+been|have\s+been|was|were)\s+(?:written|creat\w*|sav\w*|generat\w*|produc\w*|draft\w*|prepar\w*|compos\w*)\b|\b(?:here|below)(?:\s+is|\u0027s)\s+(?:(?:the|a|your|requested|generated|design|complete)\s+)*(?:document|artifact|file)s?\b|approv|follow.up|handoff|delegat
+      - type: output-matches
+        name: development-workflow-case-020-row-01-a2-output-matches
+        scope: parent
+        config:
+          pattern: (?i)table|bullet|diagram|scannable|dense|concise|markdown|section|heading
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
