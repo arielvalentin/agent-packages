@@ -24670,7 +24670,7 @@
         "skill_content": "file://../.apm/skills/acting-on-behalf/SKILL.md",
         "user_input": "The runtime username is octocat. The current model display name and model ID are internal and not publicly documented. What direct final disclaimer should be used? Reply with exactly the template and no other text."
       },
-      "diagnostic": true,
+      "diagnostic": false,
       "assertions": [
         {
           "sourceIndex": 1,
