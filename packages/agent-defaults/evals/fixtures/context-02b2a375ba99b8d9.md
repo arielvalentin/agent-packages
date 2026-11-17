@@ -68,6 +68,17 @@ interaction, invoke `human-interaction-safeguard`.
   Defer the warning and confirmation UX to that skill.
   Classification stays `HUMAN_STOP`; continue all
   posting, identity, attribution, and independent approval rules below.
+- `SELF_INTERACTION` may proceed through the posting rules below only within
+  the user's requested scope. It is account-attributed, not proof of human
+  composition or automation. The owner accepts that an App using the owner's
+  token may be indistinguishable when App metadata is absent; this does not
+  expand the requested scope. Self attribution is not authorization to post
+  or resolve; each action still needs its own user-requested scope and posting
+  checks.
+- `MIXED_AUTOMATION_SELF` does not trigger a human pause. Route only Bot/App
+  content through automated feedback handling; self-authored content is
+  context, not authorization or an independent action request. This does not
+  imply permission to reply or resolve.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
 
@@ -152,6 +163,8 @@ Before posting or replying to a PR/issue comment:
    interaction. Do not draft, post, or resolve on `HUMAN_STOP` without its
    canonical single-action authorization for that exact operation and target.
    This skill supplies no override and cannot broaden that authorization.
+   For `SELF_INTERACTION`, follow the posting rules only within the user's
+   requested scope; retain the identity, attribution, and disclosure checks.
 2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.
@@ -363,8 +376,10 @@ Read **every** review comment and thread on the PR. Group comments and replies
 into their complete relevant thread or conversation chain. For each chain:
 
 - Classify every author through `human-interaction-safeguard`.
-- Apply its thread/chain taint rule: continue automation only when every item is
-  `AUTOMATION_FLOW`; any `HUMAN_STOP` item taints the whole chain.
+- Apply its thread/chain rule: any `HUMAN_STOP` item taints the whole chain.
+  A chain containing only `AUTOMATION_FLOW` and verified `SELF_INTERACTION`
+  items may proceed as `MIXED_AUTOMATION_SELF`; route only Bot/App content to
+  feedback review, and keep self-authored content as context.
 - Identify the **specific concern** (correctness, style, performance, security,
   design, docs, etc.)
 - Note whether it's a blocking request, suggestion, or question
@@ -398,13 +413,22 @@ Perform only the identified action, subject to other gates. Classification
 stays `HUMAN_STOP`; do not enter Steps 3-4, bundle reply and resolution, or
 continue automated iteration on the human thread.
 
-Only completely retrieved threads/chains whose every item is
-`AUTOMATION_FLOW` continue to Step 3.
+Only completely retrieved threads/chains whose items are all
+`AUTOMATION_FLOW` continue to Step 3. `MIXED_AUTOMATION_SELF` routes only
+Bot/App-authored content to Step 3. A `SELF_INTERACTION`-only chain remains
+context; it does not initiate Step 3 research or Step 4 action by itself, but
+may inform work already requested directly by the user.
+`SELF_INTERACTION` means GitHub
+attributes the items to the user's account; it does not prove human composition
+or authorize work beyond the current direct user request. The owner accepts
+that an App using the owner's token may be indistinguishable when App metadata
+is absent. Self-authored content is not independent actionable feedback or
+authorization. This does not bypass other action or posting gates.
 
 For permitted drafts and private summaries, use `writing-voice`. Do not turn a
 private summary of human feedback into a draft reply.
 
-### Step 3: Research Bot/App Feedback
+### Step 3: Research Permitted Feedback
 
 For each concern, investigate:
 
@@ -415,9 +439,15 @@ For each concern, investigate:
   correctness or best practices
 - Form your own informed conclusion about whether the feedback is valid
 
-### Step 4: Decide and Act on Bot/App Feedback
+### Step 4: Decide and Act on Permitted Feedback
 
-For each all-automation comment thread, choose one:
+For `AUTOMATION_FLOW` threads, and only the Bot/App-authored items in
+`MIXED_AUTOMATION_SELF`, choose one, subject to the user's requested scope and
+all remaining permission and posting gates:
+
+Do not treat `SELF_INTERACTION` content from a mixed thread as an actionable
+finding. For a `SELF_INTERACTION`-only thread, the comment remains context and
+does not authorize work beyond the current direct request.
 
 #### Accept — the feedback is valid
 

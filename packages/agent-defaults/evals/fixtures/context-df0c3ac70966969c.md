@@ -678,9 +678,23 @@ threads using the exact `gh api` commands in `human-interaction-safeguard`.
 Do not classify actors from `gh pr view --json reviews,comments` or login text.
 Exhaust both `reviewThreads` pages and every thread's independent `comments`
 pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
-Apply the thread/chain taint rule after retrieval: `AUTOMATION_FLOW` requires
-every root comment and reply to have authoritative Bot/App metadata. Any
-`HUMAN_STOP` item taints the entire chain, so no comment in it may trigger
+Correlate REST review-comment `id` with GraphQL comment `databaseId` before
+chain classification; absent REST App metadata alone does not block a verified
+`SELF_INTERACTION` under the owner-accepted residual risk. Any observed Bot or
+non-null App metadata still takes precedence.
+For correlated REST/GraphQL review comments, independently verify the REST
+item author's exact `User` type and `id` and the GraphQL PR author's exact
+`User` type and `databaseId`; require the immutable IDs to match, or stop as
+`HUMAN_STOP`.
+Apply the thread/chain taint rule after retrieval: a chain may continue only
+when every root comment and reply is verified as `AUTOMATION_FLOW` or
+`SELF_INTERACTION`. A chain containing both is `MIXED_AUTOMATION_SELF`, not
+`HUMAN_STOP`: route only Bot/App-authored content to feedback handling and keep
+self-authored content as context, not independent actionable feedback or
+authorization. `SELF_INTERACTION` requires matching authenticated-account and
+comment-author IDs plus a verified `User` item author with an available
+immutable ID; it proves account attribution, not who composed the comment.
+Any `HUMAN_STOP` item taints the entire chain, so no comment in it may trigger
 implementation, an agent reply, or agent resolution.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
@@ -694,6 +708,9 @@ actor classification and behavior:
   warn about human interaction and obtain ordinary explicit user confirmation
   for the described action and target. Its authorization permits only that action,
   not lifecycle iteration, another operation, or classification as automation.
+- `SELF_INTERACTION` → continue only within the user's requested work scope.
+  This bypasses the `HUMAN_STOP` pause, not the remaining action, posting,
+  attribution, or disclosure gates.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
 `pr-lifecycle` owns the lifecycle-wide stop decision. If any feedback chain is
@@ -704,10 +721,15 @@ skill is invoked by this lifecycle. Do not process the clean chains in the same
 iteration or dispatch fixes from them.
 
 Only after complete thread retrieval, all relevant chains classify as
-`AUTOMATION_FLOW`, and the caller's authorization gates pass may supported,
-actionable findings enter `review-fix-loop`. Pass them as `accepted_findings`
-with the reviewer (`adversarial-review`), exact diff scope, task/acceptance
-context, and the unchanged caller-derived `explicit_multi_review` boolean.
+`AUTOMATION_FLOW`, `SELF_INTERACTION`, or `MIXED_AUTOMATION_SELF`, and the
+caller's authorization gates pass may supported Bot/App-authored findings
+enter `review-fix-loop`. Entry also requires at least one Bot/App-authored
+finding. A `SELF_INTERACTION`-only chain remains context and does not initiate
+research or enter the loop by itself. Do not pass
+self-authored comments from a mixed chain as actionable findings. Pass them as
+`accepted_findings` with the reviewer
+(`adversarial-review`), exact diff scope, task/acceptance context, and the
+unchanged caller-derived `explicit_multi_review` boolean.
 The loop must not repeat its initial intake review for these already accepted
 findings, but it must perform the required post-fix review. A Phase 5 review
 alone never authorizes a change.

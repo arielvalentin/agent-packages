@@ -30,6 +30,15 @@ require() {
   fi
 }
 
+require_count() {
+  local file="$1" desc="$2" pattern="$3" expected="$4" actual
+  actual="$(normalize "$file" | grep -Eo -- "$pattern" | wc -l | tr -d '[:space:]' || true)"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "ERROR: ${file#"$root/"}: expected $expected $desc, found $actual"
+    errors=$((errors + 1))
+  fi
+}
+
 forbid() {
   local file="$1" desc="$2" pattern="$3"
   if normalize "$file" | grep -Eiq -- "$pattern"; then
@@ -48,10 +57,20 @@ assert_eq() {
 
 classify_rest() {
   jq -r '
+    def positive_integer:
+      (type == "number") and (. > 0) and ((floor) == .);
     if (.performed_via_github_app? != null)
     then "AUTOMATION_FLOW"
     elif ((.user.type? // "") == "Bot")
     then "AUTOMATION_FLOW"
+    elif ((.user.type? == "User")
+      and (.item_author.type? == "User")
+      and (.authenticated_user_id? | positive_integer)
+      and (.user.id? | positive_integer)
+      and (.item_author.id? | positive_integer)
+      and (.authenticated_user_id == .user.id)
+      )
+    then "SELF_INTERACTION"
     else "HUMAN_STOP"
     end
   '
@@ -59,15 +78,35 @@ classify_rest() {
 
 classify_graphql() {
   jq -r '
+    def positive_integer:
+      (type == "number") and (. > 0) and ((floor) == .);
     if ((.author.__typename? // "") == "Bot")
     then "AUTOMATION_FLOW"
+    elif ((.author.__typename? == "User")
+      and (.item_author.__typename? == "User")
+      and (.authenticated_user_id? | positive_integer)
+      and (.author.databaseId? | positive_integer)
+      and (.item_author.databaseId? | positive_integer)
+      and (.authenticated_user_id == .author.databaseId)
+      )
+    then "SELF_INTERACTION"
     else "HUMAN_STOP"
     end
   '
 }
 
 classify_chain() {
-  jq -r '
+  local input pagination_status
+  input="$(cat)"
+  pagination_status="$(printf '%s' "$input" | pagination_gate)"
+  if [[ "$pagination_status" != "READY_FOR_CLASSIFICATION" ]]; then
+    printf '%s' "HUMAN_STOP"
+    return
+  fi
+
+  printf '%s' "$input" | jq -r '
+    def positive_integer:
+      (type == "number") and (. > 0) and ((floor) == .);
     def automated:
       if .surface == "graphql"
       then ((.author.__typename? // "") == "Bot")
@@ -77,13 +116,106 @@ classify_chain() {
       then (((.user.type? // "") == "Bot") or (.performed_via_github_app? != null))
       else false
       end;
-    if (.retrieval_complete != true)
-       or ((.comments? | type) != "array")
+    def self_interaction($account_id; $item_author):
+      if .surface == "graphql"
+      then ((.author.__typename? == "User")
+        and ($item_author.__typename? == "User")
+        and ($account_id | positive_integer)
+        and (.author.databaseId? | positive_integer)
+        and ($item_author.databaseId? | positive_integer)
+        and (.author.databaseId == $account_id))
+      elif (.surface == "pr_review_comment")
+        or (.surface == "pr_review")
+        or (.surface == "issue_or_pr_comment")
+      then ((.user.type? == "User")
+        and ($item_author.type? == "User")
+        and ($account_id | positive_integer)
+        and (.user.id? | positive_integer)
+        and ($item_author.id? | positive_integer)
+        and (.user.id == $account_id)
+        )
+      else false
+      end;
+    def review_key:
+      if (.surface == "pr_review_comment")
+        and ((.id? | type) == "number")
+        and (.id > 0)
+        and ((.id | floor) == .id)
+      then "review:" + (.id | tostring)
+      elif (.surface == "graphql")
+        and ((.databaseId? | type) == "number")
+        and (.databaseId > 0)
+        and ((.databaseId | floor) == .databaseId)
+      then "review:" + (.databaseId | tostring)
+      else null
+      end;
+    def item_author_for_surface($root):
+      if .surface == "graphql"
+      then ($root.graphql_item_author // $root.item_author)
+      else ($root.rest_item_author // $root.item_author)
+      end;
+    def correlated_item_author_consistent($root; $observations):
+      if (any($observations[]; .surface == "pr_review_comment"))
+        and (any($observations[]; .surface == "graphql"))
+      then (($root.rest_item_author.type? == "User")
+        and ($root.graphql_item_author.__typename? == "User")
+        and ($root.rest_item_author.id? | positive_integer)
+        and ($root.graphql_item_author.databaseId? | positive_integer)
+        and ($root.rest_item_author.id == $root.graphql_item_author.databaseId))
+      else true
+      end;
+    def classify($account_id; $item_author):
+      if automated then "AUTOMATION_FLOW"
+      elif self_interaction($account_id; $item_author)
+      then "SELF_INTERACTION"
+      else "HUMAN_STOP"
+      end;
+    . as $root
+    |
+    if ((.comments? | type) != "array")
        or ((.comments | length) == 0)
     then "HUMAN_STOP"
-    elif all(.comments[]; automated)
-    then "AUTOMATION_FLOW"
-    else "HUMAN_STOP"
+    else
+      ($root.comments
+        | map(select(review_key != null) | . + {_review_key: review_key})
+        | group_by(._review_key)
+        | map(
+            if (correlated_item_author_consistent($root; .) | not)
+            then "HUMAN_STOP"
+            elif any(.[];
+              classify($root.authenticated_user_id;
+                item_author_for_surface($root)) == "HUMAN_STOP")
+            then "HUMAN_STOP"
+            elif any(.[]; automated)
+            then "AUTOMATION_FLOW"
+            elif all(.[];
+              self_interaction($root.authenticated_user_id;
+                item_author_for_surface($root)))
+            then "SELF_INTERACTION"
+            else "HUMAN_STOP"
+            end
+          )
+      ) as $correlated
+      |
+      ($root.comments
+        | map(select(review_key == null)
+          | classify($root.authenticated_user_id;
+            item_author_for_surface($root)))
+      ) as $singletons
+      |
+      ($correlated + $singletons) as $classifications
+      |
+      if all($classifications[]; . == "AUTOMATION_FLOW")
+      then "AUTOMATION_FLOW"
+      elif all($classifications[]; . == "SELF_INTERACTION")
+      then "SELF_INTERACTION"
+      elif all($classifications[];
+        . == "AUTOMATION_FLOW" or . == "SELF_INTERACTION")
+        and any($classifications[]; . == "AUTOMATION_FLOW")
+        and any($classifications[]; . == "SELF_INTERACTION")
+      then "MIXED_AUTOMATION_SELF"
+      else "HUMAN_STOP"
+      end
     end
   '
 }
@@ -96,10 +228,39 @@ actions_for_path() {
     AUTOMATION_FLOW)
       printf '%s' "implementation_from_interaction=allowed reply=allowed resolve=allowed"
       ;;
+    SELF_INTERACTION)
+      printf '%s' "implementation_from_interaction=current_request_only reply=not_implied resolve=not_implied"
+      ;;
+    MIXED_AUTOMATION_SELF)
+      printf '%s' "implementation_from_interaction=bot_comments_only reply=not_implied resolve=not_implied"
+      ;;
     *)
       printf '%s' "implementation_from_interaction=false reply=false resolve=false"
       ;;
   esac
+}
+
+project_pr_review_comment() {
+  jq -c '{
+    surface: "pr_review_comment",
+    id,
+    body,
+    authenticated_user_id,
+    item_author: .item_author,
+    user: {id: .user.id, login: .user.login, type: .user.type}
+  } + (if has("performed_via_github_app") then {performed_via_github_app} else {} end)'
+}
+
+project_pr_review() {
+  jq -c '{
+    surface: "pr_review",
+    id,
+    body,
+    state,
+    authenticated_user_id,
+    item_author: .item_author,
+    user: {id: .user.id, login: .user.login, type: .user.type}
+  } + (if has("performed_via_github_app") then {performed_via_github_app} else {} end)'
 }
 
 project_issue_comment() {
@@ -107,16 +268,17 @@ project_issue_comment() {
     surface: "issue_or_pr_comment",
     id,
     body,
-    user: {login: .user.login, type: .user.type},
-    performed_via_github_app: .performed_via_github_app
-  }'
+    authenticated_user_id,
+    item_author: .item_author,
+    user: {id: .user.id, login: .user.login, type: .user.type}
+  } + (if has("performed_via_github_app") then {performed_via_github_app} else {} end)'
 }
 
 pagination_gate() {
   jq -r '
     if (.thread_pages_complete == true)
        and (.all_comment_pages_complete == true)
-       and ((.pagination_failed? // false) == false)
+       and (.pagination_failed == false)
     then "READY_FOR_CLASSIFICATION"
     else "HUMAN_STOP"
     end
@@ -130,14 +292,32 @@ require "$policy" "REST PR review retrieval" \
   'gh api --paginate "repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/reviews"'
 require "$policy" "REST issue/PR comment retrieval" \
   'gh api --paginate "repos/\{owner\}/\{repo\}/issues/\{issue_number\}/comments"'
-require "$policy" "canonical REST App projection field" \
-  'performed_via_github_app: \.performed_via_github_app'
 forbid "$policy" "aliased REST App projection field" \
   '(^|[,{[:space:]])app: \.performed_via_github_app'
+require "$policy" "canonical REST source-presence-preserving App projection" \
+  'if has\("performed_via_github_app"\) then \{performed_via_github_app\} else \{\} end'
+require "$policy" "REST review App metadata limitation" \
+  'public REST OpenAPI schema currently declares optional.{0,150}issue comments, but does not declare it for pull request review comments or reviews.{0,150}field.s absence alone does not block `SELF_INTERACTION`'
+require "$policy" "owner-accepted app-token residual risk" \
+  '## Residual risk \(owner-accepted\).{0,180}App acting with the owner.s token can be indistinguishable'
+require_count "$policy" "REST App projections preserve source presence on every surface" \
+  'if has\("performed_via_github_app"\) then \{performed_via_github_app\} else \{\} end' 3
+require "$policy" "cross-surface immutable review-comment ID correlation" \
+  'REST comment.{0,80}immutable `id` and the GraphQL comment.{0,80}immutable `databaseId` are the same positive integer'
+require "$policy" "missing REST App metadata does not block ID-verified self-interaction" \
+  'matching GraphQL `User` can corroborate account attribution'
+require "$policy" "cross-surface Bot/App precedence" \
+  'if any observation has a non-null.{0,120}authoritative `Bot` type.{0,100}never downgrade observed Bot/App attribution'
+require "$policy" "REST self-interaction does not require App metadata" \
+  'Else if `.user.type == "User"`.*item author is an exact `User`.*whether the App field is absent or explicitly `null`'
 require "$policy" "GraphQL review-thread retrieval" \
   'reviewThreads\(first: 100, after: \$threadCursor\)'
 require "$policy" "per-thread GraphQL comment retrieval" \
   'comments\(first: 100, after: \$commentCursor\)'
+require_count "$policy" "GraphQL author ID selections use User inline fragments" \
+  'author \{ __typename \.\.\. on User \{ databaseId \} \}' 3
+forbid "$policy" "direct Actor databaseId selection" \
+  'author \{ __typename databaseId'
 require "$policy" "thread cursor declaration" \
   '\$threadCursor: String'
 require "$policy" "comment cursor declaration" \
@@ -151,11 +331,19 @@ require "$policy" "REST Bot classification" \
 require "$policy" "GitHub App classification" \
   'performed_via_github_app.{0,120}`AUTOMATION_FLOW`'
 require "$policy" "ordered login-blind REST algorithm" \
-  'ordered REST classification algorithm.{0,160}Discard `\.user\.login` completely.{0,180}performed_via_github_app.{0,180}\.user\.type == "Bot".{0,180}Else select `HUMAN_STOP`'
+  'ordered REST classification algorithm.{0,100}Discard `\.user\.login` completely.{0,140}performed_via_github_app.{0,140}\.user\.type == "Bot".{0,140}Else if `.user.type == "User"`'
 require "$policy" "login cannot override REST algorithm" \
   'must not inspect `\.user\.login` to override or reconsider'
-require "$policy" "REST User remains human despite bot-like login" \
-  '\.user\.type == "User".{0,80}regardless.{0,80}bot-like login'
+require "$policy" "bot-like login cannot alter account type" \
+  'A familiar bot-like login cannot change that field'
+require "$policy" "verified self-interaction identity requirements" \
+  'comment author is an exact GitHub.{0,100}authenticated account ID'
+require "$policy" "GraphQL self-interaction permits another PR author" \
+  'comment author.*databaseId.*matching the authenticated account ID.*PR author verified.*ID need not match the authenticated account ID'
+require "$policy" "self-interaction permits another user's item" \
+  'item-author ID need not match the authenticated account ID'
+require "$policy" "owner-accepted app metadata residual risk" \
+  '## Residual risk \(owner-accepted\)'
 require "$policy" "GraphQL Bot classification" \
   'author\.__typename == "Bot".{0,20}`AUTOMATION_FLOW`'
 require "$policy" "login is never actor evidence" \
@@ -170,8 +358,30 @@ require "$policy" "implementation permission excludes reply and resolution" \
   'Separate implementation permission never grants reply or resolution permission'
 require "$policy" "all-items automation requirement" \
   'AUTOMATION_FLOW.{0,80}only when \*\*every\*\* comment and reply'
-require "$policy" "any human item taints entire chain" \
-  'any.{0,80}comment or reply maps to `HUMAN_STOP`.{0,100}entire thread/chain'
+require "$policy" "mixed self/automation chain routes Bot/App content" \
+  'both classifications is `MIXED_AUTOMATION_SELF`.{0,100}Route only its Bot/App items'
+require "$policy" "other human still taints mixed chain" \
+  'If \*\*any\*\* comment or reply maps to `HUMAN_STOP`.{0,120}different User'
+require "$policy" "mixed content routing avoids self authorization" \
+  'self items as context that cannot authorize work or expand the direct request'
+require "$feedback" "self-only chain does not initiate research or action" \
+  'SELF_INTERACTION`-only chain remains context; it does not initiate Step 3 research or Step 4 action by itself'
+require "$policy" "correlated review item authors are normalized across surfaces" \
+  'REST `user.type` and `user.id`, and GraphQL `author.__typename` and `author.databaseId`.{0,220}IDs must match'
+require "$policy" "human stop wins conflicting correlated observations" \
+  'any observation is `HUMAN_STOP` because its actor is unknown, another human'
+require "$policy" "Bot/App precedence applies only without a human stop" \
+  'Bot/App attribution takes precedence over self-attribution only when no observation is `HUMAN_STOP`'
+require "$policy" "correlated item-author failure always stops" \
+  'correlated comment is `HUMAN_STOP`.{0,220}Never classify that pair independently or return `SELF_INTERACTION`'
+require "$policy" "self account includes agent-posted replies" \
+  'agent-posted replies attributed to the same account are also `SELF_INTERACTION`'
+require "$policy" "self-interaction is scoped to direct request" \
+  'comment does not authorize new work or expand scope'
+require "$policy" "unknown actors cannot use confirmation override" \
+  'Only a fully verified other-human interaction.{0,150}no unverifiable items'
+require "$policy" "mixed chain does not imply reply or resolution" \
+  'does not imply permission to reply or resolve'
 require "$policy" "tainted chain blocks automation" \
   'no comment in that chain may trigger implementation, an agent-authored reply, or agent-performed resolution'
 
@@ -283,13 +493,15 @@ require "$policy" "independent gates remain" \
 require "$policy" "missing-skill fallback remains closed" \
   'If this skill is unavailable, fail closed'
 forbid "$policy" "phantom GraphQL app classification" \
-  'GraphQL App|authoritative GitHub App identity|GraphQL.{0,160}app metadata'
+  'GraphQL App classification|authoritative GitHub App identity|GraphQL app metadata (selects|classifies|proves|identifies)'
 for downstream in "$acting" "$feedback" "$lifecycle_feedback" "$agent"; do
   require "$downstream" "canonical single-action deferral" 'single-action'
   require "$downstream" "confirmation policy routing" 'confirmation'
 done
 require "$acting" "posting backstop defers only to canonical policy" \
   'Only `human-interaction-safeguard` can authorize its single-action exception'
+require "$acting" "self attribution does not authorize posting" \
+  'Self attribution is not authorization to post or resolve'
 require "$feedback" "human warning and scoped confirmation" \
   'Warn that the chain includes human interaction.{0,100}scoped confirmation'
 require "$lifecycle_feedback" "separate implementation instruction boundary" \
@@ -298,6 +510,8 @@ require "$feedback" "feedback chain taint deferral" \
   'any `HUMAN_STOP` item taints the whole chain'
 require "$lifecycle_feedback" "lifecycle chain taint rule" \
   'Any `HUMAN_STOP` item taints the entire chain'
+require "$lifecycle_feedback" "lifecycle preserves bot/self mixed chains" \
+  'A chain containing both is `MIXED_AUTOMATION_SELF`, not `HUMAN_STOP`'
 require "$agent" "coordinator chain taint fallback" \
   'Treat the entire chain as `HUMAN_STOP`'
 
@@ -351,13 +565,70 @@ assert_eq "AUTOMATION_FLOW" \
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"user":{"login":"octocat","type":"User"},"performed_via_github_app":{"id":1}}' | classify_rest)" \
   "REST GitHub App metadata"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"helper[bot]","type":"User"},"performed_via_github_app":null}' | classify_rest)" \
+  "REST verified self-interaction ignores login"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"type":"User"}}' | classify_rest)" \
+  "REST verified self-interaction with missing App metadata"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":43,"type":"User"},"performed_via_github_app":null}' | classify_rest)" \
+  "REST self-interaction account mismatch"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"type":"User"},"performed_via_github_app":null}' | classify_rest)" \
+  "REST self-interaction missing comment ID"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"type":"User"},"user":{"id":42,"type":"User"}}' | classify_rest)" \
+  "REST self-interaction missing item-author ID"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":0,"type":"User"}}' | classify_rest)" \
+  "REST self-interaction rejects a non-positive author ID"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":43,"type":"User"},"user":{"id":42,"type":"User"},"performed_via_github_app":null}' | classify_rest)" \
+  "requester-authored comment on another user's item"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":97,"type":"User"},"user":{"id":42,"type":"User"}}' | classify_rest)" \
+  "requester-authored comment on another user's item without App metadata"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"type":"Bot"},"performed_via_github_app":null}' | classify_rest)" \
+  "REST Bot classification takes precedence over self-interaction"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"type":"User"},"performed_via_github_app":{"id":1}}' | classify_rest)" \
+  "REST App classification takes precedence over self-interaction"
 projected_app_item="$(
-  printf '%s' '{"id":7,"body":"automated","user":{"login":"service","type":"User"},"performed_via_github_app":{"id":1}}' |
+  printf '%s' '{"id":7,"body":"automated","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":7,"login":"service","type":"User"},"performed_via_github_app":{"id":1}}' |
     project_issue_comment
 )"
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' "$projected_app_item" | classify_rest)" \
   "projected REST GitHub App metadata"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"id":7,"body":"self","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"},"performed_via_github_app":null}' | project_issue_comment | classify_rest)" \
+  "projected REST self-interaction identity"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"id":7,"body":"self","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"}}' | project_issue_comment | classify_rest)" \
+  "issue-comment projection allows verified self-interaction without App metadata"
+assert_eq "false" \
+  "$(printf '%s' '{"id":7,"body":"self","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"}}' | project_issue_comment | jq -r 'has("performed_via_github_app")')" \
+  "issue-comment projection does not synthesize absent App metadata"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"id":7,"body":"self","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"}}' | project_pr_review_comment | classify_rest)" \
+  "review-comment projection allows verified self-interaction without App metadata"
+assert_eq "false" \
+  "$(printf '%s' '{"id":7,"body":"self","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"}}' | project_pr_review_comment | jq -r 'has("performed_via_github_app")')" \
+  "review-comment projection does not synthesize absent App metadata"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"id":7,"body":"self","state":"COMMENTED","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"}}' | project_pr_review | classify_rest)" \
+  "review projection allows verified self-interaction without App metadata"
+assert_eq "false" \
+  "$(printf '%s' '{"id":7,"body":"self","state":"COMMENTED","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"}}' | project_pr_review | jq -r 'has("performed_via_github_app")')" \
+  "review projection does not synthesize absent App metadata"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"id":7,"body":"self","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"},"performed_via_github_app":null}' | project_pr_review_comment | classify_rest)" \
+  "review-comment projection preserves explicit App null"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"id":7,"body":"self","state":"COMMENTED","authenticated_user_id":42,"item_author":{"id":42,"type":"User"},"user":{"id":42,"login":"octocat","type":"User"},"performed_via_github_app":null}' | project_pr_review | classify_rest)" \
+  "review projection preserves explicit App null"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"author":{"__typename":"User","login":"helper[bot]"}}' | classify_graphql)" \
   "GraphQL bot-like User"
@@ -367,26 +638,113 @@ assert_eq "HUMAN_STOP" \
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"author":{"__typename":"Bot","login":"helper"}}' | classify_graphql)" \
   "GraphQL Bot metadata"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"__typename":"User","databaseId":42},"author":{"__typename":"User","databaseId":42,"login":"octocat"}}' | classify_graphql)" \
+  "GraphQL verified self-interaction"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"__typename":"User","databaseId":97},"author":{"__typename":"User","databaseId":42}}' | classify_graphql)" \
+  "GraphQL requester-authored comment on another user's PR"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"__typename":"User","databaseId":42},"author":{"__typename":"User","databaseId":43}}' | classify_graphql)" \
+  "GraphQL self-interaction account mismatch"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"__typename":"User","databaseId":42},"author":{"__typename":"User"}}' | classify_graphql)" \
+  "GraphQL self-interaction missing author ID"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"__typename":"User"},"author":{"__typename":"User","databaseId":42}}' | classify_graphql)" \
+  "GraphQL self-interaction missing item-author ID"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"authenticated_user_id":42,"item_author":{"__typename":"User","databaseId":42},"author":{"__typename":"User","databaseId":0}}' | classify_graphql)" \
+  "GraphQL self-interaction rejects a non-positive author ID"
 
 # --- Deterministic thread/chain taint fixtures ---
 assert_eq "AUTOMATION_FLOW" \
-  "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "all-Bot thread"
 assert_eq "HUMAN_STOP" \
-  "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)" \
   "Bot root with User reply"
 assert_eq "implementation_from_interaction=false reply=false resolve=false" \
-  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)")" \
+  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)")" \
   "Bot root with User reply prohibited actions"
 assert_eq "HUMAN_STOP" \
-  "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":null}]}' | classify_chain)" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":null}]}' | classify_chain)" \
   "Bot root with unknown reply"
 assert_eq "implementation_from_interaction=false reply=false resolve=false" \
-  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":null}]}' | classify_chain)")" \
+  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":null}]}' | classify_chain)")" \
   "Bot root with unknown reply prohibited actions"
 assert_eq "HUMAN_STOP" \
-  "$(printf '%s' '{"retrieval_complete":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":false,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "incomplete all-Bot thread"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":true,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "stale complete flag cannot override incomplete pagination"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"pr_review_comment","user":{"type":"User","id":42},"performed_via_github_app":null}]}' | classify_chain)" \
+  "all-self-interaction chain"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":97},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42}}]}' | classify_chain)" \
+  "self-interaction on another user's issue"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated REST and GraphQL self-interaction"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated self-interaction allows absent REST App metadata under accepted risk"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":97},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated REST/GraphQL item-author ID disagreement"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated comment with missing GraphQL item author"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated comment with missing REST item author"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42,"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated comment cannot borrow a shared item-author object"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "correlated App metadata takes precedence over GraphQL self-interaction"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":97},"graphql_item_author":{"__typename":"User","databaseId":97},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"graphql","databaseId":700,"author":{"__typename":"User","databaseId":43}}]}' | classify_chain)" \
+  "Bot/App observation does not override conflicting human identity"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"rest_item_author":{"type":"User","id":42},"graphql_item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42}},{"surface":"graphql","databaseId":700,"author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "correlated Bot metadata takes precedence over incomplete REST App metadata"
+assert_eq "MIXED_AUTOMATION_SELF" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42,"__typename":"User","databaseId":42},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"graphql","databaseId":701,"author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "different review-comment IDs retain the Bot/self mixed classification"
+assert_eq "SELF_INTERACTION" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"__typename":"User","databaseId":42},"comments":[{"surface":"graphql","author":{"__typename":"User","databaseId":42}},{"surface":"graphql","author":{"__typename":"User","databaseId":42}}]}' | classify_chain)" \
+  "all-self-interaction GraphQL chain"
+assert_eq "implementation_from_interaction=current_request_only reply=not_implied resolve=not_implied" \
+  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null}]}' | classify_chain)")" \
+  "self-interaction remains scoped and does not imply reply or resolution"
+assert_eq "MIXED_AUTOMATION_SELF" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "self-interaction mixed with automation"
+assert_eq "MIXED_AUTOMATION_SELF" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":97},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
+  "verified self plus Bot on another user's item"
+assert_eq "implementation_from_interaction=bot_comments_only reply=not_implied resolve=not_implied" \
+  "$(actions_for_path "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)")" \
+  "Bot/self mixed chain routes only Bot/App comments"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"pr_review_comment","user":{"type":"User","id":43}}]}' | classify_chain)" \
+  "self-interaction chain mixed with review identity mismatch"
+assert_eq "MIXED_AUTOMATION_SELF" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":{"id":1}},{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null}]}' | classify_chain)" \
+  "App-attributed and self-authored comments remain mixed, not HUMAN_STOP"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null},{"surface":"issue_or_pr_comment","user":{"type":"User","id":43},"performed_via_github_app":null}]}' | classify_chain)" \
+  "self-interaction mixed with another User"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User"},"performed_via_github_app":null}]}' | classify_chain)" \
+  "self-interaction chain with missing ID"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":false,"pagination_failed":false,"authenticated_user_id":42,"item_author":{"type":"User","id":42},"comments":[{"surface":"issue_or_pr_comment","user":{"type":"User","id":42},"performed_via_github_app":null}]}' | classify_chain)" \
+  "incomplete all-self-interaction chain"
 
 # --- Deterministic nested-pagination fixtures ---
 assert_eq "READY_FOR_CLASSIFICATION" \
@@ -401,6 +759,15 @@ assert_eq "HUMAN_STOP" \
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":true}' | pagination_gate)" \
   "pagination request failure"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"all_comment_pages_complete":true,"pagination_failed":false}' | pagination_gate)" \
+  "missing thread-page completeness fails closed"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"pagination_failed":false}' | pagination_gate)" \
+  "missing comment-page completeness fails closed"
+assert_eq "HUMAN_STOP" \
+  "$(printf '%s' '{"thread_pages_complete":true,"all_comment_pages_complete":true}' | pagination_gate)" \
+  "missing pagination failure status fails closed"
 
 # --- Behavioral confirmation coverage and deterministic grader regressions ---
 python3 - "$root" <<'PY'

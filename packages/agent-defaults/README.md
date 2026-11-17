@@ -167,9 +167,18 @@ skill supplied here, and use this package's version intentionally.
 ## Safeguards
 
 `human-interaction-safeguard` owns actor and conversation-chain classification
-for existing public GitHub interactions. `acting-on-behalf` is the posting and
-attribution backstop. Human or unknown interactions stop automated replies and
-resolution; verified bot/app chains may follow the normal feedback flow.
+for existing public GitHub interactions. It exempts only a comment whose
+immutable comment-author ID matching the authenticated user's ID and a
+verified User item author with an available ID; the item author may be someone
+else. Missing REST App metadata alone does not block that match; the owner
+accepts that an App using the owner's token may be indistinguishable when the
+field is absent. Any observed Bot or non-null App metadata takes precedence.
+A chain containing only requester-account and Bot/App comments may proceed as
+mixed: route only Bot/App content to feedback handling, and treat self-authored
+content as context. Other human interactions and unknown actors stop
+automation. The ID match verifies account attribution, not who composed a
+comment or permission to expand the current direct user request.
+`acting-on-behalf` remains the posting and attribution backstop.
 
 For verified human interaction, the agent gives a concise warning and explains
 that the user can handle it directly or authorize one described pending action.
