@@ -21,7 +21,6 @@ const DIAGNOSTIC_ASSERTION_GRADER_TYPES = new Set([
   "output-not-matches",
 ]);
 const DIAGNOSTICS = new Set([
-  "acting-on-behalf: omits internal model identifiers",
   "pr-lifecycle: breaking changes use the optional ! marker",
   "pr-lifecycle: full-loop fallback polls the selected SHA",
   "pr-lifecycle: keeps feedback routing read only",

@@ -15,7 +15,6 @@ const {
 } = require("./validate-native-evals.js");
 
 const diagnosticNames = [
-  "acting-on-behalf: omits internal model identifiers",
   "pr-lifecycle: breaking changes use the optional ! marker",
   "pr-lifecycle: full-loop fallback polls the selected SHA",
   "pr-lifecycle: rejects a 73-character Conventional PR title",

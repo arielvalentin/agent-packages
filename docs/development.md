@@ -108,7 +108,7 @@ keeps the Copilot credential out of agent-launched shell commands.
 The clone-notice case also stops after one model iteration, matching its
 source's single-completion boundary while retaining its exact-output grader.
 
-The nine approved diagnostics are retained as native stimuli. Only their
+The eight approved diagnostics are retained as native stimuli. Only their
 assertion failures are non-blocking; execution or grader errors, malformed or
 missing results, duplicate results, skill-invocation failures, and all other
 failed graders remain blocking. All four package suites pass offline mapping

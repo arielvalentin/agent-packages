@@ -9181,7 +9181,6 @@ stimuli:
       suite: full
       source_case: '367'
       source_row: '1'
-      diagnostic: assertion-only
     agent_environment:
       files:
         - src: ../.apm/skills/acting-on-behalf/SKILL.md

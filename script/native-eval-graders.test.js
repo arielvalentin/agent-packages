@@ -92,6 +92,33 @@ test("normalized source contracts preserve conjunction and conflicting-token beh
   })).passed, true);
 });
 
+test("case 367 disclosure grader rejects model-identifier additions", () => {
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
+    "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) =>
+    item.name === "agent-defaults-case-367-row-01"
+  );
+  const configuredGrader = stimulus.graders.find((item) =>
+    item.type === "output-matches"
+  );
+  assert.ok(configuredGrader);
+  const pattern = new RegExp(configuredGrader.config.pattern);
+
+  for (const output of ["> _AI Assisted._", "  > _AI Assisted._  \n"]) {
+    assert.equal(pattern.test(output), true, JSON.stringify(output));
+  }
+  for (const output of [
+    "> _AI Assisted._\nModel identifier: [redacted]",
+    "> _AI Assisted._ (model identifier withheld)",
+    "> _AI Assisted._\nInternal model details omitted.",
+    "AI Assisted.",
+  ]) {
+    assert.equal(pattern.test(output), false, JSON.stringify(output));
+  }
+});
+
 test("migrated normalization-sensitive cases use source-equivalent grader configs", async () => {
   const { registerGraders } = await gradersModule;
   const registry = { graders: new Map(), register(grader) {
