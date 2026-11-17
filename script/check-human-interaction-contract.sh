@@ -157,6 +157,9 @@ classify_chain() {
     def correlated_item_author_consistent($root; $observations):
       if (any($observations[]; .surface == "pr_review_comment"))
         and (any($observations[]; .surface == "graphql"))
+        and (any($observations[];
+          self_interaction($root.authenticated_user_id;
+            item_author_for_surface($root))))
       then (($root.rest_item_author.type? == "User")
         and ($root.graphql_item_author.__typename? == "User")
         and ($root.rest_item_author.id? | positive_integer)
@@ -372,8 +375,10 @@ require "$policy" "human stop wins conflicting correlated observations" \
   'any observation is `HUMAN_STOP` because its actor is unknown, another human'
 require "$policy" "Bot/App precedence applies only without a human stop" \
   'Bot/App attribution takes precedence over self-attribution only when no observation is `HUMAN_STOP`'
-require "$policy" "correlated item-author failure always stops" \
-  'correlated comment is `HUMAN_STOP`.{0,220}Never classify that pair independently or return `SELF_INTERACTION`'
+require "$policy" "self item-author mismatch stops" \
+  'When self attribution is used for a correlated pair, missing valid item-author metadata.{0,220}makes the correlated comment `HUMAN_STOP`'
+require "$policy" "Bot/App correlation does not require a User item author" \
+  'A correlated pair with only conclusive Bot/App observations does not depend on item-author metadata and remains `AUTOMATION_FLOW`'
 require "$policy" "self account includes agent-posted replies" \
   'agent-posted replies attributed to the same account are also `SELF_INTERACTION`'
 require "$policy" "self-interaction is scoped to direct request" \
@@ -661,6 +666,9 @@ assert_eq "HUMAN_STOP" \
 assert_eq "AUTOMATION_FLOW" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"Bot"}}]}' | classify_chain)" \
   "all-Bot thread"
+assert_eq "AUTOMATION_FLOW" \
+  "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"rest_item_author":{"type":"Bot","id":97},"graphql_item_author":{"__typename":"Bot","databaseId":97},"comments":[{"surface":"pr_review_comment","id":700,"user":{"type":"Bot","id":99}},{"surface":"graphql","databaseId":700,"author":{"__typename":"Bot","databaseId":99}}]}' | classify_chain)" \
+  "correlated all-Bot feedback on a Bot-authored PR"
 assert_eq "HUMAN_STOP" \
   "$(printf '%s' '{"retrieval_complete":true,"thread_pages_complete":true,"all_comment_pages_complete":true,"pagination_failed":false,"comments":[{"surface":"graphql","author":{"__typename":"Bot"}},{"surface":"graphql","author":{"__typename":"User"}}]}' | classify_chain)" \
   "Bot root with User reply"

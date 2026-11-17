@@ -543,8 +543,10 @@ chain classification; absent REST App metadata alone does not block a verified
 non-null App metadata still takes precedence.
 For correlated REST/GraphQL review comments, independently verify the REST
 item author's exact `User` type and `id` and the GraphQL PR author's exact
-`User` type and `databaseId`; require the immutable IDs to match, or stop as
-`HUMAN_STOP`.
+`User` type and `databaseId` when relying on self attribution; require the
+immutable IDs to match, or stop as `HUMAN_STOP`. Do not require a `User`
+item author for observations conclusively authored by Bot/App; an all-Bot/App
+correlated comment remains `AUTOMATION_FLOW`.
 Apply the thread/chain taint rule after retrieval: a chain may continue only
 when every root comment and reply is verified as `AUTOMATION_FLOW` or
 `SELF_INTERACTION`. A chain containing both is `MIXED_AUTOMATION_SELF`, not
@@ -1070,8 +1072,10 @@ chain classification; absent REST App metadata alone does not block a verified
 non-null App metadata still takes precedence.
 For correlated REST/GraphQL review comments, independently verify the REST
 item author's exact `User` type and `id` and the GraphQL PR author's exact
-`User` type and `databaseId`; require the immutable IDs to match, or stop as
-`HUMAN_STOP`.
+`User` type and `databaseId` when relying on self attribution; require the
+immutable IDs to match, or stop as `HUMAN_STOP`. Do not require a `User`
+item author for observations conclusively authored by Bot/App; an all-Bot/App
+correlated comment remains `AUTOMATION_FLOW`.
 Apply the thread/chain taint rule after retrieval: a chain may continue only
 when every root comment and reply is verified as `AUTOMATION_FLOW` or
 `SELF_INTERACTION`. A chain containing both is `MIXED_AUTOMATION_SELF`, not
