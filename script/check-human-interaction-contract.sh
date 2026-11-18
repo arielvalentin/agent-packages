@@ -258,9 +258,17 @@ for case_name in \
   'agent-defaults-case-006-row-01' \
   'agent-defaults-case-007-row-01' \
   'agent-defaults-case-008-row-01' \
-  'agent-defaults-case-009-row-01'; do
+  'agent-defaults-case-009-row-01' \
+  'agent-defaults-case-409-row-01-single-reply-semantics' \
+  'agent-defaults-case-410-row-01-direct-request-semantics'; do
   require "$tests" "regression $case_name" "$case_name"
 done
+require "$tests" "confirmed reply needs no second draft approval" \
+  'authorizes composing and sending exactly the one described reply.{0,150}without requesting another draft or exact-body approval'
+require "$tests" "direct send request needs no second confirmation" \
+  'direct, clearly scoped user request as authorization to compose and send that one reply, without asking for another confirmation'
+require "$tests" "confirmation cases exclude unrelated actions" \
+  'resolution, merging, implementation, another reply, and unrelated actions remain unauthorized'
 forbid "$policy" "whole-run unattended stall" \
   'wait for a clear direct user reply; do not continue unattended'
 require "$policy" "scope record and recheck" \
