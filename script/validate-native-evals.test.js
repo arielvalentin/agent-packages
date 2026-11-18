@@ -211,6 +211,51 @@ test("execution errors, skipped results, grader errors and type mismatches never
   }
 });
 
+test("native prompt rubric leaves are checked without counting as configured graders", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  const stimulus = stimuli.at(-1);
+  stimulus.rubric = ["Only ask to draft."];
+  stimulus.graders.push({ name: "draft-only", type: "prompt", config: { scoring: "binary" } });
+  save();
+
+  function promptRun() {
+    const items = records();
+    const grade = items.at(-2).gradeResult;
+    const rubric = {
+      name: "prompt/Only ask to draft.", kind: "llm", passed: true,
+      score: 1, evidence: "Only a draft was requested.", label: "correct",
+    };
+    const prompt = {
+      name: "draft-only", configuredName: "draft-only", graderType: "prompt",
+      kind: "llm", passed: true, score: 1, details: [rubric],
+    };
+    grade.details.push(prompt);
+    return { items, grade, prompt, rubric };
+  }
+  const validate = (items) => validateRun(root, "agent-defaults", "full", items).errors;
+  assert.deepEqual(validate(promptRun().items), []);
+
+  for (const [mutate, expected] of [
+    [({ rubric }) => { rubric.status = "error"; }, /grader execution error/],
+    [({ prompt }) => { prompt.status = "error"; }, /grader execution error/],
+    [({ rubric }) => { rubric.passed = false; }, /contradicts/],
+    [({ rubric }) => { delete rubric.passed; }, /malformed grader result/],
+    [({ rubric }) => { rubric.name = "unexpected"; }, /malformed grader result/],
+    [({ prompt }) => { prompt.details.push(null); }, /malformed grader result/],
+    [({ rubric }) => { rubric.details = [{}]; }, /malformed grader result/],
+    [({ rubric }) => { rubric.configuredName = "draft-only"; }, /malformed grader result/],
+    [({ prompt }) => { delete prompt.graderType; }, /malformed grader result/],
+    [({ prompt }) => { delete prompt.configuredName; }, /malformed grader result/],
+    [({ prompt }) => { prompt.configuredName = "unexpected"; }, /grader result/],
+    [({ grade, prompt }) => { grade.details.push(structuredClone(prompt)); }, /configured grader set/],
+    [({ grade, rubric }) => { grade.details[0].details = [rubric]; }, /malformed grader result/],
+  ]) {
+    const run = promptRun();
+    mutate(run);
+    assert.match(validate(run.items).join("\n"), expected);
+  }
+});
+
 test("missing, duplicate, unexpected, malformed and inconsistent results are rejected", (t) => {
   const { root } = fixture(t);
   const cases = [

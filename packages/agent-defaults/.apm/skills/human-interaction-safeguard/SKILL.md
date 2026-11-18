@@ -328,5 +328,7 @@ this skill. If this skill is unavailable, fail closed: treat the actor as
 human and perform only the private summary and user prompt. Do not initiate a
 repository change, draft/post a reply, or resolve the thread from the
 interaction. A later, separate, explicit implementation instruction may
-authorize code/config/test work only; reply and resolution remain user-only
-unless separately authorized.
+authorize code/config/test work only; it does not authorize replies or
+resolution. Those remain blocked until this safeguard is available and
+eligibility checks pass. A human-thread reply still requires the canonical
+single-reply confirmation, and resolution remains a separate user decision.

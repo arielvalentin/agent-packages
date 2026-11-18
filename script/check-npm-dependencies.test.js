@@ -407,7 +407,17 @@ test("clone notice keeps the single-completion exact-output contract", () => {
 
 test("compound substring and negative assertions preserve source search semantics", () => {
   const stimulus = defaultsCase(349);
-  const patterns = stimulus.graders.map((grader) => grader.config.pattern);
+  assert.deepEqual(stimulus.graders.map(({ type }) => type), [
+    "output-matches", "output-matches", "prompt",
+  ]);
+  assert.equal(stimulus.rubric.length, 1);
+  const { scoring, threshold, evidence } = stimulus.graders[2].config;
+  assert.deepEqual({ scoring, threshold, evidence }, {
+    scoring: "binary", threshold: 1, evidence: ["trajectory"],
+  });
+  const patterns = stimulus.graders
+    .filter((grader) => grader.type === "output-matches")
+    .map((grader) => grader.config.pattern);
   assert.equal(patterns.length, 2);
   const positive = new RegExp(patterns[0]);
   const negative = new RegExp(patterns[1]);

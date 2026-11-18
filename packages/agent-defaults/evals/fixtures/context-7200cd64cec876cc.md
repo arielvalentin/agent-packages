@@ -903,12 +903,17 @@ the earlier outcome.
 Do not report ready while an actionable finding or unresolved clarification
 remains. A rebutted thread is handled for readiness after its permitted,
 evidence-based reply is posted through `pr-feedback-review` and
-`acting-on-behalf`; its unresolved thread status alone is not a blocker. Stop
-rather than report ready after 10 iterations.
+`acting-on-behalf`, only if the refreshed chain still classifies as
+`AUTOMATION_FLOW`. An agent's reply classified as `User` taints the chain as
+`HUMAN_STOP`; the next feedback snapshot must return control to the user before
+declaring readiness. Agent authorship does not exempt the reply from actor
+classification. A verified Bot/App reply need not taint the chain, but every
+item must still classify as `AUTOMATION_FLOW`. Only then is unresolved thread
+status alone not a blocker. Stop rather than report ready after 10 iterations.
 
 | Condition | Action |
 |-----------|--------|
-| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
+| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply and its refreshed chain remains `AUTOMATION_FLOW`; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
 | Head changed or required-check evidence is stale | Rerun Phase 4/5 for the current head; revalidate earlier findings against the current diff; do not report ready |
 | Required CI is still pending after the bounded wait | Report pending checks and stop; do not report ready |
 | Phase 5 wait for current head is still active and no current-head review has appeared | Continue the bounded wait; do not report ready |
