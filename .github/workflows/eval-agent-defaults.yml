@@ -14,7 +14,6 @@ on:
       - "script/native-eval-graders.test.js"
       - "script/vally-output.js"
       - "script/vally-output.test.js"
-      - "docs/evaluations-migration-map.json"
       - ".github/workflows/eval-agent-defaults.yml"
       - ".github/actions/eval-package/**"
   workflow_dispatch:

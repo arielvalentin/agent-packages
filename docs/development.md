@@ -89,6 +89,8 @@ modify workflow definitions.
 
 The runner validates native specs before starting Copilot. It rejects empty
 selections, duplicate stimuli, and missing, duplicate, or unexpected results.
+The original Promptfoo migration snapshot remains available in
+[Git history](https://github.com/arielvalentin/agent-packages/blob/f85609e7966e4f8d2e80c909d0f96556e1dfe050/docs/evaluations-migration-map.json).
 
 Thirty-one stimuli exercise root policy behavior. Their
 profiles, instructions, or reference files are staged at supported workspace
