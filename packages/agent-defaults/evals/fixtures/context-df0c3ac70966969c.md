@@ -678,47 +678,27 @@ threads using the exact `gh api` commands in `human-interaction-safeguard`.
 Do not classify actors from `gh pr view --json reviews,comments` or login text.
 Exhaust both `reviewThreads` pages and every thread's independent `comments`
 pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
-Correlate REST review-comment `id` with GraphQL comment `databaseId` before
-chain classification; absent REST App metadata alone does not block a verified
-`SELF_INTERACTION` under the owner-accepted residual risk. Any observed Bot or
-non-null App metadata takes precedence only after the canonical consistency
-checks pass. For the same correlated comment, conflicting actor types or
-present-but-disagreeing author IDs stop as `HUMAN_STOP`; this does not change
-the handling of separate Bot and verified-self comments.
-For correlated REST/GraphQL review comments, independently verify the REST
-item author's exact `User` type and `id` and the GraphQL PR author's exact
-`User` type and `databaseId` when relying on self attribution; require the
-immutable IDs to match, or stop as `HUMAN_STOP`. Do not require a `User`
-item author for observations conclusively authored by Bot/App; an all-Bot/App
-correlated comment remains `AUTOMATION_FLOW` unless the correlated metadata
-contradicts itself. Present item-author IDs that disagree stop even on that
-path. App-attributed REST `User` plus GraphQL self-`User` observations with
-missing item-author metadata remain `HUMAN_STOP`.
-Apply the thread/chain taint rule after retrieval: a chain may continue only
-when every root comment and reply is verified as `AUTOMATION_FLOW` or
-`SELF_INTERACTION`. A chain containing both is `MIXED_AUTOMATION_SELF`, not
-`HUMAN_STOP`: route only Bot/App-authored content to feedback handling and keep
-self-authored content as context, not independent actionable feedback or
-authorization. `SELF_INTERACTION` requires matching authenticated-account and
-comment-author IDs plus a verified `User` item author with an available
-immutable ID; it proves account attribution, not who composed the comment.
-Any `HUMAN_STOP` item taints the entire chain, so no comment in it may trigger
-implementation, an agent reply, or agent resolution.
+Classify each retrieved item using only its authoritative REST author type and
+App metadata or its GraphQL author type. Do not correlate REST and GraphQL
+comment IDs or compare author, item-author, or authenticated-account IDs.
+Every item must independently classify as `AUTOMATION_FLOW` for its chain to
+continue. Any human, unknown, missing, or unverified actor taints the entire
+chain as `HUMAN_STOP`; do not split out Bot/App comments for separate action.
 
 Apply `human-interaction-safeguard` first. It is the sole source of truth for
 actor classification and behavior:
 
 - `HUMAN_STOP` → by default, return control to the user; do not initiate a change
-  from the interaction, draft or post a reply, or resolve the thread. A later, separate,
-  explicit implementation instruction may authorize code/config/test work;
-  reply and resolution require their own approval.
-  Defer any single-action exception exclusively to `human-interaction-safeguard`:
-  warn about human interaction and obtain ordinary explicit user confirmation
-  for the described action and target. Its authorization permits only that action,
-  not lifecycle iteration, another operation, or classification as automation.
-- `SELF_INTERACTION` → continue only within the user's requested work scope.
-  This bypasses the `HUMAN_STOP` pause, not the remaining action, posting,
-  attribution, or disclosure gates.
+  from the interaction, draft or post a reply, or resolve the thread. A later,
+  separate, explicit implementation instruction may authorize
+  code/config/test work. For a reply, warn that the chain includes a human
+  response and obtain one clear user confirmation for the described reply
+  target, topic, and scope. That confirmation authorizes composing and sending
+  the reply once without a separate draft approval. A draft-only request
+  authorizes drafting only, not posting. Reply approval does not grant
+  resolution, merge, implementation, or unrelated actions.
+  Defer the warning and confirmation exclusively to
+  `human-interaction-safeguard`.
 - `AUTOMATION_FLOW` → use `pr-feedback-review`.
 
 `pr-lifecycle` owns the lifecycle-wide stop decision. If any feedback chain is
@@ -728,14 +708,10 @@ rule takes precedence over `pr-feedback-review`'s per-chain handling when that
 skill is invoked by this lifecycle. Do not process the clean chains in the same
 iteration or dispatch fixes from them.
 
-Only after complete thread retrieval, all relevant chains classify as
-`AUTOMATION_FLOW`, `SELF_INTERACTION`, or `MIXED_AUTOMATION_SELF`, and the
-caller's authorization gates pass may supported Bot/App-authored findings
-enter `review-fix-loop`. Entry also requires at least one Bot/App-authored
-finding. A `SELF_INTERACTION`-only chain remains context and does not initiate
-research or enter the loop by itself. Do not pass
-self-authored comments from a mixed chain as actionable findings. Pass them as
-`accepted_findings` with the reviewer
+Only after complete thread retrieval and all relevant chains classify as
+`AUTOMATION_FLOW` may supported Bot/App-authored findings enter
+`review-fix-loop`. Entry also requires at least one Bot/App-authored finding.
+Pass them as `accepted_findings` with the reviewer
 (`adversarial-review`), exact diff scope, task/acceptance context, and the
 unchanged caller-derived `explicit_multi_review` boolean.
 The loop must not repeat its initial intake review for these already accepted
@@ -835,12 +811,17 @@ the earlier outcome.
 Do not report ready while an actionable finding or unresolved clarification
 remains. A rebutted thread is handled for readiness after its permitted,
 evidence-based reply is posted through `pr-feedback-review` and
-`acting-on-behalf`; its unresolved thread status alone is not a blocker. Stop
-rather than report ready after 10 iterations.
+`acting-on-behalf`, only if the refreshed chain still classifies as
+`AUTOMATION_FLOW`. An agent's reply classified as `User` taints the chain as
+`HUMAN_STOP`; the next feedback snapshot must return control to the user before
+declaring readiness. Agent authorship does not exempt the reply from actor
+classification. A verified Bot/App reply need not taint the chain, but every
+item must still classify as `AUTOMATION_FLOW`. Only then is unresolved thread
+status alone not a blocker. Stop rather than report ready after 10 iterations.
 
 | Condition | Action |
 |-----------|--------|
-| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
+| Two consecutive fresh snapshots agree: PR open and non-draft; all required checks pass on the selected SHA; Copilot review matches that head or is skipped/timed out; no actionable or unresolved clarification remains; any unresolved rebuttal has a permitted evidence-based reply and its refreshed chain remains `AUTOMATION_FLOW`; `mergeStateStatus=CLEAN` or eligible `UNSTABLE`, or `BEHIND` with every applicable strict/up-to-date requirement verified false | Notify user: ready to merge |
 | Head changed or required-check evidence is stale | Rerun Phase 4/5 for the current head; revalidate earlier findings against the current diff; do not report ready |
 | Required CI is still pending after the bounded wait | Report pending checks and stop; do not report ready |
 | Phase 5 wait for current head is still active and no current-head review has appeared | Continue the bounded wait; do not report ready |

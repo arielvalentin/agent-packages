@@ -69,6 +69,15 @@ function resolveRepositoryFile(root, baseDirectory, filePath, label) {
   return realTarget;
 }
 
+function blocksShellCommands(override) {
+  if (!override || typeof override !== "object") return false;
+  if ("patterns" in override) {
+    return Array.isArray(override.patterns)
+      && override.default?.is_error === true;
+  }
+  return override.is_error === true;
+}
+
 function validateNativeSuite(root, packageName, suite) {
   const errors = [];
   if (!PACKAGES.has(packageName)) errors.push(`Unknown package: ${packageName}`);
@@ -122,7 +131,7 @@ function validateNativeSuite(root, packageName, suite) {
         graderNames.add(grader.name);
       }
     }
-    if (stimulus.simulation?.tool_overrides?.bash?.is_error !== true) {
+    if (!blocksShellCommands(stimulus.simulation?.tool_overrides?.bash)) {
       errors.push(`${stimulus.name} does not block shell command execution.`);
     }
     for (const file of stimulus.agent_environment?.files || []) {
@@ -174,13 +183,21 @@ function validateNativeSuite(root, packageName, suite) {
   return { errors, suiteMap, evalSpec, evalPath, stimuli, selectedStimuli, expectedEntries };
 }
 
-function flattenGraders(result, output = []) {
-  if (!result || typeof result !== "object" || Array.isArray(result)) return output;
-  output.push(result);
-  if (Array.isArray(result.details)) {
-    for (const child of result.details) flattenGraders(child, output);
+function flattenGraders(result, output = [], parent) {
+  const entry = { result, parent };
+  output.push(entry);
+  if (Array.isArray(result?.details)) {
+    for (const child of result.details) flattenGraders(child, output, entry);
   }
   return output;
+}
+
+function isPromptRubricLeaf(result) {
+  return result?.kind === "llm"
+    && typeof result.name === "string" && /^prompt\/\S/.test(result.name)
+    && Number.isFinite(result.score) && result.score >= 0 && result.score <= 1
+    && result.graderType === undefined && result.configuredName === undefined
+    && result.details === undefined;
 }
 
 function validateTrialItemId(record) {
@@ -320,12 +337,29 @@ function validateRun(root, packageName, suite, records, options = {}) {
       errors.push(`${record.stimulus} has a missing or malformed grade result.`);
       continue;
     }
-    const graderResults = flattenGraders(grade);
-    if (graderResults.some((grader) => typeof grader.passed !== "boolean"
-      || (grader !== grade && typeof grader.graderType !== "string"))) {
+    const configuredGraders = new Map(stimulus.graders.map(({ name, type }) => [name, type]));
+    if (grade.details.some((grader) => typeof grader?.configuredName !== "string"
+      || typeof grader.graderType !== "string")) {
       errors.push(`${record.stimulus} contains a malformed grader result.`);
       continue;
     }
+    // Vally stamps configured identity on the prompt grader, not its rubric leaves.
+    const flattened = flattenGraders(grade);
+    if (flattened.some(({ result: grader, parent }) => {
+      const owner = parent?.result;
+      const rubricLeaf = parent?.parent?.result === grade
+        && owner?.graderType === "prompt"
+        && configuredGraders.get(owner.configuredName) === "prompt";
+      return !grader || typeof grader !== "object"
+        || Array.isArray(grader) || typeof grader.passed !== "boolean"
+        || (grader.details !== undefined && !Array.isArray(grader.details))
+        || (rubricLeaf ? !isPromptRubricLeaf(grader)
+          : parent !== undefined && typeof grader.graderType !== "string");
+    })) {
+      errors.push(`${record.stimulus} contains a malformed grader result.`);
+      continue;
+    }
+    const graderResults = flattened.map(({ result }) => result);
     if (graderResults.some((grader) => grader.status && grader.status !== "success")) {
       errors.push(`${record.stimulus} contains a grader execution error.`);
       continue;

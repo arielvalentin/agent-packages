@@ -63,22 +63,12 @@ interaction, invoke `human-interaction-safeguard`.
   even a new top-level comment. Retrieve and classify the complete relevant
   conversation chain before drafting or posting.
 - `HUMAN_STOP` prohibits an agent-authored reply and agent-performed thread
-  resolution by default. Only `human-interaction-safeguard` can authorize its
-  single-action exception through ordinary scoped user confirmation.
+  resolution by default. Only `human-interaction-safeguard` can authorize
+  composing and sending one described reply through ordinary, clear user
+  confirmation, without a separate draft approval.
   Defer the warning and confirmation UX to that skill.
   Classification stays `HUMAN_STOP`; continue all
   posting, identity, attribution, and independent approval rules below.
-- `SELF_INTERACTION` may proceed through the posting rules below only within
-  the user's requested scope. It is account-attributed, not proof of human
-  composition or automation. The owner accepts that an App using the owner's
-  token may be indistinguishable when App metadata is absent; this does not
-  expand the requested scope. Self attribution is not authorization to post
-  or resolve; each action still needs its own user-requested scope and posting
-  checks.
-- `MIXED_AUTOMATION_SELF` does not trigger a human pause. Route only Bot/App
-  content through automated feedback handling; self-authored content is
-  context, not authorization or an independent action request. This does not
-  imply permission to reply or resolve.
 - `AUTOMATION_FLOW` may continue through the posting rules below.
 - If the safeguard skill is unavailable, fail closed as `HUMAN_STOP`.
 
@@ -161,10 +151,12 @@ Before posting or replying to a PR/issue comment:
 
 1. Apply `human-interaction-safeguard` when the action responds to an existing
    interaction. Do not draft, post, or resolve on `HUMAN_STOP` without its
-   canonical single-action authorization for that exact operation and target.
+   canonical confirmation for that exact operation and target.
    This skill supplies no override and cannot broaden that authorization.
-   For `SELF_INTERACTION`, follow the posting rules only within the user's
-   requested scope; retain the identity, attribution, and disclosure checks.
+   For a verified human interaction, follow the canonical single-reply
+   confirmation. A draft-only request authorizes drafting only; posting still
+   needs separate approval. Reply confirmation does not authorize resolution,
+   merging, implementation, or unrelated actions.
 2. Include the requested substantive message and determine whether the post
    meets a disclaimer condition.
    If the posting identity is unknown, pause and ask before posting.
