@@ -1,0 +1,46 @@
+paths:
+  evals:
+    - packages/agent-defaults/evals
+    - packages/coordinator/evals
+    - packages/development-workflow/evals
+    - packages/code-reviewers/evals
+  evalFilenames: "*.eval.yaml"
+  results: .copilot/evals/results
+
+suites:
+  agent-defaults-smoke:
+    evals: packages/agent-defaults/evals/agent-defaults.eval.yaml
+    filter:
+      suite: smoke
+  agent-defaults-full:
+    evals: packages/agent-defaults/evals/agent-defaults.eval.yaml
+    filter:
+      suite: [smoke, full]
+  coordinator-smoke:
+    evals: packages/coordinator/evals/coordinator.eval.yaml
+    filter:
+      suite: smoke
+  coordinator-full:
+    evals: packages/coordinator/evals/coordinator.eval.yaml
+    filter:
+      suite: [smoke, full]
+  development-workflow-smoke:
+    evals: packages/development-workflow/evals/development-workflow.eval.yaml
+    filter:
+      suite: smoke
+  development-workflow-full:
+    evals: packages/development-workflow/evals/development-workflow.eval.yaml
+    filter:
+      suite: [smoke, full]
+  code-reviewers-smoke:
+    evals: packages/code-reviewers/evals/code-reviewers.eval.yaml
+    filter:
+      suite: smoke
+  code-reviewers-full:
+    evals: packages/code-reviewers/evals/code-reviewers.eval.yaml
+    filter:
+      suite: [smoke, full]
+
+plugins:
+  grader:
+    - ./script/native-eval-graders.mjs
