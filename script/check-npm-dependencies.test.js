@@ -371,6 +371,7 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
     assert.equal(actionSteps[1].with.runs, "1");
     assert.equal(actionSteps[1].with.workers, "1");
     assert.equal(actionSteps[1].with["max-retries"], "0");
+    assert.equal(actionSteps[1]["continue-on-error"], true, workflowName);
     assert.equal(
       actionSteps[1].with["copilot-token"],
       "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}"
@@ -381,8 +382,108 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
     assert.equal(workflow.jobs.run.outputs["inventory-valid"], "${{ steps.validate.outputs.valid }}");
     const validateStep = workflow.jobs.run.steps.find((step) => step.id === "validate");
     assert.equal(validateStep.if, "always()");
+    assert.equal(validateStep.env["EVAL_ACTION_OUTCOME"], "${{ steps.evals.outputs.outcome }}");
+    assert.equal(validateStep.env["EVAL_ACTION_STEP_OUTCOME"], "${{ steps.evals.outcome }}");
+    assert.equal(validateStep.env["EVAL_REPORT_ARTIFACT_ID"], "${{ steps.evals.outputs.artifact-id }}");
+    assert.equal(validateStep.env["EVAL_REPORT_ARTIFACT_DIGEST"], "${{ steps.evals.outputs.artifact-digest }}");
     assert.match(validateStep.run, /findVallyJsonlOutput/);
     assert.match(validateStep.run, new RegExp(`validate-native-evals\\.js --results ${packageName}`));
+    assert.match(
+      validateStep.run,
+      /validator_status=0[\s\S]*\|\| validator_status=\$\?[\s\S]*case "\$validator_status" in[\s\S]*0\)[\s\S]*EVAL_ACTION_OUTCOME" != "passed"[\s\S]*10\)[\s\S]*EVAL_ACTION_OUTCOME" != "failed"[\s\S]*\*\)[\s\S]*exit "\$validator_status"[\s\S]*EVAL_REPORT_ARTIFACT_ID[\s\S]*echo "valid=true"/
+    );
+    const outputLine = 'echo "valid=true" >> "$GITHUB_OUTPUT"';
+    const validationStart = validateStep.run.indexOf("set -euo pipefail");
+    const validationEnd = validateStep.run.indexOf(outputLine, validationStart) + outputLine.length;
+    const validationScript = validateStep.run.slice(validationStart, validationEnd);
+    const nodeStub = [
+      "node() {",
+      '  if [[ "$1" == "-e" ]]; then',
+      '    if [[ "$DISCOVERY_STATUS" -ne 0 ]]; then return "$DISCOVERY_STATUS"; fi',
+      '    printf "%s" "$RESULTS_FILE"',
+      "    return 0",
+      "  fi",
+      '  if [[ "$1" == "script/validate-native-evals.js" ]]; then return "$VALIDATOR_STATUS"; fi',
+      "  return 127",
+      "}",
+    ].join("\n");
+    const makeCase = (name, overrides = {}) => ({
+      name,
+      validatorStatus: 0,
+      actionOutcome: "passed",
+      stepOutcome: "success",
+      artifactId: "123",
+      artifactDigest: "sha256:abc",
+      nativeDiagnosticsPath: "/tmp/native",
+      discoveryStatus: 0,
+      expectedStatus: 1,
+      expectedOutput: "",
+      ...overrides,
+    });
+    const cases = [
+      makeCase("passed inventory", { expectedStatus: 0, expectedOutput: "valid=true\n" }),
+      makeCase("approved diagnostics", {
+        validatorStatus: 10,
+        actionOutcome: "failed",
+        stepOutcome: "failure",
+        expectedStatus: 0,
+        expectedOutput: "valid=true\n",
+      }),
+      makeCase("inconsistent diagnostic action result", { validatorStatus: 10, actionOutcome: "failed" }),
+      makeCase("validator error", { validatorStatus: 1, actionOutcome: "error", stepOutcome: "failure" }),
+      makeCase("unexpected validator status", {
+        validatorStatus: 2,
+        actionOutcome: "error",
+        stepOutcome: "failure",
+        expectedStatus: 2,
+      }),
+      makeCase("action failure with passing inventory", { stepOutcome: "failure" }),
+      makeCase("diagnostics with action error", {
+        validatorStatus: 10,
+        actionOutcome: "error",
+        stepOutcome: "failure",
+      }),
+      makeCase("diagnostics without report artifact", {
+        validatorStatus: 10,
+        actionOutcome: "failed",
+        stepOutcome: "failure",
+        artifactId: "",
+        artifactDigest: "",
+      }),
+      makeCase("missing report artifact", { artifactId: "", artifactDigest: "" }),
+      makeCase("missing diagnostics", { nativeDiagnosticsPath: "" }),
+      makeCase("result discovery error", { discoveryStatus: 1 }),
+    ];
+    const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "eval-validation-"));
+    try {
+      for (const [index, testCase] of cases.entries()) {
+        const outputPath = path.join(outputDirectory, `case-${index}`);
+        fs.writeFileSync(outputPath, "");
+        const result = spawnSync("bash", ["-c", `${nodeStub}\n${validationScript}`], {
+          env: {
+            ...process.env,
+            EVAL_ACTION_OUTCOME: testCase.actionOutcome,
+            EVAL_ACTION_STEP_OUTCOME: testCase.stepOutcome,
+            EVAL_REPORT_ARTIFACT_DIGEST: testCase.artifactDigest,
+            EVAL_REPORT_ARTIFACT_ID: testCase.artifactId,
+            EVAL_SUITE: "smoke",
+            GITHUB_OUTPUT: outputPath,
+            NATIVE_DIAGNOSTICS_PATH: testCase.nativeDiagnosticsPath,
+            RESULTS_FILE: "/tmp/results.jsonl",
+            VALIDATOR_STATUS: String(testCase.validatorStatus),
+            DISCOVERY_STATUS: String(testCase.discoveryStatus),
+          },
+        });
+        assert.equal(result.status, testCase.expectedStatus, `${workflowName}: ${testCase.name}`);
+        assert.equal(
+          fs.readFileSync(outputPath, "utf8"),
+          testCase.expectedOutput,
+          `${workflowName}: ${testCase.name} output`
+        );
+      }
+    } finally {
+      fs.rmSync(outputDirectory, { recursive: true, force: true });
+    }
 
     const suiteExpression = actionSteps[1].with.suite.replace(/^\$\{\{\s*|\s*\}\}$/g, "");
     for (const [event, input, expected] of [

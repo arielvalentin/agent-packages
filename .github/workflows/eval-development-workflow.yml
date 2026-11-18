@@ -137,6 +137,7 @@ jobs:
         run: npm ci
       - id: evals
         uses: github/evals-action@6e4c077e92194c7e75663d8d782426841047e887 # v0.2.0
+        continue-on-error: true
         with:
           command: run
           working-directory: .
@@ -155,6 +156,10 @@ jobs:
         env:
           EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.suite || 'smoke' }}
           NATIVE_DIAGNOSTICS_PATH: ${{ steps.evals.outputs.native-diagnostics-path }}
+          EVAL_ACTION_OUTCOME: ${{ steps.evals.outputs.outcome }}
+          EVAL_ACTION_STEP_OUTCOME: ${{ steps.evals.outcome }}
+          EVAL_REPORT_ARTIFACT_ID: ${{ steps.evals.outputs.artifact-id }}
+          EVAL_REPORT_ARTIFACT_DIGEST: ${{ steps.evals.outputs.artifact-digest }}
         run: |
           set -euo pipefail
           if [[ -z "$NATIVE_DIAGNOSTICS_PATH" ]]; then
@@ -162,7 +167,29 @@ jobs:
             exit 1
           fi
           results_file="$(node -e 'const { findVallyJsonlOutput } = require("./script/vally-output.js"); process.stdout.write(findVallyJsonlOutput(process.argv[1]));' "$NATIVE_DIAGNOSTICS_PATH")"
-          node script/validate-native-evals.js --results development-workflow "$EVAL_SUITE" "$results_file"
+          validator_status=0
+          node script/validate-native-evals.js --results development-workflow "$EVAL_SUITE" "$results_file" || validator_status=$?
+          case "$validator_status" in
+            0)
+              if [[ "$EVAL_ACTION_OUTCOME" != "passed" || "$EVAL_ACTION_STEP_OUTCOME" != "success" ]]; then
+                echo "::error::The eval action failed despite a passing native inventory."
+                exit 1
+              fi
+              ;;
+            10)
+              if [[ "$EVAL_ACTION_OUTCOME" != "failed" || "$EVAL_ACTION_STEP_OUTCOME" != "failure" ]]; then
+                echo "::error::Non-blocking diagnostics require a failed native verdict from the eval action."
+                exit 1
+              fi
+              ;;
+            *)
+              exit "$validator_status"
+              ;;
+          esac
+          if [[ -z "$EVAL_REPORT_ARTIFACT_ID" || -z "$EVAL_REPORT_ARTIFACT_DIGEST" ]]; then
+            echo "::error::The eval action did not publish the required native report artifact."
+            exit 1
+          fi
           echo "valid=true" >> "$GITHUB_OUTPUT"
 
   report:
