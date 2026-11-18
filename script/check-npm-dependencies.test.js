@@ -71,6 +71,207 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       path.join(root, ".github/workflows", workflowName),
       "utf8"
     ));
+    if (workflowName === "eval-coordinator.yml") {
+      assert.deepEqual(Object.keys(workflow.on), ["pull_request", "push", "workflow_dispatch"]);
+      assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
+      assert.ok(workflow.on.pull_request.paths.includes(".vally.yaml"));
+      for (const dependencyPath of [
+        "script/native-eval-fixtures.js",
+        "script/native-eval-fixtures.json",
+      ]) {
+        assert.ok(workflow.on.pull_request.paths.includes(dependencyPath), dependencyPath);
+        assert.ok(workflow.on.push.paths.includes(dependencyPath), dependencyPath);
+      }
+      assert.ok(!workflow.on.pull_request.paths.includes(".github/actions/eval-package/**"));
+      assert.ok(!workflow.on.push.paths.includes(".github/actions/eval-package/**"));
+      assert.deepEqual(workflow.permissions, { contents: "read" });
+      assert.deepEqual(workflow.jobs.run.permissions, {
+        contents: "read",
+        "copilot-requests": "write",
+      });
+      assert.deepEqual(workflow.jobs.report.permissions, {
+        actions: "read",
+        contents: "read",
+        "pull-requests": "write",
+      });
+      assert.deepEqual(workflow.jobs.report.needs, ["lint", "run"]);
+      assert.deepEqual(workflow.jobs.report.concurrency, {
+        group: "evals-${{ github.workflow_ref }}",
+        "cancel-in-progress": false,
+      });
+      assert.deepEqual(workflow.jobs.lint.concurrency, workflow.jobs.run.concurrency);
+      assert.equal(workflow.jobs.lint.concurrency["cancel-in-progress"], true);
+
+      const ownerPr = {
+        repository: "owner/repo",
+        repository_owner: "owner",
+        actor: "owner",
+        triggering_actor: "owner",
+        event_name: "pull_request",
+        ref: "refs/pull/1/merge",
+        event: {
+          pull_request: {
+            user: { login: "owner" },
+            head: { repo: { full_name: "owner/repo" } },
+          },
+        },
+      };
+      const evaluateCondition = (condition, github, needs = {}) => vm.runInNewContext(
+        condition,
+        { github, needs, always: () => true }
+      );
+      for (const condition of [workflow.jobs.lint.if, workflow.jobs.run.if]) {
+        const needs = {
+          lint: { result: "success" },
+          run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+        };
+        assert.equal(evaluateCondition(condition, ownerPr, needs), true);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          actor: "other",
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          triggering_actor: "other",
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event: {
+            pull_request: {
+              user: { login: "other" },
+              head: { repo: { full_name: "owner/repo" } },
+            },
+          },
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event: {
+            pull_request: {
+              user: { login: "owner" },
+              head: { repo: { full_name: "fork/repo" } },
+            },
+          },
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event_name: "push",
+          ref: "refs/heads/main",
+          event: {},
+        }, needs), true);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event_name: "workflow_dispatch",
+          ref: "refs/heads/main",
+          event: {},
+        }, needs), true);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event_name: "push",
+          ref: "refs/heads/feature",
+          event: {},
+        }, needs), false);
+      }
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+      }), true);
+      for (const changes of [
+        { actor: "other" },
+        { triggering_actor: "other" },
+        {
+          event: {
+            pull_request: {
+              user: { login: "other" },
+              head: { repo: { full_name: "owner/repo" } },
+            },
+          },
+        },
+        {
+          event: {
+            pull_request: {
+              user: { login: "owner" },
+              head: { repo: { full_name: "fork/repo" } },
+            },
+          },
+        },
+      ]) {
+        assert.equal(evaluateCondition(workflow.jobs.report.if, {
+          ...ownerPr,
+          ...changes,
+        }, {
+          lint: { result: "success" },
+          run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+        }), false);
+      }
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "cancelled", outputs: {} },
+      }), false);
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "failure", outputs: { "inventory-valid": "", "action-outcome": "passed" } },
+      }), false);
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "failure", outputs: { "inventory-valid": "", "action-outcome": "failed" } },
+      }), true);
+
+      const preflight = workflow.jobs.lint.steps.find((step) =>
+        step.name === "Validate coordinator suite preflight"
+      );
+      assert.equal(preflight.run, "node script/validate-native-evals.js --check coordinator \"$EVAL_SUITE\"");
+      assert.ok(workflow.jobs.lint.steps.some((step) => step.run === "npm ci"));
+      const actionSteps = ["lint", "run", "report"].map((job) =>
+        workflow.jobs[job].steps.find((step) =>
+          step.uses?.startsWith("github/evals-action@")
+        )
+      );
+      assert.ok(actionSteps.every((step) =>
+        /^github\/evals-action@[a-f0-9]{40}$/.test(step.uses)
+      ));
+      assert.equal(new Set(actionSteps.map((step) => step.uses)).size, 1);
+      assert.equal(actionSteps[0].with.command, "lint");
+      assert.equal(actionSteps[0].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[0].with["report-id"], "coordinator");
+      assert.equal(actionSteps[1].with.command, "run");
+      assert.equal(actionSteps[1].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[1].with.model, "gpt-5.3-codex");
+      assert.equal(actionSteps[1].with.runs, "1");
+      assert.equal(actionSteps[1].with.workers, "1");
+      assert.equal(actionSteps[1].with["max-retries"], "0");
+      assert.equal(
+        actionSteps[1].with["copilot-token"],
+        "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}"
+      );
+      assert.equal(workflow.jobs.run.outputs["action-outcome"], "${{ steps.evals.outputs.outcome }}");
+      assert.equal(
+        workflow.jobs.run.outputs["inventory-valid"],
+        "${{ steps.validate.outputs.valid }}"
+      );
+      const validateStep = workflow.jobs.run.steps.find((step) => step.id === "validate");
+      assert.equal(validateStep.if, "always()");
+      assert.match(validateStep.run, /findVallyJsonlOutput/);
+      assert.match(validateStep.run, /validate-native-evals\.js --results coordinator/);
+      assert.equal(actionSteps[2].with.command, "report");
+      assert.equal(actionSteps[2].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[2].with["report-id"], "coordinator");
+      const suiteExpression = actionSteps[1].with.suite.replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+      assert.equal(vm.runInNewContext(suiteExpression, {
+        github: ownerPr,
+        inputs: {},
+      }), "coordinator-smoke");
+      assert.equal(vm.runInNewContext(suiteExpression, {
+        github: { ...ownerPr, event_name: "push", event: {} },
+        inputs: { suite: "full" },
+      }), "coordinator-full");
+      for (const job of ["lint", "run"]) {
+        const checkout = workflow.jobs[job].steps.find((step) =>
+          step.uses.startsWith("actions/checkout@")
+        );
+        assert.equal(checkout.with["persist-credentials"], false, job);
+      }
+      continue;
+    }
     assert.deepEqual(Object.keys(workflow.on), ["push", "workflow_dispatch"], workflowName);
     const condition = workflow.jobs.eval.if;
     assert.match(condition, /^(?:github\.(?:actor|triggering_actor|repository_owner|event_name|ref)|==|&&|\|\||[()\s]|'[^']*')+$/);
