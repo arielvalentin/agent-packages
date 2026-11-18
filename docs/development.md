@@ -49,9 +49,9 @@ version used in CI. It runs manually, not through an automatic Git hook.
 
 Use the pinned npm version for dependency and lockfile changes. The active
 evaluation runtime is the repository-pinned `@microsoft/vally-cli`; `js-yaml`
-supports deterministic validation of the native eval definitions and migration
-map. `npm run test:dependencies` checks the pinned tool, strict Vally schema
-validation, migration-map completeness, and result-validator regressions.
+supports deterministic validation of the native eval definitions.
+`npm run test:dependencies` checks the pinned tool, strict Vally schema
+validation, and result-validator regressions.
 
 npm 11 blocks dependency install scripts unless `allowScripts` approves them.
 Only `esbuild@0.28.2` is approved: its postinstall locates, validates, and
@@ -77,42 +77,47 @@ VALLY_MODEL=gpt-5.3-codex npm run test:full
 For one package, use the same environment setting with its full-suite command
 (for example, `VALLY_MODEL=gpt-5.3-codex npm run test:defaults`) or
 corresponding `:smoke` command (`npm run test:defaults:smoke`). Credentialed
-GitHub Actions evaluations run
-only on pushes to `main` or manual dispatches on `main`. They use the built-in
-GitHub Actions token with `copilot-requests: write`, unless the optional
-`COPILOT_GITHUB_TOKEN` secret overrides it. The built-in token's use requires
-the repository owner's Copilot entitlement and may consume usage. Evaluations
-run with `gpt-5.3-codex` and only when both the original actor and the actor
-triggering a rerun are the repository owner. Pull-request CI runs offline
-validation instead. These guards rely on trusting repository writers, who can
-modify workflow definitions.
+GitHub Actions evaluations for agent-defaults, code-reviewers, and
+development-workflow run only on pushes to `main` or manual dispatches on
+`main`. Coordinator also runs its smoke suite on pull requests authored by the
+repository owner from the same repository. All credentialed runs use the
+built-in GitHub Actions token with `copilot-requests: write`, unless the
+optional `COPILOT_GITHUB_TOKEN` secret overrides it. The built-in token's use
+requires the repository owner's Copilot entitlement and may consume usage.
+Evaluations use `gpt-5.3-codex` and run only when both the original actor and
+the actor triggering a rerun are the repository owner. Coordinator manual
+dispatch still selects smoke or full. Its PR report job has PR-write
+permission; the evaluator job does not. A passing result is reported only after
+the repository validates the Action's complete native result inventory. Fork
+PRs never run credentialed evals.
+These guards rely on trusting repository writers, who can modify workflow
+definitions.
 
-The runner validates the source-to-native map before starting Copilot. It
-rejects empty selections, missing or duplicate stimuli, and every source row
-that does not have a native mapping. The migration map accounts for all 478
-source rows: 438 in agent-defaults, 4 in coordinator, 20 in
-development-workflow, and 16 in code-reviewers. None are omitted.
+The runner validates native specs before starting Copilot. It rejects empty
+selections, duplicate stimuli, and missing, duplicate, or unexpected results.
+The original Promptfoo migration snapshot remains available in
+[Git history](https://github.com/arielvalentin/agent-packages/blob/f85609e7966e4f8d2e80c909d0f96556e1dfe050/docs/evaluations-migration-map.json).
 
-Thirty-one rows exercise root policy behavior. Their unchanged source
+Thirty-one stimuli exercise root policy behavior. Their
 profiles, instructions, or reference files are staged at supported workspace
 instruction paths: `.github/copilot-instructions.md` and, when a second file
 is needed, `AGENTS.md`. Vally 0.19.0 enables Copilot SDK configuration
 discovery, and the SDK loads custom instructions by default. These rows test
 the policy text in a root agent context; they do not certify custom-agent
 discovery, profile registration, or profile-specific tool restrictions.
-The three pr-lifecycle reference files that the source prompt conditionally
-included are still embedded verbatim and in order in each native lifecycle
-stimulus. Shell command execution is blocked by Vally's supported tool
-simulation because the source evaluations used a text-only provider; this
+Native staged files must be APM policy documents or managed fixtures and must
+target `.github/copilot-instructions.md`. Combined fixtures are checked against
+the ordered canonical policy paths in `script/native-eval-fixtures.json`.
+Shell command execution is blocked by
+Vally's supported tool simulation; this
 keeps the Copilot credential out of agent-launched shell commands.
-The clone-notice case also stops after one model iteration, matching its
-source's single-completion boundary while retaining its exact-output grader.
+The clone-notice case also stops after one model iteration.
 
 The eight approved diagnostics are retained as native stimuli. Only their
 assertion failures are non-blocking; execution or grader errors, malformed or
 missing results, duplicate results, skill-invocation failures, and all other
-failed graders remain blocking. All four package suites pass offline mapping
-and strict-schema preflight. Those deterministic checks do not prove model
+failed graders remain blocking. Offline preflight and strict-schema lint
+do not prove model
 behavior; credentialed runs use Copilot and may consume usage.
 
 ### Affected local tests
@@ -131,11 +136,13 @@ The selector unions staged, unstaged, and nonignored untracked paths. With
 that ref. It runs sequentially and does not change `npm test`, `test:full`,
 or CI.
 
-The selector validates the complete native source-to-stimulus map before
-planning runs. It matches changed files against source `file://` variables,
-native context fixtures, and Vally `agent_environment.files` and `skills`
-inputs. For each changed file, it selects matching smoke stimuli across all
+The selector validates native specs before planning runs. It matches changed
+files against staged files, canonical fixture composition sources, and Vally
+`agent_environment.skills` inputs. For each changed file, it selects matching smoke stimuli across all
 packages; when none match, it selects the matching full-suite stimuli.
+Unused legacy provider defaults are not inputs: each lifecycle reference now
+selects 155 agent-defaults smoke cases rather than 263, and the repository-access
+skill selects 23 rather than 24 cases.
 
 Changes under a package's `tests/` or `evals/` directory also select that
 package's smoke suite. The selector still checks all packages for declared
