@@ -46,21 +46,7 @@ test("native evaluation dependencies are pinned and Promptfoo/Ollama are absent"
 test("Copilot credentials are scoped to the native evaluation step", () => {
   const runner = fs.readFileSync(path.join(root, "script/run-evals.js"), "utf8");
   assert.match(runner, /process\.env\[name\]\.trim\(\)\.length > 0/);
-  const action = yaml.load(fs.readFileSync(
-    path.join(root, ".github/actions/eval-package/action.yml"),
-    "utf8"
-  ));
-  const runStep = action.runs.steps.find((step) => step.name === "Run native evaluation");
-  assert.equal(runStep.env.GH_TOKEN, "${{ inputs.copilot-token }}");
-  assert.equal(runStep.env.VALLY_MODEL, "gpt-5.3-codex");
-  assert.equal(runStep.env.EVAL_PACKAGE, "${{ inputs.package }}");
-  assert.equal(runStep.env.EVAL_SUITE, "${{ inputs.suite }}");
-  assert.match(runStep.run, /node script\/run-evals\.js "\$EVAL_PACKAGE" "\$EVAL_SUITE"/);
-  assert.doesNotMatch(runStep.run, /\$\{\{\s*inputs\.(?:package|suite)\s*\}\}/);
-  for (const step of action.runs.steps) {
-    if (step === runStep) continue;
-    assert.equal(step.env?.GH_TOKEN, undefined, step.name);
-  }
+  assert.equal(fs.existsSync(path.join(root, ".github/actions/eval-package/action.yml")), false);
   for (const workflowName of [
     "eval-agent-defaults.yml",
     "eval-coordinator.yml",
@@ -272,51 +258,158 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       }
       continue;
     }
-    assert.deepEqual(Object.keys(workflow.on), ["push", "workflow_dispatch"], workflowName);
-    const condition = workflow.jobs.eval.if;
-    assert.match(condition, /^(?:github\.(?:actor|triggering_actor|repository_owner|event_name|ref)|==|&&|\|\||[()\s]|'[^']*')+$/);
-    const owner = {
-      repository_owner: "owner",
-      actor: "owner",
-      triggering_actor: "owner",
-      event_name: "push",
-      ref: "refs/heads/main",
-    };
-    for (const [changes, allowed] of [
-      [{}, true],
-      [{ event_name: "workflow_dispatch" }, true],
-      [{ event_name: "workflow_dispatch", actor: "other", triggering_actor: "other" }, false],
-      [{ triggering_actor: "other" }, false],
-      [{ actor: "other" }, false],
-      [{ event_name: "workflow_dispatch", ref: "refs/heads/feature" }, false],
-      [{ event_name: "push", ref: "refs/heads/feature" }, false],
-      [{ event_name: "pull_request", ref: "refs/pull/1/merge", actor: "other", triggering_actor: "other" }, false],
-    ]) {
-      assert.equal(vm.runInNewContext(condition, { github: { ...owner, ...changes } }), allowed, workflowName);
-    }
-    assert.deepEqual(workflow.permissions, { contents: "read" }, workflowName);
+    const packageName = workflowName.replace(/^eval-/, "").replace(/\.yml$/, "");
+    const packagePaths = [`packages/${packageName}/**`];
+    if (packageName === "development-workflow") packagePaths.push("packages/agent-defaults/**");
     assert.deepEqual(
-      workflow.jobs.eval.permissions,
-      { contents: "read", "copilot-requests": "write" },
+      Object.keys(workflow.on),
+      ["pull_request", "push", "workflow_dispatch"],
       workflowName
     );
-    for (const trigger of ["push"]) {
-      assert.deepEqual(workflow.on[trigger].branches, ["main"], `${workflowName} ${trigger}`);
-      assert.ok(workflow.on[trigger].paths.includes("script/native-eval-graders.mjs"));
-      assert.ok(workflow.on[trigger].paths.includes("script/native-eval-graders.test.js"));
-      assert.ok(workflow.on[trigger].paths.includes("script/validate-native-evals.js"));
+    assert.deepEqual(workflow.on.pull_request.branches, ["main"], workflowName);
+    assert.deepEqual(workflow.on.pull_request.paths, workflow.on.push.paths, workflowName);
+    for (const dependencyPath of [
+      ...packagePaths,
+      ".vally.yaml",
+      "script/native-eval-fixtures.js",
+      "script/native-eval-fixtures.json",
+      "script/native-eval-graders.mjs",
+      "script/native-eval-graders.test.js",
+      "script/validate-native-evals.js",
+      "script/validate-native-evals.test.js",
+    ]) {
+      assert.ok(workflow.on.pull_request.paths.includes(dependencyPath), `${workflowName} ${dependencyPath}`);
     }
+    assert.ok(!workflow.on.push.paths.includes(".github/actions/eval-package/**"), workflowName);
     assert.deepEqual(
       workflow.on.workflow_dispatch.inputs.suite.options,
       ["smoke", "full"],
       `${workflowName} dispatch suites`
     );
-    const evalStep = workflow.jobs.eval.steps.find((step) =>
-      step.uses === "./.github/actions/eval-package"
+    assert.deepEqual(workflow.permissions, { contents: "read" }, workflowName);
+    assert.deepEqual(
+      workflow.jobs.run.permissions,
+      { contents: "read", "copilot-requests": "write" },
+      workflowName
     );
-    assert.equal(evalStep.with["copilot-token"], "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}");
-    assert.equal(evalStep.with.suite, "${{ inputs.suite || 'smoke' }}");
-    assert.equal(workflow.jobs.eval.env?.GH_TOKEN, undefined, workflowName);
+    assert.deepEqual(
+      workflow.jobs.report.permissions,
+      { actions: "read", contents: "read", "pull-requests": "write" },
+      workflowName
+    );
+    assert.equal(workflow.jobs.lint.permissions, undefined, workflowName);
+    assert.equal(workflow.jobs.report.permissions["copilot-requests"], undefined, workflowName);
+    assert.equal(workflow.jobs.run.permissions["pull-requests"], undefined, workflowName);
+    assert.deepEqual(workflow.jobs.report.needs, ["lint", "run"], workflowName);
+
+    const ownerPr = {
+      repository: "owner/repo",
+      repository_owner: "owner",
+      actor: "owner",
+      triggering_actor: "owner",
+      event_name: "pull_request",
+      ref: "refs/pull/1/merge",
+      event: {
+        pull_request: {
+          user: { login: "owner" },
+          head: { repo: { full_name: "owner/repo" } },
+        },
+      },
+    };
+    const evaluateCondition = (condition, github, needs = {}) => vm.runInNewContext(
+      condition,
+      { github, needs, always: () => true }
+    );
+    for (const job of ["lint", "run"]) {
+      const condition = workflow.jobs[job].if;
+      assert.equal(evaluateCondition(condition, ownerPr), true, `${workflowName} ${job} owner PR`);
+      for (const changes of [
+        { actor: "other" },
+        { triggering_actor: "other" },
+        { event: { pull_request: { user: { login: "other" }, head: { repo: { full_name: "owner/repo" } } } } },
+        { event: { pull_request: { user: { login: "owner" }, head: { repo: { full_name: "fork/repo" } } } } },
+      ]) {
+        assert.equal(
+          evaluateCondition(condition, { ...ownerPr, ...changes }),
+          false,
+          `${workflowName} ${job} rejected PR`
+        );
+      }
+      assert.equal(evaluateCondition(condition, {
+        ...ownerPr,
+        event_name: "push",
+        ref: "refs/heads/main",
+        event: {},
+      }), true, `${workflowName} ${job} main push`);
+      assert.equal(evaluateCondition(condition, {
+        ...ownerPr,
+        event_name: "workflow_dispatch",
+        ref: "refs/heads/main",
+        event: {},
+      }), true, `${workflowName} ${job} manual main run`);
+      assert.equal(evaluateCondition(condition, {
+        ...ownerPr,
+        event_name: "push",
+        ref: "refs/heads/feature",
+        event: {},
+      }), false, `${workflowName} ${job} non-main push`);
+    }
+
+    const actionSteps = ["lint", "run", "report"].map((job) =>
+      workflow.jobs[job].steps.find((step) => step.uses?.startsWith("github/evals-action@"))
+    );
+    assert.ok(actionSteps.every((step) => /^github\/evals-action@[a-f0-9]{40}$/.test(step.uses)));
+    assert.equal(new Set(actionSteps.map((step) => step.uses)).size, 1, workflowName);
+    assert.deepEqual(
+      actionSteps.map((step) => step.with.command),
+      ["lint", "run", "report"],
+      workflowName
+    );
+    assert.ok(actionSteps.every((step) => step.with["vally-version"] === "0.19.0"), workflowName);
+    assert.ok(actionSteps.every((step) => step.with["report-id"] === packageName), workflowName);
+    assert.equal(actionSteps[1].with.model, "gpt-5.3-codex");
+    assert.equal(actionSteps[1].with.runs, "1");
+    assert.equal(actionSteps[1].with.workers, "1");
+    assert.equal(actionSteps[1].with["max-retries"], "0");
+    assert.equal(
+      actionSteps[1].with["copilot-token"],
+      "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}"
+    );
+    assert.equal(actionSteps[0].with["working-directory"], ".");
+    assert.equal(actionSteps[1].with["working-directory"], ".");
+    assert.equal(workflow.jobs.run.outputs["action-outcome"], "${{ steps.evals.outputs.outcome }}");
+    assert.equal(workflow.jobs.run.outputs["inventory-valid"], "${{ steps.validate.outputs.valid }}");
+    const validateStep = workflow.jobs.run.steps.find((step) => step.id === "validate");
+    assert.equal(validateStep.if, "always()");
+    assert.match(validateStep.run, /findVallyJsonlOutput/);
+    assert.match(validateStep.run, new RegExp(`validate-native-evals\\.js --results ${packageName}`));
+
+    const suiteExpression = actionSteps[1].with.suite.replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+    for (const [event, input, expected] of [
+      [ownerPr, {}, `${packageName}-smoke`],
+      [{ ...ownerPr, event_name: "push", event: {} }, {}, `${packageName}-smoke`],
+      [{ ...ownerPr, event_name: "workflow_dispatch", event: {} }, { suite: "full" }, `${packageName}-full`],
+      [{ ...ownerPr, event_name: "pull_request" }, { suite: "full" }, `${packageName}-smoke`],
+    ]) {
+      assert.equal(vm.runInNewContext(suiteExpression, { github: event, inputs: input }), expected);
+    }
+    const checkReport = (run) => evaluateCondition(workflow.jobs.report.if, ownerPr, {
+      lint: { result: "success" },
+      run,
+    });
+    assert.equal(checkReport({
+      result: "success",
+      outputs: { "inventory-valid": "true", "action-outcome": "passed" },
+    }), true, workflowName);
+    assert.equal(checkReport({
+      result: "failure",
+      outputs: { "inventory-valid": "", "action-outcome": "failed" },
+    }), true, workflowName);
+    assert.equal(checkReport({
+      result: "failure",
+      outputs: { "inventory-valid": "", "action-outcome": "passed" },
+    }), false, workflowName);
+    assert.equal(checkReport({ result: "cancelled", outputs: {} }), false, workflowName);
   }
   const ci = yaml.load(fs.readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8"));
   assert.ok(ci.on.pull_request, "pull requests retain credential-free structural validation");

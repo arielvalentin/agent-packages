@@ -77,19 +77,18 @@ VALLY_MODEL=gpt-5.3-codex npm run test:full
 For one package, use the same environment setting with its full-suite command
 (for example, `VALLY_MODEL=gpt-5.3-codex npm run test:defaults`) or
 corresponding `:smoke` command (`npm run test:defaults:smoke`). Credentialed
-GitHub Actions evaluations for agent-defaults, code-reviewers, and
-development-workflow run only on pushes to `main` or manual dispatches on
-`main`. Coordinator also runs its smoke suite on pull requests authored by the
-repository owner from the same repository. All credentialed runs use the
-built-in GitHub Actions token with `copilot-requests: write`, unless the
-optional `COPILOT_GITHUB_TOKEN` secret overrides it. The built-in token's use
-requires the repository owner's Copilot entitlement and may consume usage.
-Evaluations use `gpt-5.3-codex` and run only when both the original actor and
-the actor triggering a rerun are the repository owner. Coordinator manual
-dispatch still selects smoke or full. Its PR report job has PR-write
-permission; the evaluator job does not. A passing result is reported only after
-the repository validates the Action's complete native result inventory. Fork
-PRs never run credentialed evals.
+GitHub Actions evaluations for all four packages run on pushes to `main` and
+manual dispatches on `main`; they also run smoke suites on same-repository
+pull requests authored by the repository owner. All runs require both the
+original actor and the actor triggering a rerun to be the repository owner.
+They use the built-in GitHub Actions token with `copilot-requests: write`,
+unless the optional `COPILOT_GITHUB_TOKEN` secret overrides it. The built-in
+token's use requires the repository owner's Copilot entitlement and may
+consume usage. Evaluations use `gpt-5.3-codex`; manual dispatch selects smoke
+or full. The PR report job alone has PR-write permission; the evaluator job
+does not. A passing result is reported only after the repository validates the
+Action's complete native result inventory. Fork PRs never run credentialed
+evals.
 These guards rely on trusting repository writers, who can modify workflow
 definitions.
 
