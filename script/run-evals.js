@@ -3,7 +3,6 @@
 
 const crypto = require("node:crypto");
 const fs = require("node:fs");
-const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { validateNativeSuite } = require("./validate-native-evals.js");
@@ -39,6 +38,12 @@ function parseArgs(args) {
   return { packageName, suite, stimulusNames: JSON.parse(options[1]) };
 }
 
+function selectionArgs(packageName, suite, evalFile, stimulusNames) {
+  return stimulusNames
+    ? ["--eval-spec", evalFile]
+    : ["--suite", `${packageName}-${suite}`];
+}
+
 function main(args, spawn = spawnSync) {
   let parsed;
   try {
@@ -70,9 +75,14 @@ function main(args, spawn = spawnSync) {
     return 1;
   }
 
-  const outputDirectory = process.env.VALLY_RESULTS_DIR
-    ? path.resolve(process.env.VALLY_RESULTS_DIR)
-    : fs.mkdtempSync(path.join(os.tmpdir(), `agent-packages-${packageName}-${suite}-`));
+  const resultsRoot = path.join(root, ".copilot", "evals", "results");
+  let outputDirectory;
+  if (process.env.VALLY_RESULTS_DIR) {
+    outputDirectory = path.resolve(process.env.VALLY_RESULTS_DIR);
+  } else {
+    fs.mkdirSync(resultsRoot, { recursive: true });
+    outputDirectory = fs.mkdtempSync(path.join(resultsRoot, `${packageName}-${suite}-`));
+  }
   fs.mkdirSync(outputDirectory, { recursive: true });
   if (fs.readdirSync(outputDirectory).length > 0) {
     console.error(`Refusing to run Vally in a non-empty results directory: ${outputDirectory}`);
@@ -100,8 +110,7 @@ function main(args, spawn = spawnSync) {
     const vally = path.join(root, "node_modules/.bin/vally");
     const args = [
       "eval",
-      "--eval-spec",
-      evalFile,
+      ...selectionArgs(packageName, suite, evalFile, stimulusNames),
       "--output-dir",
       outputDirectory,
       "--workers",
@@ -110,15 +119,11 @@ function main(args, spawn = spawnSync) {
       "1",
       "--max-retries",
       "0",
-      "--grader-plugin",
-      path.join(__dirname, "native-eval-graders.mjs"),
     ];
     if (typeof process.env.VALLY_MODEL === "string" && process.env.VALLY_MODEL.trim()) {
       args.push("--model", process.env.VALLY_MODEL.trim());
       console.log(`Evaluation model: ${process.env.VALLY_MODEL.trim()}`);
     }
-    if (suite === "smoke") args.push("--tag", "suite=smoke");
-
     console.log(`Running ${packageName} ${suite} with GitHub Copilot Evals (Vally).`);
     if (stimulusNames) console.log(`Selected ${stimulusNames.length} native stimuli.`);
     console.log(`Results directory: ${outputDirectory}`);
@@ -168,4 +173,4 @@ function main(args, spawn = spawnSync) {
 
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
 
-module.exports = { main, parseArgs, selectedEvalSpec };
+module.exports = { main, parseArgs, selectedEvalSpec, selectionArgs };

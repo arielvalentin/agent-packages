@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const test = require("node:test");
 const { validateNativeSuite } = require("./validate-native-evals.js");
-const { parseArgs, selectedEvalSpec } = require("./run-evals.js");
+const { parseArgs, selectedEvalSpec, selectionArgs } = require("./run-evals.js");
 
 const root = path.resolve(__dirname, "..");
 
@@ -53,4 +53,19 @@ test("runner accepts only a JSON stimulus list after the package and suite", () 
   assert.throws(() => parseArgs(["agent-defaults"]), /Usage/);
   assert.throws(() => parseArgs(["agent-defaults", "smoke", "--unknown"]), /Usage/);
   assert.throws(() => parseArgs(["agent-defaults", "smoke", "--stimuli", "{"]), /JSON/);
+});
+
+test("runner uses configured package suites unless selecting specific stimuli", () => {
+  assert.deepEqual(selectionArgs("agent-defaults", "smoke", "/eval.yaml"), [
+    "--suite",
+    "agent-defaults-smoke",
+  ]);
+  assert.deepEqual(selectionArgs("development-workflow", "full", "/eval.yaml"), [
+    "--suite",
+    "development-workflow-full",
+  ]);
+  assert.deepEqual(selectionArgs("agent-defaults", "full", "/selected.eval.yaml", ["case-1"]), [
+    "--eval-spec",
+    "/selected.eval.yaml",
+  ]);
 });
