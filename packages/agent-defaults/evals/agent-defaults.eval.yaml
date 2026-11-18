@@ -4031,14 +4031,14 @@ stimuli:
         config:
           pattern: >-
             ^gh pr create --repo octo/example --draft --title "([^"\r\n]{1,72})" --body
-            "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-170-row-01-assertion-4-conventi-ae647de2
         config:
           pattern: >-
             ^gh pr create --repo octo/example --draft --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
-            --body "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-170-row-01-assertion-4-no-shell-15009b1f
         config:
@@ -4311,14 +4311,14 @@ stimuli:
         config:
           pattern: >-
             ^gh pr create --repo octo/example --title "([^"\r\n]{1,72})" --body
-            "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-177-row-01-assertion-4-conventi-0149c84c
         config:
           pattern: >-
             ^gh pr create --repo octo/example --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
-            --body "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-177-row-01-assertion-4-no-shell-dff5ed4e
         config:
@@ -7255,11 +7255,11 @@ stimuli:
       - type: output-matches
         name: agent-defaults-case-309-row-01-assertion-1-yes-is-l-61af448d
         config:
-          pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*(?![A-Za-z0-9])[.!,:]?(?:\s|$)
+          pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*[.!,:]?[*_\x60]*(?:\s|$)
       - type: output-matches
         name: agent-defaults-case-309-row-01-assertion-1-no-exact-no-line
         config:
-          pattern: (?:^|\n)[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*(?![A-Za-z0-9])[.!,:]?\s*(?:\r?\n|$)
+          pattern: (?:^|\n)[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*[.!,:]?[*_\x60]*\s*(?:\r?\n|$)
           negate: true
     simulation:
       tool_overrides:
@@ -7283,11 +7283,11 @@ stimuli:
       - type: output-matches
         name: agent-defaults-case-310-row-01-assertion-1-no-is-le-fc88b4e3
         config:
-          pattern: ^\s*[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*(?![A-Za-z0-9])[.!,:]?(?:\s|$)
+          pattern: ^\s*[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*[.!,:]?[*_\x60]*(?:\s|$)
       - type: output-matches
         name: agent-defaults-case-310-row-01-assertion-1-no-exact-yes-line
         config:
-          pattern: (?:^|\n)[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*(?![A-Za-z0-9])[.!,:]?\s*(?:\r?\n|$)
+          pattern: (?:^|\n)[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*[.!,:]?[*_\x60]*\s*(?:\r?\n|$)
           negate: true
     simulation:
       tool_overrides:
@@ -7311,11 +7311,11 @@ stimuli:
       - type: output-matches
         name: agent-defaults-case-311-row-01-assertion-1-yes-is-l-c0d6f5ca
         config:
-          pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*(?![A-Za-z0-9])[.!,:]?(?:\s|$)
+          pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*[.!,:]?[*_\x60]*(?:\s|$)
       - type: output-matches
         name: agent-defaults-case-311-row-01-assertion-1-no-exact-no-line
         config:
-          pattern: (?:^|\n)[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*(?![A-Za-z0-9])[.!,:]?\s*(?:\r?\n|$)
+          pattern: (?:^|\n)[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*[.!,:]?[*_\x60]*\s*(?:\r?\n|$)
           negate: true
     simulation:
       tool_overrides:
@@ -9419,14 +9419,14 @@ stimuli:
         config:
           pattern: >-
             ^gh pr create --repo octo/example --draft --title "([^"\r\n]{1,72})" --body
-            "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-376-row-01-assertion-4-conventi-0941752b
         config:
           pattern: >-
             ^gh pr create --repo octo/example --draft --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
-            --body "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-376-row-01-assertion-4-no-shell-b41fd0f5
         config:
@@ -9460,14 +9460,14 @@ stimuli:
         config:
           pattern: >-
             ^gh pr create --repo octo/example --title "([^"\r\n]{1,72})" --body
-            "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-377-row-01-assertion-1-conventi-457ad1a6
         config:
           pattern: >-
             ^gh pr create --repo octo/example --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
-            --body "(?=[^"\r\n]*\S)[^"\r\n]+"$
+            --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-377-row-01-assertion-1-no-shell-14b6cb3f
         config:

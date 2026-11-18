@@ -10,6 +10,14 @@ const { packages, inventory, select, changedPaths, execute } = require("./run-af
 
 const root = path.resolve(__dirname, "..");
 const configs = inventory(root);
+test("native inventories match through a symlinked repository root", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "affected-root-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const alias = path.join(directory, "repository");
+  fs.symlinkSync(root, alias, "junction");
+  assert.deepEqual(inventory(alias), configs);
+});
+
 const allCases = configs.flatMap((config) =>
   config.cases.map((item) => ({ package: config.name, ...item }))
 );
@@ -27,10 +35,19 @@ function command(cwd, executable, args) {
   return result.stdout;
 }
 
-test("native inventories validate the entire migration map before selection", () => {
+test("native inventories expose native file and skill inputs before selection", () => {
   assert.deepEqual(configs.map((config) => config.name), packages);
   assert.ok(allCases.length > 0);
   assert.ok(allCases.every((item) => item.inputs instanceof Set && item.directories instanceof Set));
+});
+
+test("combined fixtures select their canonical source inputs across packages", () => {
+  const source = "packages/agent-defaults/.apm/instructions/repository-work.instructions.md";
+  const matching = allCases.filter((item) =>
+    item.package === "development-workflow" && item.inputs.has(source));
+  assert.ok(matching.length > 0);
+  const chosen = selected(select([source], configs));
+  assert.ok(matching.some((item) => chosen.has(item.stimulus)));
 });
 
 test("declared native inputs select matching cases and package smoke fallbacks", () => {

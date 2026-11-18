@@ -4,6 +4,7 @@
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { validateNativeSuite } = require("./validate-native-evals.js");
+const { fixtureSources } = require("./native-eval-fixtures.js");
 
 const packages = ["agent-defaults", "coordinator", "development-workflow", "code-reviewers"];
 const isSmoke = (test) => test.suite === "smoke";
@@ -20,14 +21,6 @@ function repositoryPath(root, baseFile, relative, label) {
   return result;
 }
 
-function inputValues(value, callback) {
-  if (typeof value === "string") callback(value);
-  else if (Array.isArray(value)) value.forEach((item) => inputValues(item, callback));
-  else if (value && typeof value === "object") {
-    Object.values(value).forEach((item) => inputValues(item, callback));
-  }
-}
-
 function inventory(root) {
   root = path.resolve(root);
   return packages.map((name) => {
@@ -35,60 +28,32 @@ function inventory(root) {
     if (preflight.errors.length) {
       throw new Error(`${name} native inventory is invalid:\n${preflight.errors.join("\n")}`);
     }
-    const sourceConfig = preflight.suiteMap.sourceConfig;
-    if (typeof sourceConfig !== "string" || !sourceConfig) {
-      throw new Error(`${name} migration map has no source config path.`);
-    }
-    const stimuliByName = new Map(preflight.stimuli.map((stimulus) => [
-      stimulus.name,
-      stimulus,
-    ]));
-    const cases = preflight.expectedEntries.map((entry) => {
-      const stimulus = stimuliByName.get(entry.targetStimulus);
-      if (!stimulus) {
-        throw new Error(`${entry.sourceDescription} has no native stimulus.`);
-      }
+    const cases = preflight.stimuli.map((stimulus) => {
       const inputs = new Set();
       const directories = new Set();
-      inputValues(entry.sourceVariables, (value) => {
-        if (value.startsWith("file://")) {
-          inputs.add(repositoryPath(
-            root,
-            sourceConfig,
-            value.slice("file://".length),
-            `${entry.sourceDescription} source input`
-          ));
-        }
-      });
-      if (entry.nativeContextFixture) {
-        inputs.add(repositoryPath(
-          root,
-          preflight.suiteMap.evalFile,
-          entry.nativeContextFixture,
-          `${entry.sourceDescription} native context fixture`
-        ));
-      }
       for (const file of stimulus.agent_environment?.files || []) {
-        inputs.add(repositoryPath(
+        const input = repositoryPath(
           root,
           preflight.suiteMap.evalFile,
           file.src,
-          `${entry.sourceDescription} native file input`
-        ));
+          `${stimulus.name} native file input`
+        );
+        inputs.add(input);
+        fixtureSources(input).forEach((source) => inputs.add(source));
       }
       for (const skill of stimulus.agent_environment?.skills || []) {
         const directory = repositoryPath(
           root,
           preflight.suiteMap.evalFile,
           skill,
-          `${entry.sourceDescription} native skill input`
+          `${stimulus.name} native skill input`
         );
         directories.add(directory.endsWith("/") ? directory : `${directory}/`);
       }
       return {
-        description: entry.sourceDescription,
-        stimulus: entry.targetStimulus,
-        suite: entry.sourceSuite,
+        description: stimulus.name,
+        stimulus: stimulus.name,
+        suite: stimulus.tags?.suite === "smoke" ? "smoke" : "full",
         inputs,
         directories,
       };

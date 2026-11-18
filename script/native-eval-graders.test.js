@@ -6,10 +6,6 @@ const path = require("node:path");
 const gradersModule = import("./native-eval-graders.mjs");
 const yaml = require("js-yaml");
 const root = path.resolve(__dirname, "..");
-const migrationMap = JSON.parse(fs.readFileSync(
-  path.join(root, "docs/evaluations-migration-map.json"),
-  "utf8"
-));
 
 test("output text contract preserves strict trimmed length bounds and regex checks", async () => {
   const { registerGraders } = await gradersModule;
@@ -119,7 +115,7 @@ test("case 367 disclosure grader rejects model-identifier additions", () => {
   }
 });
 
-test("migrated normalization-sensitive cases use source-equivalent grader configs", async () => {
+test("native normalization-sensitive cases use their configured graders", async () => {
   const { registerGraders } = await gradersModule;
   const registry = { graders: new Map(), register(grader) {
     this.graders.set(grader.metadata.name, grader);
@@ -166,18 +162,18 @@ test("migrated normalization-sensitive cases use source-equivalent grader config
     ["development-workflow", 19, [["**ask**", true]]],
   ];
 
-  for (const [packageName, sourceCaseIndex, outputs] of cases) {
-    const suite = migrationMap.suites[packageName];
-    const spec = yaml.load(fs.readFileSync(path.join(root, suite.evalFile), "utf8"));
-    const entries = migrationMap.cases.filter((entry) =>
-      entry.package === packageName && entry.sourceCaseIndex === sourceCaseIndex
+  for (const [packageName, caseIndex, outputs] of cases) {
+    const spec = yaml.load(fs.readFileSync(
+      path.join(root, "packages", packageName, "evals", `${packageName}.eval.yaml`), "utf8"
+    ));
+    const stimuli = spec.stimuli.filter((item) =>
+      Number(item.tags?.source_case) === caseIndex
     );
-    assert.ok(entries.length > 0, `${packageName} source case ${sourceCaseIndex}`);
-    for (const entry of entries) {
-      const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-      assert.equal(stimulus.graders.length, 1, entry.sourceDescription);
+    assert.ok(stimuli.length > 0, `${packageName} case ${caseIndex}`);
+    for (const stimulus of stimuli) {
+      assert.equal(stimulus.graders.length, 1, stimulus.name);
       const grader = stimulus.graders[0];
-      assert.equal(grader.type, "output-text-contract", entry.sourceDescription);
+      assert.equal(grader.type, "output-text-contract", stimulus.name);
       const registered = registry.graders.get(grader.type);
       for (const [output, expected] of outputs) {
         const result = await registered.grade({
@@ -185,7 +181,7 @@ test("migrated normalization-sensitive cases use source-equivalent grader config
           config: grader.config,
         });
         assert.equal(result.passed, expected,
-          `${entry.sourceDescription}: ${JSON.stringify(output)}`);
+          `${stimulus.name}: ${JSON.stringify(output)}`);
       }
     }
   }

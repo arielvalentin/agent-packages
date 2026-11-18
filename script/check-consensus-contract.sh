@@ -26,8 +26,8 @@ agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/agent-defaults/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/agent-defaults/.apm/skills/handoff-envelope/SKILL.md"
 adversarial="$root/packages/agent-defaults/.apm/skills/adversarial-review/SKILL.md"
-tests="$root/docs/evaluations-migration-map.json"
-coordinator_tests="$tests"
+tests="$root/packages/agent-defaults/evals/agent-defaults.eval.yaml"
+coordinator_tests="$root/packages/coordinator/evals/coordinator.eval.yaml"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -39,6 +39,57 @@ require() {
   if [[ ! -f "$file" ]]; then
     echo "ERROR: missing file: ${file#"$root/"}"
     errors=$((errors + 1))
+    return
+  fi
+  if [[ "$file" == "$tests" || "$file" == "$coordinator_tests" ]]; then
+    if ! python3 - "$file" "$pattern" <<'PY'
+import sys
+import yaml
+
+contracts = {
+    "013": ("smoke", "Review complete:"),
+    "015": ("smoke", "TWO candidate objects"),
+    "016": ("smoke", "invalid finding severity"),
+    "018": ("smoke", "omits the findings field"),
+    "019": ("smoke", '"findings": null'),
+    "020": ("smoke", '"findings": {}'),
+    "022": ("smoke", "a fourth reviewer"),
+    "054": ("smoke", "already-requested Copilot review is pending"),
+    "157": ("smoke", "remains true after the fix"),
+    "312": ("full", "single source of truth"),
+    "313": ("full", "instead of the consensus-panel JSON verdict schema"),
+    "314": ("full", "informational finding severity"),
+    "315": ("full", "04-review-consensus.md"),
+    "316": ("full", "fallback and failure handling"),
+    "320": ("full", "remains unresolved but labels it minor"),
+    "321": ("smoke", "Must the loop still run the fix and post-fix review"),
+    "323": ("smoke", "that same issue is unresolved but labels it minor"),
+    "324": ("smoke", "omits it and provides no resolution evidence"),
+    "325": ("full", "May the gate proceed with a warning"),
+    "326": ("full", "unresolved major finding at max_retries"),
+    "383": ("full", "Opus plus Gemini"),
+    "384": ("full", "spans multiple model families"),
+    "385": ("full", "exclude GPT reviewer models"),
+    "393": ("smoke", "added as tiebreakers"),
+    "396": ("smoke", "changes agent behavior"),
+    "004": ("smoke", "two independent reviewers"),
+}
+file, name = sys.argv[1:]
+suite, anchor = contracts[name.split("-case-")[1].split("-")[0]]
+with open(file) as stream:
+    data = yaml.safe_load(stream)
+matches = [s for s in data.get("stimuli", []) if s.get("name") == name]
+sys.exit(not (
+    len(matches) == 1
+    and matches[0].get("tags", {}).get("suite") == suite
+    and anchor in matches[0].get("prompt", "")
+    and matches[0].get("graders")
+))
+PY
+    then
+      echo "ERROR: ${file#"$root/"}: missing $desc"
+      errors=$((errors + 1))
+    fi
     return
   fi
   if ! normalize "$file" | grep -Eiq -- "$pattern"; then
@@ -212,7 +263,7 @@ if [[ "$(grep -Fc 'explicit_multi_review: <caller-derived JSON boolean>' "$agent
   errors=$((errors + 1))
 fi
 require "$coordinator_tests" "coordinator regression for explicit multi-review on documentation" \
-  'coordinator: explicit request sets multi-review boolean on documentation'
+  'coordinator-case-004-row-01'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   're-classify the scope at the start of every cycle'
 require "$loop" "explicit multi-review preserving the panel on every fix cycle" \
@@ -234,19 +285,19 @@ require "$loop" "omitted or downgraded intake findings remain unresolved" \
 require "$loop" "warn cannot waive unresolved intake threshold findings" \
   'intake finding at or above .severity_threshold. remains unresolved, stop and escalate regardless of .on_exhaust.'
 require "$tests" "regression for unresolved accepted findings below threshold" \
-  'review-fix-loop: unresolved accepted findings block passage below threshold'
+  'agent-defaults-case-320-row-01'
 require "$tests" "regression for accepted minor findings" \
-  'review-fix-loop: accepted minor findings still require a fix cycle'
+  'agent-defaults-case-321-row-01'
 require "$tests" "regression for intake finding severity downgrade" \
-  'review-fix-loop: intake major cannot be downgraded after a fix'
+  'agent-defaults-case-323-row-01'
 require "$tests" "regression for omitted intake finding" \
-  'review-fix-loop: omitted intake major still requires resolution evidence'
+  'agent-defaults-case-324-row-01'
 require "$tests" "regression for explicit multi-review persisting to post-fix panel" \
-  'review-fix-loop: explicit multi-review remains panelled after fixes'
+  'agent-defaults-case-157-row-01'
 require "$tests" "regression for tiny behavior-defining Markdown changes" \
-  'consensus-panel: tiny behavior-defining Markdown change is substantive'
+  'agent-defaults-case-396-row-01'
 require "$tests" "regression for warn exhaustion with intake blockers" \
-  'review-fix-loop: warn exhaustion cannot waive intake blockers'
+  'agent-defaults-case-326-row-01'
 if [[ "$(grep -Ec '^[[:space:]]*explicit_multi_review: false$' "$loop" || true)" -lt 5 ]]; then
   echo "ERROR: $loop: usage examples must include explicit_multi_review booleans"
   errors=$((errors + 1))
@@ -283,10 +334,10 @@ require "$panel" "one retry preserves extraction" \
 require "$panel" "wrappers do not cause retry or escalation" \
   'Wrapping alone is not a reason to retry or escalate'
 for case_name in \
-  'consensus-panel: accepts a unique wrapped payload' \
-  'consensus-panel: rejects ambiguous or invalid payloads' \
-  'consensus-panel: wrapped payload still requires schema validation' \
-  'consensus-panel: extraction preserves one retry and no fourth reviewer'; do
+  'agent-defaults-case-013-row-01' \
+  'agent-defaults-case-015-row-01' \
+  'agent-defaults-case-016-row-01' \
+  'agent-defaults-case-022-row-01'; do
   require "$tests" "regression $case_name" "$case_name"
 done
 require "$panel" "finding entries are covered by the validity rule" \
@@ -296,17 +347,17 @@ require "$panel" "findings must be a top-level array" \
 require "$panel" "missing, null, and non-array findings are invalid" \
   'missing, .null., or non-array .findings. value makes the payload invalid'
 require "$tests" "regression for a missing findings field" \
-  'consensus-panel: missing findings field is invalid'
+  'agent-defaults-case-018-row-01'
 require "$tests" "regression for a null findings field" \
-  'consensus-panel: null findings field is invalid'
+  'agent-defaults-case-019-row-01'
 require "$tests" "regression for a non-array findings field" \
-  'consensus-panel: non-array findings field is invalid'
+  'agent-defaults-case-020-row-01'
 require "$tests" "regression for warn exhaustion with accepted findings" \
-  'review-fix-loop: warn exhaustion cannot waive accepted findings'
+  'agent-defaults-case-325-row-01'
 require "$tests" "regression for explicit multi-review retaining panel escalation" \
-  'consensus-panel: explicit multi-review retains tiebreaker on documentation'
+  'agent-defaults-case-393-row-01'
 require "$tests" "regression for pending Copilot review in the blocked state" \
-  'pr-lifecycle: pending Copilot review continues to bounded review wait'
+  'agent-defaults-case-054-row-01'
 require "$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/readiness.md" \
   "blocked state allowing only the bounded Copilot review path" \
   'sole unmet requirement is an already-requested Copilot review that Phase 5 can process'
@@ -327,21 +378,21 @@ require "$adversarial" "standalone adversarial review rejecting local prose and 
 require "$adversarial" "standalone adversarial review using consensus-panel fallback and failure rules" \
   'fallback and failure rules'
 require "$tests" "native evaluation mapping for consensus-panel source of truth" \
-  'adversarial-review: standalone defers to consensus-panel as the source of truth'
+  'agent-defaults-case-312-row-01'
 require "$tests" "native evaluation mapping requiring consensus-panel JSON instead of markdown prose" \
-  'adversarial-review: standalone returns consensus-panel JSON instead of markdown prose'
+  'agent-defaults-case-313-row-01'
 require "$tests" "native evaluation mapping rejecting informational severity" \
-  'adversarial-review: standalone does not reintroduce informational severity'
+  'agent-defaults-case-314-row-01'
 require "$tests" "native evaluation mapping requiring the shared consensus report artifact" \
-  'adversarial-review: standalone delegates the shared consensus report artifact'
+  'agent-defaults-case-315-row-01'
 require "$tests" "native evaluation mapping requiring consensus-panel failure handling" \
-  'adversarial-review: standalone uses consensus-panel failure handling'
+  'agent-defaults-case-316-row-01'
 require "$tests" "native evaluation mapping rejecting GPT-host Opus-plus-Gemini substitution" \
-  'consensus-panel: GPT host does not select Opus plus Gemini when GPT reviewers are available'
+  'agent-defaults-case-383-row-01'
 require "$tests" "native evaluation mapping rejecting mandatory cross-family reviewers on GPT hosts" \
-  'consensus-panel: GPT host does not require cross-family reviewers'
+  'agent-defaults-case-384-row-01'
 require "$tests" "native evaluation mapping rejecting GPT-host family exclusion" \
-  'consensus-panel: GPT host does not exclude GPT reviewers from selection'
+  'agent-defaults-case-385-row-01'
 if normalize "$adversarial" | grep -Eiq -- \
   'independent model lineages|different lineages|different families|reduced independence'; then
   echo "ERROR: ${adversarial#"$root/"}: stale standalone lineage-selection wording"
