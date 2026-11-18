@@ -69,6 +69,15 @@ function resolveRepositoryFile(root, baseDirectory, filePath, label) {
   return realTarget;
 }
 
+function blocksShellCommands(override) {
+  if (!override || typeof override !== "object") return false;
+  if ("patterns" in override) {
+    return Array.isArray(override.patterns)
+      && override.default?.is_error === true;
+  }
+  return override.is_error === true;
+}
+
 function validateNativeSuite(root, packageName, suite) {
   const errors = [];
   if (!PACKAGES.has(packageName)) errors.push(`Unknown package: ${packageName}`);
@@ -122,7 +131,7 @@ function validateNativeSuite(root, packageName, suite) {
         graderNames.add(grader.name);
       }
     }
-    if (stimulus.simulation?.tool_overrides?.bash?.is_error !== true) {
+    if (!blocksShellCommands(stimulus.simulation?.tool_overrides?.bash)) {
       errors.push(`${stimulus.name} does not block shell command execution.`);
     }
     for (const file of stimulus.agent_environment?.files || []) {

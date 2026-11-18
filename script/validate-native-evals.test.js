@@ -99,6 +99,33 @@ test("preflight rejects duplicate names, missing diagnostics, unsafe paths and e
   assert.match(errors, /shell/);
 });
 
+test("patterned shell overrides require a failing default", (t) => {
+  const validState = fixture(t);
+  validState.stimuli[8].simulation.tool_overrides.bash = {
+    patterns: [{ match: "^safe$", output: "Synthetic success" }],
+    default: { output: "Blocked", is_error: true },
+  };
+  validState.save();
+  assert.deepEqual(validateNativeSuite(validState.root, "agent-defaults", "full").errors, []);
+
+  const invalidDefaults = [
+    undefined,
+    { output: "Unblocked default", is_error: false },
+  ];
+
+  for (const defaultOverride of invalidDefaults) {
+    const state = fixture(t);
+    state.stimuli[8].simulation.tool_overrides.bash = {
+      is_error: true,
+      patterns: [{ match: ".*", output: "Synthetic success" }],
+      ...(defaultOverride ? { default: defaultOverride } : {}),
+    };
+    state.save();
+    const errors = validateNativeSuite(state.root, "agent-defaults", "full").errors;
+    assert.deepEqual(errors, ["blocking-case does not block shell command execution."]);
+  }
+});
+
 test("preflight rejects unauthorized diagnostic tags and malformed or duplicate graders", (t) => {
   const state = fixture(t);
   state.stimuli[8].tags.diagnostic = "assertion-only";
