@@ -28,6 +28,18 @@ test("selected eval specs reject empty, duplicate, and unmapped selections", () 
   assert.throws(() => selectedEvalSpec(preflight, ["unknown-stimulus"]), /validated suite/);
 });
 
+test("selected eval specs use the selected native inventory rather than source rows", () => {
+  const smoke = { name: "smoke", tags: { suite: "smoke" } };
+  const full = { name: "full", tags: { suite: "full" } };
+  const preflight = {
+    evalSpec: { name: "example" },
+    stimuli: [smoke, full],
+    selectedStimuli: [smoke],
+  };
+  assert.deepEqual(selectedEvalSpec(preflight, ["smoke"]).stimuli, [smoke]);
+  assert.throws(() => selectedEvalSpec(preflight, ["full"]), /validated suite/);
+});
+
 test("runner accepts only a JSON stimulus list after the package and suite", () => {
   assert.deepEqual(parseArgs(["agent-defaults", "smoke"]), {
     packageName: "agent-defaults",

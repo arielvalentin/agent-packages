@@ -4,1153 +4,258 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const crypto = require("node:crypto");
 const test = require("node:test");
 const yaml = require("js-yaml");
-const {
-  resolveRepositoryFile,
-  sourceInstructionContent,
-  validateNativeSuite,
-  validateRun,
-} = require("./validate-native-evals.js");
+const { validateNativeSuite, validateRun, resolveRepositoryFile } = require("./validate-native-evals.js");
+const { fixtureContent, fixtureSources, recipes } = require("./native-eval-fixtures.js");
 
-const diagnosticNames = [
-  "pr-lifecycle: breaking changes use the optional ! marker",
-  "pr-lifecycle: full-loop fallback polls the selected SHA",
-  "pr-lifecycle: rejects a 73-character Conventional PR title",
-  "skill-gates: policy configuration requires review",
-  "pr-lifecycle: keeps feedback routing read only",
-  "tech-research: hands off durable synthesis without re-querying",
-  "tech-research: requires evidence and one synthesis",
-  "writing-voice: PR output shows value without issue or routine-check noise",
-];
-const diagnosticStimulusNames = diagnosticNames.map((_, index) => `diagnostic-${index + 1}`);
-const fixtureStimulusNames = [...diagnosticStimulusNames, "blocking-case"];
-const packageName = "agent-defaults";
+const diagnosticNames = [63, 121, 164, 169, 189, 191, 211, 283]
+  .map((index) => `agent-defaults-case-${String(index).padStart(3, "0")}-row-01`);
+const names = [...diagnosticNames, "blocking-case"];
 const evalFile = "packages/agent-defaults/evals/agent-defaults.eval.yaml";
+const policyFile = "packages/agent-defaults/.apm/instructions/input.instructions.md";
 
-function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "native-eval-validator-"));
-  const names = fixtureStimulusNames;
-  const sourceDescriptions = [...diagnosticNames, "blocking case"];
-  const sourceConfiguration = {
-    providers: [{ id: "provider", label: "provider" }],
-    prompts: [{ id: "prompt-1", raw: "{{skill_content}}\\nUser: {{user_input}}" }],
-    defaultTest: {
-      providers: ["provider"],
-      prompts: ["prompt-1"],
-      vars: { skill_content: "file://../.apm/skills/test-skill/SKILL.md" },
-    },
-    tests: sourceDescriptions.map((description) => ({
-      description,
-      metadata: { suite: "smoke" },
-      vars: { user_input: "Return ok." },
-      assert: [{ type: "contains", value: "ok" }],
-    })),
-  };
-  const entries = [
-    ...diagnosticNames.map((sourceDescription, index) => ({
-      package: packageName,
-      sourceCaseIndex: index + 1,
-      sourceRow: 1,
-      sourceProviderLabel: "provider",
-      sourcePrompt: "prompt-1",
-      sourceVariables: {
-        skill_content: "file://../.apm/skills/test-skill/SKILL.md",
-        user_input: "Return ok.",
-      },
-      requiredSkills: [],
-      sourceDescription,
-      sourceSuite: "smoke",
-      diagnostic: true,
-      status: "mapped",
-      targetEval: evalFile,
-      targetStimulus: names[index],
-      assertionGraders: [{
-        name: `${names[index]}-assertion`,
-        type: "output-matches",
-      }],
-    })),
-    {
-      package: packageName,
-      sourceCaseIndex: diagnosticNames.length + 1,
-      sourceRow: 1,
-      sourceProviderLabel: "provider",
-      sourcePrompt: "prompt-1",
-      sourceVariables: {
-        skill_content: "file://../.apm/skills/test-skill/SKILL.md",
-        user_input: "Return ok.",
-      },
-      requiredSkills: [],
-      sourceDescription: "blocking case",
-      sourceSuite: "smoke",
-      diagnostic: false,
-      status: "mapped",
-      targetEval: evalFile,
-      targetStimulus: names[diagnosticNames.length],
-      assertionGraders: [{
-        name: `${names[diagnosticNames.length]}-assertion`,
-        type: "output-matches",
-      }],
-    },
-  ];
-  const stimuli = entries.map((entry) => ({
-    name: entry.targetStimulus,
-    tags: {
-      suite: "smoke",
-      ...(entry.diagnostic ? { diagnostic: "assertion-only" } : {}),
-    },
-    simulation: {
-      tool_overrides: {
-        bash: { output: "Shell execution is disabled.", is_error: true },
-      },
-    },
-    agent_environment: { files: [{
-      src: "../.apm/skills/test-skill/SKILL.md",
-      dest: ".github/copilot-instructions.md",
-    }] },
-    graders: [
-      {
-        type: "output-matches",
-        name: entry.assertionGraders[0].name,
-        config: { pattern: "ok" },
-      },
-    ],
+function fixture(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "native-eval-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, "packages/agent-defaults/evals"), { recursive: true });
+  fs.mkdirSync(path.dirname(path.join(root, policyFile)), { recursive: true });
+  fs.writeFileSync(path.join(root, policyFile), "input");
+  const stimuli = names.map((name, index) => ({
+    name,
+    tags: { suite: index === 1 ? "full" : "smoke", ...(index < 8 ? { diagnostic: "assertion-only" } : {}) },
     prompt: "Return ok.",
+    agent_environment: { files: [{ src: "../.apm/instructions/input.instructions.md", dest: ".github/copilot-instructions.md" }] },
+    graders: [{ name: `${name}-assertion`, type: "output-matches", config: { pattern: "ok" } }],
+    simulation: { tool_overrides: { bash: { is_error: true } } },
   }));
-  for (const entry of entries) {
-    const grader = stimuli.find((stimulus) => stimulus.name === entry.targetStimulus)
-      .graders.find((item) => item.name === entry.assertionGraders[0].name);
-    const { name, ...configuration } = grader;
-    entry.assertionGraders[0].configSha256 = crypto.createHash("sha256")
-      .update(JSON.stringify(configuration))
-      .digest("hex");
-  }
-  fs.mkdirSync(path.join(root, "docs"), { recursive: true });
-  fs.mkdirSync(path.dirname(path.join(root, evalFile)), { recursive: true });
-  const skillDirectory = path.join(root, "packages/agent-defaults/.apm/skills/test-skill");
-  const sourceSkillDirectory = path.join(root, "packages/coordinator/.apm/skills/test-skill");
-  fs.mkdirSync(skillDirectory, { recursive: true });
-  fs.mkdirSync(sourceSkillDirectory, { recursive: true });
-  fs.writeFileSync(path.join(skillDirectory, "SKILL.md"), "---\nname: test-skill\n---\n");
-  fs.writeFileSync(path.join(sourceSkillDirectory, "SKILL.md"), "---\nname: test-skill\n---\n");
-  fs.writeFileSync(path.join(root, "docs/evaluations-migration-map.json"), JSON.stringify({
-    suites: {
-      [packageName]: {
-        evalFile,
-        sourceConfiguration,
-        sourceExpandedRowCount: entries.length,
-        sourceSmokeRowCount: entries.length,
-        nativeStimulusCount: entries.length,
-        mappedRowCount: entries.length,
-      },
-    },
-    cases: entries,
-  }));
-  fs.writeFileSync(path.join(root, evalFile), yaml.dump({
-    name: "agent-defaults-behavioral",
-    stimuli,
-  }));
-  return { root, entries, stimuli };
+  const spec = { name: "test-eval", stimuli };
+  const save = () => fs.writeFileSync(path.join(root, evalFile), yaml.dump(spec));
+  save();
+  return { root, stimuli, spec, save };
 }
 
-function fixtureWithMixedDiagnosticGraders() {
-  const state = fixture();
-  const stimulus = state.stimuli[0];
-  const graders = [
-    {
-      type: "output-matches",
-      name: `${stimulus.name}-matches`,
-      config: { pattern: "ok" },
-    },
-    {
-      type: "output-not-matches",
-      name: `${stimulus.name}-not-matches`,
-      config: { pattern: "bad" },
-    },
-    {
-      type: "output-contains",
-      name: `${stimulus.name}-contains`,
-      config: { substring: "ok", case_sensitive: true },
-    },
-    {
-      type: "output-text-contract",
-      name: `${stimulus.name}-text-contract`,
-      config: { minimumLengthExclusive: 0, mustMatch: "ok" },
-    },
-  ];
-  stimulus.graders = graders;
-
-  const mapPath = path.join(state.root, "docs/evaluations-migration-map.json");
-  const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-  const entry = migrationMap.cases.find((candidate) =>
-    candidate.targetStimulus === stimulus.name
-  );
-  entry.assertionGraders = graders.map((grader) => {
-    const { name, ...configuration } = grader;
-    return {
-      name,
-      type: grader.type,
-      configSha256: crypto.createHash("sha256")
-        .update(JSON.stringify(configuration))
-        .digest("hex"),
-    };
-  });
-
-  fs.writeFileSync(mapPath, JSON.stringify(migrationMap));
-  fs.writeFileSync(
-    path.join(state.root, evalFile),
-    yaml.dump({ name: "agent-defaults-behavioral", stimuli: state.stimuli })
-  );
-  return { ...state, graders };
-}
-
-function trial(stimulus, passed = true, overrides = {}) {
-  const grader = {
-    name: `${stimulus}-assertion`,
-    configuredName: `${stimulus}-assertion`,
-    graderType: "output-matches",
-    kind: "code",
-    passed,
-    score: passed ? 1 : 0,
-    evidence: passed ? "matched" : "not matched",
-    status: "success",
-  };
+function trial(name, passed = true) {
   return {
-    type: "trial-result",
-    evalName: "agent-defaults-behavioral",
-    evalFilePath: evalFile,
-    variant: "default",
-    itemId: `${evalFile}::default::_::${stimulus}::trial-0`,
-    stimulus,
-    status: "success",
-    durationMs: 1,
+    type: "trial-result", evalName: "test-eval", evalFilePath: evalFile,
+    variant: "default", itemId: `${evalFile}::default::_::${name}::trial-0`,
+    stimulus: name, status: "success", durationMs: 1, trajectory: {},
     gradeResult: {
-      name: stimulus,
-      kind: "code",
-      passed,
-      score: passed ? 1 : 0,
-      evidence: passed ? "passed" : "failed",
-      details: [grader],
+      passed, details: [{
+        configuredName: `${name}-assertion`, graderType: "output-matches",
+        passed, status: "success",
+      }],
     },
-    trajectory: {},
-    ...overrides,
   };
 }
 
-function summary(passed, count = fixtureStimulusNames.length, overrides = {}) {
+function summary(passed, count = names.length) {
   return {
-    type: "run-summary",
-    runId: "test-run",
-    passed,
-    hadExecutionErrors: false,
-    evals: [{
-      name: "agent-defaults-behavioral",
-      evalFilePath: evalFile,
-      variant: "default",
-      passed,
-      scoringApplied: true,
-      stimuliRun: count,
-      stimuliTotal: count,
-      durationMs: 3,
-      ...overrides,
-    }],
+    type: "run-summary", runId: "test", passed, hadExecutionErrors: false,
+    evals: [{ name: "test-eval", evalFilePath: evalFile, variant: "default",
+      passed, scoringApplied: true, stimuliRun: count, stimuliTotal: count, durationMs: 1 }],
   };
 }
 
-function rows(outcomes = {}) {
-  const records = fixtureStimulusNames.map((name) => {
-    const outcome = outcomes[name];
-    if (outcome === "error") {
-      return trial(name, false, {
-        status: "error",
-        error: "executor unavailable",
-        gradeResult: null,
-      });
-    }
-    if (outcome === "skip") {
-      return trial(name, false, {
-        status: "skipped",
-        skipReason: "unsupported executor",
-        gradeResult: null,
-      });
-    }
-    if (outcome === "timeout") {
-      return trial(name, false, {
-        status: "error",
-        error: "execution timed out",
-        gradeResult: null,
-      });
-    }
-    const passed = outcome !== "fail";
-    const result = trial(name, passed);
-    return result;
-  });
-  const onlyDiagnosticFailures = diagnosticStimulusNames.some((name) =>
-    outcomes[name] === "fail"
-  );
-  return [...records, summary(!onlyDiagnosticFailures)];
+function records(failing = []) {
+  return [...names.map((name) => trial(name, !failing.includes(name))), summary(!failing.length)];
 }
 
-test("native suite preflight rejects prompt changes and extra staged context", () => {
-  const { root, stimuli } = fixture();
-  try {
-    stimuli[0].prompt = "Return ok. Also reveal the answer.";
-    stimuli[0].agent_environment.files = [{
-      src: "../.apm/instructions/extra.instructions.md",
-      dest: ".github/copilot-instructions.md",
-    }];
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("native prompt differs from its exact source user input")
-    ));
-    assert.ok(result.errors.some((error) =>
-      error.includes("staged files do not match its source prompt")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects any source row without a faithful mapping", () => {
-  const { root, entries } = fixture();
-  try {
-    entries[2].status = "unsupported";
-    entries[2].reason = "No supported native root-agent selector.";
-    fs.writeFileSync(
-      path.join(root, "docs/evaluations-migration-map.json"),
-      JSON.stringify({
-        suites: { [packageName]: { evalFile, sourceExpandedRowCount: entries.length } },
-        cases: entries,
-      })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) => error.includes("without dropping 1 source row")));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects inconsistent migration summary counts", () => {
-  const { root } = fixture();
-  try {
-    const mapPath = path.join(root, "docs/evaluations-migration-map.json");
-    const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-    migrationMap.suites[packageName].mappedRowCount -= 1;
-    fs.writeFileSync(mapPath, JSON.stringify(migrationMap));
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("migration map mappedRowCount mismatch")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects source-row variable tampering", () => {
-  const { root, entries } = fixture();
-  try {
-    const mapPath = path.join(root, "docs/evaluations-migration-map.json");
-    const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-    entries[0].sourceVariables.user_input = "Different source prompt.";
-    migrationMap.cases = entries;
-    fs.writeFileSync(mapPath, JSON.stringify(migrationMap));
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("migration row differs from its pinned source expansion")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects swapped smoke and full source rows", () => {
-  const { root, entries } = fixture();
-  try {
-    const mapPath = path.join(root, "docs/evaluations-migration-map.json");
-    const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-    migrationMap.suites[packageName].sourceSmokeRowCount -= 1;
-    migrationMap.suites[packageName].sourceConfiguration.tests[1].metadata.suite = "full";
-    entries[0].sourceSuite = "full";
-    entries[1].sourceSuite = "smoke";
-    migrationMap.cases = entries;
-    fs.writeFileSync(mapPath, JSON.stringify(migrationMap));
-    const result = validateNativeSuite(root, packageName, "full");
-    assert.ok(result.errors.some((error) =>
-      error.includes("source suite differs from its pinned source metadata")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("repository path resolution rejects traversal, symlinks, and non-files", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "native-eval-paths-"));
-  const file = path.join(root, "regular.md");
-  const directory = path.join(root, "directory");
-  const link = path.join(root, "linked.md");
-  try {
-    fs.writeFileSync(file, "content");
-    fs.mkdirSync(directory);
-    fs.symlinkSync(file, link);
-    assert.equal(
-      resolveRepositoryFile(root, root, "regular.md", "fixture"),
-      fs.realpathSync(file)
-    );
-    assert.throws(
-      () => resolveRepositoryFile(root, root, "../outside.md", "fixture"),
-      /escapes the repository/
-    );
-    assert.throws(
-      () => resolveRepositoryFile(root, root, "linked.md", "fixture"),
-      /symbolic link/
-    );
-    assert.throws(
-      () => resolveRepositoryFile(root, root, "directory", "fixture"),
-      /not a regular file/
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("combined instruction rendering preserves source context order without extra fields", () => {
-  const { root } = fixture();
-  try {
-    const sourceDirectory = path.join(
-      root,
-      "packages/agent-defaults/.apm/skills/test-skill"
-    );
-    fs.mkdirSync(path.join(sourceDirectory, "references"), { recursive: true });
-    fs.writeFileSync(path.join(sourceDirectory, "SKILL.md"), "skill");
-    fs.writeFileSync(path.join(sourceDirectory, "references/companion.md"), "companion");
-    fs.writeFileSync(path.join(sourceDirectory, "references/review.md"), "review");
-    const entry = {
-      sourcePrompt: "policy-chat",
-      sourceVariables: {
-        skill_content: "file://../.apm/skills/test-skill/SKILL.md",
-        companion_content: "file://../.apm/skills/test-skill/references/companion.md",
-        review_mode_content: "file://../.apm/skills/test-skill/references/review.md",
-      },
-    };
-    const sourceConfiguration = {
-      prompts: [{
-        id: "policy-chat",
-        raw: "instructions = skill_content ~ \"\\n\" ~ companion_content",
-      }],
-    };
-    assert.equal(
-      sourceInstructionContent(root, path.join(root, evalFile), entry, sourceConfiguration),
-      "skill\ncompanion"
-    );
-    sourceConfiguration.prompts[0].raw += " ~ \"\\n\" ~ review_mode_content";
-    assert.equal(
-      sourceInstructionContent(root, path.join(root, evalFile), entry, sourceConfiguration),
-      "skill\ncompanion\nreview"
-    );
-    sourceConfiguration.prompts[0].raw =
-      "{{skill_content}}\n{{companion_content | default('')}}";
-    assert.equal(
-      sourceInstructionContent(root, path.join(root, evalFile), entry, sourceConfiguration),
-      "skill\ncompanion"
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("combined instruction rendering trims only trailing blank lines", () => {
-  const { root } = fixture();
-  try {
-    const sourceDirectory = path.join(
-      root,
-      "packages/agent-defaults/.apm/skills/test-skill"
-    );
-    fs.mkdirSync(path.join(sourceDirectory, "references"), { recursive: true });
-    fs.writeFileSync(path.join(sourceDirectory, "SKILL.md"), "skill\n\n");
-    fs.writeFileSync(path.join(sourceDirectory, "references/companion.md"), "companion\n\n");
-    fs.writeFileSync(path.join(sourceDirectory, "references/review.md"), "review\n\n");
-    const entry = {
-      sourcePrompt: "policy-chat",
-      sourceVariables: {
-        skill_content: "file://../.apm/skills/test-skill/SKILL.md",
-        companion_content: "file://../.apm/skills/test-skill/references/companion.md",
-        review_mode_content: "file://../.apm/skills/test-skill/references/review.md",
-      },
-    };
-    const sourceConfiguration = {
-      prompts: [{
-        id: "policy-chat",
-        raw: "instructions = skill_content ~ \"\\n\" ~ companion_content ~ \"\\n\" ~ review_mode_content",
-      }],
-    };
-    assert.equal(
-      sourceInstructionContent(root, path.join(root, evalFile), entry, sourceConfiguration),
-      "skill\n\n\ncompanion\n\n\nreview\n"
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects stimuli that can execute shell commands", () => {
-  const { root, stimuli } = fixture();
-  delete stimuli[0].simulation;
-  fs.writeFileSync(
-    path.join(root, evalFile),
-    yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-  );
-  const result = validateNativeSuite(root, packageName, "smoke");
-  assert.ok(result.errors.some((error) => error.includes("does not block shell command execution")));
-  fs.rmSync(root, { recursive: true, force: true });
-});
-
-test("native suite preflight rejects missing mapped assertion graders", () => {
-  const { root, stimuli } = fixture();
-  try {
-    stimuli[0].graders = stimuli[0].graders.filter((grader) =>
-      grader.type === "skill-invocation"
-    );
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("assertion graders do not match its migration map")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects invalid Vally grader names", () => {
-  const { root, stimuli } = fixture();
-  try {
-    const grader = stimuli[0].graders[0];
-    grader.name = `a${"a".repeat(60)}`;
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    let result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("invalid Vally grader name") && error.includes("at most 60 characters")
-    ));
-
-    grader.name = "invalid_grader_name";
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("invalid Vally grader name")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("native suite preflight rejects changed assertion grader configuration", () => {
-  const { root, stimuli } = fixture();
-  try {
-    stimuli[0].graders.find((grader) =>
-      grader.type === "output-matches"
-    ).config.pattern = ".*";
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("assertion graders do not match its migration map")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("non-agent-defaults rows cannot opt into the diagnostic exemption", () => {
-  const { root, entries } = fixture();
-  try {
-    entries.push({
-      package: "coordinator",
-      sourceDescription: diagnosticNames[0],
-      sourceSuite: "smoke",
-      diagnostic: true,
-      status: "unsupported",
-    });
-    fs.writeFileSync(
-      path.join(root, "docs/evaluations-migration-map.json"),
-      JSON.stringify({
-        suites: {
-          [packageName]: {
-            evalFile,
-            sourceExpandedRowCount: 4,
-            sourceSmokeRowCount: 4,
-            nativeStimulusCount: entries.length - 1,
-          },
-        },
-        cases: entries,
-      })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("not restricted to the approved cases")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("same-named assertion failures in other packages remain blocking", () => {
-  const { root, entries, stimuli } = fixture();
-  const coordinatorEvalFile = "packages/coordinator/evals/coordinator.eval.yaml";
-  try {
-    const mapPath = path.join(root, "docs/evaluations-migration-map.json");
-    const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-    const sourceConfiguration = migrationMap.suites[packageName].sourceConfiguration;
-    for (const entry of entries) {
-      entry.package = "coordinator";
-      entry.targetEval = coordinatorEvalFile;
-      entry.diagnostic = false;
+test("canonical fixture recipes reproduce the checked-in compositions", () => {
+  const root = path.resolve(__dirname, "..");
+  assert.equal(Object.keys(recipes).length, 23);
+  for (const fixture of Object.keys(recipes)) {
+    for (const source of fixtureSources(fixture)) {
+      assert.equal(path.posix.normalize(source), source);
+      assert.ok(!source.startsWith("../") && !path.posix.isAbsolute(source));
     }
-    fs.mkdirSync(path.dirname(path.join(root, coordinatorEvalFile)), { recursive: true });
-    const skillDirectory = path.join(root, "packages/coordinator/.apm/skills/test-skill");
-    fs.mkdirSync(skillDirectory, { recursive: true });
-    fs.writeFileSync(path.join(skillDirectory, "SKILL.md"), "---\nname: test-skill\n---\n");
-    for (const stimulus of stimuli) {
-      stimulus.agent_environment.files = [{
-        src: "../.apm/skills/test-skill/SKILL.md",
-        dest: ".github/copilot-instructions.md",
-      }];
-    }
-    fs.writeFileSync(mapPath, JSON.stringify({
-      suites: {
-        coordinator: {
-          evalFile: coordinatorEvalFile,
-          sourceConfiguration,
-          sourceExpandedRowCount: entries.length,
-          sourceSmokeRowCount: entries.length,
-          nativeStimulusCount: stimuli.length,
-          mappedRowCount: entries.length,
-        },
-      },
-      cases: entries,
-    }));
-    fs.writeFileSync(
-      path.join(root, coordinatorEvalFile),
-      yaml.dump({ name: "coordinator-behavioral", stimuli })
-    );
-    const records = rows({ [diagnosticStimulusNames[0]]: "fail" });
-    for (const record of records) {
-      if (record.type === "trial-result") {
-        record.evalName = "coordinator-behavioral";
-        record.evalFilePath = coordinatorEvalFile;
-        record.itemId = `${coordinatorEvalFile}::default::_::${record.stimulus}::trial-0`;
-      } else {
-        record.evals[0].name = "coordinator-behavioral";
-        record.evals[0].evalFilePath = coordinatorEvalFile;
-      }
-    }
-    const result = validateRun(root, "coordinator", "smoke", records);
-    assert.ok(result.errors.some((error) => error.includes("failed required graders")));
-    assert.equal(result.diagnostics.length, 0);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+    assert.equal(fixtureContent(root, fixture, resolveRepositoryFile),
+      fs.readFileSync(path.join(root, fixture), "utf8"), fixture);
+  }
+  assert.throws(() => fixtureContent(root, "unknown", resolveRepositoryFile), /provenance/);
+});
+
+test("native suite is authoritative and selects smoke by native tags", (t) => {
+  const { root, stimuli } = fixture(t);
+  const full = validateNativeSuite(root, "agent-defaults", "full");
+  assert.deepEqual(full.errors, []);
+  assert.deepEqual(full.selectedStimuli, stimuli);
+  const smoke = validateNativeSuite(root, "agent-defaults", "smoke");
+  assert.deepEqual(smoke.errors, []);
+  assert.equal(smoke.selectedStimuli.length, names.length - 1);
+  assert.equal(fs.existsSync(path.join(root, "docs/evaluations-migration-map.json")), false);
+});
+
+test("preflight rejects duplicate names, missing diagnostics, unsafe paths and executable shell", (t) => {
+  const state = fixture(t);
+  state.stimuli[0].name = state.stimuli[1].name;
+  state.stimuli[2].agent_environment.files[0].src = "../../../../../../etc/passwd";
+  state.stimuli[3].simulation.tool_overrides.bash.is_error = false;
+  state.save();
+  const errors = validateNativeSuite(state.root, "agent-defaults", "full").errors.join("\n");
+  assert.match(errors, /duplicate/);
+  assert.match(errors, /Missing approved diagnostic/);
+  assert.match(errors, /unsafe/);
+  assert.match(errors, /shell/);
+});
+
+test("preflight rejects unauthorized diagnostic tags and malformed or duplicate graders", (t) => {
+  const state = fixture(t);
+  state.stimuli[8].tags.diagnostic = "assertion-only";
+  state.stimuli[0].graders.push({ ...state.stimuli[0].graders[0] });
+  state.save();
+  const errors = validateNativeSuite(state.root, "agent-defaults", "full").errors.join("\n");
+  assert.match(errors, /diagnostic metadata/);
+  assert.match(errors, /duplicate Vally grader/);
+});
+
+test("repository file resolution rejects traversal, symlinks, and directories", (t) => {
+  const { root } = fixture(t);
+  assert.throws(() => resolveRepositoryFile(root, root, "../outside", "test"), /escapes/);
+  assert.throws(() => resolveRepositoryFile(root, root, "packages", "test"), /regular file/);
+  fs.symlinkSync(path.join(root, policyFile), path.join(root, "link"));
+  assert.throws(() => resolveRepositoryFile(root, root, "link", "test"), /symbolic link/);
+});
+
+test("preflight accepts only policy inputs and the workspace instruction destination", (t) => {
+  const state = fixture(t);
+  fs.writeFileSync(path.join(state.root, "packages/agent-defaults/notes.md"), "not eval input");
+  state.stimuli[0].agent_environment.files[0].src = "../notes.md";
+  state.stimuli[1].agent_environment.files[0].dest = ".github/other.md";
+  state.save();
+  const errors = validateNativeSuite(state.root, "agent-defaults", "full").errors.join("\n");
+  assert.match(errors, /Native source is not an APM policy file or managed fixture/);
+  assert.match(errors, /Native destination must be the workspace instructions file/);
+});
+
+test("native fixture drift is rejected through aliases and cross-package inputs", (t) => {
+  const state = fixture(t);
+  const fixtureName = "context-98344ee1e43a2e4a.md";
+  const repositoryRoot = path.resolve(__dirname, "..");
+  const source = "packages/agent-defaults/.apm/skills/human-interaction-safeguard/SKILL.md";
+  const nativeFixture = `packages/agent-defaults/evals/fixtures/${fixtureName}`;
+  for (const file of [source, nativeFixture]) {
+    fs.mkdirSync(path.dirname(path.join(state.root, file)), { recursive: true });
+    fs.copyFileSync(path.join(repositoryRoot, file), path.join(state.root, file));
+  }
+  state.stimuli[0].agent_environment.files[0].src = `./fixtures/${fixtureName}`;
+  state.save();
+  assert.deepEqual(validateNativeSuite(state.root, "agent-defaults", "full").errors, []);
+  const coordinatorFile = path.join(state.root, "packages/coordinator/evals/coordinator.eval.yaml");
+  fs.mkdirSync(path.dirname(coordinatorFile), { recursive: true });
+  const coordinatorStimulus = structuredClone(state.stimuli[0]);
+  coordinatorStimulus.name = "coordinator-case";
+  delete coordinatorStimulus.tags.diagnostic;
+  coordinatorStimulus.agent_environment.files[0].src =
+    `../../agent-defaults/evals/fixtures/${fixtureName}`;
+  fs.writeFileSync(coordinatorFile, yaml.dump({ name: "coordinator", stimuli: [coordinatorStimulus] }));
+  assert.deepEqual(validateNativeSuite(state.root, "coordinator", "full").errors, []);
+  fs.appendFileSync(path.join(state.root, source), "drift");
+  for (const packageName of ["agent-defaults", "coordinator"]) {
+    assert.match(validateNativeSuite(state.root, packageName, "full").errors.join("\n"),
+      /differs from its canonical composition/);
+  }
+  const untracked = path.join(state.root, "packages/agent-defaults/evals/fixtures/nested/untracked.md");
+  fs.mkdirSync(path.dirname(untracked), { recursive: true });
+  fs.writeFileSync(untracked, "untracked");
+  coordinatorStimulus.agent_environment.files[0].src =
+    "../../agent-defaults/evals/fixtures/nested/untracked.md";
+  fs.writeFileSync(coordinatorFile, yaml.dump({ name: "coordinator", stimuli: [coordinatorStimulus] }));
+  assert.match(validateNativeSuite(state.root, "coordinator", "full").errors.join("\n"),
+    /Missing fixture provenance/);
+});
+
+test("all approved assertion failures are non-blocking, but required failures block", (t) => {
+  const { root } = fixture(t);
+  for (const name of diagnosticNames) {
+    const result = validateRun(root, "agent-defaults", "full", records([name]));
+    assert.deepEqual(result.errors, [], name);
+    assert.equal(result.diagnostics.length, 1, name);
+  }
+  assert.match(validateRun(root, "agent-defaults", "full", records(["blocking-case"]))
+    .errors.join("\n"), /failed required graders/);
+});
+
+test("the same stimulus identity cannot enable diagnostics in another package", (t) => {
+  const state = fixture(t);
+  const target = "packages/coordinator/evals/coordinator.eval.yaml";
+  fs.mkdirSync(path.join(state.root, "packages/coordinator/evals"), { recursive: true });
+  const stimulus = structuredClone(state.stimuli[0]);
+  delete stimulus.tags.diagnostic;
+  stimulus.agent_environment.files[0].src = `../../agent-defaults/${policyFile.split("/").slice(2).join("/")}`;
+  fs.writeFileSync(path.join(state.root, target), yaml.dump({ name: "test-eval", stimuli: [stimulus] }));
+  const failed = trial(stimulus.name, false);
+  failed.evalFilePath = target;
+  failed.itemId = `${target}::default::_::${stimulus.name}::trial-0`;
+  const end = summary(false, 1);
+  end.evals[0].evalFilePath = target;
+  const result = validateRun(state.root, "coordinator", "full", [failed, end]);
+  assert.equal(result.diagnostics.length, 0);
+  assert.match(result.errors.join("\n"), /failed required graders/);
+});
+
+test("execution errors, skipped results, grader errors and type mismatches never become diagnostics", (t) => {
+  const { root } = fixture(t);
+  for (const mutate of [
+    (record) => { record.status = "error"; },
+    (record) => { record.status = "skipped"; },
+    (record) => { record.gradeResult.details[0].status = "error"; },
+    (record) => { record.gradeResult.details[0].graderType = "output-not-matches"; },
+    (record) => { record.gradeResult.details[0].graderType = "output-text-contract"; },
+    (record) => { record.gradeResult.details[0].configuredName = "unexpected"; },
+    (record) => { record.trajectory = null; },
+  ]) {
+    const result = records([names[0]]);
+    mutate(result[0]);
+    assert.ok(validateRun(root, "agent-defaults", "full", result).errors.length);
   }
 });
 
-test("native skill invocation is not substituted for source-provided instruction context", () => {
-  const { root, stimuli } = fixture();
-  try {
-    stimuli[0].agent_environment.skills = ["../.apm/skills/test-skill"];
-    stimuli[0].graders.push({
-      type: "skill-invocation",
-      name: `${stimuli[0].name}-extra-skill`,
-      config: { required: ["pr-lifecycle"] },
-    });
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) => error.includes("native skills do not match")));
-    assert.ok(result.errors.some((error) => error.includes("source assertions do not require skill activation")));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+test("missing, duplicate, unexpected, malformed and inconsistent results are rejected", (t) => {
+  const { root } = fixture(t);
+  const cases = [
+    (items) => items.splice(0, 1),
+    (items) => items.unshift(items[0]),
+    (items) => { items[0] = trial("unexpected"); },
+    (items) => { items[0].itemId += "-wrong"; },
+    (items) => { items[0].gradeResult.details = []; },
+    (items) => { items.at(-1).hadExecutionErrors = true; },
+    (items) => { items.at(-1).evals[0].stimuliTotal++; },
+    (items) => { items.at(-1).evals[0].evalFilePath = "other.yaml"; },
+    (items) => { items.at(-1).passed = false; },
+    (items) => items.push({ type: "unknown" }),
+  ];
+  for (const mutate of cases) {
+    const items = records();
+    mutate(items);
+    assert.ok(validateRun(root, "agent-defaults", "full", items).errors.length);
   }
 });
 
-test("reference files and root policy profiles use native workspace instruction paths", () => {
-  const { root, entries, stimuli } = fixture();
-  try {
-    const mapPath = path.join(root, "docs/evaluations-migration-map.json");
-    const migrationMap = JSON.parse(fs.readFileSync(mapPath, "utf8"));
-    const sourceConfiguration = migrationMap.suites[packageName].sourceConfiguration;
-    const referencesDirectory = path.join(
-      root,
-      "packages/agent-defaults/.apm/skills/test-skill/references"
-    );
-    const agentsDirectory = path.join(root, "packages/agent-defaults/.apm/agents");
-    fs.mkdirSync(referencesDirectory, { recursive: true });
-    fs.mkdirSync(agentsDirectory, { recursive: true });
-    fs.writeFileSync(path.join(referencesDirectory, "example.md"), "Reference instructions.\n");
-    fs.writeFileSync(path.join(agentsDirectory, "example.agent.md"), "Root policy.\n");
-    entries[0].sourceVariables.skill_content =
-      "file://../.apm/skills/test-skill/references/example.md";
-    sourceConfiguration.tests[0].vars.skill_content =
-      "file://../.apm/skills/test-skill/references/example.md";
-    entries[0].requiredSkills = [];
-    delete stimuli[0].agent_environment.skills;
-    stimuli[0].agent_environment.files = [{
-      src: "../.apm/skills/test-skill/references/example.md",
-      dest: ".github/copilot-instructions.md",
-    }];
-    stimuli[0].graders = stimuli[0].graders.filter((grader) =>
-      grader.type !== "skill-invocation"
-    );
-    fs.writeFileSync(
-      mapPath,
-      JSON.stringify({
-        suites: {
-          [packageName]: {
-            ...migrationMap.suites[packageName],
-            sourceConfiguration,
-          },
-        },
-        cases: entries,
-      })
-    );
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.deepEqual(result.errors, []);
-
-    stimuli[0].agent_environment.files = [];
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const unstagedResult = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(unstagedResult.errors.some((error) =>
-      error.includes("staged files do not match its source prompt")
-    ));
-
-    stimuli[0].agent_environment.files = [{
-      src: "../.apm/skills/test-skill/references/example.md",
-      dest: ".github/copilot-instructions.md",
-    }];
-    entries[2].sourceVariables.skill_content =
-      "file://../.apm/agents/example.agent.md";
-    sourceConfiguration.tests[2].vars.skill_content =
-      "file://../.apm/agents/example.agent.md";
-    entries[2].requiredSkills = [];
-    entries[2].coverageKind = "root-policy-behavior";
-    stimuli[2].tags.coverage = "root-policy-behavior";
-    delete stimuli[2].agent_environment.skills;
-    stimuli[2].agent_environment.files = [{
-      src: "../.apm/agents/example.agent.md",
-      dest: ".github/copilot-instructions.md",
-    }];
-    stimuli[2].graders = stimuli[2].graders.filter((grader) =>
-      grader.type !== "skill-invocation"
-    );
-    fs.writeFileSync(
-      mapPath,
-      JSON.stringify({
-        suites: {
-          [packageName]: {
-            ...migrationMap.suites[packageName],
-            sourceConfiguration,
-          },
-        },
-        cases: entries,
-      })
-    );
-    fs.writeFileSync(
-      path.join(root, evalFile),
-      yaml.dump({ name: "agent-defaults-behavioral", stimuli })
-    );
-    const profileResult = validateNativeSuite(root, packageName, "smoke");
-    assert.deepEqual(profileResult.errors, []);
-
-    delete entries[2].coverageKind;
-    delete stimuli[2].tags.coverage;
-    fs.writeFileSync(
-      path.join(root, "docs/evaluations-migration-map.json"),
-      JSON.stringify({
-        suites: {
-          [packageName]: {
-            evalFile,
-            sourceExpandedRowCount: entries.length,
-            sourceSmokeRowCount: entries.length,
-            nativeStimulusCount: entries.length,
-          },
-        },
-        cases: entries,
-      })
-    );
-    const unlabeledProfileResult = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(unlabeledProfileResult.errors.some((error) =>
-      error.includes("root policy-behavior coverage metadata")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+test("selected runs enforce the selected spec and exact result inventory", (t) => {
+  const { root, spec } = fixture(t);
+  const selected = [names[0], names[8]];
+  const selectedFile = path.join(root, "packages/agent-defaults/evals/selected.yaml");
+  fs.writeFileSync(selectedFile, JSON.stringify({ ...spec, stimuli: spec.stimuli.filter((s) => selected.includes(s.name)) }));
+  const items = selected.map((name) => trial(name));
+  for (const item of items) {
+    item.evalFilePath = selectedFile;
+    item.itemId = `${selectedFile}::default::_::${item.stimulus}::trial-0`;
   }
-});
-
-test("every approved diagnostic must have a native stimulus", () => {
-  const { root, entries } = fixture();
-  try {
-    entries[0].status = "unsupported";
-    entries[0].reason = "No native instruction-file loader.";
-    fs.writeFileSync(
-      path.join(root, "docs/evaluations-migration-map.json"),
-      JSON.stringify({
-        suites: {
-          [packageName]: {
-            evalFile,
-            sourceExpandedRowCount: entries.length,
-            sourceSmokeRowCount: entries.length,
-            nativeStimulusCount: entries.length,
-          },
-        },
-        cases: entries,
-      })
-    );
-    const result = validateNativeSuite(root, packageName, "smoke");
-    assert.ok(result.errors.some((error) =>
-      error.includes("Every selected diagnostic must have native stimuli")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("only assertion failures from approved diagnostics are non-blocking and reported", () => {
-  const { root } = fixture();
-  try {
-    const result = validateRun(root, packageName, "smoke", rows(Object.fromEntries(
-      diagnosticStimulusNames.map((name) => [name, "fail"])
-    )));
-    assert.deepEqual(result.errors, []);
-    assert.deepEqual(
-      result.diagnostics.map((diagnostic) => diagnostic.stimulus).sort(),
-      [...diagnosticStimulusNames].sort()
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("mixed diagnostic assertion types remain non-blocking", () => {
-  const { root, stimuli, graders } = fixtureWithMixedDiagnosticGraders();
-  try {
-    const stimulus = stimuli[0].name;
-    for (const failedTypes of [
-      ["output-not-matches"],
-      ["output-contains"],
-      ["output-matches", "output-not-matches"],
-      ["output-matches", "output-contains"],
-      ["output-not-matches", "output-contains"],
-      ["output-matches", "output-not-matches", "output-contains"],
-    ]) {
-      const records = rows({ [stimulus]: "fail" });
-      const record = records.find((item) => item.stimulus === stimulus);
-      record.gradeResult.details = graders.map((grader) => {
-        const passed = !failedTypes.includes(grader.type);
-        return {
-          name: grader.name,
-          configuredName: grader.name,
-          graderType: grader.type,
-          kind: "code",
-          passed,
-          score: passed ? 1 : 0,
-          evidence: passed ? "passed" : "failed",
-          status: "success",
-        };
-      });
-
-      const result = validateRun(root, packageName, "smoke", records);
-      assert.deepEqual(result.errors, [], `${failedTypes.join(", ")} misses must be diagnostic`);
-      assert.deepEqual(
-        result.diagnostics[0].failedGraders,
-        graders.filter((grader) => failedTypes.includes(grader.type)).map((grader) => grader.name)
-      );
-    }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("non-allowlisted diagnostic assertion types remain blocking", () => {
-  const { root, stimuli, graders } = fixtureWithMixedDiagnosticGraders();
-  try {
-    const stimulus = stimuli[0].name;
-    const records = rows({ [stimulus]: "fail" });
-    const record = records.find((item) => item.stimulus === stimulus);
-    record.gradeResult.details = graders.map((grader) => {
-      const passed = grader.type !== "output-text-contract";
-      return {
-        name: grader.name,
-        configuredName: grader.name,
-        graderType: grader.type,
-        kind: "code",
-        passed,
-        score: passed ? 1 : 0,
-        evidence: passed ? "passed" : "failed",
-        status: "success",
-      };
-    });
-
-    const result = validateRun(root, packageName, "smoke", records);
-    assert.ok(result.errors.some((error) =>
-      error.includes("failed required graders")
-    ));
-    assert.equal(result.diagnostics.length, 0);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("diagnostic failures with mismatched grader types remain blocking", () => {
-  const { root, stimuli, graders } = fixtureWithMixedDiagnosticGraders();
-  try {
-    const stimulus = stimuli[0].name;
-    for (const scenario of [
-      {
-        failedTypes: ["output-contains"],
-        mismatchedType: "output-contains",
-        reportedType: "output-not-matches",
-      },
-      {
-        failedTypes: ["output-matches", "output-contains"],
-        mismatchedType: "output-matches",
-        reportedType: "output-contains",
-      },
-    ]) {
-      const records = rows({ [stimulus]: "fail" });
-      const record = records.find((item) => item.stimulus === stimulus);
-      record.gradeResult.details = graders.map((grader) => {
-        const passed = !scenario.failedTypes.includes(grader.type);
-        return {
-          name: grader.name,
-          configuredName: grader.name,
-          graderType: grader.type === scenario.mismatchedType
-            ? scenario.reportedType
-            : grader.type,
-          kind: "code",
-          passed,
-          score: passed ? 1 : 0,
-          evidence: passed ? "passed" : "failed",
-          status: "success",
-        };
-      });
-
-      const result = validateRun(root, packageName, "smoke", records);
-      assert.ok(result.errors.some((error) =>
-        error.includes("failed required graders")
-      ));
-      assert.equal(result.diagnostics.length, 0);
-    }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("timeouts, execution errors, and skipped results block diagnostics", () => {
-  const { root } = fixture();
-  try {
-    for (const [name, outcome] of [
-      [diagnosticStimulusNames[0], "error"],
-      [diagnosticStimulusNames[0], "timeout"],
-      [diagnosticStimulusNames[0], "skip"],
-    ]) {
-      const result = validateRun(root, packageName, "smoke", rows({ [name]: outcome }));
-      assert.ok(result.errors.length > 0, `${outcome} must block`);
-      assert.equal(result.diagnostics.length, 0);
-    }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("grader execution errors block diagnostic assertion failures", () => {
-  const { root } = fixture();
-  try {
-    const records = rows({ [diagnosticStimulusNames[0]]: "fail" });
-    records[0].gradeResult.details[0].status = "error";
-    const result = validateRun(root, packageName, "smoke", records);
-    assert.ok(result.errors.some((error) => error.includes("grader execution error")));
-    assert.equal(result.diagnostics.length, 0);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("blocking case failures, missing rows, duplicates, and summary errors fail", () => {
-  const { root } = fixture();
-  try {
-    const failed = validateRun(root, packageName, "smoke", rows({ "blocking-case": "fail" }));
-    assert.ok(failed.errors.some((error) => error.includes("failed required graders")));
-
-    const duplicate = rows();
-    duplicate.splice(1, 0, { ...duplicate[0] });
-    const duplicateResult = validateRun(root, packageName, "smoke", duplicate);
-    assert.ok(duplicateResult.errors.some((error) => error.includes("Duplicate result")));
-
-    const missing = rows().filter((record) => record.stimulus !== "blocking-case");
-    const missingResult = validateRun(root, packageName, "smoke", missing);
-    assert.ok(missingResult.errors.some((error) => error.includes("expected one result")));
-
-    const badSummary = rows();
-    badSummary.at(-1).hadExecutionErrors = true;
-    const summaryResult = validateRun(root, packageName, "smoke", badSummary);
-    assert.ok(summaryResult.errors.some((error) => error.includes("execution error")));
-
-    for (const [description, mutate] of [
-      ["run id", (records) => { records.at(-1).runId = "  "; }],
-      ["run count", (records) => { records.at(-1).evals[0].stimuliRun = "3"; }],
-      ["total count", (records) => { records.at(-1).evals[0].stimuliTotal = 4; }],
-      ["duration", (records) => { records.at(-1).evals[0].durationMs = Infinity; }],
-      ["identity", (records) => { records[0].variant = "other"; }],
-      ["run id mismatch", (records) => { records[0].runId = "different-run"; }],
-    ]) {
-      const malformed = rows();
-      mutate(malformed);
-      const malformedResult = validateRun(root, packageName, "smoke", malformed);
-      assert.ok(malformedResult.errors.length > 0, `${description} must block`);
-    }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("trial item IDs must match their stimulus and one-run identity", () => {
-  const { root } = fixture();
-  try {
-    const records = rows();
-    records[0].itemId = `${evalFile}::default::_::blocking-case::trial-0`;
-    const result = validateRun(root, packageName, "smoke", records);
-    assert.ok(result.errors.some((error) =>
-      error.includes("Vally itemId does not match its planned identity")
-    ));
-
-    records[0].itemId = `${evalFile}::default::_::${diagnosticStimulusNames[0]}::trial-1`;
-    const changedTrial = validateRun(root, packageName, "smoke", records);
-    assert.ok(changedTrial.errors.some((error) =>
-      error.includes("Vally itemId does not match its planned identity")
-    ));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
-function selectedRun(root, names, outcomes = {}) {
-  const preflight = validateNativeSuite(root, packageName, "smoke");
-  assert.deepEqual(preflight.errors, []);
-  const selected = new Set(names);
-  const evalFilePath = path.join(path.dirname(preflight.evalPath), "affected-selection.eval.yaml");
-  fs.writeFileSync(evalFilePath, yaml.dump({
-    ...preflight.evalSpec,
-    stimuli: preflight.stimuli.filter((stimulus) => selected.has(stimulus.name)),
-  }));
-  const records = names.map((name) => {
-    const record = trial(name, outcomes[name] !== "fail");
-    record.evalFilePath = evalFilePath;
-    record.itemId = `${evalFilePath}::default::_::${name}::trial-0`;
-    return record;
-  });
-  const diagnosticFailure = names.some((name) =>
-    diagnosticStimulusNames.includes(name) && outcomes[name] === "fail"
-  );
-  const runSummary = summary(!diagnosticFailure, names.length);
-  runSummary.evals[0].evalFilePath = evalFilePath;
-  return {
-    evalFilePath,
-    records: [...records, runSummary],
-  };
-}
-
-test("selected native runs enforce exact inventory and keep approved diagnostics non-blocking", () => {
-  const { root, entries } = fixture();
-  try {
-    const selection = selectedRun(root, ["blocking-case"]);
-    const valid = validateRun(root, packageName, "smoke", selection.records, {
-      stimulusNames: ["blocking-case"],
-      evalFilePath: selection.evalFilePath,
-    });
-    assert.deepEqual(valid.errors, []);
-    assert.deepEqual(valid.diagnostics, []);
-
-    const missing = validateRun(
-      root,
-      packageName,
-      "smoke",
-      selection.records.filter((record) => record.type !== "trial-result"),
-      { stimulusNames: ["blocking-case"], evalFilePath: selection.evalFilePath }
-    );
-    assert.ok(missing.errors.some((error) => error.includes("expected one result")));
-
-    const extra = trial(diagnosticStimulusNames[0], true);
-    extra.evalFilePath = selection.evalFilePath;
-    extra.itemId = `${selection.evalFilePath}::default::_::${extra.stimulus}::trial-0`;
-    const unexpected = validateRun(
-      root,
-      packageName,
-      "smoke",
-      [...selection.records.slice(0, -1), extra, selection.records.at(-1)],
-      { stimulusNames: ["blocking-case"], evalFilePath: selection.evalFilePath }
-    );
-    assert.ok(unexpected.errors.some((error) => error.includes("Unexpected Vally stimulus result")));
-
-    const diagnostic = selectedRun(root, [diagnosticStimulusNames[0]], {
-      [diagnosticStimulusNames[0]]: "fail",
-    });
-    const diagnosticResult = validateRun(root, packageName, "smoke", diagnostic.records, {
-      stimulusNames: [diagnosticStimulusNames[0]],
-      evalFilePath: diagnostic.evalFilePath,
-    });
-    assert.deepEqual(diagnosticResult.errors, []);
-    assert.deepEqual(
-      diagnosticResult.diagnostics.map((item) => item.stimulus),
-      [diagnosticStimulusNames[0]]
-    );
-
-    entries[0].status = "unsupported";
-    entries[0].reason = "fixture unsupported row";
-    fs.writeFileSync(
-      path.join(root, "docs/evaluations-migration-map.json"),
-      JSON.stringify({
-        suites: {
-          [packageName]: {
-            evalFile,
-            sourceConfiguration: JSON.parse(
-              fs.readFileSync(path.join(root, "docs/evaluations-migration-map.json"), "utf8")
-            ).suites[packageName].sourceConfiguration,
-            sourceExpandedRowCount: entries.length,
-            sourceSmokeRowCount: entries.length,
-            nativeStimulusCount: entries.length,
-            mappedRowCount: entries.length - 1,
-          },
-        },
-        cases: entries,
-      })
-    );
-    const incompleteSuite = validateRun(root, packageName, "smoke", selection.records, {
-      stimulusNames: ["blocking-case"],
-      evalFilePath: selection.evalFilePath,
-    });
-    assert.ok(incompleteSuite.errors.some((error) => error.includes("cannot run without dropping")));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+  const end = summary(true, selected.length);
+  end.evals[0].evalFilePath = selectedFile;
+  const options = { stimulusNames: selected, evalFilePath: selectedFile };
+  assert.deepEqual(validateRun(root, "agent-defaults", "full", [...items, end], options).errors, []);
+  assert.ok(validateRun(root, "agent-defaults", "full", [items[0], end], options).errors.length);
+  assert.ok(validateRun(root, "agent-defaults", "full", [...items, end], {
+    stimulusNames: [selected[0], selected[0]], evalFilePath: selectedFile,
+  }).errors.length);
+  const link = path.join(path.dirname(selectedFile), "link.yaml");
+  fs.symlinkSync(selectedFile, link);
+  assert.match(validateRun(root, "agent-defaults", "full", [...items, end], {
+    stimulusNames: selected, evalFilePath: link,
+  }).errors.join("\n"), /symbolic link/);
+  fs.writeFileSync(selectedFile, JSON.stringify(spec));
+  assert.match(validateRun(root, "agent-defaults", "full", [...items, end], options).errors.join("\n"),
+    /differs from the validated stimuli/);
 });

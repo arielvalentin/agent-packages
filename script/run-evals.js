@@ -15,12 +15,12 @@ function selectedEvalSpec(preflight, stimulusNames) {
     || new Set(stimulusNames).size !== stimulusNames.length) {
     throw new Error("Selected stimuli must be a nonempty array of unique names.");
   }
-  const expectedNames = new Set(preflight.expectedEntries.map((entry) => entry.targetStimulus));
+  const expectedNames = new Set(preflight.selectedStimuli.map((stimulus) => stimulus.name));
   if (stimulusNames.some((name) => !expectedNames.has(name))) {
     throw new Error("Selected stimuli must belong to the validated suite.");
   }
   const selected = new Set(stimulusNames);
-  const stimuli = preflight.stimuli.filter((stimulus) => selected.has(stimulus.name));
+  const stimuli = preflight.selectedStimuli.filter((stimulus) => selected.has(stimulus.name));
   if (stimuli.length !== selected.size) {
     throw new Error("Selected stimuli do not match the native eval inventory.");
   }
