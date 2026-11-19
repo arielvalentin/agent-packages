@@ -255,7 +255,8 @@ function validateRun(root, packageName, suite, records) {
     }
     const grade = record.gradeResult;
     if (!grade || typeof grade !== "object" || Array.isArray(grade)
-      || typeof grade.passed !== "boolean" || !Array.isArray(grade.details)) {
+      || typeof grade.passed !== "boolean" || !Array.isArray(grade.details)
+      || (grade.status !== undefined && typeof grade.status !== "string")) {
       errors.push(`${record.stimulus} has a missing or malformed grade result.`);
       continue;
     }
@@ -297,7 +298,7 @@ function validateRun(root, packageName, suite, records) {
     }));
     let malformedNestedGrade = false;
     let contradictoryNestedGrade = false;
-    let executionError = false;
+    let executionError = grade.status !== undefined && grade.status !== "success";
     const allPassAggregates = [];
     while (pending.length) {
       const { grader, parent, grandparent, nativeContext, allPassContext } = pending.pop();
@@ -333,7 +334,7 @@ function validateRun(root, packageName, suite, records) {
         malformedNestedGrade = true;
         break;
       }
-      if (grader.status && grader.status !== "success") executionError = true;
+      if (grader.status !== undefined && grader.status !== "success") executionError = true;
       if (!rubricLeaf && !panelDetail && parent.passed && !grader.passed) {
         contradictoryNestedGrade = true;
       }

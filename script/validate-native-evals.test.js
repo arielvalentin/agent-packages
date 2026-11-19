@@ -237,11 +237,43 @@ test("trial and summary identities must bind to the planned eval", (t) => {
 
 test("grader and run execution errors block diagnostic assertion failures", (t) => {
   const { root } = fixture(t);
+  const aggregateError = records([diagnosticNames[0]]);
+  aggregateError[0].gradeResult.status = "error";
+  const aggregateResult = validateRun(root, "agent-defaults", "full", aggregateError);
+  assert.match(aggregateResult.errors.join("\n"), /grader execution error/);
+  assert.equal(aggregateResult.diagnostics.length, 0);
+
+  const successfulAggregate = records([diagnosticNames[0]]);
+  successfulAggregate[0].gradeResult.status = "success";
+  const successResult = validateRun(root, "agent-defaults", "full", successfulAggregate);
+  assert.equal(successResult.errors.length, 0);
+  assert.equal(successResult.diagnostics.length, 1);
+
+  const emptyAggregateStatus = records([diagnosticNames[0]]);
+  emptyAggregateStatus[0].gradeResult.status = "";
+  assert.match(validateRun(root, "agent-defaults", "full", emptyAggregateStatus)
+    .errors.join("\n"), /grader execution error/);
+
+  const passingAggregateError = records();
+  passingAggregateError[0].gradeResult.status = "error";
+  assert.match(validateRun(root, "agent-defaults", "full", passingAggregateError)
+    .errors.join("\n"), /grader execution error/);
+
+  const malformedAggregate = records([diagnosticNames[0]]);
+  malformedAggregate[0].gradeResult.status = 0;
+  assert.match(validateRun(root, "agent-defaults", "full", malformedAggregate)
+    .errors.join("\n"), /malformed grade result/);
+
   const graderError = records([diagnosticNames[0]]);
   graderError[0].gradeResult.details[0].status = "error";
   const graderResult = validateRun(root, "agent-defaults", "full", graderError);
   assert.match(graderResult.errors.join("\n"), /grader execution error/);
   assert.equal(graderResult.diagnostics.length, 0);
+
+  const emptyGraderStatus = records([diagnosticNames[0]]);
+  emptyGraderStatus[0].gradeResult.details[0].status = "";
+  assert.match(validateRun(root, "agent-defaults", "full", emptyGraderStatus)
+    .errors.join("\n"), /grader execution error/);
 
   const runError = records([diagnosticNames[0]]);
   runError.at(-1).hadExecutionErrors = true;
