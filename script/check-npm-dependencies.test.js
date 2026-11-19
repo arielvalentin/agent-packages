@@ -23,7 +23,7 @@ function defaultsCase(index) {
 }
 
 test("native evaluation dependencies are pinned and Promptfoo/Ollama are absent", () => {
-  assert.equal(manifest.devDependencies["@microsoft/vally-cli"], "0.19.0");
+  assert.equal(manifest.devDependencies["@microsoft/vally-cli"], "0.21.0");
   assert.equal(typeof manifest.devDependencies["js-yaml"], "string");
   assert.deepEqual(manifest.allowScripts, { "esbuild@0.28.2": true, fsevents: false });
   assert.equal(manifest.devDependencies.promptfoo, undefined);
@@ -217,10 +217,10 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       ));
       assert.equal(new Set(actionSteps.map((step) => step.uses)).size, 1);
       assert.equal(actionSteps[0].with.command, "lint");
-      assert.equal(actionSteps[0].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[0].with["vally-version"], "0.21.0");
       assert.equal(actionSteps[0].with["report-id"], "coordinator");
       assert.equal(actionSteps[1].with.command, "run");
-      assert.equal(actionSteps[1].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[1].with["vally-version"], "0.21.0");
       assert.equal(actionSteps[1].with.model, "gpt-5.3-codex");
       assert.equal(actionSteps[1].with.runs, "1");
       assert.equal(actionSteps[1].with.workers, "1");
@@ -239,7 +239,7 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       assert.match(validateStep.run, /findVallyJsonlOutput/);
       assert.match(validateStep.run, /validate-native-evals\.js --results coordinator/);
       assert.equal(actionSteps[2].with.command, "report");
-      assert.equal(actionSteps[2].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[2].with["vally-version"], "0.21.0");
       assert.equal(actionSteps[2].with["report-id"], "coordinator");
       const suiteExpression = actionSteps[1].with.suite.replace(/^\$\{\{\s*|\s*\}\}$/g, "");
       assert.equal(vm.runInNewContext(suiteExpression, {
@@ -365,7 +365,7 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       ["lint", "run", "report"],
       workflowName
     );
-    assert.ok(actionSteps.every((step) => step.with["vally-version"] === "0.19.0"), workflowName);
+    assert.ok(actionSteps.every((step) => step.with["vally-version"] === "0.21.0"), workflowName);
     assert.ok(actionSteps.every((step) => step.with["report-id"] === packageName), workflowName);
     assert.equal(actionSteps[1].with.model, "gpt-5.3-codex");
     assert.equal(actionSteps[1].with.runs, "1");
