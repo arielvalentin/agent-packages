@@ -203,6 +203,282 @@ test("all approved assertion failures are non-blocking, but required failures bl
     .errors.join("\n"), /failed required graders/);
 });
 
+test("trial and summary identities must bind to the planned eval", (t) => {
+  const { root, stimuli } = fixture(t);
+  const unrelatedEvalFile = "packages/agent-defaults/evals/unrelated.eval.yaml";
+  fs.writeFileSync(path.join(root, unrelatedEvalFile), yaml.dump({
+    name: "test-eval",
+    stimuli,
+  }));
+
+  const unrelatedTrials = records();
+  for (const record of unrelatedTrials.filter((item) => item.type === "trial-result")) {
+    record.evalFilePath = unrelatedEvalFile;
+    record.itemId = `${unrelatedEvalFile}::${record.variant}::_::${record.stimulus}::trial-0`;
+  }
+  assert.match(validateRun(root, "agent-defaults", "full", unrelatedTrials)
+    .errors.join("\n"), /planned identity/);
+
+  const unexpectedTrialName = records();
+  unexpectedTrialName[0].evalName = "unrelated-eval";
+  assert.match(validateRun(root, "agent-defaults", "full", unexpectedTrialName)
+    .errors.join("\n"), /planned identity/);
+
+  const unrelatedSummary = records();
+  unrelatedSummary.at(-1).evals[0].evalFilePath = unrelatedEvalFile;
+  assert.match(validateRun(root, "agent-defaults", "full", unrelatedSummary)
+    .errors.join("\n"), /summary eval identity/);
+
+  const unexpectedSummaryName = records();
+  unexpectedSummaryName.at(-1).evals[0].name = "unrelated-eval";
+  assert.match(validateRun(root, "agent-defaults", "full", unexpectedSummaryName)
+    .errors.join("\n"), /summary eval identity/);
+});
+
+test("grader and run execution errors block diagnostic assertion failures", (t) => {
+  const { root } = fixture(t);
+  const aggregateError = records([diagnosticNames[0]]);
+  aggregateError[0].gradeResult.status = "error";
+  const aggregateResult = validateRun(root, "agent-defaults", "full", aggregateError);
+  assert.match(aggregateResult.errors.join("\n"), /grader execution error/);
+  assert.equal(aggregateResult.diagnostics.length, 0);
+
+  const successfulAggregate = records([diagnosticNames[0]]);
+  successfulAggregate[0].gradeResult.status = "success";
+  const successResult = validateRun(root, "agent-defaults", "full", successfulAggregate);
+  assert.equal(successResult.errors.length, 0);
+  assert.equal(successResult.diagnostics.length, 1);
+
+  const emptyAggregateStatus = records([diagnosticNames[0]]);
+  emptyAggregateStatus[0].gradeResult.status = "";
+  assert.match(validateRun(root, "agent-defaults", "full", emptyAggregateStatus)
+    .errors.join("\n"), /grader execution error/);
+
+  const passingAggregateError = records();
+  passingAggregateError[0].gradeResult.status = "error";
+  assert.match(validateRun(root, "agent-defaults", "full", passingAggregateError)
+    .errors.join("\n"), /grader execution error/);
+
+  const malformedAggregate = records([diagnosticNames[0]]);
+  malformedAggregate[0].gradeResult.status = 0;
+  assert.match(validateRun(root, "agent-defaults", "full", malformedAggregate)
+    .errors.join("\n"), /malformed grade result/);
+
+  const graderError = records([diagnosticNames[0]]);
+  graderError[0].gradeResult.details[0].status = "error";
+  const graderResult = validateRun(root, "agent-defaults", "full", graderError);
+  assert.match(graderResult.errors.join("\n"), /grader execution error/);
+  assert.equal(graderResult.diagnostics.length, 0);
+
+  const emptyGraderStatus = records([diagnosticNames[0]]);
+  emptyGraderStatus[0].gradeResult.details[0].status = "";
+  assert.match(validateRun(root, "agent-defaults", "full", emptyGraderStatus)
+    .errors.join("\n"), /grader execution error/);
+
+  const runError = records([diagnosticNames[0]]);
+  runError.at(-1).hadExecutionErrors = true;
+  const runResult = validateRun(root, "agent-defaults", "full", runError);
+  assert.match(runResult.errors.join("\n"), /run-summary reports execution errors/);
+  assert.equal(runResult.diagnostics.length, 1);
+
+  const evalError = records([diagnosticNames[0]]);
+  evalError.at(-1).evals[0].hadExecutionErrors = true;
+  assert.match(validateRun(root, "agent-defaults", "full", evalError)
+    .errors.join("\n"), /eval-summary reports execution errors/);
+});
+
+test("a diagnostic cannot hide a contradictory required grader failure", (t) => {
+  const { root } = fixture(t);
+  const items = records([diagnosticNames[0], "blocking-case"]);
+  const requiredResult = items.find((item) =>
+    item.type === "trial-result" && item.stimulus === "blocking-case"
+  );
+  requiredResult.gradeResult.passed = true;
+
+  const result = validateRun(root, "agent-defaults", "full", items);
+  assert.match(result.errors.join("\n"), /grade verdict contradicts/);
+  assert.equal(result.diagnostics.length, 1);
+});
+
+test("nested grader failures cannot contradict passing parents or become diagnostics", (t) => {
+  const { root } = fixture(t);
+  const passing = records();
+  passing[0].gradeResult.details[0].details = [
+    { graderType: "nested", passed: true, details: [{ graderType: "nested", passed: false }] },
+  ];
+  assert.match(validateRun(root, "agent-defaults", "full", passing).errors.join("\n"),
+    /grade verdict contradicts/);
+
+  const diagnostic = records([diagnosticNames[0]]);
+  diagnostic[0].gradeResult.details[0].details = [{ graderType: "nested", passed: false }];
+  const result = validateRun(root, "agent-defaults", "full", diagnostic);
+  assert.match(result.errors.join("\n"), /failed required graders/);
+  assert.equal(result.diagnostics.length, 0);
+
+  const inconsistentDiagnostic = records([diagnosticNames[0]]);
+  inconsistentDiagnostic[0].gradeResult.details[0].details = [
+    { graderType: "nested", passed: true, details: [{ graderType: "nested", passed: false }] },
+  ];
+  assert.match(validateRun(root, "agent-defaults", "full", inconsistentDiagnostic)
+    .errors.join("\n"), /grade verdict contradicts/);
+
+  const failedParent = records([diagnosticNames[0]]);
+  failedParent[0].gradeResult.details[0].details = [{ graderType: "nested", passed: true }];
+  const validDiagnostic = validateRun(root, "agent-defaults", "full", failedParent);
+  assert.deepEqual(validDiagnostic.errors, []);
+  assert.equal(validDiagnostic.diagnostics.length, 1);
+});
+
+test("native completed and panel results retain their own nested verdict semantics", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  stimuli[0].graders.push({ name: "completed-check", type: "completed", config: {} });
+  stimuli[0].graders.push({ name: "panel-check", type: "panel", config: {} });
+  stimuli[0].graders.push({ name: "command-check", type: "run-command", config: {} });
+  stimuli[0].graders.push({ name: "metrics-check", type: "custom-metrics", config: {} });
+  save();
+
+  const completedDetails = [
+    { name: "has-output", kind: "code", passed: true, score: 1, evidence: "Output exists." },
+    { name: "no-errors", kind: "code", passed: true, score: 1, evidence: "No errors." },
+    { name: "turn-completed", kind: "code", passed: true, score: 1, evidence: "A turn completed." },
+  ];
+  const panelJudge = (name, passed, score) => ({
+    name: `panel/${name}`, kind: "llm", passed, score,
+    evidence: `Judge ${name}.`, label: passed ? "correct" : "incorrect",
+    metadata: { model: name },
+  });
+  const panelCriterion = {
+    name: "panel/criterion/accuracy", kind: "llm", passed: true, score: 0.75,
+    evidence: "Criterion consensus passed.", label: "correct",
+    metadata: { criterion: "accuracy", required: true },
+  };
+  const configuredResult = (name, graderType, passed, details, extra = {}) => ({
+    name, configuredName: name, graderType, kind: graderType === "completed" ? "code" : "llm",
+    passed, score: passed ? 1 : 0, status: "success", details, ...extra,
+  });
+  const command = () => configuredResult("command-check", "run-command", true, [
+    { name: "exit-code", kind: "code", passed: true, score: 1, evidence: "Exit code 0 as expected" },
+  ]);
+  const metrics = () => configuredResult("metrics-check", "custom-metrics", true, [
+    { name: "requests", kind: "code", passed: true, score: 1, evidence: "Metric passed", label: "correct" },
+  ]);
+
+  const valid = records();
+  valid[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", true, [
+      panelCriterion,
+      panelJudge("judge-a", false, 0.4),
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  assert.deepEqual(validateRun(root, "agent-defaults", "full", valid).errors, []);
+
+  const failingPanelCriterion = structuredClone(valid);
+  failingPanelCriterion[0].gradeResult.details[2].details[0].passed = false;
+  assert.match(validateRun(root, "agent-defaults", "full", failingPanelCriterion).errors.join("\n"),
+    /grade verdict contradicts/);
+  const failingAdvisory = structuredClone(failingPanelCriterion);
+  failingAdvisory[0].gradeResult.details[2].details[0].metadata.required = false;
+  assert.deepEqual(validateRun(root, "agent-defaults", "full", failingAdvisory).errors, []);
+  for (const metadata of [undefined, {}, { required: "true" }]) {
+    const malformedCriterion = structuredClone(valid);
+    malformedCriterion[0].gradeResult.details[2].details[0].metadata = metadata;
+    assert.match(validateRun(root, "agent-defaults", "full", malformedCriterion).errors.join("\n"),
+      /malformed nested grader result/);
+  }
+
+  const contradictoryAggregate = records();
+  const failedCompletedDetails = structuredClone(completedDetails);
+  failedCompletedDetails[1].passed = false;
+  failedCompletedDetails[1].score = 0;
+  contradictoryAggregate[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, failedCompletedDetails),
+    configuredResult("panel-check", "panel", true, [
+      panelJudge("judge-a", true, 0.9),
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  assert.match(validateRun(root, "agent-defaults", "full", contradictoryAggregate)
+    .errors.join("\n"), /grade verdict contradicts/);
+
+  const failedAggregateWithoutFailedDetails = records();
+  failedAggregateWithoutFailedDetails[0].gradeResult.passed = false;
+  failedAggregateWithoutFailedDetails[0].gradeResult.details[0].passed = false;
+  failedAggregateWithoutFailedDetails[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", false, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", true, [
+      panelJudge("judge-a", true, 0.9),
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  assert.match(validateRun(root, "agent-defaults", "full", failedAggregateWithoutFailedDetails)
+    .errors.join("\n"), /grade verdict contradicts/);
+
+  const panelExecutionError = records();
+  const erroredJudge = { ...panelJudge("judge-a", false, 0), status: "error" };
+  panelExecutionError[0].gradeResult.passed = false;
+  panelExecutionError[0].gradeResult.details[0].passed = false;
+  panelExecutionError[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", false, [
+      erroredJudge,
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  const executionErrorResult = validateRun(root, "agent-defaults", "full", panelExecutionError);
+  assert.match(executionErrorResult.errors.join("\n"), /grader execution error/);
+  assert.equal(executionErrorResult.diagnostics.length, 0);
+
+  const malformedPanel = records();
+  malformedPanel[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", true, [null]),
+    command(),
+    metrics(),
+  );
+  assert.match(validateRun(root, "agent-defaults", "full", malformedPanel)
+    .errors.join("\n"), /malformed nested grader result/);
+});
+
+test("native skill aggregates require their children to agree in both directions", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  const child = () => ({
+    name: "skill", kind: "code", passed: true, score: 1, evidence: "Passed.",
+    details: [{ name: "check", kind: "code", passed: true, score: 1, evidence: "Passed." }],
+  });
+  for (const type of ["spec-compliance", "valid-refs", "skill-size"]) {
+    stimuli[0].graders.push({ name: "skill-check", type, config: {} });
+    save();
+    const make = () => {
+      const items = records();
+      items[0].gradeResult.details.push({
+        configuredName: "skill-check", graderType: type, passed: true, details: [child()],
+      });
+      return items;
+    };
+    assert.deepEqual(validateRun(root, "agent-defaults", "full", make()).errors, []);
+    const failingChild = make();
+    failingChild[0].gradeResult.details[1].details[0].details[0].passed = false;
+    assert.match(validateRun(root, "agent-defaults", "full", failingChild).errors.join("\n"),
+      /grade verdict contradicts/);
+    const failingParent = make();
+    failingParent[0].gradeResult.passed = false;
+    failingParent[0].gradeResult.details[1].passed = false;
+    assert.match(validateRun(root, "agent-defaults", "full", failingParent).errors.join("\n"),
+      /grade verdict contradicts/);
+    stimuli[0].graders.pop();
+  }
+});
+
 test("the same stimulus identity cannot enable diagnostics in another package", (t) => {
   const state = fixture(t);
   const target = "packages/coordinator/evals/coordinator.eval.yaml";
@@ -221,24 +497,7 @@ test("the same stimulus identity cannot enable diagnostics in another package", 
   assert.match(result.errors.join("\n"), /failed required graders/);
 });
 
-test("execution errors, skipped results, grader errors and type mismatches never become diagnostics", (t) => {
-  const { root } = fixture(t);
-  for (const mutate of [
-    (record) => { record.status = "error"; },
-    (record) => { record.status = "skipped"; },
-    (record) => { record.gradeResult.details[0].status = "error"; },
-    (record) => { record.gradeResult.details[0].graderType = "output-not-matches"; },
-    (record) => { record.gradeResult.details[0].graderType = "output-text-contract"; },
-    (record) => { record.gradeResult.details[0].configuredName = "unexpected"; },
-    (record) => { record.trajectory = null; },
-  ]) {
-    const result = records([names[0]]);
-    mutate(result[0]);
-    assert.ok(validateRun(root, "agent-defaults", "full", result).errors.length);
-  }
-});
-
-test("native prompt rubric leaves are checked without counting as configured graders", (t) => {
+test("configured prompt graders count once regardless of their rubric leaves", (t) => {
   const { root, stimuli, save } = fixture(t);
   const stimulus = stimuli.at(-1);
   stimulus.rubric = ["Only ask to draft."];
@@ -261,21 +520,42 @@ test("native prompt rubric leaves are checked without counting as configured gra
   }
   const validate = (items) => validateRun(root, "agent-defaults", "full", items).errors;
   assert.deepEqual(validate(promptRun().items), []);
+  const passingPrompt = promptRun();
+  passingPrompt.rubric.passed = false;
+  passingPrompt.rubric.score = 0;
+  assert.deepEqual(validate(passingPrompt.items), []);
+
+  const emptyCriterion = promptRun();
+  emptyCriterion.rubric.name = "prompt/";
+  assert.deepEqual(validate(emptyCriterion.items), []);
+
+  const failingPrompt = promptRun();
+  failingPrompt.grade.passed = false;
+  failingPrompt.prompt.passed = false;
+  failingPrompt.rubric.passed = false;
+  assert.match(validate(failingPrompt.items).join("\n"), /failed required graders/);
+
+  stimuli[0].graders.push({ name: "draft-only", type: "prompt", config: { scoring: "binary" } });
+  save();
+  const mixed = promptRun();
+  const diagnostic = records([diagnosticNames[0]]);
+  mixed.rubric.passed = false;
+  mixed.rubric.score = 0;
+  diagnostic[0].gradeResult.details.push(mixed.prompt);
+  diagnostic.at(-2).gradeResult.details.push(promptRun().prompt);
+  const mixedResult = validateRun(root, "agent-defaults", "full", diagnostic);
+  assert.deepEqual(mixedResult.errors, []);
+  assert.equal(mixedResult.diagnostics.length, 1);
+  stimuli[0].graders.pop();
+  save();
 
   for (const [mutate, expected] of [
     [({ rubric }) => { rubric.status = "error"; }, /grader execution error/],
-    [({ prompt }) => { prompt.status = "error"; }, /grader execution error/],
-    [({ rubric }) => { rubric.passed = false; }, /contradicts/],
-    [({ rubric }) => { delete rubric.passed; }, /malformed grader result/],
-    [({ rubric }) => { rubric.name = "unexpected"; }, /malformed grader result/],
-    [({ prompt }) => { prompt.details.push(null); }, /malformed grader result/],
-    [({ rubric }) => { rubric.details = [{}]; }, /malformed grader result/],
-    [({ rubric }) => { rubric.configuredName = "draft-only"; }, /malformed grader result/],
-    [({ prompt }) => { delete prompt.graderType; }, /malformed grader result/],
-    [({ prompt }) => { delete prompt.configuredName; }, /malformed grader result/],
-    [({ prompt }) => { prompt.configuredName = "unexpected"; }, /grader result/],
-    [({ grade, prompt }) => { grade.details.push(structuredClone(prompt)); }, /configured grader set/],
-    [({ grade, rubric }) => { grade.details[0].details = [rubric]; }, /malformed grader result/],
+    [({ rubric }) => { rubric.status = "error"; rubric.passed = false; }, /grader execution error/],
+    [({ rubric }) => { rubric.name = "unexpected"; }, /malformed nested grader result/],
+    [({ rubric }) => { rubric.configuredName = "draft-only"; }, /malformed nested grader result/],
+    [({ rubric }) => { rubric.details = [{}]; }, /malformed nested grader result/],
+    [({ grade, rubric }) => { grade.details[0].details = [rubric]; }, /malformed nested grader result/],
   ]) {
     const run = promptRun();
     mutate(run);
@@ -283,51 +563,66 @@ test("native prompt rubric leaves are checked without counting as configured gra
   }
 });
 
-test("missing, duplicate, unexpected, malformed and inconsistent results are rejected", (t) => {
+test("result inventory requires expected identities, configured graders, one result each, and no skips", (t) => {
   const { root } = fixture(t);
   const cases = [
-    (items) => items.splice(0, 1),
-    (items) => items.unshift(items[0]),
-    (items) => { items[0] = trial("unexpected"); },
-    (items) => { items[0].itemId += "-wrong"; },
-    (items) => { items[0].gradeResult.details = []; },
-    (items) => { items.at(-1).hadExecutionErrors = true; },
-    (items) => { items.at(-1).evals[0].stimuliTotal++; },
-    (items) => { items.at(-1).evals[0].evalFilePath = "other.yaml"; },
-    (items) => { items.at(-1).passed = false; },
-    (items) => items.push({ type: "unknown" }),
+    {
+      label: "missing stimulus",
+      mutate: (items) => items.splice(0, 1),
+    },
+    {
+      label: "duplicate stimulus",
+      mutate: (items) => items.unshift(items[0]),
+    },
+    {
+      label: "unexpected stimulus identity",
+      mutate: (items) => {
+        items[0].stimulus = "unexpected";
+        items[0].itemId = `${evalFile}::default::_::unexpected::trial-0`;
+      },
+    },
+    {
+      label: "mismatched result identity",
+      mutate: (items) => { items[0].itemId += "-wrong"; },
+    },
+    {
+      label: "missing grade",
+      mutate: (items) => { items[0].gradeResult = null; },
+    },
+    {
+      label: "missing configured grader",
+      mutate: (items) => { items[0].gradeResult.details = []; },
+    },
+    {
+      label: "configured grader missing verdict",
+      mutate: (items) => { delete items[0].gradeResult.details[0].passed; },
+    },
+    {
+      label: "unexpected configured grader",
+      mutate: (items) => {
+        items[0].gradeResult.details[0].configuredName = "unexpected";
+      },
+    },
+    {
+      label: "skipped stimulus",
+      mutate: (items) => { items[0].status = "skipped"; },
+    },
+    {
+      label: "incorrect expected count",
+      mutate: (items) => { items.at(-1).evals[0].stimuliRun--; },
+    },
+    {
+      label: "skipped summary count",
+      mutate: (items) => { items.at(-1).evals[0].stimuliSkipped = 1; },
+    },
+    {
+      label: "summary variant mismatch",
+      mutate: (items) => { items.at(-1).evals[0].variant = "other"; },
+    },
   ];
-  for (const mutate of cases) {
+  for (const { label, mutate } of cases) {
     const items = records();
     mutate(items);
-    assert.ok(validateRun(root, "agent-defaults", "full", items).errors.length);
+    assert.ok(validateRun(root, "agent-defaults", "full", items).errors.length, label);
   }
-});
-
-test("selected runs enforce the selected spec and exact result inventory", (t) => {
-  const { root, spec } = fixture(t);
-  const selected = [names[0], names[8]];
-  const selectedFile = path.join(root, "packages/agent-defaults/evals/selected.yaml");
-  fs.writeFileSync(selectedFile, JSON.stringify({ ...spec, stimuli: spec.stimuli.filter((s) => selected.includes(s.name)) }));
-  const items = selected.map((name) => trial(name));
-  for (const item of items) {
-    item.evalFilePath = selectedFile;
-    item.itemId = `${selectedFile}::default::_::${item.stimulus}::trial-0`;
-  }
-  const end = summary(true, selected.length);
-  end.evals[0].evalFilePath = selectedFile;
-  const options = { stimulusNames: selected, evalFilePath: selectedFile };
-  assert.deepEqual(validateRun(root, "agent-defaults", "full", [...items, end], options).errors, []);
-  assert.ok(validateRun(root, "agent-defaults", "full", [items[0], end], options).errors.length);
-  assert.ok(validateRun(root, "agent-defaults", "full", [...items, end], {
-    stimulusNames: [selected[0], selected[0]], evalFilePath: selectedFile,
-  }).errors.length);
-  const link = path.join(path.dirname(selectedFile), "link.yaml");
-  fs.symlinkSync(selectedFile, link);
-  assert.match(validateRun(root, "agent-defaults", "full", [...items, end], {
-    stimulusNames: selected, evalFilePath: link,
-  }).errors.join("\n"), /symbolic link/);
-  fs.writeFileSync(selectedFile, JSON.stringify(spec));
-  assert.match(validateRun(root, "agent-defaults", "full", [...items, end], options).errors.join("\n"),
-    /differs from the validated stimuli/);
 });

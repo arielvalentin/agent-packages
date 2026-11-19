@@ -9,7 +9,6 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".vally.yaml"
-      - "script/run-evals.js"
       - "script/native-eval-fixtures.js"
       - "script/native-eval-fixtures.json"
       - "script/validate-native-evals.js"
@@ -17,7 +16,6 @@ on:
       - "script/native-eval-graders.mjs"
       - "script/native-eval-graders.test.js"
       - "script/vally-output.js"
-      - "script/vally-output.test.js"
       - ".github/workflows/eval-development-workflow.yml"
   push:
     branches: [main]
@@ -27,7 +25,6 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".vally.yaml"
-      - "script/run-evals.js"
       - "script/native-eval-fixtures.js"
       - "script/native-eval-fixtures.json"
       - "script/validate-native-evals.js"
@@ -35,7 +32,6 @@ on:
       - "script/native-eval-graders.mjs"
       - "script/native-eval-graders.test.js"
       - "script/vally-output.js"
-      - "script/vally-output.test.js"
       - ".github/workflows/eval-development-workflow.yml"
   workflow_dispatch:
     inputs:

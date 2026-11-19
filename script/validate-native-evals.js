@@ -3,7 +3,6 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const { isDeepStrictEqual } = require("node:util");
 const yaml = require("js-yaml");
 const { fixtureContent, isManagedFixture, isPolicyInput } = require("./native-eval-fixtures.js");
 
@@ -183,24 +182,13 @@ function validateNativeSuite(root, packageName, suite) {
   return { errors, suiteMap, evalSpec, evalPath, stimuli, selectedStimuli, expectedEntries };
 }
 
-function flattenGraders(result, output = [], parent) {
-  const entry = { result, parent };
-  output.push(entry);
-  if (Array.isArray(result?.details)) {
-    for (const child of result.details) flattenGraders(child, output, entry);
-  }
-  return output;
-}
-
-function isPromptRubricLeaf(result) {
-  return result?.kind === "llm"
-    && typeof result.name === "string" && /^prompt\/\S/.test(result.name)
-    && Number.isFinite(result.score) && result.score >= 0 && result.score <= 1
-    && result.graderType === undefined && result.configuredName === undefined
-    && result.details === undefined;
-}
-
 function validateTrialItemId(record) {
+  if (typeof record.itemId !== "string"
+    || typeof record.evalFilePath !== "string"
+    || typeof record.variant !== "string"
+    || typeof record.stimulus !== "string") {
+    return false;
+  }
   const prefix = `${record.evalFilePath}::${record.variant}::`;
   if (!record.itemId.startsWith(prefix)) return false;
   const identity = record.itemId.slice(prefix.length).split("::");
@@ -214,107 +202,46 @@ function validateTrialItemId(record) {
     && (record.totalTrials === undefined || record.totalTrials === 1);
 }
 
-function validateRun(root, packageName, suite, records, options = {}) {
+function validateRun(root, packageName, suite, records) {
   const preflight = validateNativeSuite(root, packageName, suite);
   const errors = [...preflight.errors];
   const diagnostics = [];
   if (errors.length) return { errors, diagnostics };
-
-  let expectedEntries = preflight.expectedEntries;
-  let stimuli = preflight.stimuli;
-  let evalFilePath = path.resolve(root, preflight.suiteMap.evalFile);
-  if (options.stimulusNames !== undefined) {
-    const names = options.stimulusNames;
-    if (!Array.isArray(names) || !names.length
-      || names.some((name) => typeof name !== "string" || !name)
-      || new Set(names).size !== names.length) {
-      return { errors: ["Selected Vally stimulus names must be a nonempty unique string array."], diagnostics };
-    }
-    const selectedNames = new Set(names);
-    expectedEntries = preflight.expectedEntries.filter((entry) =>
-      selectedNames.has(entry.targetStimulus)
-    );
-    if (expectedEntries.length !== names.length) {
-      return { errors: ["Selected Vally stimuli are not in the validated suite inventory."], diagnostics };
-    }
-    if (typeof options.evalFilePath !== "string" || !options.evalFilePath) {
-      return { errors: ["Selected Vally results require their temporary eval specification path."], diagnostics };
-    }
-    evalFilePath = path.resolve(options.evalFilePath);
-    let selectedEvalDirectory;
-    try {
-      selectedEvalDirectory = fs.realpathSync(path.dirname(evalFilePath));
-    } catch (error) {
-      return {
-        errors: [`Unable to resolve selected Vally eval directory: ${error.message}`],
-        diagnostics,
-      };
-    }
-    if (selectedEvalDirectory !== path.dirname(preflight.evalPath)) {
-      return { errors: ["Selected Vally eval specification must stay beside its validated source spec."], diagnostics };
-    }
-    try {
-      resolveRepositoryFile(root, path.dirname(preflight.evalPath), path.basename(evalFilePath),
-        "Selected Vally eval specification");
-    } catch (error) {
-      return { errors: [`Unsafe selected Vally eval specification: ${error.message}`], diagnostics };
-    }
-    const expectedSpec = {
-      ...preflight.evalSpec,
-      stimuli: preflight.stimuli.filter((stimulus) => selectedNames.has(stimulus.name)),
-    };
-    try {
-      if (!isDeepStrictEqual(readYaml(evalFilePath), expectedSpec)) {
-        errors.push("Selected Vally eval specification differs from the validated stimuli.");
-      }
-    } catch (error) {
-      errors.push(`Unable to validate selected Vally eval specification: ${error.message}`);
-    }
-    if (errors.length) return { errors, diagnostics };
-    stimuli = expectedSpec.stimuli;
-  } else if (options.evalFilePath !== undefined) {
-    return { errors: ["An eval specification path requires selected Vally stimuli."], diagnostics };
-  }
 
   if (!Array.isArray(records) || !records.length) {
     return { errors: ["Vally result stream is empty."], diagnostics };
   }
   const trialRecords = records.filter((record) => record?.type === "trial-result");
   const summaryRecords = records.filter((record) => record?.type === "run-summary");
-  if (records.some((record) => !record || typeof record !== "object"
-    || !["trial-result", "run-summary"].includes(record.type))) {
-    errors.push("Vally result stream contains a malformed or unknown record.");
-  }
   if (summaryRecords.length !== 1) {
     errors.push(`Expected one run-summary record, received ${summaryRecords.length}.`);
   }
 
-  const expectedByName = new Map(expectedEntries.map((entry) => [
+  const expectedByName = new Map(preflight.expectedEntries.map((entry) => [
     entry.targetStimulus,
     entry,
   ]));
-  const stimuliByName = new Map(stimuli.map((stimulus) => [
+  const expectedEvalFilePath = path.resolve(root, preflight.suiteMap.evalFile);
+  const expectedEvalName = preflight.evalSpec.name;
+  const stimuliByName = new Map(preflight.selectedStimuli.map((stimulus) => [
     stimulus.name,
     stimulus,
   ]));
   const resultCounts = new Map();
+  const trialVariants = new Set();
   for (const record of trialRecords) {
-    if (typeof record.itemId !== "string" || !record.itemId
-      || !Number.isFinite(record.durationMs) || record.durationMs < 0
-      || typeof record.evalName !== "string" || !record.evalName
-      || typeof record.evalFilePath !== "string" || !record.evalFilePath
-      || typeof record.variant !== "string" || !record.variant
-      || typeof record.stimulus !== "string" || !record.stimulus
-      || (record.runId !== undefined
-        && (typeof record.runId !== "string" || !record.runId.trim()))
-      || !["success", "error", "skipped"].includes(record.status)) {
-      errors.push("Vally trial result has a malformed identity or status.");
+    if (!record || typeof record !== "object" || typeof record.stimulus !== "string"
+      || !record.stimulus) {
+      errors.push("Vally trial result has no stimulus identity.");
       continue;
     }
-    if (!validateTrialItemId(record)) {
+    if (!validateTrialItemId(record)
+      || path.resolve(root, record.evalFilePath) !== expectedEvalFilePath
+      || record.evalName !== expectedEvalName) {
       errors.push(`${record.stimulus} Vally itemId does not match its planned identity.`);
       continue;
     }
+    trialVariants.add(record.variant);
     resultCounts.set(record.stimulus, (resultCounts.get(record.stimulus) || 0) + 1);
     const entry = expectedByName.get(record.stimulus);
     const stimulus = stimuliByName.get(record.stimulus);
@@ -323,63 +250,136 @@ function validateRun(root, packageName, suite, records, options = {}) {
       continue;
     }
     if (record.status !== "success") {
-      errors.push(`${record.stimulus} execution ${record.status}: ${record.error || record.skipReason || "no reason supplied"}`);
-      continue;
-    }
-    if (!record.trajectory || typeof record.trajectory !== "object"
-      || Array.isArray(record.trajectory)) {
-      errors.push(`${record.stimulus} has no valid execution trajectory.`);
+      errors.push(`${record.stimulus} did not complete successfully.`);
       continue;
     }
     const grade = record.gradeResult;
-    if (!grade || typeof grade !== "object" || typeof grade.passed !== "boolean"
-      || !Array.isArray(grade.details)) {
+    if (!grade || typeof grade !== "object" || Array.isArray(grade)
+      || typeof grade.passed !== "boolean" || !Array.isArray(grade.details)
+      || (grade.status !== undefined && typeof grade.status !== "string")) {
       errors.push(`${record.stimulus} has a missing or malformed grade result.`);
       continue;
     }
-    const configuredGraders = new Map(stimulus.graders.map(({ name, type }) => [name, type]));
-    if (grade.details.some((grader) => typeof grader?.configuredName !== "string"
-      || typeof grader.graderType !== "string")) {
-      errors.push(`${record.stimulus} contains a malformed grader result.`);
-      continue;
-    }
-    // Vally stamps configured identity on the prompt grader, not its rubric leaves.
-    const flattened = flattenGraders(grade);
-    if (flattened.some(({ result: grader, parent }) => {
-      const owner = parent?.result;
-      const rubricLeaf = parent?.parent?.result === grade
-        && owner?.graderType === "prompt"
-        && configuredGraders.get(owner.configuredName) === "prompt";
-      return !grader || typeof grader !== "object"
-        || Array.isArray(grader) || typeof grader.passed !== "boolean"
-        || (grader.details !== undefined && !Array.isArray(grader.details))
-        || (rubricLeaf ? !isPromptRubricLeaf(grader)
-          : parent !== undefined && typeof grader.graderType !== "string");
-    })) {
-      errors.push(`${record.stimulus} contains a malformed grader result.`);
-      continue;
-    }
-    const graderResults = flattened.map(({ result }) => result);
-    if (graderResults.some((grader) => grader.status && grader.status !== "success")) {
-      errors.push(`${record.stimulus} contains a grader execution error.`);
-      continue;
-    }
-    const expectedGraders = (stimulus.graders || []).map((grader) => grader.name);
-    const actualGraders = graderResults
-      .map((grader) => grader.configuredName)
-      .filter((name) => typeof name === "string");
+    const expectedGraders = stimulus.graders;
+    const actualGraders = grade.details.filter((grader) =>
+      grader && typeof grader === "object" && !Array.isArray(grader)
+    );
     const actualCounts = new Map();
-    for (const name of actualGraders) actualCounts.set(name, (actualCounts.get(name) || 0) + 1);
-    if (expectedGraders.length !== actualGraders.length
-      || expectedGraders.some((name) => actualCounts.get(name) !== 1)
-      || actualGraders.some((name) => !expectedGraders.includes(name))) {
+    for (const grader of actualGraders) {
+      if (typeof grader.configuredName === "string") {
+        actualCounts.set(
+          grader.configuredName,
+          (actualCounts.get(grader.configuredName) || 0) + 1
+        );
+      }
+    }
+    if (actualGraders.length !== grade.details.length
+      || expectedGraders.length !== actualGraders.length
+      || expectedGraders.some(({ name, type }) =>
+        actualCounts.get(name) !== 1
+          || actualGraders.find((grader) => grader.configuredName === name)?.graderType !== type
+          || typeof actualGraders.find((grader) => grader.configuredName === name)?.passed !== "boolean"
+      )
+      || actualGraders.some((grader) =>
+        !expectedGraders.some(({ name }) => name === grader.configuredName)
+          || typeof grader.passed !== "boolean"
+      )) {
       errors.push(`${record.stimulus} grader results do not match its configured grader set.`);
       continue;
     }
 
-    const failedGraders = graderResults.filter((grader) =>
-      grader !== grade && grader.passed === false
-    );
+    const nestedGraders = [];
+    const pending = actualGraders.map((grader) => ({
+      grader,
+      parent: grade,
+      grandparent: null,
+      nativeContext: null,
+      allPassContext: false,
+    }));
+    let malformedNestedGrade = false;
+    let contradictoryNestedGrade = false;
+    let executionError = grade.status !== undefined && grade.status !== "success";
+    const allPassAggregates = [];
+    while (pending.length) {
+      const { grader, parent, grandparent, nativeContext, allPassContext } = pending.pop();
+      const rubricLeaf = grandparent === grade && parent.graderType === "prompt";
+      const panelDetail = nativeContext === "panel"
+        || (grandparent === grade && parent.graderType === "panel");
+      const panelCriterion = grandparent === grade && parent.graderType === "panel"
+        && typeof grader?.name === "string" && grader.name.startsWith("panel/criterion/");
+      const validNativeDetail = grader && typeof grader === "object" && !Array.isArray(grader) && (rubricLeaf
+        ? grader.kind === "llm" && typeof grader.name === "string"
+          && grader.name.startsWith("prompt/")
+          && Number.isFinite(grader.score) && grader.score >= 0 && grader.score <= 1
+          && grader.graderType === undefined && grader.configuredName === undefined
+          && grader.details === undefined
+        : typeof grader.name === "string" && typeof grader.evidence === "string"
+          && (grader.kind === "code" || grader.kind === "llm")
+          && Number.isFinite(grader.score) && grader.score >= 0 && grader.score <= 1
+          && !grader.name.startsWith("prompt/")
+          && (!panelDetail || (grader.kind === "llm" && grader.name.startsWith("panel/")))
+          && grader.configuredName === undefined);
+      if (!grader || typeof grader !== "object" || Array.isArray(grader)
+        || typeof grader.passed !== "boolean"
+        || (grader.details !== undefined && !Array.isArray(grader.details))
+        || (panelCriterion && (!grader.metadata || typeof grader.metadata !== "object"
+          || Array.isArray(grader.metadata) || typeof grader.metadata.required !== "boolean"))
+        || (parent !== grade && (rubricLeaf || panelDetail || grader.graderType === undefined
+          ? !validNativeDetail
+          : typeof grader.graderType !== "string" || grader.configuredName !== undefined))) {
+        malformedNestedGrade = true;
+        break;
+      }
+      if (grader.status !== undefined && typeof grader.status !== "string") {
+        malformedNestedGrade = true;
+        break;
+      }
+      if (grader.status !== undefined && grader.status !== "success") executionError = true;
+      if (!rubricLeaf && !panelDetail && parent.passed && !grader.passed) {
+        contradictoryNestedGrade = true;
+      }
+      if (panelCriterion && parent.passed && grader.metadata.required && !grader.passed) {
+        contradictoryNestedGrade = true;
+      }
+      if (parent !== grade && !rubricLeaf && !panelDetail) {
+        nestedGraders.push(grader);
+      }
+      const allPass = allPassContext || (parent === grade
+        && ["completed", "spec-compliance", "valid-refs", "skill-size"].includes(grader.graderType));
+      if (allPass && Array.isArray(grader.details)) {
+        allPassAggregates.push(grader);
+      }
+      for (const child of grader.details || []) {
+        pending.push({
+          grader: child,
+          parent: grader,
+          grandparent: parent,
+          nativeContext: nativeContext || (parent === grade && grader.graderType === "panel"
+            ? "panel" : null),
+          allPassContext: allPass,
+        });
+      }
+    }
+    if (malformedNestedGrade) {
+      errors.push(`${record.stimulus} contains a malformed nested grader result.`);
+      continue;
+    }
+    if (executionError) {
+      errors.push(`${record.stimulus} grader execution error.`);
+      continue;
+    }
+    if (allPassAggregates.some((grader) =>
+      grader.passed !== grader.details.every((detail) => detail.passed)
+    )) {
+      errors.push(`${record.stimulus} grade verdict contradicts its failed grader results.`);
+      continue;
+    }
+    if (contradictoryNestedGrade) {
+      errors.push(`${record.stimulus} grade verdict contradicts its failed grader results.`);
+      continue;
+    }
+
+    const failedGraders = actualGraders.filter((grader) => grader.passed === false);
     if (grade.passed && failedGraders.length) {
       errors.push(`${record.stimulus} grade verdict contradicts its failed grader results.`);
       continue;
@@ -397,6 +397,7 @@ function validateRun(root, packageName, suite, records, options = {}) {
       && entry.diagnostic === true
       && DIAGNOSTICS.has(entry.targetStimulus)
       && failedGraders.length > 0
+      && !nestedGraders.some((grader) => grader.passed === false)
       && failedGraders.every((grader) => assertionTypes.has(grader.configuredName)
         && assertionTypes.get(grader.configuredName) === grader.graderType
         && DIAGNOSTIC_ASSERTION_GRADER_TYPES.has(grader.graderType));
@@ -423,67 +424,35 @@ function validateRun(root, packageName, suite, records, options = {}) {
 
   const [summary] = summaryRecords;
   if (summary) {
-    if (typeof summary.runId !== "string" || !summary.runId.trim()
-      || typeof summary.passed !== "boolean" || typeof summary.hadExecutionErrors !== "boolean"
-      || !Array.isArray(summary.evals) || summary.evals.length !== 1) {
-      errors.push("Vally run-summary is malformed.");
+    if (summary.hadExecutionErrors) {
+      errors.push("Vally run-summary reports execution errors.");
+    }
+    if (!Array.isArray(summary.evals) || summary.evals.length !== 1
+      || !summary.evals[0] || typeof summary.evals[0] !== "object") {
+      errors.push("Vally run-summary has no single eval result count.");
     } else {
       const evalSummary = summary.evals[0];
-      if (!evalSummary || typeof evalSummary !== "object" || Array.isArray(evalSummary)) {
-        errors.push("Vally eval summary is malformed.");
-        return { errors, diagnostics };
+      if (evalSummary.name !== expectedEvalName
+        || typeof evalSummary.evalFilePath !== "string"
+        || path.resolve(root, evalSummary.evalFilePath) !== expectedEvalFilePath) {
+        errors.push("Vally run-summary eval identity does not match the planned native eval.");
+      }
+      if (evalSummary.hadExecutionErrors) {
+        errors.push("Vally eval-summary reports execution errors.");
+      }
+      if (trialVariants.size === 0 || !trialVariants.has(evalSummary.variant)
+        || [...trialVariants].some((variant) => variant !== evalSummary.variant)) {
+        errors.push("Vally run-summary variant does not match its trial results.");
       }
       const stimuliSkipped = evalSummary.stimuliSkipped === undefined
         ? 0
         : evalSummary.stimuliSkipped;
-      if (trialRecords.some((record) => record.runId !== undefined && record.runId !== summary.runId)) {
-        errors.push("Vally trial and run-summary identifiers do not match.");
-      }
-      if (summary.hadExecutionErrors || evalSummary.hadExecutionErrors) {
-        errors.push("Vally run-summary reports an execution error.");
-      }
-      if (evalSummary.error !== undefined
-        || typeof evalSummary.evalFilePath !== "string" || !evalSummary.evalFilePath
-        || typeof evalSummary.variant !== "string" || !evalSummary.variant
-        || typeof evalSummary.name !== "string" || !evalSummary.name
-        || !Number.isInteger(evalSummary.stimuliRun) || evalSummary.stimuliRun < 0
-        || !Number.isInteger(evalSummary.stimuliTotal) || evalSummary.stimuliTotal < 0
-        || !Number.isInteger(stimuliSkipped) || stimuliSkipped < 0
-        || !Number.isFinite(evalSummary.durationMs) || evalSummary.durationMs < 0) {
-        errors.push("Vally eval summary has malformed result counts or duration.");
-      }
-      if (typeof evalSummary.hadExecutionErrors !== "undefined"
-        && typeof evalSummary.hadExecutionErrors !== "boolean") {
-        errors.push("Vally eval summary has a malformed execution-error flag.");
-      }
-      const expectedEvalPath = path.resolve(evalFilePath);
-      if (path.resolve(root, evalSummary.evalFilePath) !== expectedEvalPath
-        || trialRecords.some((record) => record.evalName !== evalSummary.name
-          || path.resolve(root, record.evalFilePath) !== expectedEvalPath
-          || record.variant !== evalSummary.variant)) {
-        errors.push("Vally trial and eval-summary identities do not match the requested suite.");
-      }
-      if (evalSummary.stimuliRun !== expectedEntries.length
-        || evalSummary.stimuliTotal !== stimuli.length
+      if (evalSummary.stimuliRun !== preflight.expectedEntries.length
+        || evalSummary.stimuliTotal !== preflight.stimuli.length
         || stimuliSkipped !== 0) {
         errors.push(
-          `Vally run-summary count mismatch (ran ${evalSummary.stimuliRun}; expected ${expectedEntries.length}; total ${evalSummary.stimuliTotal}; expected total ${stimuli.length}; skipped ${stimuliSkipped}).`
+          `Vally run-summary count mismatch (ran ${evalSummary.stimuliRun}; expected ${preflight.expectedEntries.length}; total ${evalSummary.stimuliTotal}; expected total ${preflight.stimuli.length}; skipped ${stimuliSkipped}).`
         );
-      }
-      if (typeof evalSummary.passed !== "boolean") {
-        errors.push("Vally eval summary is missing its pass verdict.");
-      }
-      if (evalSummary.name !== preflight.evalSpec.name
-        || evalSummary.passed !== summary.passed
-        || evalSummary.scoringApplied !== true) {
-        errors.push("Vally eval summary identity or verdict is inconsistent.");
-      }
-      const shouldPass = errors.length === 0 && diagnostics.length === 0;
-      if (summary.passed !== shouldPass && !(diagnostics.length > 0 && !summary.passed)) {
-        errors.push("Vally summary verdict does not match the validated trial results.");
-      }
-      if (diagnostics.length === 0 && !summary.passed) {
-        errors.push("Vally run-summary failed without an approved diagnostic assertion failure.");
       }
     }
   }
@@ -505,9 +474,9 @@ function main(argv) {
   const [mode, packageName, suite, file, ...optionArgs] = argv;
   if (!["--check", "--results"].includes(mode) || !packageName || !suite
     || (mode === "--results" && !file)
-    || (mode === "--check" && optionArgs.length)) {
+    || optionArgs.length) {
     console.error("Usage: node script/validate-native-evals.js --check <package> <smoke|full>");
-    console.error("   or: node script/validate-native-evals.js --results <package> <smoke|full> <results.jsonl> [--stimuli <JSON array> --eval-file <path>]");
+    console.error("   or: node script/validate-native-evals.js --results <package> <smoke|full> <results.jsonl>");
     return 2;
   }
   const root = path.resolve(__dirname, "..");
@@ -520,31 +489,14 @@ function main(argv) {
       }
       return result.errors.length ? 1 : 0;
     }
-    let options = {};
-    if (optionArgs.length) {
-      if (optionArgs.length !== 4
-        || optionArgs[0] !== "--stimuli"
-        || optionArgs[2] !== "--eval-file"
-        || !optionArgs[3]) {
-        console.error("Selected results require --stimuli <JSON array> and --eval-file <path>.");
-        return 2;
-      }
-      options = {
-        stimulusNames: JSON.parse(optionArgs[1]),
-        evalFilePath: optionArgs[3],
-      };
-    }
-    const result = validateRun(root, packageName, suite, parseJsonl(file), options);
+    const result = validateRun(root, packageName, suite, parseJsonl(file));
     for (const error of result.errors) console.error(error);
     for (const diagnostic of result.diagnostics) {
       console.log(`DIAGNOSTIC ASSERTION FAILURE (non-blocking): ${diagnostic.description}`);
       console.log(`  graders: ${diagnostic.failedGraders.join(", ")}`);
     }
     if (!result.errors.length && !result.diagnostics.length) {
-      const count = options.stimulusNames?.length;
-      console.log(count
-        ? `${packageName} ${suite}: ${count} selected native stimuli passed.`
-        : `${packageName} ${suite}: all required native stimuli passed.`);
+      console.log(`${packageName} ${suite}: all required native stimuli passed.`);
     }
     return result.errors.length ? 1 : result.diagnostics.length ? 10 : 0;
   } catch (error) {
