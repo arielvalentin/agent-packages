@@ -287,13 +287,94 @@ function validateRun(root, packageName, suite, records) {
       continue;
     }
 
-    const executionErrorGraders = actualGraders.filter((grader) =>
-      grader.status && grader.status !== "success"
-    );
-    if (executionErrorGraders.length) {
-      errors.push(`${record.stimulus} grader execution error: ${
-        executionErrorGraders.map((grader) => grader.configuredName).join(", ")
-      }`);
+    const nestedGraders = [];
+    const pending = actualGraders.map((grader) => ({
+      grader,
+      parent: grade,
+      grandparent: null,
+      nativeContext: null,
+      allPassContext: false,
+    }));
+    let malformedNestedGrade = false;
+    let contradictoryNestedGrade = false;
+    let executionError = false;
+    const allPassAggregates = [];
+    while (pending.length) {
+      const { grader, parent, grandparent, nativeContext, allPassContext } = pending.pop();
+      const rubricLeaf = grandparent === grade && parent.graderType === "prompt";
+      const panelDetail = nativeContext === "panel"
+        || (grandparent === grade && parent.graderType === "panel");
+      const panelCriterion = grandparent === grade && parent.graderType === "panel"
+        && typeof grader?.name === "string" && grader.name.startsWith("panel/criterion/");
+      const validNativeDetail = grader && typeof grader === "object" && !Array.isArray(grader) && (rubricLeaf
+        ? grader.kind === "llm" && typeof grader.name === "string"
+          && grader.name.startsWith("prompt/")
+          && Number.isFinite(grader.score) && grader.score >= 0 && grader.score <= 1
+          && grader.graderType === undefined && grader.configuredName === undefined
+          && grader.details === undefined
+        : typeof grader.name === "string" && typeof grader.evidence === "string"
+          && (grader.kind === "code" || grader.kind === "llm")
+          && Number.isFinite(grader.score) && grader.score >= 0 && grader.score <= 1
+          && !grader.name.startsWith("prompt/")
+          && (!panelDetail || (grader.kind === "llm" && grader.name.startsWith("panel/")))
+          && grader.configuredName === undefined);
+      if (!grader || typeof grader !== "object" || Array.isArray(grader)
+        || typeof grader.passed !== "boolean"
+        || (grader.details !== undefined && !Array.isArray(grader.details))
+        || (panelCriterion && (!grader.metadata || typeof grader.metadata !== "object"
+          || Array.isArray(grader.metadata) || typeof grader.metadata.required !== "boolean"))
+        || (parent !== grade && (rubricLeaf || panelDetail || grader.graderType === undefined
+          ? !validNativeDetail
+          : typeof grader.graderType !== "string" || grader.configuredName !== undefined))) {
+        malformedNestedGrade = true;
+        break;
+      }
+      if (grader.status !== undefined && typeof grader.status !== "string") {
+        malformedNestedGrade = true;
+        break;
+      }
+      if (grader.status && grader.status !== "success") executionError = true;
+      if (!rubricLeaf && !panelDetail && parent.passed && !grader.passed) {
+        contradictoryNestedGrade = true;
+      }
+      if (panelCriterion && parent.passed && grader.metadata.required && !grader.passed) {
+        contradictoryNestedGrade = true;
+      }
+      if (parent !== grade && !rubricLeaf && !panelDetail) {
+        nestedGraders.push(grader);
+      }
+      const allPass = allPassContext || (parent === grade
+        && ["completed", "spec-compliance", "valid-refs", "skill-size"].includes(grader.graderType));
+      if (allPass && Array.isArray(grader.details)) {
+        allPassAggregates.push(grader);
+      }
+      for (const child of grader.details || []) {
+        pending.push({
+          grader: child,
+          parent: grader,
+          grandparent: parent,
+          nativeContext: nativeContext || (parent === grade && grader.graderType === "panel"
+            ? "panel" : null),
+          allPassContext: allPass,
+        });
+      }
+    }
+    if (malformedNestedGrade) {
+      errors.push(`${record.stimulus} contains a malformed nested grader result.`);
+      continue;
+    }
+    if (executionError) {
+      errors.push(`${record.stimulus} grader execution error.`);
+      continue;
+    }
+    if (allPassAggregates.some((grader) =>
+      grader.passed !== grader.details.every((detail) => detail.passed)
+    )) {
+      errors.push(`${record.stimulus} grade verdict contradicts its failed grader results.`);
+      continue;
+    }
+    if (contradictoryNestedGrade) {
+      errors.push(`${record.stimulus} grade verdict contradicts its failed grader results.`);
       continue;
     }
 
@@ -315,6 +396,7 @@ function validateRun(root, packageName, suite, records) {
       && entry.diagnostic === true
       && DIAGNOSTICS.has(entry.targetStimulus)
       && failedGraders.length > 0
+      && !nestedGraders.some((grader) => grader.passed === false)
       && failedGraders.every((grader) => assertionTypes.has(grader.configuredName)
         && assertionTypes.get(grader.configuredName) === grader.graderType
         && DIAGNOSTIC_ASSERTION_GRADER_TYPES.has(grader.graderType));

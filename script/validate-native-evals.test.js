@@ -268,6 +268,185 @@ test("a diagnostic cannot hide a contradictory required grader failure", (t) => 
   assert.equal(result.diagnostics.length, 1);
 });
 
+test("nested grader failures cannot contradict passing parents or become diagnostics", (t) => {
+  const { root } = fixture(t);
+  const passing = records();
+  passing[0].gradeResult.details[0].details = [
+    { graderType: "nested", passed: true, details: [{ graderType: "nested", passed: false }] },
+  ];
+  assert.match(validateRun(root, "agent-defaults", "full", passing).errors.join("\n"),
+    /grade verdict contradicts/);
+
+  const diagnostic = records([diagnosticNames[0]]);
+  diagnostic[0].gradeResult.details[0].details = [{ graderType: "nested", passed: false }];
+  const result = validateRun(root, "agent-defaults", "full", diagnostic);
+  assert.match(result.errors.join("\n"), /failed required graders/);
+  assert.equal(result.diagnostics.length, 0);
+
+  const inconsistentDiagnostic = records([diagnosticNames[0]]);
+  inconsistentDiagnostic[0].gradeResult.details[0].details = [
+    { graderType: "nested", passed: true, details: [{ graderType: "nested", passed: false }] },
+  ];
+  assert.match(validateRun(root, "agent-defaults", "full", inconsistentDiagnostic)
+    .errors.join("\n"), /grade verdict contradicts/);
+
+  const failedParent = records([diagnosticNames[0]]);
+  failedParent[0].gradeResult.details[0].details = [{ graderType: "nested", passed: true }];
+  const validDiagnostic = validateRun(root, "agent-defaults", "full", failedParent);
+  assert.deepEqual(validDiagnostic.errors, []);
+  assert.equal(validDiagnostic.diagnostics.length, 1);
+});
+
+test("native completed and panel results retain their own nested verdict semantics", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  stimuli[0].graders.push({ name: "completed-check", type: "completed", config: {} });
+  stimuli[0].graders.push({ name: "panel-check", type: "panel", config: {} });
+  stimuli[0].graders.push({ name: "command-check", type: "run-command", config: {} });
+  stimuli[0].graders.push({ name: "metrics-check", type: "custom-metrics", config: {} });
+  save();
+
+  const completedDetails = [
+    { name: "has-output", kind: "code", passed: true, score: 1, evidence: "Output exists." },
+    { name: "no-errors", kind: "code", passed: true, score: 1, evidence: "No errors." },
+    { name: "turn-completed", kind: "code", passed: true, score: 1, evidence: "A turn completed." },
+  ];
+  const panelJudge = (name, passed, score) => ({
+    name: `panel/${name}`, kind: "llm", passed, score,
+    evidence: `Judge ${name}.`, label: passed ? "correct" : "incorrect",
+    metadata: { model: name },
+  });
+  const panelCriterion = {
+    name: "panel/criterion/accuracy", kind: "llm", passed: true, score: 0.75,
+    evidence: "Criterion consensus passed.", label: "correct",
+    metadata: { criterion: "accuracy", required: true },
+  };
+  const configuredResult = (name, graderType, passed, details, extra = {}) => ({
+    name, configuredName: name, graderType, kind: graderType === "completed" ? "code" : "llm",
+    passed, score: passed ? 1 : 0, status: "success", details, ...extra,
+  });
+  const command = () => configuredResult("command-check", "run-command", true, [
+    { name: "exit-code", kind: "code", passed: true, score: 1, evidence: "Exit code 0 as expected" },
+  ]);
+  const metrics = () => configuredResult("metrics-check", "custom-metrics", true, [
+    { name: "requests", kind: "code", passed: true, score: 1, evidence: "Metric passed", label: "correct" },
+  ]);
+
+  const valid = records();
+  valid[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", true, [
+      panelCriterion,
+      panelJudge("judge-a", false, 0.4),
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  assert.deepEqual(validateRun(root, "agent-defaults", "full", valid).errors, []);
+
+  const failingPanelCriterion = structuredClone(valid);
+  failingPanelCriterion[0].gradeResult.details[2].details[0].passed = false;
+  assert.match(validateRun(root, "agent-defaults", "full", failingPanelCriterion).errors.join("\n"),
+    /grade verdict contradicts/);
+  const failingAdvisory = structuredClone(failingPanelCriterion);
+  failingAdvisory[0].gradeResult.details[2].details[0].metadata.required = false;
+  assert.deepEqual(validateRun(root, "agent-defaults", "full", failingAdvisory).errors, []);
+  for (const metadata of [undefined, {}, { required: "true" }]) {
+    const malformedCriterion = structuredClone(valid);
+    malformedCriterion[0].gradeResult.details[2].details[0].metadata = metadata;
+    assert.match(validateRun(root, "agent-defaults", "full", malformedCriterion).errors.join("\n"),
+      /malformed nested grader result/);
+  }
+
+  const contradictoryAggregate = records();
+  const failedCompletedDetails = structuredClone(completedDetails);
+  failedCompletedDetails[1].passed = false;
+  failedCompletedDetails[1].score = 0;
+  contradictoryAggregate[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, failedCompletedDetails),
+    configuredResult("panel-check", "panel", true, [
+      panelJudge("judge-a", true, 0.9),
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  assert.match(validateRun(root, "agent-defaults", "full", contradictoryAggregate)
+    .errors.join("\n"), /grade verdict contradicts/);
+
+  const failedAggregateWithoutFailedDetails = records();
+  failedAggregateWithoutFailedDetails[0].gradeResult.passed = false;
+  failedAggregateWithoutFailedDetails[0].gradeResult.details[0].passed = false;
+  failedAggregateWithoutFailedDetails[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", false, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", true, [
+      panelJudge("judge-a", true, 0.9),
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  assert.match(validateRun(root, "agent-defaults", "full", failedAggregateWithoutFailedDetails)
+    .errors.join("\n"), /grade verdict contradicts/);
+
+  const panelExecutionError = records();
+  const erroredJudge = { ...panelJudge("judge-a", false, 0), status: "error" };
+  panelExecutionError[0].gradeResult.passed = false;
+  panelExecutionError[0].gradeResult.details[0].passed = false;
+  panelExecutionError[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", false, [
+      erroredJudge,
+      panelJudge("judge-b", true, 0.9),
+    ]),
+    command(),
+    metrics(),
+  );
+  const executionErrorResult = validateRun(root, "agent-defaults", "full", panelExecutionError);
+  assert.match(executionErrorResult.errors.join("\n"), /grader execution error/);
+  assert.equal(executionErrorResult.diagnostics.length, 0);
+
+  const malformedPanel = records();
+  malformedPanel[0].gradeResult.details.push(
+    configuredResult("completed-check", "completed", true, structuredClone(completedDetails)),
+    configuredResult("panel-check", "panel", true, [null]),
+    command(),
+    metrics(),
+  );
+  assert.match(validateRun(root, "agent-defaults", "full", malformedPanel)
+    .errors.join("\n"), /malformed nested grader result/);
+});
+
+test("native skill aggregates require their children to agree in both directions", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  const child = () => ({
+    name: "skill", kind: "code", passed: true, score: 1, evidence: "Passed.",
+    details: [{ name: "check", kind: "code", passed: true, score: 1, evidence: "Passed." }],
+  });
+  for (const type of ["spec-compliance", "valid-refs", "skill-size"]) {
+    stimuli[0].graders.push({ name: "skill-check", type, config: {} });
+    save();
+    const make = () => {
+      const items = records();
+      items[0].gradeResult.details.push({
+        configuredName: "skill-check", graderType: type, passed: true, details: [child()],
+      });
+      return items;
+    };
+    assert.deepEqual(validateRun(root, "agent-defaults", "full", make()).errors, []);
+    const failingChild = make();
+    failingChild[0].gradeResult.details[1].details[0].details[0].passed = false;
+    assert.match(validateRun(root, "agent-defaults", "full", failingChild).errors.join("\n"),
+      /grade verdict contradicts/);
+    const failingParent = make();
+    failingParent[0].gradeResult.passed = false;
+    failingParent[0].gradeResult.details[1].passed = false;
+    assert.match(validateRun(root, "agent-defaults", "full", failingParent).errors.join("\n"),
+      /grade verdict contradicts/);
+    stimuli[0].graders.pop();
+  }
+});
+
 test("the same stimulus identity cannot enable diagnostics in another package", (t) => {
   const state = fixture(t);
   const target = "packages/coordinator/evals/coordinator.eval.yaml";
@@ -309,6 +488,47 @@ test("configured prompt graders count once regardless of their rubric leaves", (
   }
   const validate = (items) => validateRun(root, "agent-defaults", "full", items).errors;
   assert.deepEqual(validate(promptRun().items), []);
+  const passingPrompt = promptRun();
+  passingPrompt.rubric.passed = false;
+  passingPrompt.rubric.score = 0;
+  assert.deepEqual(validate(passingPrompt.items), []);
+
+  const emptyCriterion = promptRun();
+  emptyCriterion.rubric.name = "prompt/";
+  assert.deepEqual(validate(emptyCriterion.items), []);
+
+  const failingPrompt = promptRun();
+  failingPrompt.grade.passed = false;
+  failingPrompt.prompt.passed = false;
+  failingPrompt.rubric.passed = false;
+  assert.match(validate(failingPrompt.items).join("\n"), /failed required graders/);
+
+  stimuli[0].graders.push({ name: "draft-only", type: "prompt", config: { scoring: "binary" } });
+  save();
+  const mixed = promptRun();
+  const diagnostic = records([diagnosticNames[0]]);
+  mixed.rubric.passed = false;
+  mixed.rubric.score = 0;
+  diagnostic[0].gradeResult.details.push(mixed.prompt);
+  diagnostic.at(-2).gradeResult.details.push(promptRun().prompt);
+  const mixedResult = validateRun(root, "agent-defaults", "full", diagnostic);
+  assert.deepEqual(mixedResult.errors, []);
+  assert.equal(mixedResult.diagnostics.length, 1);
+  stimuli[0].graders.pop();
+  save();
+
+  for (const [mutate, expected] of [
+    [({ rubric }) => { rubric.status = "error"; }, /grader execution error/],
+    [({ rubric }) => { rubric.status = "error"; rubric.passed = false; }, /grader execution error/],
+    [({ rubric }) => { rubric.name = "unexpected"; }, /malformed nested grader result/],
+    [({ rubric }) => { rubric.configuredName = "draft-only"; }, /malformed nested grader result/],
+    [({ rubric }) => { rubric.details = [{}]; }, /malformed nested grader result/],
+    [({ grade, rubric }) => { grade.details[0].details = [rubric]; }, /malformed nested grader result/],
+  ]) {
+    const run = promptRun();
+    mutate(run);
+    assert.match(validate(run.items).join("\n"), expected);
+  }
 });
 
 test("result inventory requires expected identities, configured graders, one result each, and no skips", (t) => {
