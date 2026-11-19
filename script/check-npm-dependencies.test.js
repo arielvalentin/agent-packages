@@ -1,5 +1,4 @@
 const assert = require("node:assert/strict");
-const crypto = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -7,41 +6,26 @@ const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
 const vm = require("node:vm");
 const yaml = require("js-yaml");
-const { sourceInstructionContent } = require("./validate-native-evals.js");
+const { validateNativeSuite } = require("./validate-native-evals.js");
+const { packages } = require("./run-affected-tests.js");
 const gradersModule = import("./native-eval-graders.mjs");
 
 const root = path.resolve(__dirname, "..");
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-const map = JSON.parse(fs.readFileSync(
-  path.join(root, "docs/evaluations-migration-map.json"),
-  "utf8"
+const defaultsSpec = yaml.load(fs.readFileSync(
+  path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"), "utf8"
 ));
-const SOURCE_SNAPSHOT_DIGESTS = {
-  "agent-defaults": {
-    raw: "a60ba448d98ae3f150d6919e2e4eff5408ca4beed014b40a0f8fba2566a303ee",
-    base: "e30aefef9f8cce4adc475808e3213e4da90433460e7d01fa448829398a6b6726",
-    canonical: "01ea3e05d0a7087a4e04c0c4d1460c71a1be05d4b7aa025d4d0e62ed70a85e45",
-  },
-  coordinator: {
-    raw: "1d6e7d7ed0c74c39dfd878b955a33e1d274e2c62a747b5e41bf935f19ac4f204",
-    base: "1d6e7d7ed0c74c39dfd878b955a33e1d274e2c62a747b5e41bf935f19ac4f204",
-    canonical: "274cd942cf5d48603dda26ce245be9d250512a6b0b2d772a199a52a96ba8f264",
-  },
-  "development-workflow": {
-    raw: "43b2329d1273b378a5db91536cd1f24d874af39f1fea9441edceae7fbf9dd446",
-    base: "43b2329d1273b378a5db91536cd1f24d874af39f1fea9441edceae7fbf9dd446",
-    canonical: "ecf6b33788032dbc6ef4bee9066f9b8226c0df78a002107b5eb580596c9650f4",
-  },
-  "code-reviewers": {
-    raw: "7428553f4bbbe3f4d1658e3a5a77db8a881de9004dc8660c59712598eb0f698a",
-    base: "7428553f4bbbe3f4d1658e3a5a77db8a881de9004dc8660c59712598eb0f698a",
-    canonical: "dc8136aa3cae86d2d300dde1599499841a76728f87dbab9706372d3a1adebceb",
-  },
-};
+function defaultsCase(index) {
+  const name = `agent-defaults-case-${String(index).padStart(3, "0")}-row-01`;
+  const stimulus = defaultsSpec.stimuli.find((item) => item.name === name);
+  assert.ok(stimulus, `Missing native stimulus: ${name}`);
+  return stimulus;
+}
 
 test("native evaluation dependencies are pinned and Promptfoo/Ollama are absent", () => {
   assert.equal(manifest.devDependencies["@microsoft/vally-cli"], "0.19.0");
   assert.equal(typeof manifest.devDependencies["js-yaml"], "string");
+  assert.deepEqual(manifest.allowScripts, { "esbuild@0.28.2": true, fsevents: false });
   assert.equal(manifest.devDependencies.promptfoo, undefined);
   assert.equal(manifest.devDependencies.ollama, undefined);
   const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
@@ -62,21 +46,7 @@ test("native evaluation dependencies are pinned and Promptfoo/Ollama are absent"
 test("Copilot credentials are scoped to the native evaluation step", () => {
   const runner = fs.readFileSync(path.join(root, "script/run-evals.js"), "utf8");
   assert.match(runner, /process\.env\[name\]\.trim\(\)\.length > 0/);
-  const action = yaml.load(fs.readFileSync(
-    path.join(root, ".github/actions/eval-package/action.yml"),
-    "utf8"
-  ));
-  const runStep = action.runs.steps.find((step) => step.name === "Run native evaluation");
-  assert.equal(runStep.env.GH_TOKEN, "${{ inputs.copilot-token }}");
-  assert.equal(runStep.env.VALLY_MODEL, "gpt-5.3-codex");
-  assert.equal(runStep.env.EVAL_PACKAGE, "${{ inputs.package }}");
-  assert.equal(runStep.env.EVAL_SUITE, "${{ inputs.suite }}");
-  assert.match(runStep.run, /node script\/run-evals\.js "\$EVAL_PACKAGE" "\$EVAL_SUITE"/);
-  assert.doesNotMatch(runStep.run, /\$\{\{\s*inputs\.(?:package|suite)\s*\}\}/);
-  for (const step of action.runs.steps) {
-    if (step === runStep) continue;
-    assert.equal(step.env?.GH_TOKEN, undefined, step.name);
-  }
+  assert.equal(fs.existsSync(path.join(root, ".github/actions/eval-package/action.yml")), false);
   for (const workflowName of [
     "eval-agent-defaults.yml",
     "eval-coordinator.yml",
@@ -87,51 +57,460 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
       path.join(root, ".github/workflows", workflowName),
       "utf8"
     ));
-    assert.deepEqual(Object.keys(workflow.on), ["push", "workflow_dispatch"], workflowName);
-    const condition = workflow.jobs.eval.if;
-    assert.match(condition, /^(?:github\.(?:actor|triggering_actor|repository_owner|event_name|ref)|==|&&|\|\||[()\s]|'[^']*')+$/);
-    const owner = {
-      repository_owner: "owner",
-      actor: "owner",
-      triggering_actor: "owner",
-      event_name: "push",
-      ref: "refs/heads/main",
-    };
-    for (const [changes, allowed] of [
-      [{}, true],
-      [{ event_name: "workflow_dispatch" }, true],
-      [{ event_name: "workflow_dispatch", actor: "other", triggering_actor: "other" }, false],
-      [{ triggering_actor: "other" }, false],
-      [{ actor: "other" }, false],
-      [{ event_name: "workflow_dispatch", ref: "refs/heads/feature" }, false],
-      [{ event_name: "push", ref: "refs/heads/feature" }, false],
-      [{ event_name: "pull_request", ref: "refs/pull/1/merge", actor: "other", triggering_actor: "other" }, false],
-    ]) {
-      assert.equal(vm.runInNewContext(condition, { github: { ...owner, ...changes } }), allowed, workflowName);
+    if (workflowName === "eval-coordinator.yml") {
+      assert.deepEqual(Object.keys(workflow.on), ["pull_request", "push", "workflow_dispatch"]);
+      assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
+      assert.ok(workflow.on.pull_request.paths.includes(".vally.yaml"));
+      for (const dependencyPath of [
+        "script/native-eval-fixtures.js",
+        "script/native-eval-fixtures.json",
+      ]) {
+        assert.ok(workflow.on.pull_request.paths.includes(dependencyPath), dependencyPath);
+        assert.ok(workflow.on.push.paths.includes(dependencyPath), dependencyPath);
+      }
+      assert.ok(!workflow.on.pull_request.paths.includes(".github/actions/eval-package/**"));
+      assert.ok(!workflow.on.push.paths.includes(".github/actions/eval-package/**"));
+      assert.deepEqual(workflow.permissions, { contents: "read" });
+      assert.deepEqual(workflow.jobs.run.permissions, {
+        contents: "read",
+        "copilot-requests": "write",
+      });
+      assert.deepEqual(workflow.jobs.report.permissions, {
+        actions: "read",
+        contents: "read",
+        "pull-requests": "write",
+      });
+      assert.deepEqual(workflow.jobs.report.needs, ["lint", "run"]);
+      assert.deepEqual(workflow.jobs.report.concurrency, {
+        group: "evals-${{ github.workflow_ref }}",
+        "cancel-in-progress": false,
+      });
+      assert.deepEqual(workflow.jobs.lint.concurrency, workflow.jobs.run.concurrency);
+      assert.equal(workflow.jobs.lint.concurrency["cancel-in-progress"], true);
+
+      const ownerPr = {
+        repository: "owner/repo",
+        repository_owner: "owner",
+        actor: "owner",
+        triggering_actor: "owner",
+        event_name: "pull_request",
+        ref: "refs/pull/1/merge",
+        event: {
+          pull_request: {
+            user: { login: "owner" },
+            head: { repo: { full_name: "owner/repo" } },
+          },
+        },
+      };
+      const evaluateCondition = (condition, github, needs = {}) => vm.runInNewContext(
+        condition,
+        { github, needs, always: () => true }
+      );
+      for (const condition of [workflow.jobs.lint.if, workflow.jobs.run.if]) {
+        const needs = {
+          lint: { result: "success" },
+          run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+        };
+        assert.equal(evaluateCondition(condition, ownerPr, needs), true);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          actor: "other",
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          triggering_actor: "other",
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event: {
+            pull_request: {
+              user: { login: "other" },
+              head: { repo: { full_name: "owner/repo" } },
+            },
+          },
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event: {
+            pull_request: {
+              user: { login: "owner" },
+              head: { repo: { full_name: "fork/repo" } },
+            },
+          },
+        }, needs), false);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event_name: "push",
+          ref: "refs/heads/main",
+          event: {},
+        }, needs), true);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event_name: "workflow_dispatch",
+          ref: "refs/heads/main",
+          event: {},
+        }, needs), true);
+        assert.equal(evaluateCondition(condition, {
+          ...ownerPr,
+          event_name: "push",
+          ref: "refs/heads/feature",
+          event: {},
+        }, needs), false);
+      }
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+      }), true);
+      for (const changes of [
+        { actor: "other" },
+        { triggering_actor: "other" },
+        {
+          event: {
+            pull_request: {
+              user: { login: "other" },
+              head: { repo: { full_name: "owner/repo" } },
+            },
+          },
+        },
+        {
+          event: {
+            pull_request: {
+              user: { login: "owner" },
+              head: { repo: { full_name: "fork/repo" } },
+            },
+          },
+        },
+      ]) {
+        assert.equal(evaluateCondition(workflow.jobs.report.if, {
+          ...ownerPr,
+          ...changes,
+        }, {
+          lint: { result: "success" },
+          run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+        }), false);
+      }
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "cancelled", outputs: {} },
+      }), false);
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "failure", outputs: { "inventory-valid": "", "action-outcome": "passed" } },
+      }), false);
+      assert.equal(evaluateCondition(workflow.jobs.report.if, ownerPr, {
+        lint: { result: "success" },
+        run: { result: "failure", outputs: { "inventory-valid": "", "action-outcome": "failed" } },
+      }), true);
+
+      const preflight = workflow.jobs.lint.steps.find((step) =>
+        step.name === "Validate coordinator suite preflight"
+      );
+      assert.equal(preflight.run, "node script/validate-native-evals.js --check coordinator \"$EVAL_SUITE\"");
+      assert.ok(workflow.jobs.lint.steps.some((step) => step.run === "npm ci"));
+      const actionSteps = ["lint", "run", "report"].map((job) =>
+        workflow.jobs[job].steps.find((step) =>
+          step.uses?.startsWith("github/evals-action@")
+        )
+      );
+      assert.ok(actionSteps.every((step) =>
+        /^github\/evals-action@[a-f0-9]{40}$/.test(step.uses)
+      ));
+      assert.equal(new Set(actionSteps.map((step) => step.uses)).size, 1);
+      assert.equal(actionSteps[0].with.command, "lint");
+      assert.equal(actionSteps[0].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[0].with["report-id"], "coordinator");
+      assert.equal(actionSteps[1].with.command, "run");
+      assert.equal(actionSteps[1].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[1].with.model, "gpt-5.3-codex");
+      assert.equal(actionSteps[1].with.runs, "1");
+      assert.equal(actionSteps[1].with.workers, "1");
+      assert.equal(actionSteps[1].with["max-retries"], "0");
+      assert.equal(
+        actionSteps[1].with["copilot-token"],
+        "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}"
+      );
+      assert.equal(workflow.jobs.run.outputs["action-outcome"], "${{ steps.evals.outputs.outcome }}");
+      assert.equal(
+        workflow.jobs.run.outputs["inventory-valid"],
+        "${{ steps.validate.outputs.valid }}"
+      );
+      const validateStep = workflow.jobs.run.steps.find((step) => step.id === "validate");
+      assert.equal(validateStep.if, "always()");
+      assert.match(validateStep.run, /findVallyJsonlOutput/);
+      assert.match(validateStep.run, /validate-native-evals\.js --results coordinator/);
+      assert.equal(actionSteps[2].with.command, "report");
+      assert.equal(actionSteps[2].with["vally-version"], "0.19.0");
+      assert.equal(actionSteps[2].with["report-id"], "coordinator");
+      const suiteExpression = actionSteps[1].with.suite.replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+      assert.equal(vm.runInNewContext(suiteExpression, {
+        github: ownerPr,
+        inputs: {},
+      }), "coordinator-smoke");
+      assert.equal(vm.runInNewContext(suiteExpression, {
+        github: { ...ownerPr, event_name: "push", event: {} },
+        inputs: { suite: "full" },
+      }), "coordinator-full");
+      for (const job of ["lint", "run"]) {
+        const checkout = workflow.jobs[job].steps.find((step) =>
+          step.uses.startsWith("actions/checkout@")
+        );
+        assert.equal(checkout.with["persist-credentials"], false, job);
+      }
+      continue;
     }
-    assert.deepEqual(workflow.permissions, { contents: "read" }, workflowName);
+    const packageName = workflowName.replace(/^eval-/, "").replace(/\.yml$/, "");
+    const packagePaths = [`packages/${packageName}/**`];
+    if (packageName === "development-workflow") packagePaths.push("packages/agent-defaults/**");
     assert.deepEqual(
-      workflow.jobs.eval.permissions,
-      { contents: "read", "copilot-requests": "write" },
+      Object.keys(workflow.on),
+      ["pull_request", "push", "workflow_dispatch"],
       workflowName
     );
-    for (const trigger of ["push"]) {
-      assert.deepEqual(workflow.on[trigger].branches, ["main"], `${workflowName} ${trigger}`);
-      assert.ok(workflow.on[trigger].paths.includes("script/native-eval-graders.mjs"));
-      assert.ok(workflow.on[trigger].paths.includes("script/native-eval-graders.test.js"));
-      assert.ok(workflow.on[trigger].paths.includes("script/validate-native-evals.js"));
+    assert.deepEqual(workflow.on.pull_request.branches, ["main"], workflowName);
+    assert.deepEqual(workflow.on.pull_request.paths, workflow.on.push.paths, workflowName);
+    for (const dependencyPath of [
+      ...packagePaths,
+      ".vally.yaml",
+      "script/native-eval-fixtures.js",
+      "script/native-eval-fixtures.json",
+      "script/native-eval-graders.mjs",
+      "script/native-eval-graders.test.js",
+      "script/validate-native-evals.js",
+      "script/validate-native-evals.test.js",
+    ]) {
+      assert.ok(workflow.on.pull_request.paths.includes(dependencyPath), `${workflowName} ${dependencyPath}`);
     }
+    assert.ok(!workflow.on.push.paths.includes(".github/actions/eval-package/**"), workflowName);
     assert.deepEqual(
       workflow.on.workflow_dispatch.inputs.suite.options,
       ["smoke", "full"],
       `${workflowName} dispatch suites`
     );
-    const evalStep = workflow.jobs.eval.steps.find((step) =>
-      step.uses === "./.github/actions/eval-package"
+    assert.deepEqual(workflow.permissions, { contents: "read" }, workflowName);
+    assert.deepEqual(
+      workflow.jobs.run.permissions,
+      { contents: "read", "copilot-requests": "write" },
+      workflowName
     );
-    assert.equal(evalStep.with["copilot-token"], "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}");
-    assert.equal(evalStep.with.suite, "${{ inputs.suite || 'smoke' }}");
-    assert.equal(workflow.jobs.eval.env?.GH_TOKEN, undefined, workflowName);
+    assert.deepEqual(
+      workflow.jobs.report.permissions,
+      { actions: "read", contents: "read", "pull-requests": "write" },
+      workflowName
+    );
+    assert.equal(workflow.jobs.lint.permissions, undefined, workflowName);
+    assert.equal(workflow.jobs.report.permissions["copilot-requests"], undefined, workflowName);
+    assert.equal(workflow.jobs.run.permissions["pull-requests"], undefined, workflowName);
+    assert.deepEqual(workflow.jobs.report.needs, ["lint", "run"], workflowName);
+
+    const ownerPr = {
+      repository: "owner/repo",
+      repository_owner: "owner",
+      actor: "owner",
+      triggering_actor: "owner",
+      event_name: "pull_request",
+      ref: "refs/pull/1/merge",
+      event: {
+        pull_request: {
+          user: { login: "owner" },
+          head: { repo: { full_name: "owner/repo" } },
+        },
+      },
+    };
+    const evaluateCondition = (condition, github, needs = {}) => vm.runInNewContext(
+      condition,
+      { github, needs, always: () => true }
+    );
+    for (const job of ["lint", "run"]) {
+      const condition = workflow.jobs[job].if;
+      assert.equal(evaluateCondition(condition, ownerPr), true, `${workflowName} ${job} owner PR`);
+      for (const changes of [
+        { actor: "other" },
+        { triggering_actor: "other" },
+        { event: { pull_request: { user: { login: "other" }, head: { repo: { full_name: "owner/repo" } } } } },
+        { event: { pull_request: { user: { login: "owner" }, head: { repo: { full_name: "fork/repo" } } } } },
+      ]) {
+        assert.equal(
+          evaluateCondition(condition, { ...ownerPr, ...changes }),
+          false,
+          `${workflowName} ${job} rejected PR`
+        );
+      }
+      assert.equal(evaluateCondition(condition, {
+        ...ownerPr,
+        event_name: "push",
+        ref: "refs/heads/main",
+        event: {},
+      }), true, `${workflowName} ${job} main push`);
+      assert.equal(evaluateCondition(condition, {
+        ...ownerPr,
+        event_name: "workflow_dispatch",
+        ref: "refs/heads/main",
+        event: {},
+      }), true, `${workflowName} ${job} manual main run`);
+      assert.equal(evaluateCondition(condition, {
+        ...ownerPr,
+        event_name: "push",
+        ref: "refs/heads/feature",
+        event: {},
+      }), false, `${workflowName} ${job} non-main push`);
+    }
+
+    const actionSteps = ["lint", "run", "report"].map((job) =>
+      workflow.jobs[job].steps.find((step) => step.uses?.startsWith("github/evals-action@"))
+    );
+    assert.ok(actionSteps.every((step) => /^github\/evals-action@[a-f0-9]{40}$/.test(step.uses)));
+    assert.equal(new Set(actionSteps.map((step) => step.uses)).size, 1, workflowName);
+    assert.deepEqual(
+      actionSteps.map((step) => step.with.command),
+      ["lint", "run", "report"],
+      workflowName
+    );
+    assert.ok(actionSteps.every((step) => step.with["vally-version"] === "0.19.0"), workflowName);
+    assert.ok(actionSteps.every((step) => step.with["report-id"] === packageName), workflowName);
+    assert.equal(actionSteps[1].with.model, "gpt-5.3-codex");
+    assert.equal(actionSteps[1].with.runs, "1");
+    assert.equal(actionSteps[1].with.workers, "1");
+    assert.equal(actionSteps[1].with["max-retries"], "0");
+    assert.equal(actionSteps[1]["continue-on-error"], true, workflowName);
+    assert.equal(
+      actionSteps[1].with["copilot-token"],
+      "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}"
+    );
+    assert.equal(actionSteps[0].with["working-directory"], ".");
+    assert.equal(actionSteps[1].with["working-directory"], ".");
+    assert.equal(workflow.jobs.run.outputs["action-outcome"], "${{ steps.evals.outputs.outcome }}");
+    assert.equal(workflow.jobs.run.outputs["inventory-valid"], "${{ steps.validate.outputs.valid }}");
+    const validateStep = workflow.jobs.run.steps.find((step) => step.id === "validate");
+    assert.equal(validateStep.if, "always()");
+    assert.equal(validateStep.env["EVAL_ACTION_OUTCOME"], "${{ steps.evals.outputs.outcome }}");
+    assert.equal(validateStep.env["EVAL_ACTION_STEP_OUTCOME"], "${{ steps.evals.outcome }}");
+    assert.equal(validateStep.env["EVAL_REPORT_ARTIFACT_ID"], "${{ steps.evals.outputs.artifact-id }}");
+    assert.equal(validateStep.env["EVAL_REPORT_ARTIFACT_DIGEST"], "${{ steps.evals.outputs.artifact-digest }}");
+    assert.match(validateStep.run, /findVallyJsonlOutput/);
+    assert.match(validateStep.run, new RegExp(`validate-native-evals\\.js --results ${packageName}`));
+    assert.match(
+      validateStep.run,
+      /validator_status=0[\s\S]*\|\| validator_status=\$\?[\s\S]*case "\$validator_status" in[\s\S]*0\)[\s\S]*EVAL_ACTION_OUTCOME" != "passed"[\s\S]*10\)[\s\S]*EVAL_ACTION_OUTCOME" != "failed"[\s\S]*\*\)[\s\S]*exit "\$validator_status"[\s\S]*EVAL_REPORT_ARTIFACT_ID[\s\S]*echo "valid=true"/
+    );
+    const outputLine = 'echo "valid=true" >> "$GITHUB_OUTPUT"';
+    const validationStart = validateStep.run.indexOf("set -euo pipefail");
+    const validationEnd = validateStep.run.indexOf(outputLine, validationStart) + outputLine.length;
+    const validationScript = validateStep.run.slice(validationStart, validationEnd);
+    const nodeStub = [
+      "node() {",
+      '  if [[ "$1" == "-e" ]]; then',
+      '    if [[ "$DISCOVERY_STATUS" -ne 0 ]]; then return "$DISCOVERY_STATUS"; fi',
+      '    printf "%s" "$RESULTS_FILE"',
+      "    return 0",
+      "  fi",
+      '  if [[ "$1" == "script/validate-native-evals.js" ]]; then return "$VALIDATOR_STATUS"; fi',
+      "  return 127",
+      "}",
+    ].join("\n");
+    const makeCase = (name, overrides = {}) => ({
+      name,
+      validatorStatus: 0,
+      actionOutcome: "passed",
+      stepOutcome: "success",
+      artifactId: "123",
+      artifactDigest: "sha256:abc",
+      nativeDiagnosticsPath: "/tmp/native",
+      discoveryStatus: 0,
+      expectedStatus: 1,
+      expectedOutput: "",
+      ...overrides,
+    });
+    const cases = [
+      makeCase("passed inventory", { expectedStatus: 0, expectedOutput: "valid=true\n" }),
+      makeCase("approved diagnostics", {
+        validatorStatus: 10,
+        actionOutcome: "failed",
+        stepOutcome: "failure",
+        expectedStatus: 0,
+        expectedOutput: "valid=true\n",
+      }),
+      makeCase("inconsistent diagnostic action result", { validatorStatus: 10, actionOutcome: "failed" }),
+      makeCase("validator error", { validatorStatus: 1, actionOutcome: "error", stepOutcome: "failure" }),
+      makeCase("unexpected validator status", {
+        validatorStatus: 2,
+        actionOutcome: "error",
+        stepOutcome: "failure",
+        expectedStatus: 2,
+      }),
+      makeCase("action failure with passing inventory", { stepOutcome: "failure" }),
+      makeCase("diagnostics with action error", {
+        validatorStatus: 10,
+        actionOutcome: "error",
+        stepOutcome: "failure",
+      }),
+      makeCase("diagnostics without report artifact", {
+        validatorStatus: 10,
+        actionOutcome: "failed",
+        stepOutcome: "failure",
+        artifactId: "",
+        artifactDigest: "",
+      }),
+      makeCase("missing report artifact", { artifactId: "", artifactDigest: "" }),
+      makeCase("missing diagnostics", { nativeDiagnosticsPath: "" }),
+      makeCase("result discovery error", { discoveryStatus: 1 }),
+    ];
+    const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "eval-validation-"));
+    try {
+      for (const [index, testCase] of cases.entries()) {
+        const outputPath = path.join(outputDirectory, `case-${index}`);
+        fs.writeFileSync(outputPath, "");
+        const result = spawnSync("bash", ["-c", `${nodeStub}\n${validationScript}`], {
+          env: {
+            ...process.env,
+            EVAL_ACTION_OUTCOME: testCase.actionOutcome,
+            EVAL_ACTION_STEP_OUTCOME: testCase.stepOutcome,
+            EVAL_REPORT_ARTIFACT_DIGEST: testCase.artifactDigest,
+            EVAL_REPORT_ARTIFACT_ID: testCase.artifactId,
+            EVAL_SUITE: "smoke",
+            GITHUB_OUTPUT: outputPath,
+            NATIVE_DIAGNOSTICS_PATH: testCase.nativeDiagnosticsPath,
+            RESULTS_FILE: "/tmp/results.jsonl",
+            VALIDATOR_STATUS: String(testCase.validatorStatus),
+            DISCOVERY_STATUS: String(testCase.discoveryStatus),
+          },
+        });
+        assert.equal(result.status, testCase.expectedStatus, `${workflowName}: ${testCase.name}`);
+        assert.equal(
+          fs.readFileSync(outputPath, "utf8"),
+          testCase.expectedOutput,
+          `${workflowName}: ${testCase.name} output`
+        );
+      }
+    } finally {
+      fs.rmSync(outputDirectory, { recursive: true, force: true });
+    }
+
+    const suiteExpression = actionSteps[1].with.suite.replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+    for (const [event, input, expected] of [
+      [ownerPr, {}, `${packageName}-smoke`],
+      [{ ...ownerPr, event_name: "push", event: {} }, {}, `${packageName}-smoke`],
+      [{ ...ownerPr, event_name: "workflow_dispatch", event: {} }, { suite: "full" }, `${packageName}-full`],
+      [{ ...ownerPr, event_name: "pull_request" }, { suite: "full" }, `${packageName}-smoke`],
+    ]) {
+      assert.equal(vm.runInNewContext(suiteExpression, { github: event, inputs: input }), expected);
+    }
+    const checkReport = (run) => evaluateCondition(workflow.jobs.report.if, ownerPr, {
+      lint: { result: "success" },
+      run,
+    });
+    assert.equal(checkReport({
+      result: "success",
+      outputs: { "inventory-valid": "true", "action-outcome": "passed" },
+    }), true, workflowName);
+    assert.equal(checkReport({
+      result: "failure",
+      outputs: { "inventory-valid": "", "action-outcome": "failed" },
+    }), true, workflowName);
+    assert.equal(checkReport({
+      result: "failure",
+      outputs: { "inventory-valid": "", "action-outcome": "passed" },
+    }), false, workflowName);
+    assert.equal(checkReport({ result: "cancelled", outputs: {} }), false, workflowName);
   }
   const ci = yaml.load(fs.readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8"));
   assert.ok(ci.on.pull_request, "pull requests retain credential-free structural validation");
@@ -206,317 +585,9 @@ test("evaluation runner requires a token and forwards it to Vally", async () => 
   }
 });
 
-test("migration map identifies and hashes its pre-migration source snapshots", () => {
-  assert.equal(map.sourceSnapshotKind, "pre-migration working tree");
-  assert.match(map.sourceSnapshotNote, /common base/);
-  for (const [packageName, suite] of Object.entries(map.suites)) {
-    const expected = SOURCE_SNAPSHOT_DIGESTS[packageName];
-    assert.ok(expected, `missing pinned source digest for ${packageName}`);
-    assert.equal(suite.sourceConfigSha256, expected.raw, packageName);
-    assert.equal(suite.sourceBaseConfigSha256, expected.base, packageName);
-    assert.equal(suite.sourceConfigurationCanonicalSha256, expected.canonical, packageName);
-    const snapshotHash = crypto.createHash("sha256")
-      .update(JSON.stringify(suite.sourceConfiguration))
-      .digest("hex");
-    assert.equal(snapshotHash, suite.sourceConfigurationCanonicalSha256, packageName);
-    assert.match(suite.sourceConfigSha256, /^[0-9a-f]{64}$/, packageName);
-    assert.match(suite.sourceBaseConfigSha256, /^[0-9a-f]{64}$/, packageName);
-    if (packageName === "agent-defaults") {
-      assert.notEqual(suite.sourceConfigSha256, suite.sourceBaseConfigSha256);
-    } else {
-      assert.equal(suite.sourceConfigSha256, suite.sourceBaseConfigSha256, packageName);
-    }
-  }
-});
-
-test("every migration row expands from its pinned source test and assertions", () => {
-  const promptIdentity = (source, promptRef) => {
-    const prompts = source.prompts || [];
-    const prompt = typeof promptRef === "string"
-      ? prompts.find((candidate) => candidate?.id === promptRef)
-        || prompts[Number(promptRef.match(/^prompt-(\d+)$/)?.[1]) - 1]
-        || (prompts.includes(promptRef) ? promptRef : undefined)
-      : promptRef;
-    const index = prompts.indexOf(prompt);
-    return prompt?.id || `prompt-${index + 1}`;
-  };
-  const providerLabel = (source, providerRef) => {
-    const provider = typeof providerRef === "string"
-      ? source.providers?.find((candidate) => candidate.id === providerRef)
-      : providerRef;
-    return provider?.label || provider?.id || providerRef;
-  };
-
-  for (const [packageName, suite] of Object.entries(map.suites)) {
-    const source = suite.sourceConfiguration;
-    const entries = map.cases.filter((entry) => entry.package === packageName);
-    const rowsByCase = new Map();
-    for (const entry of entries) {
-      const rows = rowsByCase.get(entry.sourceCaseIndex) || [];
-      rows.push(entry);
-      rowsByCase.set(entry.sourceCaseIndex, rows);
-    }
-
-    let expandedCount = 0;
-    let smokeCount = 0;
-    for (const [index, sourceCase] of source.tests.entries()) {
-      const caseNumber = index + 1;
-      const caseEntries = rowsByCase.get(caseNumber) || [];
-      const providerRefs = sourceCase.providers || source.defaultTest?.providers || source.providers;
-      const promptRefs = sourceCase.prompts || source.defaultTest?.prompts || source.prompts;
-      const mergedVariables = {
-        ...(source.defaultTest?.vars || {}),
-        ...(sourceCase.vars || {}),
-      };
-      const arraySizes = Object.values(mergedVariables)
-        .filter(Array.isArray)
-        .map((values) => values.length);
-      const expectedRows = providerRefs.length * promptRefs.length
-        * arraySizes.reduce((product, size) => product * size, 1);
-      expandedCount += expectedRows;
-      const expectedSuite = sourceCase.metadata?.suite === "smoke" ? "smoke" : "full";
-      if (expectedSuite === "smoke") smokeCount += expectedRows;
-      assert.equal(caseEntries.length, expectedRows, `${packageName} source case ${caseNumber}`);
-      assert.deepEqual(
-        caseEntries.map((entry) => entry.sourceSuite),
-        Array(expectedRows).fill(expectedSuite),
-        `${packageName} source suite ${caseNumber}`
-      );
-      assert.deepEqual(
-        caseEntries.map((entry) => entry.sourceDescription),
-        Array(expectedRows).fill(sourceCase.description),
-        `${packageName} source description ${caseNumber}`
-      );
-      assert.deepEqual(
-        caseEntries.map((entry) => entry.assertions.map((row) => row.assertion)),
-        Array(expectedRows).fill(sourceCase.assert || []),
-        `${packageName} source assertions ${caseNumber}`
-      );
-      assert.deepEqual(
-        caseEntries.map((entry) => Number(entry.sourceRow)).sort((a, b) => a - b),
-        Array.from({ length: expectedRows }, (_, row) => row + 1),
-        `${packageName} source row identities ${caseNumber}`
-      );
-      let variableRows = [{}];
-      for (const [key, value] of Object.entries(mergedVariables)) {
-        const values = Array.isArray(value) ? value : [value];
-        variableRows = variableRows.flatMap((row) =>
-          values.map((item) => ({ ...row, [key]: item }))
-        );
-      }
-      const expectedExpansion = providerRefs.flatMap((providerRef) =>
-        promptRefs.flatMap((promptRef) => variableRows.map((variables) => ({
-          sourceProviderLabel: providerLabel(source, providerRef),
-          sourcePrompt: promptIdentity(source, promptRef, promptRefs),
-          sourceVariables: variables,
-        })))
-      );
-      assert.deepEqual(
-        caseEntries
-          .sort((left, right) => Number(left.sourceRow) - Number(right.sourceRow)
-            || left.sourceProviderLabel.localeCompare(right.sourceProviderLabel))
-          .map(({ sourceProviderLabel, sourcePrompt, sourceVariables }) => ({
-            sourceProviderLabel,
-            sourcePrompt,
-            sourceVariables,
-          })),
-        expectedExpansion,
-        `${packageName} source case ${caseNumber} expanded provider, prompt, and variables`
-      );
-    }
-    assert.equal(expandedCount, suite.sourceExpandedRowCount, packageName);
-    assert.equal(smokeCount, suite.sourceSmokeRowCount, packageName);
-    assert.equal(rowsByCase.size, source.tests.length, `${packageName} source case coverage`);
-  }
-});
-test("every source row appears exactly once in the old-to-native migration map", () => {
-  for (const [packageName, suite] of Object.entries(map.suites)) {
-    const cases = map.cases.filter((entry) => entry.package === packageName);
-    assert.equal(cases.length, suite.sourceExpandedRowCount, packageName);
-    for (const status of ["mapped", "unsupported", "unmapped"]) {
-      const count = cases.filter((entry) => entry.status === status).length;
-      assert.equal(suite[`${status}RowCount`], count, `${packageName} ${status} row count`);
-    }
-    const identities = cases.map((entry) => [
-      entry.sourceCaseIndex,
-      entry.sourceRow,
-      entry.sourceProviderLabel,
-      entry.sourcePrompt,
-    ].join(":"));
-    assert.equal(new Set(identities).size, cases.length, `${packageName} duplicate source identity`);
-    assert.ok(cases.every((entry) => ["mapped", "unsupported", "unmapped"].includes(entry.status)));
-  }
-});
-
-test("mapped instructions, skills, and diagnostics preserve their source context", () => {
-  for (const [packageName, suite] of Object.entries(map.suites)) {
-    const spec = yaml.load(fs.readFileSync(path.join(root, suite.evalFile), "utf8"));
-    for (const entry of map.cases.filter((item) =>
-      item.package === packageName && item.status === "mapped"
-    )) {
-      const variables = entry.sourceVariables || {};
-      const sourcePrompt = suite.sourceConfiguration.prompts.find((prompt) =>
-        prompt?.id === entry.sourcePrompt
-      ) || (/^prompt-\d+$/.test(entry.sourcePrompt || "")
-        ? suite.sourceConfiguration.prompts[Number(entry.sourcePrompt.slice(7)) - 1]
-        : undefined);
-      const sourcePromptTemplate = typeof sourcePrompt === "string"
-        ? sourcePrompt
-        : sourcePrompt?.raw || "";
-      const activeVariables = [
-        "skill_content",
-        ...["companion_content", "review_mode_content"]
-          .filter((name) => sourcePromptTemplate.includes(name)),
-      ];
-      const activeInputs = activeVariables
-        .map((key) => ({ key, value: variables[key] }))
-        .filter(({ value }) => typeof value === "string" && value.startsWith("file://"));
-      const active = activeInputs.map(({ value }) => value);
-      const rootProfiles = active.filter((value) =>
-        /\.apm\/agents\/[^/]+\.agent\.md$/.test(value)
-      );
-      if (rootProfiles.length) {
-        assert.equal(entry.coverageKind, "root-policy-behavior", entry.sourceDescription);
-      }
-      const expectedSkills = [];
-      assert.deepEqual(entry.requiredSkills || [], expectedSkills, entry.sourceDescription);
-
-      const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-      assert.ok(stimulus, entry.sourceDescription);
-      assert.equal((stimulus.graders || [])
-        .filter((grader) => grader.type === "skill-invocation").length, 0,
-      `${entry.sourceDescription}: Promptfoo asserted output, not skill activation`);
-      if (rootProfiles.length) {
-        assert.equal(stimulus.tags?.coverage, "root-policy-behavior", entry.sourceDescription);
-        assert.ok(!stimulus.graders.some((grader) => grader.scope === "subagent"),
-          entry.sourceDescription);
-      }
-      for (const expected of entry.assertionGraders || []) {
-        const grader = stimulus.graders.find((item) => item.name === expected.name);
-        assert.ok(grader, `${entry.sourceDescription}: missing assertion grader ${expected.name}`);
-        const { name, ...configuration } = grader;
-        const digest = crypto.createHash("sha256")
-          .update(JSON.stringify(configuration))
-          .digest("hex");
-        assert.equal(expected.configSha256, digest, `${entry.sourceDescription}: grader ${name}`);
-      }
-      assert.equal(stimulus.simulation?.tool_overrides?.bash?.is_error, true,
-        `${entry.sourceDescription} must not execute shell commands`);
-      let policySources = activeInputs.filter(({ key, value }) =>
-        /\.apm\/agents\/[^/]+\.agent\.md$/.test(value)
-        || /\/references\/[^/]+\.md$/.test(value)
-        || /\.apm\/instructions\/[^/]+\.instructions\.md$/.test(value)
-        || /\.apm\/skills\/[^/]+\/SKILL\.md$/.test(value)
-      ).map(({ value }) => value.replace(/^file:\/\//, ""));
-      if (variables.skill_content?.endsWith("/pr-lifecycle/SKILL.md")) {
-        policySources = [
-          ...policySources,
-          ...[
-            "lifecycle_readiness_content",
-            "lifecycle_feedback_content",
-            "lifecycle_cleanup_content",
-          ].map((key) => variables[key].replace(/^file:\/\//, "")),
-        ];
-      }
-      const stagedPolicyFiles = (stimulus.agent_environment?.files || [])
-        .filter((file) => file.dest === ".github/copilot-instructions.md"
-          || file.dest === "AGENTS.md");
-      if (entry.nativeContextFixture) {
-        const fixturePath = path.resolve(path.dirname(path.join(root, suite.evalFile)),
-          entry.nativeContextFixture);
-        assert.deepEqual(stagedPolicyFiles, [{
-          src: entry.nativeContextFixture,
-          dest: ".github/copilot-instructions.md",
-        }], entry.sourceDescription);
-        assert.equal(
-          fs.readFileSync(fixturePath, "utf8"),
-          sourceInstructionContent(
-            root,
-            path.join(root, suite.evalFile),
-            entry,
-            suite.sourceConfiguration
-          ),
-          entry.sourceDescription
-        );
-      } else if (policySources.length) {
-        assert.ok(policySources.length <= 2, entry.sourceDescription);
-        assert.deepEqual(stagedPolicyFiles, policySources.map((src, index) => ({
-          src,
-          dest: index === 0 ? ".github/copilot-instructions.md" : "AGENTS.md",
-        })), entry.sourceDescription);
-      } else {
-        assert.deepEqual(stagedPolicyFiles, [], entry.sourceDescription);
-      }
-      if (typeof variables.skill_content === "string"
-        && /\.apm\/skills\/pr-lifecycle\/SKILL\.md$/.test(variables.skill_content)) {
-        assert.equal(stimulus.prompt, variables.user_input, entry.sourceDescription);
-        const fixturePath = path.resolve(path.dirname(path.join(root, suite.evalFile)),
-          entry.nativeContextFixture);
-        const fixture = fs.readFileSync(fixturePath, "utf8");
-        const referenceKeys = [
-          "lifecycle_readiness_content",
-          "lifecycle_feedback_content",
-          "lifecycle_cleanup_content",
-        ];
-        let previousPosition = -1;
-        for (const key of referenceKeys) {
-          const source = variables[key];
-          assert.ok(typeof source === "string" && source.startsWith("file://"), entry.sourceDescription);
-          const sourcePath = path.resolve(
-            path.dirname(suite.evalFile),
-            source.replace(/^file:\/\//, "")
-          );
-          const reference = fs.readFileSync(sourcePath, "utf8");
-          const position = fixture.lastIndexOf(reference);
-          assert.ok(position > previousPosition, `${entry.sourceDescription}: missing or reordered ${key}`);
-          previousPosition = position;
-        }
-        assert.ok(stimulus.prompt.includes(variables.user_input), entry.sourceDescription);
-      }
-    }
-  }
-
-  const mappedProfiles = map.cases.filter((entry) => entry.status === "mapped"
-    && Object.values(entry.sourceVariables || {}).some((value) =>
-      typeof value === "string" && /\.apm\/agents\/[^/]+\.agent\.md$/.test(value)
-    ));
-  assert.ok(mappedProfiles.length > 0);
-  assert.ok(mappedProfiles.every((entry) =>
-    entry.coverageKind === "root-policy-behavior"
-  ));
-  assert.deepEqual(map.cases.filter((entry) =>
-    entry.status === "unsupported" && entry.reason?.includes("root-agent selector")
-  ), []);
-
-  const diagnostics = map.cases.filter((entry) => entry.diagnostic === true);
-  assert.deepEqual(diagnostics.map((entry) => entry.sourceDescription).sort(), [
-    "acting-on-behalf: omits internal model identifiers",
-    "pr-lifecycle: breaking changes use the optional ! marker",
-    "pr-lifecycle: full-loop fallback polls the selected SHA",
-    "pr-lifecycle: keeps feedback routing read only",
-    "pr-lifecycle: rejects a 73-character Conventional PR title",
-    "skill-gates: policy configuration requires review",
-    "tech-research: hands off durable synthesis without re-querying",
-    "tech-research: requires evidence and one synthesis",
-    "writing-voice: PR output shows value without issue or routine-check noise",
-  ]);
-  assert.ok(diagnostics.every((entry) => entry.status === "mapped"));
-  for (const entry of diagnostics) {
-    const spec = yaml.load(fs.readFileSync(path.join(root, map.suites[entry.package].evalFile), "utf8"));
-    assert.equal(spec.stimuli.find((item) => item.name === entry.targetStimulus)
-      ?.tags?.diagnostic, "assertion-only");
-  }
-});
-
 test("clone notice keeps the single-completion exact-output contract", () => {
-  const entry = map.cases.find((item) =>
-    item.package === "agent-defaults" && item.sourceCaseIndex === 88
-  );
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile), "utf8"
-  ));
-  const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-  const grader = stimulus.graders.find((item) => item.name === entry.assertionGraders[0].name);
+  const stimulus = defaultsCase(88);
+  const grader = stimulus.graders[0];
   const notice = "I will clone octocat/Hello-World from https://github.com/octocat/Hello-World.";
   assert.equal(stimulus.simulation.max_iterations, 1);
   for (const output of [
@@ -528,133 +599,19 @@ test("clone notice keeps the single-completion exact-output contract", () => {
   }
 });
 
-test("native exact-output graders preserve mapped source regex semantics", () => {
-  const parseRegex = (expression) => {
-    if (!expression.startsWith("/")) return null;
-    let inCharacterClass = false;
-    let escaped = false;
-    for (let index = 1; index < expression.length; index += 1) {
-      const character = expression[index];
-      if (escaped) {
-        escaped = false;
-      } else if (character === "\\") {
-        escaped = true;
-      } else if (character === "[") {
-        inCharacterClass = true;
-      } else if (character === "]") {
-        inCharacterClass = false;
-      } else if (character === "/" && !inCharacterClass) {
-        const flags = expression.slice(index + 1).match(/^[dgimsuvy]*/)?.[0] || "";
-        return {
-          body: expression.slice(1, index),
-          flags,
-          remainder: expression.slice(index + 1 + flags.length),
-        };
-      }
-    }
-    return null;
-  };
-  const escapeLiteral = (character) =>
-    /[.*+?^${}()|[\]\\]/.test(character) ? `\\${character}` : character;
-
-  const testedPatterns = new Set();
-  let normalizedCount = 0;
-  let customSimpleCount = 0;
-  let strictCount = 0;
-  const simpleRegexCalls = new Set([
-    ".test(output.trim())",
-    ".test(output.trim().replace(/[*_]/g, ''))",
-    ".test(output.trim().replace(/[*_]/g, '').split(String.fromCharCode(96)).join(''))",
-    ".test(output.trim().split(String.fromCharCode(96)).join('').replace(/[*_]/g, ''))",
-    ".test(output.trim().replace(/[*_`]/g, ''))",
-  ]);
-  for (const [packageName, suite] of Object.entries(map.suites)) {
-    const spec = yaml.load(fs.readFileSync(path.join(root, suite.evalFile), "utf8"));
-    for (const entry of map.cases.filter((item) =>
-      item.package === packageName && item.status === "mapped"
-    )) {
-      if (entry.coverageKind === "root-policy-behavior") continue;
-      const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-      for (let index = 0; index < (entry.assertions || []).length; index += 1) {
-        const assertion = entry.assertions[index].assertion;
-        if (assertion.type !== "javascript" || typeof assertion.value !== "string") continue;
-        const source = parseRegex(assertion.value);
-        if (!source || !assertion.value.includes(".test(output.trim()")) continue;
-        const normalized = assertion.value.includes("replace(/[*_]/g, '')")
-          || assertion.value.includes("replace(/[*_`]/g, '')");
-        const simple = source.body.match(
-          /^\^([A-Za-z0-9-]+(?: [A-Za-z0-9-]+)*)(\[\.\!\]\?)?\$$/
-        );
-        if (!simple) continue;
-        if (!simpleRegexCalls.has(source.remainder)) continue;
-        const graderName = entry.assertionGraders[index]?.name;
-        const grader = stimulus.graders.find((item) => item.name === graderName);
-        if (grader?.type !== "output-matches") {
-          customSimpleCount += 1;
-          continue;
-        }
-        const word = simple[1].toLowerCase();
-        const markers = "[*_\\x60]*";
-        const formatted = simple[1].split("").map((character) => {
-          if (/[A-Za-z]/.test(character) && source.flags.includes("i")) {
-            const pair = `[${character.toLowerCase()}${character.toUpperCase()}]`;
-            return normalized ? `${markers}${pair}` : pair;
-          }
-          const literal = escapeLiteral(character);
-          return normalized ? `${markers}${literal}` : literal;
-        }).join("");
-        const expectedPattern = `^\\s*${formatted}${normalized ? markers : ""}`
-          + `${simple[2] ? "[.!]?" : ""}${normalized ? markers : ""}\\s*$`;
-        assert.equal(grader?.config?.pattern, expectedPattern, entry.sourceDescription);
-        if (normalized) normalizedCount += 1;
-        else strictCount += 1;
-        const nativePattern = new RegExp(grader.config.pattern);
-        const sourcePattern = new RegExp(source.body, source.flags);
-        const sourcePasses = (output) => {
-          let compared = output.trim();
-          if (normalized) compared = compared.replace(/[*_`]/g, "");
-          return sourcePattern.test(compared);
-        };
-        const sampleKey = JSON.stringify([source.body, source.flags, normalized]);
-        if (testedPatterns.has(sampleKey)) continue;
-        testedPatterns.add(sampleKey);
-        const samples = [
-          simple[1],
-          simple[1].toUpperCase(),
-          `${simple[1]}.`,
-          `**${simple[1]}**`,
-          `_${simple[1].split("").join("`*")}_`,
-          ` ${simple[1]} `,
-          `x${simple[1]}`,
-          `${simple[1]}x`,
-          `${simple[1]}?`,
-          "unrelated",
-          "",
-        ];
-        for (const output of samples) {
-          assert.equal(nativePattern.test(output), sourcePasses(output),
-            `${entry.sourceDescription}: ${JSON.stringify(output)}`);
-        }
-      }
-    }
-  }
-  assert.equal(normalizedCount + customSimpleCount, 253);
-  assert.equal(strictCount, 37);
-});
-
 test("compound substring and negative assertions preserve source search semantics", () => {
-  const entry = map.cases.find((item) =>
-    item.package === "agent-defaults" && item.sourceCaseIndex === 349
-  );
-  assert.ok(entry, "source case 349 must remain mapped");
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
-  const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-  const patterns = entry.assertionGraders.map(({ name }) =>
-    stimulus.graders.find((grader) => grader.name === name)?.config?.pattern
-  );
+  const stimulus = defaultsCase(349);
+  assert.deepEqual(stimulus.graders.map(({ type }) => type), [
+    "output-matches", "output-matches", "prompt",
+  ]);
+  assert.equal(stimulus.rubric.length, 1);
+  const { scoring, threshold, evidence } = stimulus.graders[2].config;
+  assert.deepEqual({ scoring, threshold, evidence }, {
+    scoring: "binary", threshold: 1, evidence: ["trajectory"],
+  });
+  const patterns = stimulus.graders
+    .filter((grader) => grader.type === "output-matches")
+    .map((grader) => grader.config.pattern);
   assert.equal(patterns.length, 2);
   const positive = new RegExp(patterns[0]);
   const negative = new RegExp(patterns[1]);
@@ -677,15 +634,8 @@ test("compound substring and negative assertions preserve source search semantic
 });
 
 test("force-push option grader preserves source trimming behavior", () => {
-  const entry = map.cases.find((item) =>
-    item.package === "agent-defaults" && item.sourceCaseIndex === 71
-  );
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
-  const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-  const grader = stimulus.graders.find((item) => item.name === entry.assertionGraders[0].name);
+  const stimulus = defaultsCase(71);
+  const grader = stimulus.graders[0];
   const native = new RegExp(grader.config.pattern);
   const source = /^--force-with-lease(?: +--force-if-includes)?$/;
   for (const output of [
@@ -788,16 +738,9 @@ test("normalized literal graders preserve source replacement semantics", () => {
       samples: (mark) => [mark("human_stop")],
     })),
   ];
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
   for (const { index, expected, markers = "", normalize, samples } of cases) {
-    const entry = map.cases.find((item) =>
-      item.package === "agent-defaults" && item.sourceCaseIndex === index
-    );
-    const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-    const grader = stimulus.graders.find((item) => item.name === entry.assertionGraders[0].name);
+    const stimulus = defaultsCase(index);
+    const grader = stimulus.graders[0];
     const native = new RegExp(grader.config.pattern);
     const mark = (value) => markers ? `${markers}${value.split("").join(markers)}${markers}` : value;
     for (const output of [...samples(mark), "unrelated", `${expected} invalid`]) {
@@ -827,16 +770,9 @@ test("markdown-normalized yes/no and number graders preserve source behavior", (
   ];
   const formatMarkers = "*_#`";
   const mark = (value) => `${formatMarkers}${value.split("").join(formatMarkers)}${formatMarkers}`;
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
   for (const { index, expected, matches } of cases) {
-    const entry = map.cases.find((item) =>
-      item.package === "agent-defaults" && item.sourceCaseIndex === index
-    );
-    const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-    const grader = stimulus.graders.find((item) => item.name === entry.assertionGraders[0].name);
+    const stimulus = defaultsCase(index);
+    const grader = stimulus.graders[0];
     const native = new RegExp(grader.config.pattern);
     const sourcePasses = (output) => {
       const normalized = output.trim().toLowerCase().replace(/[*_#]/g, "").split("`").join("");
@@ -856,18 +792,9 @@ test("markdown-normalized yes/no and number graders preserve source behavior", (
 });
 
 test("markdown-normalized compound assertions preserve source matching", () => {
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
   const graderFor = (index) => {
-    const entry = map.cases.find((item) =>
-      item.package === "agent-defaults" && item.sourceCaseIndex === index
-    );
-    const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-    return new RegExp(stimulus.graders.find((grader) =>
-      grader.name === entry.assertionGraders[0].name
-    ).config.pattern);
+    const stimulus = defaultsCase(index);
+    return new RegExp(stimulus.graders[0].config.pattern);
   };
   const normalize = (output) => output.toLowerCase().replace(/[*_#]/g, "").trim()
     .split("`").join("");
@@ -910,18 +837,9 @@ test("markdown-normalized compound assertions preserve source matching", () => {
 });
 
 test("compound inclusion and first-field graders preserve source conjunctions", () => {
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
   const gradersFor = (index) => {
-    const entry = map.cases.find((item) =>
-      item.package === "agent-defaults" && item.sourceCaseIndex === index
-    );
-    const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-    return entry.assertionGraders.map(({ name }) =>
-      stimulus.graders.find((grader) => grader.name === name)
-    );
+    const stimulus = defaultsCase(index);
+    return stimulus.graders;
   };
   const passes = (graders, output) => graders.every((grader) =>
     grader.type === "output-contains"
@@ -956,21 +874,9 @@ test("human-interaction graders preserve selected-token polarity and conflicts",
     this.graders.set(grader.metadata.name, grader);
   } };
   registerGraders(registry);
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
   const mappedCase = (index) => {
-    const entry = map.cases.find((item) =>
-      item.package === "agent-defaults" && item.sourceCaseIndex === index
-    );
-    const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-    return {
-      entry,
-      graders: entry.assertionGraders.map(({ name }) =>
-        stimulus.graders.find((grader) => grader.name === name)
-      ),
-    };
+    const stimulus = defaultsCase(index);
+    return stimulus;
   };
   const nativePasses = async (graders, output) => (await Promise.all(graders.map(async (grader) => {
     const implementation = registry.graders.get(grader.type);
@@ -1050,94 +956,10 @@ test("human-interaction graders preserve selected-token polarity and conflicts",
   }
 });
 
-test("reviewed source assertions match their native graders on normalization edges", async () => {
-  const { registerGraders } = await gradersModule;
-  const registry = { graders: new Map(), register(grader) {
-    this.graders.set(grader.metadata.name, grader);
-  } };
-  registerGraders(registry);
-  const spec = yaml.load(fs.readFileSync(
-    path.join(root, map.suites["agent-defaults"].evalFile),
-    "utf8"
-  ));
-  const sourcePasses = (entry, output) => entry.assertions.every(({ assertion }) => {
-    assert.equal(assertion.type, "javascript");
-    const lastSemicolon = assertion.value.lastIndexOf(";");
-    const statements = assertion.value.slice(0, lastSemicolon + 1);
-    const expression = assertion.value.slice(lastSemicolon + 1).trim();
-    return new Function("output", `${statements}return (${expression});`)(output);
-  });
-  const nativePasses = async (entry, output) => {
-    const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-    const graders = entry.assertionGraders.map(({ name }) =>
-      stimulus.graders.find((grader) => grader.name === name)
-    );
-    const results = await Promise.all(graders.map(async (grader) => {
-      const implementation = registry.graders.get(grader.type);
-      if (implementation) {
-        return (await implementation.grade({
-          trajectory: { output },
-          config: grader.config,
-        })).passed;
-      }
-      const matched = new RegExp(grader.config.pattern).test(output);
-      return grader.config.negate ? !matched : matched;
-    }));
-    return results.every(Boolean);
-  };
-  const cases = new Map([
-    [247, ["PENDING", "**PENDING**", "`PENDING`", "PASSED"]],
-    [183, [" **No, the scope is empty.", "No, the scope is **empty**."]],
-    [184, [" **No, the scope contains only whitespace.", "No, the scope is **blank**."]],
-    [185, [" **No, the description contains only whitespace.", "No, the description is **blank**."]],
-    [186, [" **No, a scope is not required by default.", "No, a scope is **optional** by default."]],
-    [308, ["No\n**Yes**", "**No**\n", "No, not exactly Yes"]],
-    [327, ["HUMAN_STOP\nAUTOMATION_FLOW.**", "**HUMAN_STOP**", "classification: AUTOMATION_FLOW"]],
-    [354, ["**No**", " No ", "Yes"]],
-    [358, ["**No**", " No ", "No\n**Yes**", "Yes"]],
-    [351, ["Yes, I also post the reply.", "Yes, the named fix can proceed.\n", "Yes\nNo"]],
-    [309, ["Yes, supported.", "**Yes**, supported.", "Yes_", "No", "**No**", "Yes\nNo_"]],
-    [310, ["No, do not split the review.", "**No**, synthesize the findings.", "No_", "Yes", "**Yes**", "No\nYes_"]],
-    [311, ["Yes, deliver one review.", "**Yes**, use one evidence-backed review.", "Yes_", "No", "**No**", "Yes\nNo_"]],
-    [352, [
-      "WAIT",
-      "WAIT, but we may post after the review.",
-      "WAIT. However we can resolve it now.",
-      "**WAIT**, but we **may** proceed to draft.",
-      "WAIT_, but_ we may_ post_ later.",
-      "WAIT, b*u*t we m_a_y p*o*s*t.",
-      "WAIT, wait*but we may post.",
-      "WAIT, but we will continue working independently.",
-      `WAIT, but ${"x".repeat(58)} may post.`,
-      `WAIT, but ${"x".repeat(59)} may post.`,
-    ]],
-    [353, ["No\n", "**No**\n", "Yes"]],
-  ]);
-  for (const [index, outputs] of cases) {
-    const entries = map.cases.filter((item) =>
-      item.package === "agent-defaults" && item.sourceCaseIndex === index
-    );
-    assert.ok(entries.length > 0, `case ${index} exists`);
-    for (const entry of entries) {
-      for (const output of outputs) {
-        assert.equal(await nativePasses(entry, output), sourcePasses(entry, output),
-          `case ${index} row ${entry.sourceRow}: ${JSON.stringify(output)}`);
-      }
-    }
-  }
-});
-
-test("native eval specs match every mapped migration row and pass Vally strict lint", () => {
-  const evalFiles = Object.values(map.suites).map((suite) => path.join(root, suite.evalFile));
-  for (const [packageName, suite] of Object.entries(map.suites)) {
-    const spec = yaml.load(fs.readFileSync(path.join(root, suite.evalFile), "utf8"));
-    const mapped = map.cases.filter((entry) =>
-      entry.package === packageName && entry.status === "mapped"
-    );
-    assert.equal(spec.stimuli.length, suite.nativeStimulusCount, packageName);
-    assert.equal(spec.stimuli.length, mapped.length, packageName);
-  }
-  for (const file of evalFiles) {
+test("native eval specs pass native preflight and Vally strict lint", () => {
+  for (const packageName of packages) {
+    const { errors, evalPath: file } = validateNativeSuite(root, packageName, "full");
+    assert.deepEqual(errors, [], packageName);
     const lint = spawnSync(path.join(root, "node_modules/.bin/vally"), [
       "lint",
       "--strict",

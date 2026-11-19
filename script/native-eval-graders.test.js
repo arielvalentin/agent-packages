@@ -6,10 +6,10 @@ const path = require("node:path");
 const gradersModule = import("./native-eval-graders.mjs");
 const yaml = require("js-yaml");
 const root = path.resolve(__dirname, "..");
-const migrationMap = JSON.parse(fs.readFileSync(
-  path.join(root, "docs/evaluations-migration-map.json"),
-  "utf8"
-));
+const vallySimulationModule = import("../node_modules/@microsoft/vally/dist/executor/simulation.js");
+const vallySimulationControllerModule = import(
+  "../node_modules/@microsoft/vally/dist/executor/simulation-controller.js"
+);
 
 test("output text contract preserves strict trimmed length bounds and regex checks", async () => {
   const { registerGraders } = await gradersModule;
@@ -92,7 +92,34 @@ test("normalized source contracts preserve conjunction and conflicting-token beh
   })).passed, true);
 });
 
-test("migrated normalization-sensitive cases use source-equivalent grader configs", async () => {
+test("case 367 disclosure grader rejects model-identifier additions", () => {
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
+    "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) =>
+    item.name === "agent-defaults-case-367-row-01"
+  );
+  const configuredGrader = stimulus.graders.find((item) =>
+    item.type === "output-matches"
+  );
+  assert.ok(configuredGrader);
+  const pattern = new RegExp(configuredGrader.config.pattern);
+
+  for (const output of ["> _AI Assisted._", "  > _AI Assisted._  \n"]) {
+    assert.equal(pattern.test(output), true, JSON.stringify(output));
+  }
+  for (const output of [
+    "> _AI Assisted._\nModel identifier: [redacted]",
+    "> _AI Assisted._ (model identifier withheld)",
+    "> _AI Assisted._\nInternal model details omitted.",
+    "AI Assisted.",
+  ]) {
+    assert.equal(pattern.test(output), false, JSON.stringify(output));
+  }
+});
+
+test("native normalization-sensitive cases use their configured graders", async () => {
   const { registerGraders } = await gradersModule;
   const registry = { graders: new Map(), register(grader) {
     this.graders.set(grader.metadata.name, grader);
@@ -139,18 +166,18 @@ test("migrated normalization-sensitive cases use source-equivalent grader config
     ["development-workflow", 19, [["**ask**", true]]],
   ];
 
-  for (const [packageName, sourceCaseIndex, outputs] of cases) {
-    const suite = migrationMap.suites[packageName];
-    const spec = yaml.load(fs.readFileSync(path.join(root, suite.evalFile), "utf8"));
-    const entries = migrationMap.cases.filter((entry) =>
-      entry.package === packageName && entry.sourceCaseIndex === sourceCaseIndex
+  for (const [packageName, caseIndex, outputs] of cases) {
+    const spec = yaml.load(fs.readFileSync(
+      path.join(root, "packages", packageName, "evals", `${packageName}.eval.yaml`), "utf8"
+    ));
+    const stimuli = spec.stimuli.filter((item) =>
+      Number(item.tags?.source_case) === caseIndex
     );
-    assert.ok(entries.length > 0, `${packageName} source case ${sourceCaseIndex}`);
-    for (const entry of entries) {
-      const stimulus = spec.stimuli.find((item) => item.name === entry.targetStimulus);
-      assert.equal(stimulus.graders.length, 1, entry.sourceDescription);
+    assert.ok(stimuli.length > 0, `${packageName} case ${caseIndex}`);
+    for (const stimulus of stimuli) {
+      assert.equal(stimulus.graders.length, 1, stimulus.name);
       const grader = stimulus.graders[0];
-      assert.equal(grader.type, "output-text-contract", entry.sourceDescription);
+      assert.equal(grader.type, "output-text-contract", stimulus.name);
       const registered = registry.graders.get(grader.type);
       for (const [output, expected] of outputs) {
         const result = await registered.grade({
@@ -158,7 +185,7 @@ test("migrated normalization-sensitive cases use source-equivalent grader config
           config: grader.config,
         });
         assert.equal(result.passed, expected,
-          `${entry.sourceDescription}: ${JSON.stringify(output)}`);
+          `${stimulus.name}: ${JSON.stringify(output)}`);
       }
     }
   }
@@ -389,6 +416,123 @@ test("draft PR command grader reports malformed input as an error", async () => 
     trajectory: { output: "gh pr create" },
     config: { unsafe: true },
   })).status, "error");
+});
+
+test("cases 409 and 410 simulate only a scoped reply and fail closed for every other shell call", async () => {
+  const { resolveToolOverride, renderShellSimulation } = await vallySimulationModule;
+  const { SimulationController } = await vallySimulationControllerModule;
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
+    "utf8"
+  ));
+  const names = [
+    "agent-defaults-case-409-row-01",
+    "agent-defaults-case-410-row-01",
+  ];
+  const body = "The cancellation fix now stops work when the request is canceled, so the operation does not continue afterward.";
+  const command = `gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="${body}"`;
+  const expectedCommandPattern =
+    '^gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="' +
+    '[A-Za-z0-9 /,.;:-]{40,250}"$';
+  const blockedCommands = [
+    "pwd",
+    'gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="short"',
+    `${command}; gh pr merge 42`,
+    `gh api repos/owner/repo/issues/42/comments --method POST --field body="${body}"`,
+    `gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="The cancellation fix stops work after caller cancellation — so it cannot continue afterward."`,
+  ];
+
+  for (const name of names) {
+    const stimulus = spec.stimuli.find((item) => item.name === name);
+    assert.ok(stimulus, name);
+    const simulation = stimulus.simulation;
+    const overrides = simulation.tool_overrides;
+    assert.equal(overrides.bash.default.is_error, true, name);
+    assert.equal(overrides.bash.patterns.length, 1, name);
+    assert.equal(overrides.bash.patterns[0].match, expectedCommandPattern, name);
+    assert.ok(stimulus.graders[0].config.prompt.includes(expectedCommandPattern), name);
+    assert.equal(overrides.web_fetch.is_error, true, name);
+    assert.equal(overrides.web_search.is_error, true, name);
+    assert.ok(stimulus.attachments.includes("fixtures/reply-action-state.md"), name);
+    assert.ok(stimulus.agent_environment.skills.includes("../.apm/skills/acting-on-behalf"), name);
+    assert.match(stimulus.prompt, /40-250 ASCII/);
+    assert.match(stimulus.prompt, /request context and stops further work/);
+    assert.match(stimulus.prompt, /shell control syntax in the body/);
+    assert.match(stimulus.prompt, /already implemented and verified/);
+    assert.match(stimulus.prompt, /not new work by you/);
+    assert.match(stimulus.prompt, /Do not implement or change code/);
+    assert.match(
+      stimulus.prompt,
+      /If the acting-on-behalf skill is not already loaded, call `skill` once with `\{"skill":"acting-on-behalf"\}` and wait for it to succeed before the reply\./
+    );
+    const rubric = stimulus.rubric.join("\n").replace(/\s+/g, " ");
+    assert.match(
+      rubric,
+      /"Implemented cancellation fix" is a report of that existing fact, not a claim of new work/
+    );
+    assert.match(rubric, /must not attempt or claim new implementation or code changes in this run/);
+    const graderPrompt = stimulus.graders[0].config.prompt.replace(/\s+/g, " ");
+    assert.match(
+      graderPrompt,
+      /The only permitted sequences are Bash call, Bash result; or skill call, skill result, Bash call, Bash result\. Reject all extra, missing, or out-of-order tool events\./
+    );
+    assert.match(
+      graderPrompt,
+      /Each result must match its preceding call by non-empty data\.toolCallId and data\.toolName and have data\.success equal to true\./
+    );
+    assert.match(
+      graderPrompt,
+      /data\.toolName equal to "skill" and data\.arguments exactly \{"skill":"acting-on-behalf"\}\. No simulated flag is required for the skill call\./
+    );
+    assert.match(
+      graderPrompt,
+      /"Implemented cancellation fix" reports that pre-existing fact and is allowed/
+    );
+    assert.match(
+      graderPrompt,
+      /unless the response explicitly says the agent implemented or changed code in this run/
+    );
+    assert.match(graderPrompt, /must not attempt implementation or claim new code changes in this run/);
+
+    const controller = new SimulationController(simulation);
+    const slashBodyCommand = command.replace(`body="${body}"`, `body="${body} / verified"`);
+    assert.equal(
+      resolveToolOverride("bash", { command: slashBodyCommand }, overrides).isError,
+      false,
+      `${name}: slash should be allowed inside the quoted body`
+    );
+    for (const toolName of ["bash", "shell", "powershell"]) {
+      assert.equal(controller.isSimulated(toolName, { command }), true, `${name}: ${toolName}`);
+      const result = resolveToolOverride(toolName, { command }, overrides);
+      assert.ok(result, `${name}: ${toolName} did not match`);
+      assert.equal(result.isError, false, `${name}: ${toolName}`);
+      const rewritten = renderShellSimulation(toolName, result);
+      assert.doesNotMatch(rewritten, /gh api|owner\/repo/);
+      if (toolName === "powershell") {
+        assert.ok(rewritten.includes(Buffer.from(result.output).toString("base64")));
+      } else {
+        assert.match(rewritten, /SIMULATED_SUCCESS/);
+      }
+      const intercepted = controller.onPreToolUse({
+        toolName,
+        toolArgs: JSON.stringify({ command }),
+      });
+      assert.doesNotMatch(intercepted.modifiedArgs.command, /gh api|owner\/repo/);
+    }
+
+    for (const toolName of ["bash", "shell", "powershell"]) {
+      for (const blockedCommand of blockedCommands) {
+        assert.equal(controller.isSimulated(toolName, { command: blockedCommand }), true);
+        const result = resolveToolOverride(toolName, { command: blockedCommand }, overrides);
+        assert.ok(result, `${name}: ${toolName} ${blockedCommand}`);
+        assert.equal(result.isError, true, `${name}: ${toolName} ${blockedCommand}`);
+        assert.doesNotMatch(
+          renderShellSimulation(toolName, result),
+          /gh api|owner\/repo|gh pr merge/
+        );
+      }
+    }
+  }
 });
 
 test("case 158 preserves feedback-routing meaning across an equivalent paraphrase", () => {

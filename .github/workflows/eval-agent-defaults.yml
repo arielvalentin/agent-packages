@@ -1,22 +1,40 @@
 name: "Eval: agent-defaults"
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - "packages/agent-defaults/**"
       - "package.json"
       - "package-lock.json"
+      - ".vally.yaml"
       - "script/run-evals.js"
+      - "script/native-eval-fixtures.js"
+      - "script/native-eval-fixtures.json"
       - "script/validate-native-evals.js"
       - "script/validate-native-evals.test.js"
       - "script/native-eval-graders.mjs"
       - "script/native-eval-graders.test.js"
       - "script/vally-output.js"
       - "script/vally-output.test.js"
-      - "docs/evaluations-migration-map.json"
       - ".github/workflows/eval-agent-defaults.yml"
-      - ".github/actions/eval-package/**"
+  push:
+    branches: [main]
+    paths:
+      - "packages/agent-defaults/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".vally.yaml"
+      - "script/run-evals.js"
+      - "script/native-eval-fixtures.js"
+      - "script/native-eval-fixtures.json"
+      - "script/validate-native-evals.js"
+      - "script/validate-native-evals.test.js"
+      - "script/native-eval-graders.mjs"
+      - "script/native-eval-graders.test.js"
+      - "script/vally-output.js"
+      - "script/vally-output.test.js"
+      - ".github/workflows/eval-agent-defaults.yml"
   workflow_dispatch:
     inputs:
       suite:
@@ -28,29 +46,178 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'auto' }}
-  cancel-in-progress: true
-
 jobs:
-  eval:
-    name: agent-defaults
+  lint:
+    name: agent-defaults lint
     if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/main' &&
-      github.actor == github.repository_owner &&
-      github.triggering_actor == github.repository_owner
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.user.login == github.repository_owner &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor == github.repository_owner &&
+        github.triggering_actor == github.repository_owner
+      ) ||
+      (
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.ref == 'refs/heads/main' &&
+        github.actor == github.repository_owner &&
+        github.triggering_actor == github.repository_owner
+      )
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'auto' }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+          package-manager-cache: false
+      - name: Install repository npm version
+        shell: bash
+        run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate agent-defaults suite preflight
+        env:
+          EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.suite || 'smoke' }}
+        run: node script/validate-native-evals.js --check agent-defaults "$EVAL_SUITE"
+      - uses: github/evals-action@6e4c077e92194c7e75663d8d782426841047e887 # v0.2.0
+        with:
+          command: lint
+          working-directory: .
+          vally-version: "0.19.0"
+          report-id: agent-defaults
+
+  run:
+    name: agent-defaults
+    needs: lint
+    if: >-
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.user.login == github.repository_owner &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor == github.repository_owner &&
+        github.triggering_actor == github.repository_owner
+      ) ||
+      (
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.ref == 'refs/heads/main' &&
+        github.actor == github.repository_owner &&
+        github.triggering_actor == github.repository_owner
+      )
     permissions:
       contents: read
       copilot-requests: write
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'auto' }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.suite == 'full' && 300 || 120 }}
-    env:
-      NODE_OPTIONS: --no-warnings
+    outputs:
+      action-outcome: ${{ steps.evals.outputs.outcome }}
+      inventory-valid: ${{ steps.validate.outputs.valid }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/eval-package
         with:
-          package: agent-defaults
-          suite: ${{ inputs.suite || 'smoke' }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+          package-manager-cache: false
+      - name: Install repository npm version
+        shell: bash
+        run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+      - name: Install dependencies
+        run: npm ci
+      - id: evals
+        uses: github/evals-action@6e4c077e92194c7e75663d8d782426841047e887 # v0.2.0
+        continue-on-error: true
+        with:
+          command: run
+          working-directory: .
+          suite: ${{ github.event_name == 'pull_request' && 'agent-defaults-smoke' || (inputs.suite == 'full' && 'agent-defaults-full' || 'agent-defaults-smoke') }}
+          vally-version: "0.19.0"
+          model: gpt-5.3-codex
+          runs: "1"
+          workers: "1"
+          max-retries: "0"
           copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
+          report-id: agent-defaults
+      - id: validate
+        name: Validate native result inventory
+        if: always()
+        shell: bash
+        env:
+          EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.suite || 'smoke' }}
+          NATIVE_DIAGNOSTICS_PATH: ${{ steps.evals.outputs.native-diagnostics-path }}
+          EVAL_ACTION_OUTCOME: ${{ steps.evals.outputs.outcome }}
+          EVAL_ACTION_STEP_OUTCOME: ${{ steps.evals.outcome }}
+          EVAL_REPORT_ARTIFACT_ID: ${{ steps.evals.outputs.artifact-id }}
+          EVAL_REPORT_ARTIFACT_DIGEST: ${{ steps.evals.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NATIVE_DIAGNOSTICS_PATH" ]]; then
+            echo "::error::The eval action did not expose native output for inventory validation."
+            exit 1
+          fi
+          results_file="$(node -e 'const { findVallyJsonlOutput } = require("./script/vally-output.js"); process.stdout.write(findVallyJsonlOutput(process.argv[1]));' "$NATIVE_DIAGNOSTICS_PATH")"
+          validator_status=0
+          node script/validate-native-evals.js --results agent-defaults "$EVAL_SUITE" "$results_file" || validator_status=$?
+          case "$validator_status" in
+            0)
+              if [[ "$EVAL_ACTION_OUTCOME" != "passed" || "$EVAL_ACTION_STEP_OUTCOME" != "success" ]]; then
+                echo "::error::The eval action failed despite a passing native inventory."
+                exit 1
+              fi
+              ;;
+            10)
+              if [[ "$EVAL_ACTION_OUTCOME" != "failed" || "$EVAL_ACTION_STEP_OUTCOME" != "failure" ]]; then
+                echo "::error::Non-blocking diagnostics require a failed native verdict from the eval action."
+                exit 1
+              fi
+              ;;
+            *)
+              exit "$validator_status"
+              ;;
+          esac
+          if [[ -z "$EVAL_REPORT_ARTIFACT_ID" || -z "$EVAL_REPORT_ARTIFACT_DIGEST" ]]; then
+            echo "::error::The eval action did not publish the required native report artifact."
+            exit 1
+          fi
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+
+  report:
+    name: agent-defaults report
+    needs: [lint, run]
+    if: >-
+      always() &&
+      needs.lint.result != 'cancelled' &&
+      needs.run.result != 'cancelled' &&
+      (
+        needs.run.outputs['inventory-valid'] == 'true' ||
+        needs.run.outputs['action-outcome'] != 'passed'
+      ) &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner
+    concurrency:
+      group: evals-${{ github.workflow_ref }}
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: github/evals-action@6e4c077e92194c7e75663d8d782426841047e887 # v0.2.0
+        with:
+          command: report
+          vally-version: "0.19.0"
+          report-id: agent-defaults

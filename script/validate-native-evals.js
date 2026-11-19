@@ -3,9 +3,9 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
-const crypto = require("node:crypto");
 const { isDeepStrictEqual } = require("node:util");
 const yaml = require("js-yaml");
+const { fixtureContent, isManagedFixture, isPolicyInput } = require("./native-eval-fixtures.js");
 
 const PACKAGES = new Set([
   "agent-defaults",
@@ -20,74 +20,19 @@ const DIAGNOSTIC_ASSERTION_GRADER_TYPES = new Set([
   "output-matches",
   "output-not-matches",
 ]);
-const DIAGNOSTICS = new Set([
-  "acting-on-behalf: omits internal model identifiers",
-  "pr-lifecycle: breaking changes use the optional ! marker",
-  "pr-lifecycle: full-loop fallback polls the selected SHA",
-  "pr-lifecycle: keeps feedback routing read only",
-  "pr-lifecycle: rejects a 73-character Conventional PR title",
-  "skill-gates: policy configuration requires review",
-  "tech-research: hands off durable synthesis without re-querying",
-  "tech-research: requires evidence and one synthesis",
-  "writing-voice: PR output shows value without issue or routine-check noise",
+const DIAGNOSTICS = new Map([
+  ["agent-defaults-case-063-row-01", "skill-gates: policy configuration requires review"],
+  ["agent-defaults-case-121-row-01", "writing-voice: PR output shows value without issue or routine-check noise"],
+  ["agent-defaults-case-164-row-01", "tech-research: requires evidence and one synthesis"],
+  ["agent-defaults-case-169-row-01", "tech-research: hands off durable synthesis without re-querying"],
+  ["agent-defaults-case-189-row-01", "pr-lifecycle: breaking changes use the optional ! marker"],
+  ["agent-defaults-case-191-row-01", "pr-lifecycle: rejects a 73-character Conventional PR title"],
+  ["agent-defaults-case-211-row-01", "pr-lifecycle: full-loop fallback polls the selected SHA"],
+  ["agent-defaults-case-283-row-01", "pr-lifecycle: keeps feedback routing read only"],
 ]);
-
-function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
-}
 
 function readYaml(file) {
   return yaml.load(fs.readFileSync(file, "utf8"));
-}
-
-function graderConfigurationDigest(grader) {
-  const { name, ...configuration } = grader;
-  return crypto.createHash("sha256")
-    .update(JSON.stringify(configuration))
-    .digest("hex");
-}
-
-function expandSourceCase(sourceConfiguration, sourceCase) {
-  const providerRefs = sourceCase.providers
-    || sourceConfiguration.defaultTest?.providers
-    || sourceConfiguration.providers
-    || [];
-  const promptRefs = sourceCase.prompts
-    || sourceConfiguration.defaultTest?.prompts
-    || sourceConfiguration.prompts
-    || [];
-  const variables = {
-    ...(sourceConfiguration.defaultTest?.vars || {}),
-    ...(sourceCase.vars || {}),
-  };
-  let variableRows = [{}];
-  for (const [key, value] of Object.entries(variables)) {
-    variableRows = variableRows.flatMap((row) =>
-      (Array.isArray(value) ? value : [value]).map((item) => ({
-        ...row,
-        [key]: item,
-      }))
-    );
-  }
-  const prompts = sourceConfiguration.prompts || [];
-  return providerRefs.flatMap((providerRef) => promptRefs.flatMap((promptRef) => {
-    const provider = typeof providerRef === "string"
-      ? sourceConfiguration.providers?.find((candidate) => candidate.id === providerRef)
-      : providerRef;
-    const prompt = typeof promptRef === "string"
-      ? prompts.find((candidate) => candidate?.id === promptRef)
-        || (/^prompt-(\d+)$/.test(promptRef)
-          ? prompts[Number(promptRef.slice(7)) - 1]
-        : prompts.includes(promptRef) ? promptRef : undefined)
-      : promptRef;
-    const promptIndex = prompts.indexOf(prompt);
-    const sourcePrompt = prompt?.id || `prompt-${promptIndex + 1}`;
-    return variableRows.map((sourceVariables) => ({
-      sourceProviderLabel: provider?.label || provider?.id || providerRef,
-      sourcePrompt,
-      sourceVariables,
-    }));
-  }));
 }
 
 function resolveRepositoryFile(root, baseDirectory, filePath, label) {
@@ -124,99 +69,13 @@ function resolveRepositoryFile(root, baseDirectory, filePath, label) {
   return realTarget;
 }
 
-function sourcePromptTemplate(entry, sourceConfiguration) {
-  const prompt = sourceConfiguration?.prompts?.find((candidate) =>
-    candidate?.id === entry.sourcePrompt
-  ) || (/^prompt-\d+$/.test(entry.sourcePrompt || "")
-    ? sourceConfiguration?.prompts?.[Number(entry.sourcePrompt.slice(7)) - 1]
-    : undefined);
-  return typeof prompt === "string" ? prompt : prompt?.raw || "";
-}
-
-function readSourceFile(root, evalPath, source) {
-  return fs.readFileSync(resolveRepositoryFile(
-    root,
-    path.dirname(evalPath),
-    source.replace(/^file:\/\//, ""),
-    "Source instruction"
-  ), "utf8");
-}
-
-function sourceInstructionContent(root, evalPath, entry, sourceConfiguration) {
-  const variables = entry.sourceVariables || {};
-  const template = sourcePromptTemplate(entry, sourceConfiguration);
-  const readVariable = (key) => {
-    const source = variables[key];
-    return typeof source === "string" && source.startsWith("file://")
-      ? readSourceFile(root, evalPath, source)
-      : "";
-  };
-  let content = readVariable("skill_content");
-  const contextVariables = ["companion_content", "review_mode_content"]
-    .filter((variable) => template.includes(variable))
-    .sort((left, right) => template.indexOf(left) - template.indexOf(right));
-  for (const variable of contextVariables) {
-    content += `\n${readVariable(variable)}`;
+function blocksShellCommands(override) {
+  if (!override || typeof override !== "object") return false;
+  if ("patterns" in override) {
+    return Array.isArray(override.patterns)
+      && override.default?.is_error === true;
   }
-  if (/\/pr-lifecycle\/SKILL\.md$/.test(variables.skill_content || "")) {
-    content += `\n\n${[
-      "lifecycle_readiness_content",
-      "lifecycle_feedback_content",
-      "lifecycle_cleanup_content",
-    ].map(readVariable).join("\n\n")}`;
-  }
-  return content.replace(/\n{2,}$/, "\n");
-}
-
-function sourcePromptSkills(entry, sourceConfiguration) {
-  const variables = entry.sourceVariables || {};
-  const activeVariables = ["skill_content"];
-  const promptTemplate = sourcePromptTemplate(entry, sourceConfiguration);
-  for (const variable of ["companion_content", "review_mode_content"]) {
-    if (promptTemplate.includes(variable)) activeVariables.push(variable);
-  }
-  const skills = [];
-  const rootProfiles = [];
-  const instructionFiles = [];
-  const policyFiles = [];
-  const unsupportedFiles = [];
-  for (const variable of activeVariables) {
-    const source = variables[variable];
-    if (typeof source !== "string" || !source.startsWith("file://")) continue;
-    const skillMatch = source.match(/\.apm\/skills\/([^/]+)\/SKILL\.md$/);
-    if (skillMatch) {
-      // Promptfoo injected SKILL.md text as context; it did not assert skill activation.
-      policyFiles.push(source);
-    } else if (/\.apm\/agents\/[^/]+\.agent\.md$/.test(source)) {
-      rootProfiles.push(source);
-      policyFiles.push(source);
-    } else if (/\.apm\/skills\/.+\/references\/[^/]+\.md$/.test(source)
-      || /\.apm\/instructions\/[^/]+\.instructions\.md$/.test(source)) {
-      instructionFiles.push(source);
-      policyFiles.push(source);
-    } else {
-      unsupportedFiles.push(source);
-    }
-  }
-  if (/\/pr-lifecycle\/SKILL\.md$/.test(variables.skill_content || "")) {
-    for (const key of [
-      "lifecycle_readiness_content",
-      "lifecycle_feedback_content",
-      "lifecycle_cleanup_content",
-    ]) {
-      const source = variables[key];
-      if (typeof source === "string" && source.startsWith("file://")) {
-        policyFiles.push(source);
-      }
-    }
-  }
-  return {
-    skills: [...new Set(skills)].sort(),
-    rootProfiles,
-    instructionFiles,
-    policyFiles,
-    unsupportedFiles,
-  };
+  return override.is_error === true;
 }
 
 function validateNativeSuite(root, packageName, suite) {
@@ -225,83 +84,7 @@ function validateNativeSuite(root, packageName, suite) {
   if (!["smoke", "full"].includes(suite)) errors.push(`Unknown suite: ${suite}`);
   if (errors.length) return { errors };
 
-  const mapPath = path.join(root, "docs/evaluations-migration-map.json");
-  const map = readJson(mapPath);
-  const suiteMap = map.suites?.[packageName];
-  if (!suiteMap) return { errors: [`Migration map has no suite ${packageName}.`] };
-  const packageEntries = map.cases.filter((entry) => entry.package === packageName);
-  for (const entry of packageEntries) {
-    const sourceCase = suiteMap.sourceConfiguration?.tests?.[entry.sourceCaseIndex - 1];
-    if (!sourceCase) {
-      errors.push(`${entry.sourceDescription} has no pinned source test case.`);
-      continue;
-    }
-    const expectedSuite = sourceCase.metadata?.suite === "smoke" ? "smoke" : "full";
-    if (entry.sourceSuite !== expectedSuite) {
-      errors.push(`${entry.sourceDescription} source suite differs from its pinned source metadata.`);
-    }
-    const expandedRows = expandSourceCase(suiteMap.sourceConfiguration, sourceCase);
-    const expectedRow = expandedRows[Number(entry.sourceRow) - 1];
-    if (!expectedRow
-      || entry.sourceProviderLabel !== expectedRow.sourceProviderLabel
-      || entry.sourcePrompt !== expectedRow.sourcePrompt
-      || !isDeepStrictEqual(entry.sourceVariables, expectedRow.sourceVariables)) {
-      errors.push(`${entry.sourceDescription} migration row differs from its pinned source expansion.`);
-    }
-  }
-  if (packageEntries.length !== suiteMap.sourceExpandedRowCount) {
-    errors.push(
-      `${packageName} source-row inventory mismatch: map=${packageEntries.length}, `
-      + `expected=${suiteMap.sourceExpandedRowCount}.`
-    );
-  }
-  const sourceSmokeCount = packageEntries.filter((entry) => entry.sourceSuite === "smoke").length;
-  if (sourceSmokeCount !== suiteMap.sourceSmokeRowCount) {
-    errors.push(
-      `${packageName} smoke-row inventory mismatch: map=${sourceSmokeCount}, `
-      + `expected=${suiteMap.sourceSmokeRowCount}.`
-    );
-  }
-  for (const [field, expected] of [
-    ["mappedRowCount", packageEntries.filter((entry) => entry.status === "mapped").length],
-    ["unsupportedRowCount", packageEntries.filter((entry) => entry.status === "unsupported").length],
-    ["unmappedRowCount", packageEntries.filter((entry) => entry.status === "unmapped").length],
-  ]) {
-    if (Number.isInteger(suiteMap[field]) && suiteMap[field] !== expected) {
-      errors.push(
-        `${packageName} migration map ${field} mismatch: map=${suiteMap[field]}, expected=${expected}.`
-      );
-    }
-  }
-  const entries = packageEntries.filter((entry) => entry.package === packageName
-    && (suite === "full" || entry.sourceSuite === "smoke"));
-  const sourceIds = packageEntries.map((entry) => [
-    entry.sourceCaseIndex,
-    entry.sourceRow,
-    entry.sourceProviderLabel,
-    entry.sourcePrompt,
-  ].join("\0"));
-  if (new Set(sourceIds).size !== packageEntries.length) {
-    errors.push(`${packageName} migration map has duplicate source-row identities.`);
-  }
-  const allDiagnostics = map.cases.filter((entry) => entry.diagnostic === true);
-  if (allDiagnostics.some((entry) => entry.package !== "agent-defaults"
-    || !DIAGNOSTICS.has(entry.sourceDescription))
-    || (packageName === "agent-defaults"
-      && (allDiagnostics.length !== DIAGNOSTICS.size
-        || [...DIAGNOSTICS].some((name) =>
-          allDiagnostics.filter((entry) => entry.sourceDescription === name).length !== 1)))) {
-    errors.push("Migration map diagnostics are not restricted to the approved cases.");
-  }
-  const unsupported = entries.filter((entry) => entry.status !== "mapped");
-  if (unsupported.length) {
-    errors.push(
-      `${packageName} ${suite} cannot run without dropping ${unsupported.length} source row(s):`
-    );
-    for (const entry of unsupported) {
-      errors.push(`  ${entry.sourceDescription}: ${entry.reason}`);
-    }
-  }
+  const suiteMap = { evalFile: `packages/${packageName}/evals/${packageName}.eval.yaml` };
 
   let evalPath;
   let evalSpec;
@@ -316,228 +99,105 @@ function validateNativeSuite(root, packageName, suite) {
     errors.push(`${suiteMap.evalFile} has no stimuli array.`);
     return { errors };
   }
+  const seen = new Set();
+  const checkedFixtures = new Set();
   for (const stimulus of stimuli) {
-    for (const grader of stimulus.graders || []) {
-      if (typeof grader.name === "string"
-        && (!GRADER_NAME_PATTERN.test(grader.name)
-          || grader.name.length > MAX_GRADER_NAME_LENGTH)) {
-        errors.push(
-          `${stimulus.name} has an invalid Vally grader name: ${grader.name} `
-          + `(must be a lowercase slug of at most ${MAX_GRADER_NAME_LENGTH} characters).`
-        );
-      }
-    }
-  }
-  if (stimuli.length !== suiteMap.nativeStimulusCount) {
-    errors.push(
-      `${packageName} native inventory mismatch: eval=${stimuli.length}, `
-      + `map=${suiteMap.nativeStimulusCount}.`
-    );
-  }
-  const expectedEntries = entries.filter((entry) => entry.status === "mapped");
-  const expectedNames = expectedEntries.map((entry) => entry.targetStimulus);
-  for (const entry of expectedEntries) {
-    const sourceMapping = sourcePromptSkills(entry, suiteMap.sourceConfiguration);
-    if (sourceMapping.rootProfiles.length
-      && entry.coverageKind !== "root-policy-behavior") {
-      errors.push(
-        `${entry.sourceDescription} uses a root agent profile without root policy-behavior coverage metadata.`
-      );
+    if (!stimulus || typeof stimulus.name !== "string" || !stimulus.name || seen.has(stimulus.name)) {
+      errors.push(`Invalid or duplicate native stimulus name: ${stimulus?.name}`);
       continue;
     }
-    if (sourceMapping.unsupportedFiles.length) {
-      errors.push(
-        `${entry.sourceDescription} uses source instruction files without a native equivalent.`
-      );
-      continue;
+    seen.add(stimulus.name);
+    if (!["smoke", "full"].includes(stimulus.tags?.suite)) {
+      errors.push(`${stimulus.name} has an invalid suite tag.`);
     }
-    const sourceTemplate = sourcePromptTemplate(entry, suiteMap.sourceConfiguration);
-    if (sourceMapping.policyFiles.length > 1
-      || sourceTemplate.includes("instructions = skill_content ~")) {
-      if (!entry.nativeContextFixture) {
-        errors.push(`${entry.sourceDescription} requires a checked-in combined instruction fixture.`);
-        continue;
+    const approvedDiagnostic = packageName === "agent-defaults" && DIAGNOSTICS.has(stimulus.name);
+    if ((stimulus.tags?.diagnostic !== undefined || approvedDiagnostic)
+      && (!approvedDiagnostic || stimulus.tags?.diagnostic !== "assertion-only")) {
+      errors.push(`${stimulus.name} has invalid diagnostic metadata.`);
+    }
+    if (typeof stimulus.prompt !== "string" || !stimulus.prompt.trim()) {
+      errors.push(`${stimulus.name} has no prompt.`);
+    }
+    if (!Array.isArray(stimulus.graders) || !stimulus.graders.length) {
+      errors.push(`${stimulus.name} has no graders.`);
+    } else {
+      const graderNames = new Set();
+      for (const grader of stimulus.graders) {
+        if (typeof grader.name !== "string" || !GRADER_NAME_PATTERN.test(grader.name)
+          || grader.name.length > MAX_GRADER_NAME_LENGTH || graderNames.has(grader.name)
+          || typeof grader.type !== "string" || !grader.type) {
+          errors.push(`${stimulus.name} has an invalid or duplicate Vally grader name or type.`);
+        }
+        graderNames.add(grader.name);
       }
     }
-    for (const source of sourceMapping.policyFiles) {
+    if (!blocksShellCommands(stimulus.simulation?.tool_overrides?.bash)) {
+      errors.push(`${stimulus.name} does not block shell command execution.`);
+    }
+    for (const file of stimulus.agent_environment?.files || []) {
       try {
-        resolveRepositoryFile(
-          root,
-          path.dirname(evalPath),
-          source.replace(/^file:\/\//, ""),
-          `${entry.sourceDescription} source instruction`
-        );
-      } catch (error) {
-        errors.push(`${entry.sourceDescription} has an unsafe source instruction path: ${error.message}`);
-      }
-    }
-    if (JSON.stringify(entry.requiredSkills || []) !== JSON.stringify(sourceMapping.skills)) {
-      errors.push(
-        `${entry.sourceDescription} migration map skills do not match its source prompt.`
-      );
-    }
-  }
-  const actualNames = stimuli
-    .filter((stimulus) => suite === "full" || stimulus.tags?.suite === "smoke")
-    .map((stimulus) => stimulus.name);
-  const duplicates = actualNames.filter((name, index) => actualNames.indexOf(name) !== index);
-  if (duplicates.length) errors.push(`Duplicate native stimulus names: ${[...new Set(duplicates)].join(", ")}`);
-  const expectedSet = new Set(expectedNames);
-  const actualSet = new Set(actualNames);
-  const missing = expectedNames.filter((name) => !actualSet.has(name));
-  const unexpected = actualNames.filter((name) => !expectedSet.has(name));
-  if (missing.length || unexpected.length) {
-    errors.push(
-      `Native stimulus inventory mismatch (missing: ${missing.length}; unexpected: ${unexpected.length}).`
-    );
-  }
-  if (expectedEntries.length !== actualNames.length) {
-    errors.push(
-      `Native stimulus count mismatch: map=${expectedEntries.length}, eval=${actualNames.length}.`
-    );
-  }
-
-  for (const entry of expectedEntries) {
-    const stimulus = stimuli.find((candidate) => candidate.name === entry.targetStimulus);
-    if (!stimulus) continue;
-    const sourceMapping = sourcePromptSkills(entry, suiteMap.sourceConfiguration);
-    const expectedFiles = entry.nativeContextFixture
-      ? [{
-        src: entry.nativeContextFixture,
-        dest: ".github/copilot-instructions.md",
-      }]
-      : sourceMapping.policyFiles.map((source, index) => ({
-        src: source.replace(/^file:\/\//, ""),
-        dest: index === 0 ? ".github/copilot-instructions.md" : "AGENTS.md",
-      }));
-    if (entry.nativeContextFixture) {
-      let fixturePath;
-      let sourceContent = "";
-      try {
-        fixturePath = resolveRepositoryFile(
-          root,
-          path.dirname(evalPath),
-          entry.nativeContextFixture,
-          `${entry.sourceDescription} native instruction fixture`
-        );
-        sourceContent = sourceInstructionContent(
-          root,
-          evalPath,
-          entry,
-          suiteMap.sourceConfiguration
-        );
-      } catch (error) {
-        errors.push(`${entry.sourceDescription} combined instruction fixture is unavailable: ${error.message}`);
-      }
-      if (fixturePath && fs.readFileSync(fixturePath, "utf8") !== sourceContent) {
-        errors.push(`${entry.sourceDescription} combined instruction fixture differs from source context.`);
-      }
-    }
-    if (JSON.stringify(stimulus.agent_environment?.files || []) !== JSON.stringify(expectedFiles)) {
-      errors.push(`${entry.sourceDescription} staged files do not match its source prompt.`);
-    }
-    if (entry.coverageKind
-      && (entry.coverageKind !== "root-policy-behavior"
-        || stimulus.tags?.coverage !== entry.coverageKind
-        || sourceMapping.policyFiles.length === 0)) {
-      errors.push(`${entry.sourceDescription} has invalid root policy-behavior coverage metadata.`);
-    }
-    const expectedSkills = [...(entry.requiredSkills || [])].sort();
-    const actualSkills = (stimulus.agent_environment?.skills || [])
-      .sort();
-    const skillDirectory = packageName === "agent-defaults" || packageName === "code-reviewers"
-      ? "../.apm/skills"
-      : "../../agent-defaults/.apm/skills";
-    const expectedSkillPaths = expectedSkills.map((skill) => `${skillDirectory}/${skill}`);
-    if (JSON.stringify(actualSkills) !== JSON.stringify(expectedSkillPaths)) {
-      errors.push(`${entry.sourceDescription} native skills do not match its source prompt.`);
-    }
-    for (const skillPath of expectedSkillPaths) {
-      const resolvedSkillPath = path.resolve(path.dirname(evalPath), skillPath);
-      try {
-        if (!fs.statSync(resolvedSkillPath).isDirectory()) {
-          errors.push(`${entry.sourceDescription} skill directory is not a directory: ${skillPath}.`);
+        const filePath = resolveRepositoryFile(root, path.dirname(evalPath), file.src, `${stimulus.name} native file`);
+        if (file.dest !== ".github/copilot-instructions.md") {
+          throw new Error("Native destination must be the workspace instructions file.");
+        }
+        const fixture = path.relative(fs.realpathSync(root), filePath).split(path.sep).join("/");
+        const managed = isManagedFixture(fixture);
+        if (!managed && !isPolicyInput(fixture)) {
+          throw new Error("Native source is not an APM policy file or managed fixture.");
+        }
+        if (managed && !checkedFixtures.has(fixture)) {
+          checkedFixtures.add(fixture);
+          if (fs.readFileSync(filePath, "utf8") !== fixtureContent(root, fixture, resolveRepositoryFile)) {
+            errors.push(`${fixture} differs from its canonical composition.`);
+          }
         }
       } catch (error) {
-        errors.push(`${entry.sourceDescription} skill directory is unavailable: ${error.message}`);
+        errors.push(`${stimulus.name} has an unsafe or invalid native file: ${error.message}`);
       }
     }
-    const skillGraders = (stimulus.graders || []).filter((grader) =>
-      grader.type === "skill-invocation"
-    );
-    const graderSkills = skillGraders.flatMap((grader) => grader.config?.required || []).sort();
-    if (JSON.stringify(graderSkills) !== JSON.stringify(expectedSkills)
-      || skillGraders.length !== expectedSkills.length) {
-      errors.push(`${entry.sourceDescription} skill graders do not match its source prompt.`);
-    }
-    if (skillGraders.length) {
-      errors.push(`${entry.sourceDescription} source assertions do not require skill activation.`);
-    }
-    const expectedAssertionGraders = entry.assertionGraders || [];
-    const assertionGraders = (stimulus.graders || []).filter((grader) =>
-      grader.type !== "skill-invocation"
-    );
-    const assertionGradersByName = new Map(assertionGraders.map((grader) => [
-      grader.name,
-      grader,
-    ]));
-    if (expectedAssertionGraders.length !== assertionGraders.length
-      || expectedAssertionGraders.some((grader) =>
-        !grader.name
-        || !/^[0-9a-f]{64}$/.test(grader.configSha256 || "")
-        || assertionGradersByName.get(grader.name)?.type !== grader.type
-        || graderConfigurationDigest(assertionGradersByName.get(grader.name) || {})
-          !== grader.configSha256
-        || assertionGraders.filter((candidate) => candidate.name === grader.name).length !== 1)
-      || assertionGraders.some((grader) =>
-        !expectedAssertionGraders.some((expected) => expected.name === grader.name
-          && expected.type === grader.type))) {
-      errors.push(`${entry.sourceDescription} assertion graders do not match its migration map.`);
-    }
-    if (stimulus.simulation?.tool_overrides?.bash?.is_error !== true) {
-      errors.push(`${entry.sourceDescription} does not block shell command execution.`);
-    }
-
-    const userInput = entry.sourceVariables?.user_input;
-    if (typeof userInput !== "string") {
-      errors.push(`${entry.sourceDescription} has no exact source user input.`);
-    } else if (stimulus.prompt !== userInput) {
-      errors.push(`${entry.sourceDescription} native prompt differs from its exact source user input.`);
+    for (const skill of stimulus.agent_environment?.skills || []) {
+      try {
+        const skillFile = resolveRepositoryFile(root, path.dirname(evalPath), path.join(skill, "SKILL.md"), `${stimulus.name} skill`);
+        if (!isPolicyInput(path.relative(fs.realpathSync(root), skillFile).split(path.sep).join("/"))) {
+          throw new Error("Native skill is not an APM policy skill.");
+        }
+      } catch (error) {
+        errors.push(`${stimulus.name} has an unsafe or invalid skill: ${error.message}`);
+      }
     }
   }
-
   if (packageName === "agent-defaults") {
-    const mappedDiagnostics = entries.filter((entry) =>
-      entry.diagnostic && entry.status === "mapped"
-    );
-    const diagnosticNames = mappedDiagnostics.map((entry) => entry.sourceDescription);
-    const expectedDiagnostics = entries.filter((entry) => entry.diagnostic);
-    if (diagnosticNames.length !== expectedDiagnostics.length
-      || expectedDiagnostics.some((entry) =>
-        diagnosticNames.filter((name) => name === entry.sourceDescription).length !== 1)
-      || diagnosticNames.some((name) => !DIAGNOSTICS.has(name))) {
-      errors.push("Every selected diagnostic must have native stimuli; they must not be skipped.");
+    for (const name of DIAGNOSTICS.keys()) {
+      if (!seen.has(name)) errors.push(`Missing approved diagnostic: ${name}`);
     }
-    for (const entry of mappedDiagnostics) {
-      const stimulus = stimuli.find((candidate) => candidate.name === entry.targetStimulus);
-      if (stimulus?.tags?.diagnostic !== "assertion-only") {
-        errors.push(`Diagnostic ${entry.sourceDescription} is missing assertion-only metadata.`);
-      }
-    }
-  } else if (entries.some((entry) => entry.diagnostic)) {
-    errors.push("Non-agent-defaults suites may not declare non-blocking diagnostics.");
   }
-
-  return { errors, map, suiteMap, entries, evalSpec, stimuli, expectedEntries };
+  const selectedStimuli = stimuli
+    .filter((stimulus) => stimulus && (suite === "full" || stimulus.tags?.suite === "smoke"));
+  if (!selectedStimuli.length) errors.push(`${packageName} ${suite} has no native stimuli.`);
+  const expectedEntries = selectedStimuli.map((stimulus) => ({
+    targetStimulus: stimulus.name,
+    sourceDescription: DIAGNOSTICS.get(stimulus.name) || stimulus.name,
+    diagnostic: packageName === "agent-defaults" && DIAGNOSTICS.has(stimulus.name),
+    assertionGraders: stimulus.graders || [],
+  }));
+  return { errors, suiteMap, evalSpec, evalPath, stimuli, selectedStimuli, expectedEntries };
 }
 
-function flattenGraders(result, output = []) {
-  if (!result || typeof result !== "object" || Array.isArray(result)) return output;
-  output.push(result);
-  if (Array.isArray(result.details)) {
-    for (const child of result.details) flattenGraders(child, output);
+function flattenGraders(result, output = [], parent) {
+  const entry = { result, parent };
+  output.push(entry);
+  if (Array.isArray(result?.details)) {
+    for (const child of result.details) flattenGraders(child, output, entry);
   }
   return output;
+}
+
+function isPromptRubricLeaf(result) {
+  return result?.kind === "llm"
+    && typeof result.name === "string" && /^prompt\/\S/.test(result.name)
+    && Number.isFinite(result.score) && result.score >= 0 && result.score <= 1
+    && result.graderType === undefined && result.configuredName === undefined
+    && result.details === undefined;
 }
 
 function validateTrialItemId(record) {
@@ -554,11 +214,67 @@ function validateTrialItemId(record) {
     && (record.totalTrials === undefined || record.totalTrials === 1);
 }
 
-function validateRun(root, packageName, suite, records) {
+function validateRun(root, packageName, suite, records, options = {}) {
   const preflight = validateNativeSuite(root, packageName, suite);
   const errors = [...preflight.errors];
   const diagnostics = [];
   if (errors.length) return { errors, diagnostics };
+
+  let expectedEntries = preflight.expectedEntries;
+  let stimuli = preflight.stimuli;
+  let evalFilePath = path.resolve(root, preflight.suiteMap.evalFile);
+  if (options.stimulusNames !== undefined) {
+    const names = options.stimulusNames;
+    if (!Array.isArray(names) || !names.length
+      || names.some((name) => typeof name !== "string" || !name)
+      || new Set(names).size !== names.length) {
+      return { errors: ["Selected Vally stimulus names must be a nonempty unique string array."], diagnostics };
+    }
+    const selectedNames = new Set(names);
+    expectedEntries = preflight.expectedEntries.filter((entry) =>
+      selectedNames.has(entry.targetStimulus)
+    );
+    if (expectedEntries.length !== names.length) {
+      return { errors: ["Selected Vally stimuli are not in the validated suite inventory."], diagnostics };
+    }
+    if (typeof options.evalFilePath !== "string" || !options.evalFilePath) {
+      return { errors: ["Selected Vally results require their temporary eval specification path."], diagnostics };
+    }
+    evalFilePath = path.resolve(options.evalFilePath);
+    let selectedEvalDirectory;
+    try {
+      selectedEvalDirectory = fs.realpathSync(path.dirname(evalFilePath));
+    } catch (error) {
+      return {
+        errors: [`Unable to resolve selected Vally eval directory: ${error.message}`],
+        diagnostics,
+      };
+    }
+    if (selectedEvalDirectory !== path.dirname(preflight.evalPath)) {
+      return { errors: ["Selected Vally eval specification must stay beside its validated source spec."], diagnostics };
+    }
+    try {
+      resolveRepositoryFile(root, path.dirname(preflight.evalPath), path.basename(evalFilePath),
+        "Selected Vally eval specification");
+    } catch (error) {
+      return { errors: [`Unsafe selected Vally eval specification: ${error.message}`], diagnostics };
+    }
+    const expectedSpec = {
+      ...preflight.evalSpec,
+      stimuli: preflight.stimuli.filter((stimulus) => selectedNames.has(stimulus.name)),
+    };
+    try {
+      if (!isDeepStrictEqual(readYaml(evalFilePath), expectedSpec)) {
+        errors.push("Selected Vally eval specification differs from the validated stimuli.");
+      }
+    } catch (error) {
+      errors.push(`Unable to validate selected Vally eval specification: ${error.message}`);
+    }
+    if (errors.length) return { errors, diagnostics };
+    stimuli = expectedSpec.stimuli;
+  } else if (options.evalFilePath !== undefined) {
+    return { errors: ["An eval specification path requires selected Vally stimuli."], diagnostics };
+  }
 
   if (!Array.isArray(records) || !records.length) {
     return { errors: ["Vally result stream is empty."], diagnostics };
@@ -573,11 +289,11 @@ function validateRun(root, packageName, suite, records) {
     errors.push(`Expected one run-summary record, received ${summaryRecords.length}.`);
   }
 
-  const expectedByName = new Map(preflight.expectedEntries.map((entry) => [
+  const expectedByName = new Map(expectedEntries.map((entry) => [
     entry.targetStimulus,
     entry,
   ]));
-  const stimuliByName = new Map(preflight.stimuli.map((stimulus) => [
+  const stimuliByName = new Map(stimuli.map((stimulus) => [
     stimulus.name,
     stimulus,
   ]));
@@ -621,12 +337,29 @@ function validateRun(root, packageName, suite, records) {
       errors.push(`${record.stimulus} has a missing or malformed grade result.`);
       continue;
     }
-    const graderResults = flattenGraders(grade);
-    if (graderResults.some((grader) => typeof grader.passed !== "boolean"
-      || (grader !== grade && typeof grader.graderType !== "string"))) {
+    const configuredGraders = new Map(stimulus.graders.map(({ name, type }) => [name, type]));
+    if (grade.details.some((grader) => typeof grader?.configuredName !== "string"
+      || typeof grader.graderType !== "string")) {
       errors.push(`${record.stimulus} contains a malformed grader result.`);
       continue;
     }
+    // Vally stamps configured identity on the prompt grader, not its rubric leaves.
+    const flattened = flattenGraders(grade);
+    if (flattened.some(({ result: grader, parent }) => {
+      const owner = parent?.result;
+      const rubricLeaf = parent?.parent?.result === grade
+        && owner?.graderType === "prompt"
+        && configuredGraders.get(owner.configuredName) === "prompt";
+      return !grader || typeof grader !== "object"
+        || Array.isArray(grader) || typeof grader.passed !== "boolean"
+        || (grader.details !== undefined && !Array.isArray(grader.details))
+        || (rubricLeaf ? !isPromptRubricLeaf(grader)
+          : parent !== undefined && typeof grader.graderType !== "string");
+    })) {
+      errors.push(`${record.stimulus} contains a malformed grader result.`);
+      continue;
+    }
+    const graderResults = flattened.map(({ result }) => result);
     if (graderResults.some((grader) => grader.status && grader.status !== "success")) {
       errors.push(`${record.stimulus} contains a grader execution error.`);
       continue;
@@ -662,7 +395,7 @@ function validateRun(root, packageName, suite, records) {
     ]));
     const diagnosticOnly = packageName === "agent-defaults"
       && entry.diagnostic === true
-      && DIAGNOSTICS.has(entry.sourceDescription)
+      && DIAGNOSTICS.has(entry.targetStimulus)
       && failedGraders.length > 0
       && failedGraders.every((grader) => assertionTypes.has(grader.configuredName)
         && assertionTypes.get(grader.configuredName) === grader.graderType
@@ -723,18 +456,18 @@ function validateRun(root, packageName, suite, records) {
         && typeof evalSummary.hadExecutionErrors !== "boolean") {
         errors.push("Vally eval summary has a malformed execution-error flag.");
       }
-      const expectedEvalPath = path.resolve(root, preflight.suiteMap.evalFile);
+      const expectedEvalPath = path.resolve(evalFilePath);
       if (path.resolve(root, evalSummary.evalFilePath) !== expectedEvalPath
         || trialRecords.some((record) => record.evalName !== evalSummary.name
           || path.resolve(root, record.evalFilePath) !== expectedEvalPath
           || record.variant !== evalSummary.variant)) {
         errors.push("Vally trial and eval-summary identities do not match the requested suite.");
       }
-      if (evalSummary.stimuliRun !== preflight.expectedEntries.length
-        || evalSummary.stimuliTotal !== preflight.stimuli.length
+      if (evalSummary.stimuliRun !== expectedEntries.length
+        || evalSummary.stimuliTotal !== stimuli.length
         || stimuliSkipped !== 0) {
         errors.push(
-          `Vally run-summary count mismatch (ran ${evalSummary.stimuliRun}; expected ${preflight.expectedEntries.length}; total ${evalSummary.stimuliTotal}; expected total ${preflight.stimuli.length}; skipped ${stimuliSkipped}).`
+          `Vally run-summary count mismatch (ran ${evalSummary.stimuliRun}; expected ${expectedEntries.length}; total ${evalSummary.stimuliTotal}; expected total ${stimuli.length}; skipped ${stimuliSkipped}).`
         );
       }
       if (typeof evalSummary.passed !== "boolean") {
@@ -769,11 +502,12 @@ function parseJsonl(file) {
 }
 
 function main(argv) {
-  const [mode, packageName, suite, file] = argv;
+  const [mode, packageName, suite, file, ...optionArgs] = argv;
   if (!["--check", "--results"].includes(mode) || !packageName || !suite
-    || (mode === "--results" && !file)) {
+    || (mode === "--results" && !file)
+    || (mode === "--check" && optionArgs.length)) {
     console.error("Usage: node script/validate-native-evals.js --check <package> <smoke|full>");
-    console.error("   or: node script/validate-native-evals.js --results <package> <smoke|full> <results.jsonl>");
+    console.error("   or: node script/validate-native-evals.js --results <package> <smoke|full> <results.jsonl> [--stimuli <JSON array> --eval-file <path>]");
     return 2;
   }
   const root = path.resolve(__dirname, "..");
@@ -786,14 +520,31 @@ function main(argv) {
       }
       return result.errors.length ? 1 : 0;
     }
-    const result = validateRun(root, packageName, suite, parseJsonl(file));
+    let options = {};
+    if (optionArgs.length) {
+      if (optionArgs.length !== 4
+        || optionArgs[0] !== "--stimuli"
+        || optionArgs[2] !== "--eval-file"
+        || !optionArgs[3]) {
+        console.error("Selected results require --stimuli <JSON array> and --eval-file <path>.");
+        return 2;
+      }
+      options = {
+        stimulusNames: JSON.parse(optionArgs[1]),
+        evalFilePath: optionArgs[3],
+      };
+    }
+    const result = validateRun(root, packageName, suite, parseJsonl(file), options);
     for (const error of result.errors) console.error(error);
     for (const diagnostic of result.diagnostics) {
       console.log(`DIAGNOSTIC ASSERTION FAILURE (non-blocking): ${diagnostic.description}`);
       console.log(`  graders: ${diagnostic.failedGraders.join(", ")}`);
     }
     if (!result.errors.length && !result.diagnostics.length) {
-      console.log(`${packageName} ${suite}: all required native stimuli passed.`);
+      const count = options.stimulusNames?.length;
+      console.log(count
+        ? `${packageName} ${suite}: ${count} selected native stimuli passed.`
+        : `${packageName} ${suite}: all required native stimuli passed.`);
     }
     return result.errors.length ? 1 : result.diagnostics.length ? 10 : 0;
   } catch (error) {
@@ -807,7 +558,6 @@ if (require.main === module) process.exitCode = main(process.argv.slice(2));
 module.exports = {
   parseJsonl,
   resolveRepositoryFile,
-  sourceInstructionContent,
   validateNativeSuite,
   validateRun,
 };
