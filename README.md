@@ -71,33 +71,22 @@ apm install
 ## Running behavioral tests locally
 
 Behavioral suites use native [GitHub Copilot Evals](https://github.com/github/evals)
-definitions in `packages/*/evals/`, executed by the pinned Vally CLI.
-Evaluation runs require Copilot-compatible credentials and may consume Copilot
-usage. Setup installs Node and project dependencies but does not run evaluations.
+definitions in `packages/*/evals/`. The pinned GitHub Actions evaluation
+workflows run them with Copilot credentials. Local `npm test` is offline and
+does not run models or consume Copilot usage.
 
 ```bash
 # One-time setup
 script/setup
 
-# Run tests
-npm test                              # all package smoke suites
-npm run test:affected                 # affected local cases, safe smoke fallback
-npm run test:affected -- --dry-run     # explain selection without running evals
-npm run test:selector                 # selector and native-runner contracts
-npm run test:full                     # all full behavioral suites
-npm run test:defaults                  # full canonical shared skills suite
-npm run test:defaults:smoke            # canonical shared skills smoke suite
-npm run test:coordinator               # full coordinator suite
-npm run test:coordinator:smoke         # coordinator smoke suite
-npm run test:dev-workflow              # full development-workflow suite
-npm run test:dev-workflow:smoke        # development-workflow smoke suite
-npm run test:reviewers                 # full code-reviewers suite
-npm run test:reviewers:smoke           # code-reviewers smoke suite
+# Run offline checks
+npm test                              # dependencies, native evals, graders, workflow contracts
 ```
 
-The smoke commands select stimuli tagged `suite: smoke`; commands without
-`:smoke` run the full package suite. The runner validates native stimuli and
-rejects missing, duplicate, or unexpected results.
+Credentialed smoke evaluations run on pushes to `main` and eligible
+same-repository pull requests. For a full evaluation, dispatch the package
+workflow on `main` and select `full`. The workflows are owner-gated and do not
+run on fork pull requests.
 
 Dependencies are declared in `Brewfile`; `script/setup` is idempotent and safe
 to re-run.

@@ -7,10 +7,10 @@ const { test } = require("node:test");
 const vm = require("node:vm");
 const yaml = require("js-yaml");
 const { validateNativeSuite } = require("./validate-native-evals.js");
-const { packages } = require("./run-affected-tests.js");
 const gradersModule = import("./native-eval-graders.mjs");
 
 const root = path.resolve(__dirname, "..");
+const packages = ["agent-defaults", "coordinator", "development-workflow", "code-reviewers"];
 const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const defaultsSpec = yaml.load(fs.readFileSync(
   path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"), "utf8"
@@ -43,9 +43,11 @@ test("native evaluation dependencies are pinned and Promptfoo/Ollama are absent"
   assert.equal(fs.statSync(path.join(root, "node_modules/.bin/vally")).isFile(), true);
 });
 
-test("Copilot credentials are scoped to the native evaluation step", () => {
-  const runner = fs.readFileSync(path.join(root, "script/run-evals.js"), "utf8");
-  assert.match(runner, /process\.env\[name\]\.trim\(\)\.length > 0/);
+test("npm test is offline and Copilot credentials stay in evaluation workflows", () => {
+  assert.equal(manifest.scripts.test, "npm run test:dependencies");
+  assert.ok(Object.values(manifest.scripts).every((script) =>
+    !/run-evals|run-affected-tests/.test(script)
+  ));
   assert.equal(fs.existsSync(path.join(root, ".github/actions/eval-package/action.yml")), false);
   for (const workflowName of [
     "eval-agent-defaults.yml",
@@ -517,72 +519,6 @@ test("Copilot credentials are scoped to the native evaluation step", () => {
   assert.ok(ci.jobs.validate.steps.some((step) =>
     step.run === "npm run test:dependencies"
   ));
-});
-
-test("evaluation runner requires a token and forwards it to Vally", async () => {
-  const { CopilotSdkExecutor } = await import("@microsoft/vally/executor");
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "eval-auth-test-"));
-  const originalGhToken = process.env.GH_TOKEN;
-  try {
-    const hook = path.join(temp, "capture.js");
-    const captured = path.join(temp, "captured");
-    fs.writeFileSync(hook, `
-      const fs = require("node:fs");
-      require("node:child_process").spawnSync = (command, args, options) => {
-        if (!command.endsWith("node_modules/.bin/vally")) throw new Error("Unexpected subprocess");
-        fs.writeFileSync(process.env.TEST_CAPTURE, JSON.stringify({
-          token: options.env.GH_TOKEN,
-          args,
-        }));
-        return { status: 1 };
-      };
-    `);
-    const env = {
-      ...process.env,
-      NODE_OPTIONS: `--require=${hook}`,
-      TEST_CAPTURE: captured,
-      VALLY_MODEL: "gpt-5.3-codex",
-      VALLY_RESULTS_DIR: path.join(temp, "results"),
-    };
-    delete env.COPILOT_GITHUB_TOKEN;
-    delete env.GH_TOKEN;
-    delete env.GITHUB_TOKEN;
-    const run = (token, model) => {
-      const runEnv = { ...env, GH_TOKEN: token };
-      if (model === undefined) delete runEnv.VALLY_MODEL;
-      else runEnv.VALLY_MODEL = model;
-      return spawnSync(process.execPath, [
-        path.join(root, "script/run-evals.js"), "agent-defaults", "smoke",
-      ], { cwd: root, env: runEnv, encoding: "utf8" });
-    };
-    const missing = run("", "gpt-5.3-codex");
-    assert.equal(missing.status, 1);
-    assert.match(missing.stderr, /Copilot Evals requires COPILOT_GITHUB_TOKEN/);
-    assert.equal(fs.existsSync(captured), false);
-    for (const token of ["synthetic-actions-token", "synthetic-override-token"]) {
-      const selected = run(token, "gpt-5.3-codex");
-      assert.equal(selected.status, 1);
-      assert.match(selected.stderr, /Unable to locate valid Vally results/);
-      const invocation = JSON.parse(fs.readFileSync(captured, "utf8"));
-      assert.equal(invocation.token, token);
-      const modelIndex = invocation.args.indexOf("--model");
-      assert.notEqual(modelIndex, -1);
-      assert.equal(invocation.args[modelIndex + 1], "gpt-5.3-codex");
-      process.env.GH_TOKEN = token;
-      const executor = new CopilotSdkExecutor();
-      assert.equal(executor.clientEnv(executor.currentRun).GH_TOKEN, token);
-      await executor.shutdown();
-    }
-    const localDefault = run("synthetic-local-token");
-    assert.equal(localDefault.status, 1);
-    const defaultInvocation = JSON.parse(fs.readFileSync(captured, "utf8"));
-    assert.equal(defaultInvocation.token, "synthetic-local-token");
-    assert.equal(defaultInvocation.args.includes("--model"), false);
-  } finally {
-    if (originalGhToken === undefined) delete process.env.GH_TOKEN;
-    else process.env.GH_TOKEN = originalGhToken;
-    fs.rmSync(temp, { recursive: true, force: true });
-  }
 });
 
 test("clone notice keeps the single-completion exact-output contract", () => {
