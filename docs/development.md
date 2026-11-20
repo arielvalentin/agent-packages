@@ -139,10 +139,9 @@ apm install
 
 ## Recommended change workflow
 
-Shared-skill changes belong in `packages/agent-defaults`. Coordinator's skill
-files are frozen compatibility snapshots and must not be edited for new policy.
-`packages/coordinator/skill-snapshots.sha256` and the defaults check enforce
-their frozen contents independently of the canonical defaults inventory.
+Shared-skill changes belong in `packages/agent-defaults`, the active canonical
+source. The coordinator package was removed from current `main`; its published
+tags remain unchanged for consumers pinned to those releases.
 
 1. Edit primitives in one package.
 2. Validate in a small consumer project.

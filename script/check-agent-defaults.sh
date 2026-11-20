@@ -4,7 +4,6 @@ set -euo pipefail
 python3 <<'PY'
 from pathlib import Path
 import json
-import hashlib
 import re
 import shlex
 import subprocess
@@ -19,7 +18,6 @@ expected = {
     "writing-voice",
 }
 defaults = Path("packages/agent-defaults")
-legacy = Path("packages/coordinator")
 skills = defaults / ".apm/skills"
 actual = {p.parent.name for p in skills.glob("*/SKILL.md")}
 assert actual == expected, f"{defaults}: missing or unexpected canonical skills"
@@ -59,60 +57,6 @@ for name in actual:
     assert isinstance(metadata.get("description"), str) and metadata["description"].strip(), \
         f"{defaults}: missing skill description: {name}"
 
-snapshots = {}
-snapshot_manifest = (legacy / "skill-snapshots.sha256").read_bytes()
-assert hashlib.sha256(snapshot_manifest).hexdigest() == \
-    "9685b4fb07b37ea1e61e6ed7adb42abc3365e438df2acc818844733dae1ce6a3", \
-    "frozen coordinator snapshot manifest changed"
-for line in snapshot_manifest.decode().splitlines():
-    digest, path = line.split("  ", 1)
-    assert path not in snapshots, f"duplicate legacy snapshot: {path}"
-    snapshots[path] = digest
-legacy_files = {str(p.relative_to(legacy)) for p in (legacy / ".apm/skills").glob("*/SKILL.md")}
-assert legacy_files == snapshots.keys(), "legacy snapshot inventory changed"
-for path, digest in snapshots.items():
-    assert hashlib.sha256((legacy / path).read_bytes()).hexdigest() == digest, \
-        f"frozen coordinator snapshot changed: {path}"
-coordinator_panel = " ".join(
-    (legacy / ".apm/skills/consensus-panel/SKILL.md").read_text().split()
-)
-assert "The caller-owned `explicit_multi_review` boolean selects review mode first." \
-    in coordinator_panel
-assert "`true` always uses the adaptive 2+1 panel" in coordinator_panel
-assert "and `explicit_multi_review` is `false`" in coordinator_panel
-assert ("dispatch a single-reviewer fast path only when the scope is fast-path "
-        "exempt and `explicit_multi_review` is `false`") in coordinator_panel
-assert "A `true` value selects the adaptive 2+1 panel for any scope" \
-    in coordinator_panel
-assert "a `blocker` or `major` finding always triggers one tiebreaker in panel mode" \
-    in coordinator_panel
-assert ("A `true` value overrides any single-model designation and always selects the "
-        "adaptive 2+1 panel") in coordinator_panel
-assert ("no behavior-defining instruction, policy, prompt, or contract change "
-        "that alters agent behavior, gates, or decisions") in coordinator_panel
-assert ("This always takes the full panel, even when it changes one line, only "
-        "changes Markdown, or meets the tiny-change limit") in coordinator_panel
-assert "none of the disqualified categories has a blast radius" in coordinator_panel
-assert "six disqualified categories" not in coordinator_panel
-coordinator_review_loop = " ".join(
-    (legacy / ".apm/skills/review-fix-loop/SKILL.md").read_text().split()
-)
-assert "`explicit_multi_review` | yes" in coordinator_review_loop
-assert ("A `true` value overrides any single-model designation and always selects "
-        "the adaptive 2+1 panel") \
-    in coordinator_review_loop
-assert "when it is `true`, use the adaptive 2+1 panel regardless of scope" \
-    in coordinator_review_loop
-assert "preserving `explicit_multi_review` unchanged" in coordinator_review_loop
-assert "Example values are illustrative" in coordinator_review_loop
-assert ("that role is explicitly designated single-model and "
-        "`explicit_multi_review` is `false`") in coordinator_review_loop
-assert "A `true` value overrides any single-model designation" \
-    in coordinator_review_loop
-assert "It never allows the gate to pass with an unresolved finding at or above" \
-    in coordinator_review_loop
-assert ("If any finding at or above `severity_threshold` remains unresolved, "
-        "stop and escalate regardless of `on_exhaust`") in coordinator_review_loop
 assert not list((defaults / ".apm").glob("agents/*")), "agent-defaults must not install agents"
 instructions = defaults / ".apm/instructions"
 assert {p.name for p in instructions.iterdir()} == {
@@ -1132,7 +1076,7 @@ for package, version in release_manifest.items():
     path = Path(package)
     assert (path / "version.txt").read_text().strip() == version, f"{package}: version.txt drift"
     assert yaml.safe_load((path / "apm.yml").read_text())["version"] == version, f"{package}: apm.yml drift"
-print("OK: unconditional defaults, portable router, writing policy, legacy inventory, review bootstrap, test references, and release versions.")
+print("OK: unconditional defaults, portable router, writing policy, canonical skill inventory, review bootstrap, test references, and release versions.")
 PY
 
 node --test script/validate-native-evals.test.js

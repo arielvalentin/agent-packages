@@ -40,7 +40,7 @@ function document(frontmatter) {
 test("validates all primitive types across every package, including hidden and nested paths", () => {
   const files = {};
   for (const pkg of [
-    "agent-defaults", "coordinator", "development-workflow", "code-reviewers",
+    "agent-defaults", "example-package", "development-workflow", "code-reviewers",
     "personal-agents", "future-package",
   ]) {
     for (const [kind, relative] of Object.entries(primitives)) {
@@ -64,7 +64,7 @@ test("accepts folded descriptions, optional agent fields, and CRLF headers", () 
     [`agent-defaults/${primitives.instructions}`]: document(
       `${metadata.instructions}\napplyTo: '**/*.js'`
     ),
-    [`coordinator/${primitives.skill}`]: document(
+    [`example-package/${primitives.skill}`]: document(
       "name: example\ndescription: >-\n  A folded\n  description"
     ).replaceAll("\n", "\r\n"),
   });
@@ -124,11 +124,11 @@ test("rejects unsupported YAML directives", () => {
 test("reports failures in multiple packages instead of stopping at the first file", () => {
   const result = runValidator({
     [`code-reviewers/${primitives.agent}`]: "# Missing header",
-    [`coordinator/${primitives.skill}`]: document("name: example"),
+    [`example-package/${primitives.skill}`]: document("name: example"),
   });
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stderr, /code-reviewers\/.*missing opening/);
-  assert.match(result.stderr, /coordinator\/.*description/);
+  assert.match(result.stderr, /example-package\/.*description/);
   assert.match(result.stderr, /2 primitive file\(s\) failed/);
 });
 

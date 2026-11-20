@@ -30,16 +30,12 @@ Release Please.
 
 The final deprecation release,
 [`coordinator-v0.14.0`](https://github.com/arielvalentin/agent-packages/releases/tag/coordinator-v0.14.0),
-is published. Coordinator is no longer configured for ongoing releases.
+was published before the package was removed from current `main`. The tag and
+its historical contents remain unchanged. Current `main` no longer contains
+the package or configures it for ongoing releases.
 
-Publish the coordinator deprecation warning before removing its entry from
-release automation. Keep coordinator in both release configuration and the
-release manifest until its final deprecation release is published. Then remove
-both entries in a separate PR. Preserve the package, final version files,
-published tags, and frozen skill snapshots for existing consumers.
-
-`agent-defaults` owns future shared-skill releases. Removing coordinator from
-release automation does not remove its structural or legacy behavior checks.
+`agent-defaults` owns current shared-skill releases. The coordinator's
+historical package contents remain available only through its published refs.
 
 ## Package-specific release notes
 

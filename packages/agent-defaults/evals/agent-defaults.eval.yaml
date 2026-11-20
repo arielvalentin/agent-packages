@@ -9849,6 +9849,30 @@ stimuli:
         bash:
           output: Shell execution is disabled in this text-only evaluation.
           is_error: true
+  - name: agent-defaults-case-411-row-01
+    tags:
+      suite: smoke
+      source_case: '411'
+      source_row: '1'
+    agent_environment:
+      files:
+        - src: ../.apm/skills/consensus-panel/SKILL.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      The user explicitly requests two independent reviewers for a one-line documentation change
+      that would otherwise qualify for the fast path. What JSON boolean must the caller-owned
+      explicit_multi_review field record for this intent? Answer exactly true or false.
+    graders:
+      - type: output-matches
+        name: agent-defaults-case-411-row-01-assertion-1-boolean-contract
+        config:
+          pattern: >-
+            ^\s*[*_#\x60]*[tT][*_#\x60]*[rR][*_#\x60]*[uU][*_#\x60]*[eE][*_#\x60]*[.!]?[*_#\x60]*\s*$
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
   - name: agent-defaults-case-393-row-01
     tags:
       suite: smoke

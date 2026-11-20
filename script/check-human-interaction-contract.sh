@@ -10,7 +10,6 @@ acting="$root/packages/agent-defaults/.apm/skills/acting-on-behalf/SKILL.md"
 feedback="$root/packages/agent-defaults/.apm/skills/pr-feedback-review/SKILL.md"
 lifecycle="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/SKILL.md"
 lifecycle_feedback="$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/feedback.md"
-agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 tests="$root/packages/agent-defaults/evals/agent-defaults.eval.yaml"
 
 normalize() {
@@ -338,10 +337,6 @@ require "$lifecycle_feedback" "User-typed agent reply hands off before readiness
   'An agent.s reply classified as `User` taints the chain as `HUMAN_STOP`; the next feedback snapshot must return control to the user before declaring readiness'
 require "$lifecycle_feedback" "Bot/App reply preserves metadata-based classification" \
   'A verified Bot/App reply need not taint the chain, but every item must still classify as `AUTOMATION_FLOW`'
-require "$agent" "coordinator chain taint fallback" \
-  'Treat the entire chain as `HUMAN_STOP`'
-
-
 # --- Minimal append-only disclaimer ---
 assert_eq '> _AI Assisted._' \
   "$(grep '^> _AI' "$acting")" \

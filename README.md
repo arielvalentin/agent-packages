@@ -11,7 +11,6 @@ bundles require companions; see the
 | Package | Purpose | Includes |
 | --- | --- | --- |
 | `packages/agent-defaults` | Repository-first defaults for direct execution | [Repository instructions and shared skills](packages/agent-defaults/README.md#includes), no coordinator agent |
-| `packages/coordinator` | **Deprecated coordinator agent**; compatibility and shared skills | Legacy `coordinator` agent + [reusable shared skills](packages/coordinator/README.md#includes) |
 | `packages/development-workflow` | Optional design advice + implementation | `system-architect`, `implementer` agents |
 | `packages/code-reviewers` | Performance + style reviewer workflow | `perf-reviewer`, `style-reviewer` agents + `datadog-url-router` skill |
 | `packages/personal-agents` | Curated Awesome Copilot variants without model presets | [Three agents](packages/personal-agents/README.md#includes), MIT-licensed |
@@ -30,10 +29,9 @@ agent-packages/
 
 Add one or more packages to a consumer project:
 
-Prefer direct agent execution over mandatory coordinator routing. The
-coordinator package remains available for existing consumers. Shared skills
-are not deprecated: install `agent-defaults` alongside the development and
-review agents that reference them.
+The coordinator package's final published tag remains available, but current
+`main` no longer ships that package. Prefer direct agent execution and install
+`agent-defaults` for shared skills; those skills are not deprecated.
 
 ```yaml
 dependencies:
