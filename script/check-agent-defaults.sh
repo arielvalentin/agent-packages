@@ -810,6 +810,7 @@ for rule in ("explicit_multi_review` JSON boolean",
 for rule in ("`BLOCKED`", "`DIRTY`", "`UNKNOWN`", "strict/up-to-date requirement"):
     assert rule in lifecycle_contract, f"pr-lifecycle: missing merge-state exit: {rule}"
 lifecycle_root_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+lifecycle_root_flat = " ".join(lifecycle_root_text.split())
 lifecycle_text = lifecycle_root_text + "\n" + "\n".join(
     path.read_text()
     for path in sorted((skills / "pr-lifecycle/references").glob("*.md"))
@@ -818,6 +819,19 @@ draft_entrypoint = lifecycle_root_text.split("## Existing PR entrypoint", 1)[1].
     "## Standalone waits", 1
 )[0]
 draft_entrypoint = " ".join(draft_entrypoint.split())
+assert "If Phase 6 routes directly to an existing-draft transition, read `references/readiness.md` before taking its snapshots if it has not already been read." \
+    in lifecycle_root_flat, \
+    "pr-lifecycle: direct Phase 6 transition route must require the readiness reference"
+readiness_text = (skills / "pr-lifecycle/references/readiness.md").read_text()
+draft_transition = readiness_text.split(
+    "## Existing-draft transition snapshots", 1
+)[1].split("## Phase 5", 1)[0]
+draft_transition = " ".join(draft_transition.split())
+for rule in ("every existing-draft transition require `references/readiness.md`",
+             "Follow the Existing-draft transition snapshots in `references/readiness.md`",
+             "distinct from Phase 7's readiness snapshots"):
+    assert rule in " ".join(lifecycle_root_text.split()), \
+        f"pr-lifecycle: existing-draft transition reference must be explicit: {rule}"
 draft_transition_steps = [
     "After Phase 4 checks pass, retrieve and classify all feedback through Phase 6 before the review wait",
     "only when the user or repository guidance authorizes that transition",
@@ -838,15 +852,32 @@ draft_transition_steps = [
     "gh pr ready <number> --repo <owner>/<repo>",
     "After a transition, discard all earlier readiness evidence and restart Phases 4–6",
 ]
-draft_transition_positions = [draft_entrypoint.index(step) for step in draft_transition_steps]
+draft_transition_positions = [draft_transition.index(step) for step in draft_transition_steps]
 assert draft_transition_positions == sorted(draft_transition_positions), \
     "existing draft transition must compare reviewers around refreshed checks and feedback, verify state and authorization, validate the title, and restart evidence"
-assert "Do not mark the PR ready just to trigger required checks that cannot pass while it is a draft" in draft_entrypoint, \
+assert "Do not mark the PR ready just to trigger required checks that cannot pass while it is a draft" in draft_transition, \
     "existing drafts must not be readied solely to start required checks"
+for rule in ("the head/base/base-name tuple to match Phase 4",
+             "the complete reviewer-request set using the endpoint and validation defined in Phase 5",
+             "the reviewer-request sets to remain unchanged"):
+    assert rule in draft_transition, \
+        f"existing-draft transition must preserve Phase 4 and complete reviewer-request checks: {rule}"
+for rule in ("If transition authority is absent, report the draft blocker and stop.",
+             "this path never creates or retitles the PR."):
+    assert rule in draft_entrypoint, \
+        f"existing-draft transition must remain authorized and cannot create or retitle a PR: {rule}"
 normalized_lifecycle = " ".join(lifecycle_text.split())
 assert "Do not wait for Copilot review or enter Phase 7 while the PR remains a draft" in draft_entrypoint, \
     "draft transition snapshots must be distinct from Phase 7 readiness snapshots"
-assert "after completed processing with no push or pending clarification, go directly to the existing-draft transition snapshots" in normalized_lifecycle, \
+feedback_reference_text = (skills / "pr-lifecycle/references/feedback.md").read_text()
+draft_feedback_exit = feedback_reference_text.split(
+    "For an existing draft routed from Phase 4", 1
+)[1].split("Count each draft feedback iteration", 1)[0]
+draft_feedback_exit = " ".join(draft_feedback_exit.split())
+phase6_transition_route = "after completed processing with no push or pending clarification, read `references/readiness.md` if it has not already been read, then go directly to the existing-draft transition snapshots"
+assert phase6_transition_route in draft_feedback_exit, \
+    "Phase 6's direct existing-draft route must load the readiness reference before transition snapshots"
+assert phase6_transition_route in normalized_lifecycle, \
     "completed no-push draft feedback must proceed to refreshed transition evidence instead of repeating Phase 4"
 assert "Count each draft feedback iteration toward Phase 7's 10-iteration limit" in normalized_lifecycle, \
     "draft feedback iteration must remain bounded by the lifecycle limit"
