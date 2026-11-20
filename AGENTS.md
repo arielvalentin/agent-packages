@@ -56,7 +56,7 @@ and therefore requires explicit human approval before use.
 
 ### Scope
 
-When used, the scope should be the package or directory name most affected (e.g., `coordinator`, `implementer`, `ci`).
+When used, the scope should be the package or directory name most affected (e.g., `agent-defaults`, `implementer`, `ci`).
 
 ### Rules
 
@@ -90,5 +90,5 @@ Optional scoped variant — use only when the scope materially clarifies
 which package/area is affected (e.g., not obvious from the diff):
 
 ```
-feat(coordinator): add observability validation gate for PR readiness
+feat(agent-defaults): add observability validation gate for PR readiness
 ```

@@ -42,23 +42,23 @@ separate dependencies for profiles you intend to remove.
 Pin a published commit SHA or a real `personal-agents-vX.Y.Z` tag from
 [releases](https://github.com/arielvalentin/agent-packages/releases).
 
-## Deprecated coordinator package
+## Coordinator migration
 
-The coordinator agent is deprecated. Prefer direct agent execution and remove
-mandatory coordinator routing from consumer instructions. Existing consumers
-can keep using the agent; the package remains installable, and its bundled
-shared skills are not deprecated.
+The coordinator package's final published release remains available at its
+original tag, but current `main` no longer ships the package. Existing
+consumers pinned to a published coordinator tag can continue using that
+historical release. For current package sources, migrate to `agent-defaults`.
+Prefer direct agent execution and remove mandatory coordinator routing from
+consumer instructions. The shared skills are not deprecated.
 
 Replace the coordinator dependency with `agent-defaults`. It is the canonical,
-defaults-and-skills package; the legacy coordinator retains frozen skill snapshots for
-compatibility. `development-workflow` uses
+defaults-and-skills package. `development-workflow` uses
 `handoff-envelope` and `pr-lifecycle`, and `code-reviewers` uses
 `handoff-envelope` and `consensus-panel`. All supporting shared skills are
 included in `agent-defaults`; see its [migration guidance](../packages/agent-defaults/README.md#migration-from-coordinator).
 Preserve existing public-interaction gates and caller-owned review handoffs.
-Do not install both packages unless you need the legacy agent, because their
-skill names overlap. Remove duplicate standalone dependencies such as
-`stage-pr` when intentionally choosing the defaults package's skill version.
+Remove duplicate standalone dependencies such as `stage-pr` when intentionally
+choosing the defaults package's skill version.
 
 ## Install command
 

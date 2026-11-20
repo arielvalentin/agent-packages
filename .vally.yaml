@@ -1,7 +1,6 @@
 paths:
   evals:
     - packages/agent-defaults/evals
-    - packages/coordinator/evals
     - packages/development-workflow/evals
     - packages/code-reviewers/evals
   evalFilenames: "*.eval.yaml"
@@ -14,14 +13,6 @@ suites:
       suite: smoke
   agent-defaults-full:
     evals: packages/agent-defaults/evals/agent-defaults.eval.yaml
-    filter:
-      suite: [smoke, full]
-  coordinator-smoke:
-    evals: packages/coordinator/evals/coordinator.eval.yaml
-    filter:
-      suite: smoke
-  coordinator-full:
-    evals: packages/coordinator/evals/coordinator.eval.yaml
     filter:
       suite: [smoke, full]
   development-workflow-smoke:

@@ -22,12 +22,10 @@ errors=0
 root="$(git rev-parse --show-toplevel)"
 
 panel="$root/packages/agent-defaults/.apm/skills/consensus-panel/SKILL.md"
-agent="$root/packages/coordinator/.apm/agents/coordinator.agent.md"
 loop="$root/packages/agent-defaults/.apm/skills/review-fix-loop/SKILL.md"
 envelope="$root/packages/agent-defaults/.apm/skills/handoff-envelope/SKILL.md"
 adversarial="$root/packages/agent-defaults/.apm/skills/adversarial-review/SKILL.md"
 tests="$root/packages/agent-defaults/evals/agent-defaults.eval.yaml"
-coordinator_tests="$root/packages/coordinator/evals/coordinator.eval.yaml"
 
 normalize() {
   tr '\n' ' ' <"$1" | tr -s '[:space:]' ' '
@@ -41,7 +39,7 @@ require() {
     errors=$((errors + 1))
     return
   fi
-  if [[ "$file" == "$tests" || "$file" == "$coordinator_tests" ]]; then
+  if [[ "$file" == "$tests" ]]; then
     if ! python3 - "$file" "$pattern" <<'PY'
 import sys
 import yaml
@@ -70,9 +68,10 @@ contracts = {
     "383": ("full", "Opus plus Gemini"),
     "384": ("full", "spans multiple model families"),
     "385": ("full", "exclude GPT reviewer models"),
+    "392": ("smoke", "validated explicit_multi_review boolean is true"),
     "393": ("smoke", "added as tiebreakers"),
     "396": ("smoke", "changes agent behavior"),
-    "004": ("smoke", "two independent reviewers"),
+    "411": ("smoke", "explicitly requests two independent reviewers"),
 }
 file, name = sys.argv[1:]
 suite, anchor = contracts[name.split("-case-")[1].split("-")[0]]
@@ -133,12 +132,6 @@ require "$panel" "all slots use GPT when enough choices exist" \
   'when enough suitable GPT choices exist, all three model slots are GPT'
 require "$panel" "non-GPT diversity substitution is prohibited" \
   'do not introduce a non-GPT model for diversity'
-require "$agent" "coordinator selecting exactly 2 initial panel models" \
-  'exactly \*\*2 panel models'
-require "$agent" "coordinator firing 2 parallel panel dispatches" \
-  'fire \*\*2 parallel'
-require "$agent" "coordinator prohibition on an unconditional third reviewer" \
-  'never dispatch a third reviewer unconditionally'
 
 # --- Third reviewer is conditional, independent, and capped at one ---
 require "$panel" "conditional single tiebreaker wave" \
@@ -147,17 +140,6 @@ require "$panel" "hard cap of three reviewers per panel" \
   'never dispatch a fourth reviewer'
 require "$panel" "independent tiebreaker (no wave-1 verdicts)" \
   'must \*\*not\*\* receive the wave-1 verdicts'
-require "$agent" "coordinator escalating to exactly one tiebreaker" \
-  'escalate to exactly 1 tiebreaker'
-require "$agent" "high-capability tiebreaker independent of the initial wave" \
-  'high-capability GPT model independent of'
-require "$agent" "coordinator non-GPT fallback policy" \
-  'non-GPT model only for a slot that (the )?available suitable GPT choices cannot fill'
-if normalize "$agent" | grep -Eiq -- \
-  'Consensus panel .*initial wave .{1,80} Cross-family diversity'; then
-  echo "ERROR: ${agent#"$root/"}: stale mandatory cross-family initial-wave model selection"
-  errors=$((errors + 1))
-fi
 
 # --- All five escalation triggers are documented ---
 for trigger in \
@@ -176,8 +158,6 @@ require "$panel" "immediate synthesis when the initial wave agrees" \
   'synthesize immediately'
 require "$panel" "explicit no-op rationale for the skipped tiebreaker" \
   'a third reviewer cannot change the outcome'
-require "$agent" "coordinator synthesizing immediately without a third" \
-  'without waiting for a third'
 
 # --- Synthesis rules cover both the escalated and non-escalated paths ---
 require "$panel" "majority-per-axis synthesis for the escalated path" \
@@ -192,8 +172,6 @@ require "$panel" "reduced-confidence failure handling" \
   'reduced-confidence'
 require "$panel" "evidence of which trigger fired in the report" \
   'escalated: yes\|no'
-require "$agent" "coordinator synthesis covering both paths" \
-  'majority-per-axis when escalated'
 
 # --- Single-reviewer fast path for non-code and tiny scopes ---
 require "$panel" "scope classification running before model selection" \
@@ -248,22 +226,6 @@ require "$panel" "explicit multi-review retaining panel escalation triggers" \
   'including a fast-path-exempt scope selected for a panel by .explicit_multi_review: true.'
 require "$panel" "major findings triggering a tiebreaker in any panel mode" \
   'a .blocker. or .major. finding always triggers one tiebreaker in panel mode, regardless of file type or size'
-require "$agent" "coordinator single-reviewer fast path requires false explicit intent" \
-  'single-reviewer fast path \(.explicit_multi_review: false.\)'
-require "$agent" "coordinator dispatching exactly one fast-path reviewer" \
-  'exactly one\*\* mid- or high-capability reviewer'
-require "$agent" "coordinator dispatching panels for substantive or explicit multi-review scopes" \
-  'adaptive 2\+1 panel \(substantive changes or explicit multi-review\)'
-require "$agent" "coordinator explicit multi-review overriding fast-path scope" \
-  'true .explicit_multi_review. value selects the panel before this fast-path check'
-require "$agent" "coordinator explicit multi-review overriding single-model roles" \
-  'a .true. value overrides that designation and selects the adaptive panel regardless of role or scope'
-if [[ "$(grep -Fc 'explicit_multi_review: <caller-derived JSON boolean>' "$agent" || true)" -ne 5 ]]; then
-  echo "ERROR: $agent: every review-fix-loop handoff must carry explicit_multi_review"
-  errors=$((errors + 1))
-fi
-require "$coordinator_tests" "coordinator regression for explicit multi-review on documentation" \
-  'coordinator-case-004-row-01'
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   're-classify the scope at the start of every cycle'
 require "$loop" "explicit multi-review preserving the panel on every fix cycle" \
@@ -294,6 +256,10 @@ require "$tests" "regression for omitted intake finding" \
   'agent-defaults-case-324-row-01'
 require "$tests" "regression for explicit multi-review persisting to post-fix panel" \
   'agent-defaults-case-157-row-01'
+require "$tests" "regression for explicit true initial panel size" \
+  'agent-defaults-case-392-row-01'
+require "$tests" "regression for user-requested multi-review intent" \
+  'agent-defaults-case-411-row-01'
 require "$tests" "regression for tiny behavior-defining Markdown changes" \
   'agent-defaults-case-396-row-01'
 require "$tests" "regression for warn exhaustion with intake blockers" \
@@ -363,8 +329,6 @@ require "$root/packages/agent-defaults/.apm/skills/pr-lifecycle/references/readi
   'sole unmet requirement is an already-requested Copilot review that Phase 5 can process'
 require "$panel" "total confidence rule" \
   'otherwise the \*\*lowest\*\* value among the valid responses'
-require "$agent" "coordinator deferring to canonical scope definitions" \
-  'operational definitions'
 require "$adversarial" "standalone adversarial review deferring to consensus-panel as the source of truth" \
   'invoke[[:space:][:punct:]]+consensus-panel[[:space:][:punct:]]+first.{0,120}single source of truth'
 require "$adversarial" "standalone adversarial review delegating the canonical review contract" \

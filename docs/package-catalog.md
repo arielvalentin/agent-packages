@@ -36,34 +36,6 @@ companions; `agent-defaults-v0.1.0` does not include `writing-voice`.
 - Consumers: install alongside development and review agents that reference
   its skills; no mandatory coordinator routing
 
-## coordinator
-
-- Path: `packages/coordinator`
-- Manifest: `packages/coordinator/apm.yml`
-- Status: the coordinator agent is deprecated; the package remains installable
-  for compatibility, and its shared skills are not deprecated
-- Purpose: legacy orchestration and governance flow, with frozen shared-skill
-  compatibility snapshots; new skill changes belong in `agent-defaults`
-- Primitives:
-  - Agent: `coordinator`
-  - Skills:
-    - `acting-on-behalf`
-    - `adversarial-review`
-    - `consensus-panel`
-    - `handoff-envelope`
-    - `human-interaction-safeguard`
-    - `pr-feedback-review`
-    - `pr-lifecycle`
-    - `pr-review-protocol`
-    - `resolve-github-user`
-    - `review-fix-loop`
-    - `stage-pr`
-    - `tech-research`
-
-Prefer direct agent execution instead of mandatory coordinator routing.
-Replace this dependency with `agent-defaults`; see
-[compatibility and migration](../packages/coordinator/README.md#compatibility-and-migration).
-
 ## development-workflow
 
 - Path: `packages/development-workflow`

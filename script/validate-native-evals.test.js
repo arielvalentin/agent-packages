@@ -168,27 +168,36 @@ test("native fixture drift is rejected through aliases and cross-package inputs"
   state.stimuli[0].agent_environment.files[0].src = `./fixtures/${fixtureName}`;
   state.save();
   assert.deepEqual(validateNativeSuite(state.root, "agent-defaults", "full").errors, []);
-  const coordinatorFile = path.join(state.root, "packages/coordinator/evals/coordinator.eval.yaml");
-  fs.mkdirSync(path.dirname(coordinatorFile), { recursive: true });
-  const coordinatorStimulus = structuredClone(state.stimuli[0]);
-  coordinatorStimulus.name = "coordinator-case";
-  delete coordinatorStimulus.tags.diagnostic;
-  coordinatorStimulus.agent_environment.files[0].src =
+  const companionFile = path.join(
+    state.root,
+    "packages/development-workflow/evals/development-workflow.eval.yaml"
+  );
+  fs.mkdirSync(path.dirname(companionFile), { recursive: true });
+  const companionStimulus = structuredClone(state.stimuli[0]);
+  companionStimulus.name = "development-workflow-case";
+  delete companionStimulus.tags.diagnostic;
+  companionStimulus.agent_environment.files[0].src =
     `../../agent-defaults/evals/fixtures/${fixtureName}`;
-  fs.writeFileSync(coordinatorFile, yaml.dump({ name: "coordinator", stimuli: [coordinatorStimulus] }));
-  assert.deepEqual(validateNativeSuite(state.root, "coordinator", "full").errors, []);
+  fs.writeFileSync(
+    companionFile,
+    yaml.dump({ name: "development-workflow", stimuli: [companionStimulus] })
+  );
+  assert.deepEqual(validateNativeSuite(state.root, "development-workflow", "full").errors, []);
   fs.appendFileSync(path.join(state.root, source), "drift");
-  for (const packageName of ["agent-defaults", "coordinator"]) {
+  for (const packageName of ["agent-defaults", "development-workflow"]) {
     assert.match(validateNativeSuite(state.root, packageName, "full").errors.join("\n"),
       /differs from its canonical composition/);
   }
   const untracked = path.join(state.root, "packages/agent-defaults/evals/fixtures/nested/untracked.md");
   fs.mkdirSync(path.dirname(untracked), { recursive: true });
   fs.writeFileSync(untracked, "untracked");
-  coordinatorStimulus.agent_environment.files[0].src =
+  companionStimulus.agent_environment.files[0].src =
     "../../agent-defaults/evals/fixtures/nested/untracked.md";
-  fs.writeFileSync(coordinatorFile, yaml.dump({ name: "coordinator", stimuli: [coordinatorStimulus] }));
-  assert.match(validateNativeSuite(state.root, "coordinator", "full").errors.join("\n"),
+  fs.writeFileSync(
+    companionFile,
+    yaml.dump({ name: "development-workflow", stimuli: [companionStimulus] })
+  );
+  assert.match(validateNativeSuite(state.root, "development-workflow", "full").errors.join("\n"),
     /Missing fixture provenance/);
 });
 
@@ -481,8 +490,8 @@ test("native skill aggregates require their children to agree in both directions
 
 test("the same stimulus identity cannot enable diagnostics in another package", (t) => {
   const state = fixture(t);
-  const target = "packages/coordinator/evals/coordinator.eval.yaml";
-  fs.mkdirSync(path.join(state.root, "packages/coordinator/evals"), { recursive: true });
+  const target = "packages/development-workflow/evals/development-workflow.eval.yaml";
+  fs.mkdirSync(path.join(state.root, "packages/development-workflow/evals"), { recursive: true });
   const stimulus = structuredClone(state.stimuli[0]);
   delete stimulus.tags.diagnostic;
   stimulus.agent_environment.files[0].src = `../../agent-defaults/${policyFile.split("/").slice(2).join("/")}`;
@@ -492,7 +501,7 @@ test("the same stimulus identity cannot enable diagnostics in another package", 
   failed.itemId = `${target}::default::_::${stimulus.name}::trial-0`;
   const end = summary(false, 1);
   end.evals[0].evalFilePath = target;
-  const result = validateRun(state.root, "coordinator", "full", [failed, end]);
+  const result = validateRun(state.root, "development-workflow", "full", [failed, end]);
   assert.equal(result.diagnostics.length, 0);
   assert.match(result.errors.join("\n"), /failed required graders/);
 });

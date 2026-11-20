@@ -8,7 +8,6 @@ const { fixtureContent, isManagedFixture, isPolicyInput } = require("./native-ev
 
 const PACKAGES = new Set([
   "agent-defaults",
-  "coordinator",
   "development-workflow",
   "code-reviewers",
 ]);

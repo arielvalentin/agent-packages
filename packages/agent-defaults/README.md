@@ -156,13 +156,19 @@ alongside development/review agents that reference this skill.
 
 Replace the coordinator dependency with `agent-defaults` and remove mandatory
 coordinator routing from consumer instructions. Preserve public-interaction
-gates and caller-owned review handoff fields. The legacy coordinator package
-retains frozen skill snapshots for compatibility; this package is the canonical
-source for future shared-skill changes.
+gates and caller-owned review handoff fields. The coordinator package's final
+published tag remains available, but current `main` no longer ships the
+package. This is the canonical source for shared-skill changes.
 
-Do not install both packages unless you need the legacy agent: their skill
-names overlap. Remove a separate `stage-pr` dependency if it duplicates the
-skill supplied here, and use this package's version intentionally.
+The coordinator's mandatory delegation, fixed one-to-three clarification
+questions, design and implementation approval checkpoints, and blanket
+pre-PR observability review are retired. Work directly or use the conditional
+implementer delegation described in the repository-work instructions. Continue
+to follow applicable authorization, clarification, repository approval, and
+observability requirements.
+
+Remove a separate `stage-pr` dependency if it duplicates the skill supplied
+here, and use this package's version intentionally.
 
 ## Safeguards
 
