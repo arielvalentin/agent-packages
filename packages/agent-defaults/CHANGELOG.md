@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.7.0...agent-defaults-v0.8.0) (2026-11-19)
+
+
+### Features
+
+* improve agent guidance and migrate evaluations ([#101](https://github.com/arielvalentin/agent-packages/issues/101)) ([0cb804c](https://github.com/arielvalentin/agent-packages/commit/0cb804c2d98ee574222b120696762eaf85cacd57))
+* simplify human interaction confirmation ([7dbf9c7](https://github.com/arielvalentin/agent-packages/commit/7dbf9c78767646d89974fe9f16675af1e95c332e)), closes [#114](https://github.com/arielvalentin/agent-packages/issues/114)
+
+
+### Bug Fixes
+
+* align draft PR quoting with grader ([#110](https://github.com/arielvalentin/agent-packages/issues/110)) ([b6a302d](https://github.com/arielvalentin/agent-packages/commit/b6a302d1758e041cacbcf2cf706a90fd4ec97560))
+* clarify selected SHA lifecycle terminology ([#109](https://github.com/arielvalentin/agent-packages/issues/109)) ([323a326](https://github.com/arielvalentin/agent-packages/commit/323a32630e1214e3cc3f1719d989e1d8eea18fb8))
+* defer draft PR creation until local review passes ([faafa8b](https://github.com/arielvalentin/agent-packages/commit/faafa8bcefb9e04eccdf26809de29676e00b959b))
+* exempt verified self-authored review comments ([8763c5d](https://github.com/arielvalentin/agent-packages/commit/8763c5ddcf1d5c95c299d9435eabc9bad553c04b)), closes [#114](https://github.com/arielvalentin/agent-packages/issues/114)
+* harden Vally command validation ([#108](https://github.com/arielvalentin/agent-packages/issues/108)) ([92dc1bf](https://github.com/arielvalentin/agent-packages/commit/92dc1bf8d8fe7d25a6f7aed5de38e45c454127f9))
+* keep shared skill examples portable ([8afa125](https://github.com/arielvalentin/agent-packages/commit/8afa1253ec49d5e930e45b9ebe691c0e1963f1f7))
+* quarantine flaky eval assertions ([#112](https://github.com/arielvalentin/agent-packages/issues/112)) ([3b6ea04](https://github.com/arielvalentin/agent-packages/commit/3b6ea04e4be230aeb7bc47323704b4730ddee054))
+* reduce PR workflow orchestration overhead ([bb3c376](https://github.com/arielvalentin/agent-packages/commit/bb3c37630eb1def3551ae45f3600fd4201bbf912))
+* stabilize Vally behavioral evaluations ([#107](https://github.com/arielvalentin/agent-packages/issues/107)) ([2bac342](https://github.com/arielvalentin/agent-packages/commit/2bac342d0b41b859c0b1e203a7b80130f087628a))
+
 ## [0.7.0](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.6.0...agent-defaults-v0.7.0) (2026-11-04)
 
 
