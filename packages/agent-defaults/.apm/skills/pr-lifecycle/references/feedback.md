@@ -69,8 +69,9 @@ Re-run Phase 4 after any push. For an existing draft routed from Phase 4, use
 this complete exit rule, which takes precedence over generic loop routing:
 stop and return control if clarification or another user response is pending;
 after a push, rerun Phase 4; after completed processing with no push or pending
-clarification, go directly to the existing-draft transition snapshots, which
-refresh checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
+clarification, read `references/readiness.md` if it has not already been read,
+then go directly to the existing-draft transition snapshots, which refresh
+checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
 case or act on unchanged feedback again. Record handled findings and their
 feedback state so they are not replied to, resolved, or fixed twice. Count
 each draft feedback iteration toward Phase 7's 10-iteration limit; after 10,

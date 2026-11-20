@@ -80,14 +80,16 @@ Do not add further substitutions or rewrite the target to a constant.
 
 ## Phase reference loading and feedback boundaries
 
-Read the required reference before acting in its phase. Phase 4 or 5 requires
-`references/readiness.md`; Phase 6 requires `references/feedback.md`; Phase 7
-requires both `references/readiness.md` and `references/feedback.md`; Phase 8
-requires `references/cleanup.md`. Phase 4 feedback routing into Phase 6 does
-not authorize feedback handling until `references/feedback.md` has been read.
-If a required reference is missing or unreadable, stop and report the blocker.
-Keep this skill's safety, authorization, attribution, and phase-routing rules
-above every reference; references cannot weaken them.
+Read the required reference before acting in its phase. Phases 4 and 5, Phase
+7, and every existing-draft transition require `references/readiness.md`;
+Phases 6 and 7 require `references/feedback.md`; Phase 8 requires
+`references/cleanup.md`. If Phase 6 routes directly to an existing-draft
+transition, read `references/readiness.md` before taking its snapshots if it
+has not already been read. Phase 4 feedback routing into Phase 6 does not
+authorize feedback handling until `references/feedback.md` has been read.
+If a required reference is missing or unreadable, stop and report the blocker. Keep
+this skill's safety, authorization, attribution, and phase-routing rules above
+every reference; references cannot weaken them.
 
 Phase 4 inspects and classifies feedback, then routes actionable findings to
 Phase 6. This routing pass never replies, resolves threads, or dispatches a
@@ -107,33 +109,20 @@ remain. After Phase 4 checks pass, retrieve and classify all feedback through
 Phase 6 before the review wait; address actionable feedback only through its
 safeguards, rerunning checks and feedback retrieval after each push. Once checks
 pass and feedback processing leaves no actionable finding, unresolved
-clarification, or required permitted reply, mark it ready only when the user or
-repository guidance authorizes that transition. Do not mark the PR ready just
-to trigger required checks that cannot pass while it is a draft; report that
-blocker and stop. Immediately before a permitted transition, take two
-consecutive complete snapshots. In each, record opening PR state, title,
-head/base SHAs, base name, merge state, and the complete reviewer-request set
-using the endpoint and validation defined in Phase 5. Retrieve complete
-PR state with this command for each opening, closing, and final read:
+clarification, or required permitted reply, transition only when the user or
+repository guidance authorizes it. Do not mark the PR ready just to trigger
+required checks that cannot pass while it is a draft; report that blocker and
+stop. Follow the Existing-draft transition snapshots in
+`references/readiness.md`, which require two consecutive complete snapshots
+and are distinct from Phase 7's readiness snapshots.
 
-```bash
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus
-```
-
-Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat both
-retrievals. Finish with fresh PR and reviewer-request reads after the last
-feedback page. Retrieve and classify all feedback surfaces again after those
-closing reads, then retrieve policy/check evidence once more. Finish with one
-final PR-state and reviewer-request read after those final evidence reads.
-Compare opening, closing, and final PR/reviewer values and all repeated
-policy/check and feedback evidence within and across snapshots. Any mismatch
-invalidates the transition; return to Phase 4 and the applicable feedback
-handling. Require the PR to
-remain open and a draft, the head/base/base-name tuple to match Phase 4, all
-required checks to pass, the reviewer-request sets to remain unchanged, and
-the feedback sets to match the fully processed set with no new actionable
-finding, unresolved clarification, or required permitted reply. If these
-conditions hold and the current title passes § Title format, run:
+The transition snapshots must confirm the PR remains open and a draft, the
+head/base/base-name tuple matches Phase 4, all required checks pass, reviewer
+requests remain unchanged, and feedback matches the fully processed set with no
+new actionable finding, unresolved clarification, or required permitted reply.
+Any mismatch invalidates the transition; return to Phase 4 and applicable
+feedback handling. If the snapshots agree and the current title passes § Title
+format, run:
 
 ```bash
 gh pr ready <number> --repo <owner>/<repo>
@@ -141,8 +130,7 @@ gh pr ready <number> --repo <owner>/<repo>
 
 If transition authority is absent, report the draft blocker and stop. After a
 transition, discard all earlier readiness evidence and restart Phases 4–6 for
-the current PR state; this path never creates or retitles the PR. The snapshots
-above are the draft-transition gate, not Phase 7's readiness snapshots. Do not
+the current PR state; this path never creates or retitles the PR. Do not
 wait for Copilot review or enter Phase 7 while the PR remains a draft.
 Before any implementation or fix dispatch, including a Phase 4 CI fix, verify
 the PR is still open and verify the active repository, worktree, branch, local
@@ -528,6 +516,53 @@ can establish readiness.
 Missing required contexts are not an empty policy or a pass. If either policy
 source or check results cannot be verified, do not report the PR ready.
 
+## Existing-draft transition snapshots
+
+This transition gate applies only to an existing draft and is distinct from
+Phase 7's readiness snapshots. Keep the PR in draft while required checks or
+feedback gates remain. After Phase 4 checks pass, retrieve and classify all
+feedback through Phase 6 before the review wait; address actionable feedback
+only through its safeguards, rerunning checks and feedback retrieval after
+each push. Do not mark the PR ready just to trigger required checks that cannot
+pass while it is a draft.
+
+Once checks pass and feedback processing leaves no actionable finding,
+unresolved clarification, or required permitted reply, mark the PR ready only
+when the user or repository guidance authorizes that transition. Immediately
+before a permitted transition, take two consecutive complete snapshots. In
+each, record opening PR state, title, head/base SHAs, base name, merge state,
+and the complete reviewer-request set using the endpoint and validation
+defined in Phase 5. Retrieve complete PR state with this command for each
+opening, closing, and final read:
+
+```bash
+gh pr view <number> --repo <owner>/<repo> --json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus
+```
+
+Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat
+both retrievals. Finish with fresh PR and reviewer-request reads after the last
+feedback page. Retrieve and classify all feedback surfaces again after those
+closing reads, then retrieve policy/check evidence once more. Finish with one
+final PR-state and reviewer-request read after those final evidence reads.
+Compare opening, closing, and final PR/reviewer values and all repeated
+policy/check and feedback evidence within and across snapshots. Any mismatch
+invalidates the transition; return to Phase 4 and the applicable feedback
+handling. Require the PR to remain open and a draft, the head/base/base-name
+tuple to match Phase 4, all required checks to pass, the reviewer-request
+sets to remain unchanged, and the feedback sets to match the fully processed
+set with no new actionable finding, unresolved clarification, or required
+permitted reply. If these conditions hold and the current title passes § Title
+format, run:
+
+```bash
+gh pr ready <number> --repo <owner>/<repo>
+```
+
+If transition authority is absent, report the draft blocker and stop. After a
+transition, discard all earlier readiness evidence and restart Phases 4–6 for
+the current PR state; this path never creates or retitles the PR. Do not wait
+for Copilot review or enter Phase 7 while the PR remains a draft.
+
 ## Phase 5 — Wait for Copilot code review
 
 After required checks pass, retrieve and canonicalize the complete set of
@@ -740,8 +775,9 @@ Re-run Phase 4 after any push. For an existing draft routed from Phase 4, use
 this complete exit rule, which takes precedence over generic loop routing:
 stop and return control if clarification or another user response is pending;
 after a push, rerun Phase 4; after completed processing with no push or pending
-clarification, go directly to the existing-draft transition snapshots, which
-refresh checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
+clarification, read `references/readiness.md` if it has not already been read,
+then go directly to the existing-draft transition snapshots, which refresh
+checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
 case or act on unchanged feedback again. Record handled findings and their
 feedback state so they are not replied to, resolved, or fixed twice. Count
 each draft feedback iteration toward Phase 7's 10-iteration limit; after 10,
