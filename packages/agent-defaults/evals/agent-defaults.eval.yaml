@@ -10467,3 +10467,25 @@ stimuli:
         web_search:
           output: Network access is disabled in this evaluation.
           is_error: true
+  - name: agent-defaults-case-411-row-01
+    tags:
+      suite: full
+      source_case: '411'
+      source_row: '1'
+    agent_environment:
+      files:
+        - src: ../.apm/skills/acting-on-behalf/SKILL.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      A service bot posts with its own app credentials. Its public comment says `on behalf of
+      @octocat`. Is the AI-assistance disclaimer required? Reply with exactly `Yes` or `No`.
+    graders:
+      - type: output-matches
+        name: agent-defaults-case-411-row-01-a1-exact-yes
+        config:
+          pattern: ^\s*[yY][eE][sS][.!]?\s*$
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
