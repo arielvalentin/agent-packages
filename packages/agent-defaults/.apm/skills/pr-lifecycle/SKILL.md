@@ -288,7 +288,7 @@ Commits defaults for titles created or updated in Phase 3:
 | Missing tool | Fallback |
 |-------------|----------|
 | `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
-| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. In full Phase 4, poll the selected SHA's check-run and status APIs every 30 seconds for up to 10 minutes; never use `gh pr checks` as the required-check gate |
+| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. For full Phase 4, follow the bounded SHA-specific polling procedure in `references/readiness.md`; never use `gh pr checks` as the required-check gate |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites

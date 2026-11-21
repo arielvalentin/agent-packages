@@ -154,6 +154,111 @@ for path in (pr_lifecycle_root, readiness_reference):
     assert "never replies, resolves" in phase4_boundary \
         and "dispatches a feedback fix" in phase4_boundary, \
         f"{path}: Phase 4 routing must not reply, resolve, or dispatch feedback"
+readiness_text = readiness_reference.read_text()
+phase4_text = readiness_text.split("## Phase 4 — Monitor CI", 1)[1].split(
+    "## Phase 5", 1
+)[0]
+phase4_flat = " ".join(phase4_text.split()).lower()
+for rule in (
+    "at phase 4 entry, start one absolute 10-minute deadline before fetching either policy source or retrying tuple/policy stabilization",
+    "this same deadline covers initial policy reads, every policy revalidation, any empty-to-nonempty transition, and required-check polling",
+    "if policy cannot be verified before the deadline, stop and report policy unknown",
+):
+    assert rule in phase4_flat, f"pr-lifecycle: missing Phase 4 deadline contract: {rule}"
+assert phase4_flat.index("start one absolute 10-minute deadline") < phase4_flat.index(
+    "before fetching policy, record the exact pr tuple"
+), "pr-lifecycle: deadline must start before initial policy fetching"
+poll_start = phase4_text.index("Use the original deadline for initial policy retrieval")
+poll_end = phase4_text.index("For check runs, only completed conclusions", poll_start)
+polling = " ".join(phase4_text[poll_start:poll_end].split()).lower()
+polling_steps = (
+    "tuple refreshes and cycle restarts do not reset or extend it",
+    "wait exactly 30 seconds between evidence cycles",
+    "perform the same complete polling and tuple-revalidation procedure below within that original deadline",
+    "discard the previous poll's results",
+    "refresh and record the exact current pr tuple: `headrefoid`",
+    "refresh both policy sources for the current `baserefname` on every evidence cycle, even when the tuple is unchanged",
+    "re-read the pr tuple after both reads",
+    "if any tuple member changed during the refresh, discard both policy responses and repeat both reads",
+    "compare the full policy snapshot from both sources and the stable tuple with the currently bound policy snapshot before retrieving or classifying check evidence",
+    "if the policy snapshot changes while the tuple remains stable, discard all prior evidence",
+    "bind the refreshed policy only to its stable tuple",
+    "retrieve all pages of check runs and commit statuses for both candidate shas",
+    "request check runs with `filter=all`",
+    "select exactly one governing sha",
+    "retrieve all pages of workflow runs filtered by `head_sha=<selected-sha>`",
+    "after fetching the workflow-run evidence, close the cycle by re-reading the pr tuple and refreshing classic branch protection and every applicable effective-ruleset page",
+    "read both policy sources even when all three tuple members still match the opening tuple",
+    "re-read the pr tuple after those policy reads",
+    "compare the closing `headrefoid`, `baserefoid`, and `baserefname` with the opening tuple",
+    "compare the full closing policy snapshot with the policy snapshot bound before evidence retrieval",
+    "the full snapshot includes the required contexts and producer pins, classic and ruleset strict/up-to-date values, and applicable rules that make workflow verification unsupported",
+    "any tuple or policy change invalidates all check, status, and workflow evidence from the cycle",
+    "discard it, stabilize both policy sources against the current tuple as in step 1",
+    "bind the refreshed policy only to that stable tuple",
+    "if closing revalidation changes an empty policy to nonempty, enter ordinary bounded 30-second polling",
+    "including when `baserefname` changed",
+    "if the closing tuple and full policy snapshot match the opening binding and the set remains empty, the current evidence cycle is complete",
+    "classify its results and do not repeat the one-shot in this stable case",
+    "repeat an empty-policy one-shot only when a tuple or policy change invalidates the current evidence cycle",
+    "stabilize and bind the current policy to the current tuple before restarting",
+    "if the refreshed set is nonempty, use ordinary bounded 30-second polling",
+    "only after the closing tuple and full policy snapshot match their opening bindings may results be classified",
+    "never combine results from different shas or different polling cycles",
+    "do not use `gh pr checks` or the pr rollup as the required-check gate",
+    "at the original 10-minute deadline, if policy is unverified, unstable, or not bound to the current tuple, report policy unknown and stop",
+    "report ci as pending only when the current policy and tuple are verified and required contexts remain pending",
+    "a verified empty policy may use its stable one-shot path",
+)
+missing_polling_steps = [step for step in polling_steps if step not in polling]
+assert not missing_polling_steps, \
+    f"pr-lifecycle: missing ordered polling steps: {missing_polling_steps}"
+polling_positions = [polling.index(step) for step in polling_steps]
+assert polling_positions == sorted(polling_positions), \
+    f"pr-lifecycle: bounded SHA polling steps must stay ordered in the Phase 4 procedure: {list(zip(polling_steps, polling_positions))}"
+policy_setup = " ".join(phase4_text[:poll_start].split()).lower()
+for rule in ("before fetching policy, record the exact pr tuple `headrefoid`, `baserefoid`, and `baserefname`",
+             "after both policy sources are fetched, re-read the pr tuple",
+             "if any member changed during the fetch, discard the policy and repeat both source reads",
+             "bind the verified policy to the exact stable tuple used to retrieve it"):
+    assert rule in policy_setup, f"pr-lifecycle: missing initial policy binding: {rule}"
+assert "for a ci-only wait, use `watch-ci` when available" not in phase4_text.lower(), \
+    "pr-lifecycle: Phase 4 must not unconditionally prescribe watch-ci"
+for rule in (
+    "if revalidation changes an empty policy to nonempty, discard the empty-policy evidence and enter ordinary 30-second bounded polling",
+    "including when the base name changed",
+    "an empty set skips waiting only when policy and tuple remain current",
+):
+    assert rule in polling, f"pr-lifecycle: missing empty-to-nonempty contract: {rule}"
+empty_policy = " ".join(
+    phase4_text.lower().split("if both policy sources are verified and the set is empty", 1)[1]
+    .split("for check runs, only completed conclusions", 1)[0]
+    .split()
+).lower()
+for rule in (
+    "perform one complete evidence cycle and skip only repeated waiting",
+    "revalidating both policy sources even when the tuple is unchanged",
+    "comparing the full policy snapshot and tuple with the bound policy",
+    "validating the closing tuple before classifying any results",
+    "if the tuple changes during policy revalidation, discard both responses and stabilize both sources again within the same deadline",
+    "bind the current policy to the stable tuple before retrieving evidence",
+    "if the closing tuple and full policy snapshot match the opening binding and the set remains empty, the current evidence cycle is complete",
+    "classify its results and do not repeat the one-shot in this stable case",
+    "repeat an empty-policy one-shot only when a tuple or policy change invalidates the current evidence cycle",
+    "stabilize and bind the current policy to the current tuple before restarting",
+    "if any tuple member changes during the one-shot evidence cycle, discard its results and restart policy revalidation within the same deadline",
+    "if the refreshed policy is still empty, repeat a fresh one-shot cycle; if it is nonempty, enter ordinary 30-second polling",
+    "never classify stale results as optional or ready",
+):
+    assert rule in empty_policy, \
+        f"pr-lifecycle: empty-policy evidence must be tuple-bound: {rule}"
+assert "if it remains empty, repeat the one-shot evidence cycle" not in polling, \
+    "pr-lifecycle: stable empty-policy validation must not repeat the one-shot"
+assert "if it remains empty, repeat the one-shot evidence cycle" not in empty_policy, \
+    "pr-lifecycle: stable empty-policy validation must not repeat the one-shot"
+assert "including the initial inspection and the empty-policy one-shot inspection" in \
+    " ".join(phase4_text.split()).lower(), \
+    "pr-lifecycle: initial and empty-policy inspections must use evidence cycles"
 pr_lifecycle_text = pr_lifecycle_root.read_text() + "\n" + "\n".join(
     path.read_text() for path in sorted((pr_lifecycle_dir / "references").glob("*.md"))
 )

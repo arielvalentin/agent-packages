@@ -288,7 +288,7 @@ Commits defaults for titles created or updated in Phase 3:
 | Missing tool | Fallback |
 |-------------|----------|
 | `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
-| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. In full Phase 4, poll the selected SHA's check-run and status APIs every 30 seconds for up to 10 minutes; never use `gh pr checks` as the required-check gate |
+| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. For full Phase 4, follow the bounded SHA-specific polling procedure in `references/readiness.md`; never use `gh pr checks` as the required-check gate |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites
@@ -690,8 +690,17 @@ changed head invalidates prior results and requires one owner for the new head.
 
 After every push, refresh the PR head and required-check policy. Inspect the
 base branch's protection settings and all active rules that apply to it, even
-when `gh pr checks --required` reports checks. Read classic branch-protection
-checks and effective rules for the base branch:
+when `gh pr checks --required` reports checks.
+
+At Phase 4 entry, start one absolute 10-minute deadline before fetching either
+policy source or retrying tuple/policy stabilization. This same deadline
+covers initial policy reads, every policy revalidation, any empty-to-nonempty
+transition, and required-check polling; never reset or extend it. If policy
+cannot be verified before the deadline, stop and report policy unknown.
+
+Before fetching policy, record the exact PR tuple `headRefOid`, `baseRefOid`,
+and `baseRefName`. Read classic branch-protection checks and effective rules
+for that base branch:
 
 ```bash
 gh api "repos/<owner>/<repo>/branches/<url-encoded-base>/protection/required_status_checks"
@@ -733,6 +742,12 @@ applicable ruleset includes a rule with `type: "workflows"`, do not treat the
 status-check set as complete or empty: this procedure does not evaluate those
 separate workflow requirements. Stop and report that required-workflow
 verification as unsupported rather than reporting readiness.
+
+After both policy sources are fetched, re-read the PR tuple. If any member
+changed during the fetch, discard the policy and repeat both source reads for
+the current tuple. Bind the verified policy to the exact stable tuple used to
+retrieve it, including when the required set is empty. Do not evaluate checks
+using an unbound policy.
 
 Capture the PR head and base, resolve the generated test-merge commit, verify
 its parents, and retrieve check runs and commit statuses for both candidate
@@ -787,19 +802,105 @@ apply this event restriction to checks created by another GitHub App; match
 those by the configured producer instead. If an Actions run
 or its event cannot be verified, treat that result as unavailable, not passing.
 
-If the required set is nonempty, wait up to 10 minutes for the selected SHA's
-policy-derived contexts. Use `watch-ci` only if it can monitor that exact SHA
-and report the required contexts with producer identity; otherwise, poll the
-check-run, commit-status, and applicable workflow-run APIs for the selected SHA
-every 30 seconds. Refresh the candidate results and reselect the governing SHA
-during each poll. Do not
-use `gh pr checks` or the PR rollup as the required-check gate because those
-results may describe only the head. A timeout leaves CI pending: report it and
-stop without claiming readiness. Do not use an unbounded `--watch`. If both
-policy sources are verified and the set is empty, skip required-check waiting
-and inspect all current results once. A recognized no-checks response does not
-by itself mean either an empty policy or an API failure; authentication,
-access, and other command errors remain blockers.
+Use the original deadline for initial policy retrieval and all stabilization
+retries. Tuple refreshes and cycle restarts do not reset or extend it. The
+initial result inspection is the first evidence cycle below. For
+a nonempty required set, wait exactly 30 seconds between evidence cycles,
+including cycles restarted after a tuple or policy change. If less than 30
+seconds remain, wait only until the original deadline and stop without
+starting another cycle. Use `watch-ci` only if it can perform the same
+complete polling and tuple-revalidation procedure below within that original
+deadline, monitor the selected SHA, and report required contexts with producer
+identity; otherwise poll the APIs directly.
+
+For each evidence cycle, including the initial inspection and the empty-policy
+one-shot inspection:
+
+1. Discard the previous poll's results. Refresh and record the exact current
+   PR tuple: `headRefOid`, `baseRefOid`, and `baseRefName`. Refresh both policy
+   sources for the current `baseRefName` on every evidence cycle, even when
+   the tuple is unchanged. Re-read the PR tuple after both reads. If any tuple
+   member changed during the refresh, discard both policy responses and repeat
+   both reads for the current tuple within the original deadline; do not
+   retrieve check evidence using an unstable policy. Otherwise, compare the
+   full policy snapshot from both sources and the stable tuple with the
+   currently bound policy snapshot before retrieving or classifying check
+   evidence. If the policy snapshot changes while the tuple remains stable,
+   discard all prior evidence, bind the refreshed policy only to its stable
+   tuple, and start a fresh cycle within the original deadline. If either the
+   policy snapshot or tuple differs from the currently bound snapshot, discard
+   prior evidence and start a fresh cycle with the stable binding. A stable
+   tuple does not make changed policy current. If revalidation changes an
+   empty policy to nonempty, discard the empty-policy evidence and enter
+   ordinary 30-second bounded polling, including when the base name changed;
+   never stop or classify against the empty snapshot. Resolve the test-merge
+   commit, verify its parents, and retrieve all pages of check runs and commit
+   statuses for both candidate SHAs using the initial API requests above.
+   Request check runs with `filter=all`.
+2. Select exactly one governing SHA using the same merge-first rule above.
+   Retrieve all pages of workflow runs filtered by `head_sha=<selected-sha>`
+   for Actions check-run event and producer verification, as applicable.
+3. After fetching the workflow-run evidence, close the cycle by re-reading
+   the PR tuple and refreshing classic branch protection and every applicable
+   effective-ruleset page for the current base. Read both policy sources even
+   when all three tuple members still match the opening tuple. Re-read the
+   PR tuple after those policy reads. Compare the closing
+   `headRefOid`, `baseRefOid`, and `baseRefName` with the opening tuple, and
+   compare the full closing policy snapshot with the policy snapshot bound
+   before evidence retrieval. The full snapshot includes the required
+   contexts and producer pins, classic and ruleset strict/up-to-date values,
+   and applicable rules that make workflow verification unsupported. Any
+   tuple or policy change invalidates all check, status, and workflow evidence
+   from the cycle. Discard it, stabilize both policy sources against the
+   current tuple as in step 1, bind the refreshed policy only to that stable
+   tuple, and start a fresh cycle within the original deadline. This also
+   applies when the tuple is unchanged but the policy changes. If closing
+   revalidation changes an empty policy to nonempty, enter ordinary bounded
+   30-second polling, including when `baseRefName` changed. If the closing
+   tuple and full policy snapshot match the opening binding and the set
+   remains empty, the current evidence cycle is complete: classify its results
+   and do not repeat the one-shot in this stable case. Repeat an empty-policy
+   one-shot only when a tuple or policy change invalidates the current evidence
+   cycle. Stabilize and bind the current policy to the current tuple before
+   restarting; if the refreshed set is nonempty, use ordinary bounded
+   30-second polling. Do not evaluate or classify any results from an
+   invalidated cycle. Only after the closing tuple and full policy snapshot
+   match their opening bindings may results be classified, using required
+   contexts from only the selected SHA's current results.
+4. Never combine results from different SHAs or different polling cycles. If
+   candidate selection, an API request, or its pagination cannot be verified,
+   stop and report the blocker. An unmatched Actions run or unverifiable event
+   remains unavailable as described above.
+
+Do not use `gh pr checks` or the PR rollup as the required-check gate because
+those results may describe only the head. At the original 10-minute deadline,
+if policy is unverified, unstable, or not bound to the current tuple, report
+policy unknown and stop. Report CI as pending only when the current policy and
+tuple are verified and required contexts remain pending; stop without claiming
+readiness, even if a tuple or policy change triggered another polling cycle.
+A verified empty policy may use its stable one-shot path. Do not use an
+unbounded `--watch`. If both policy sources are verified and the set is empty,
+perform one complete evidence cycle and skip only repeated waiting after
+revalidating both policy sources even when the tuple is unchanged, comparing
+the full policy snapshot and tuple with the bound policy, and validating the
+closing tuple before classifying any results. If the closing tuple and full
+policy snapshot match the opening binding and the set remains empty, the
+current evidence cycle is complete: classify its results and do not repeat
+the one-shot in this stable case. Repeat an empty-policy one-shot only when a
+tuple or policy change invalidates the current evidence cycle. Stabilize and
+bind the current policy to the current tuple before restarting.
+An empty set skips waiting only when policy and tuple remain current. If the
+tuple changes during policy revalidation, discard both responses and stabilize
+both sources again within the same deadline. Bind the current policy to the
+stable tuple before retrieving evidence. If any tuple member changes during
+the one-shot evidence cycle, discard its results and restart policy
+revalidation within the same deadline; if any tuple or policy change
+invalidates the cycle, stabilize and bind the current policy to the current
+tuple before restarting. If the refreshed policy is still empty, repeat a
+fresh one-shot cycle; if it is nonempty, enter ordinary 30-second polling.
+Never classify stale results as optional or ready. A recognized no-checks
+response does not by itself mean either an empty policy or an API failure;
+authentication, access, and other command errors remain blockers.
 
 For check runs, only completed conclusions `success`, `neutral`, and `skipped`
 pass;
@@ -867,7 +968,7 @@ After a head change, earlier CI and review coverage is stale; repeat the
 relevant checks for the new head. The older review cannot count as new-head
 coverage. Complete the Phase 5 wait for that head once; do not restart it just
 because earlier reviews remain. Revalidate any earlier findings against the
-current diff. For a CI-only wait, use `watch-ci` when available.
+current diff.
 
 ```bash
 set -e -o pipefail
