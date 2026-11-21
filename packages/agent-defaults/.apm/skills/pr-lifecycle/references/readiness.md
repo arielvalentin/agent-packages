@@ -1,3 +1,36 @@
+## Existing-draft transition snapshots
+
+Immediately before a permitted transition, take two consecutive complete
+snapshots. In each, record opening PR state, title, head/base SHAs, base name,
+merge state, and the complete reviewer-request set using the endpoint and
+validation defined in Phase 5. Retrieve complete PR state with this command
+for each opening, closing, and final read:
+
+```bash
+gh pr view <number> --repo <owner>/<repo> --json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus
+```
+
+Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat
+both retrievals. Finish with fresh PR and reviewer-request reads after the last
+feedback page. Retrieve and classify all feedback surfaces again after those
+closing reads, then retrieve policy/check evidence once more. Finish with one
+final PR-state and reviewer-request read after those final evidence reads.
+Compare opening, closing, and final PR/reviewer values and all repeated
+policy/check and feedback evidence within and across snapshots. Any mismatch
+invalidates the transition; return to Phase 4 and the applicable feedback
+handling. Require the PR to remain open and a draft, the head/base/base-name
+tuple to match Phase 4, all required checks to pass, the reviewer-request sets
+to remain unchanged, and the feedback sets to match the fully processed set
+with no new actionable finding, unresolved clarification, or required
+permitted reply. If these conditions hold and the current title passes § Title
+format, run:
+
+```bash
+gh pr ready <number> --repo <owner>/<repo>
+```
+
+These are the draft-transition snapshots, not Phase 7's readiness snapshots.
+
 ## Phase 4 — Monitor CI
 
 Use one monitoring owner per repository/PR/head. When monitoring is delegated,

@@ -810,6 +810,7 @@ for rule in ("explicit_multi_review` JSON boolean",
 for rule in ("`BLOCKED`", "`DIRTY`", "`UNKNOWN`", "strict/up-to-date requirement"):
     assert rule in lifecycle_contract, f"pr-lifecycle: missing merge-state exit: {rule}"
 lifecycle_root_text = (skills / "pr-lifecycle/SKILL.md").read_text()
+lifecycle_readiness_text = (skills / "pr-lifecycle/references/readiness.md").read_text()
 lifecycle_text = lifecycle_root_text + "\n" + "\n".join(
     path.read_text()
     for path in sorted((skills / "pr-lifecycle/references").glob("*.md"))
@@ -818,9 +819,20 @@ draft_entrypoint = lifecycle_root_text.split("## Existing PR entrypoint", 1)[1].
     "## Standalone waits", 1
 )[0]
 draft_entrypoint = " ".join(draft_entrypoint.split())
-draft_transition_steps = [
+draft_transition_reference = lifecycle_readiness_text.split(
+    "## Existing-draft transition snapshots", 1
+)[1].split("\n## ", 1)[0]
+draft_transition_reference = " ".join(draft_transition_reference.split())
+draft_entrypoint_steps = [
     "After Phase 4 checks pass, retrieve and classify all feedback through Phase 6 before the review wait",
-    "only when the user or repository guidance authorizes that transition",
+    "transition only when the user or repository guidance authorizes it",
+    "follow the Existing-draft transition snapshots in `references/readiness.md`",
+    "After a transition, discard all earlier readiness evidence and restart Phases 4–6",
+]
+draft_entrypoint_positions = [draft_entrypoint.index(step) for step in draft_entrypoint_steps]
+assert draft_entrypoint_positions == sorted(draft_entrypoint_positions), \
+    "existing-draft feedback and transition authorization must precede the transition route"
+draft_transition_steps = [
     "take two consecutive complete snapshots",
     "and the complete reviewer-request set using the endpoint and validation defined in Phase 5",
     "--json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus",
@@ -836,18 +848,21 @@ draft_transition_steps = [
     "the feedback sets to match the fully processed set",
     "conditions hold and the current title passes § Title format",
     "gh pr ready <number> --repo <owner>/<repo>",
-    "After a transition, discard all earlier readiness evidence and restart Phases 4–6",
 ]
-draft_transition_positions = [draft_entrypoint.index(step) for step in draft_transition_steps]
+draft_transition_positions = [
+    draft_transition_reference.index(step) for step in draft_transition_steps
+]
 assert draft_transition_positions == sorted(draft_transition_positions), \
-    "existing draft transition must compare reviewers around refreshed checks and feedback, verify state and authorization, validate the title, and restart evidence"
+    "existing-draft transition snapshots must compare reviewer state, checks, and feedback in order"
+assert "read `references/readiness.md` before taking its snapshots" in lifecycle_root_text, \
+    "existing-draft transition must load its readiness reference"
 assert "Do not mark the PR ready just to trigger required checks that cannot pass while it is a draft" in draft_entrypoint, \
     "existing drafts must not be readied solely to start required checks"
 normalized_lifecycle = " ".join(lifecycle_text.split())
 assert "Do not wait for Copilot review or enter Phase 7 while the PR remains a draft" in draft_entrypoint, \
     "draft transition snapshots must be distinct from Phase 7 readiness snapshots"
-assert "after completed processing with no push or pending clarification, go directly to the existing-draft transition snapshots" in normalized_lifecycle, \
-    "completed no-push draft feedback must proceed to refreshed transition evidence instead of repeating Phase 4"
+assert "after completed processing with no push or pending clarification, read `references/readiness.md` if it has not already been read, then go directly to the existing-draft transition snapshots" in normalized_lifecycle, \
+    "completed no-push draft feedback must load readiness and proceed to refreshed transition evidence instead of repeating Phase 4"
 assert "Count each draft feedback iteration toward Phase 7's 10-iteration limit" in normalized_lifecycle, \
     "draft feedback iteration must remain bounded by the lifecycle limit"
 assert "stop and return control if clarification or another user response is pending" in normalized_lifecycle, \
