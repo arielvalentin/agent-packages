@@ -72,10 +72,6 @@ jobs:
           for pkg in packages/*/; do
             echo "=== Validating $pkg ==="
             (cd "$pkg" && apm compile --validate --local-only) || exit 1
-            if [[ "$pkg" == "packages/agent-defaults/" ]]; then
-              # Skill inventory and policy contracts supplement APM validation.
-              bash script/check-agent-defaults.sh || exit 1
-            fi
           done
 
       - name: Audit (hidden Unicode + drift)

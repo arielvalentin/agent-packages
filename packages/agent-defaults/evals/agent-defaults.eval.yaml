@@ -5081,21 +5081,21 @@ stimuli:
       suite: smoke
       source_case: '211'
       source_row: '1'
-      diagnostic: assertion-only
     agent_environment:
       files:
         - src: fixtures/context-05a1215ce1d3b39f.md
           dest: .github/copilot-instructions.md
     prompt: >-
-      When `watch-ci` cannot monitor the selected governing SHA in the full lifecycle, what should
-      the fallback poll: the selected SHA's check/status APIs or `gh pr checks`?
+      During the full PR lifecycle, `watch-ci` cannot monitor the selected governing SHA. Choose
+      exactly one fallback token: `COMMIT_CHECKS` means poll check-run and commit-status APIs for
+      that selected SHA; `PR_SUMMARY` means use `gh pr checks` or the PR-wide rollup as the
+      required-check gate. This tests the decision only; do not perform GitHub polling. Reply with
+      exactly one token: `COMMIT_CHECKS` or `PR_SUMMARY`.
     graders:
       - type: output-matches
-        name: agent-defaults-case-211-row-01-assertion-1-boolean-contract
+        name: agent-defaults-case-211-row-01-selected-sha-token
         config:
-          pattern: >-
-            ^(?=[\s\S]*[sS][eE][lL][eE][cC][tT][eE][dD]
-            [sS][hH][aA])(?:(?=[\s\S]*[aA][pP][iI])|(?=[\s\S]*[cC][hH][eE][cC][kK]/[sS][tT][aA][tT][uU][sS]))[\s\S]*$
+          pattern: ^COMMIT_CHECKS$
     simulation:
       tool_overrides:
         bash:

@@ -111,7 +111,7 @@ Vally's supported tool simulation; this
 keeps the Copilot credential out of agent-launched shell commands.
 The clone-notice case also stops after one model iteration.
 
-The eight approved diagnostics are retained as native stimuli. Their assertion
+The seven approved diagnostics are retained as native stimuli. Their assertion
 failures are non-blocking only when the workflow confirms the Action reported a
 failed evaluation. Action failures, missing or duplicate results, grader
 mismatches, skipped stimuli, and all other failed graders remain blocking.

@@ -240,16 +240,15 @@ stimuli:
       artifact is attached. Must you ask the user to provide an implementation-summary artifact
       before beginning? Answer exactly one word: Yes or No.
     graders:
-      - type: source-output-pattern
-        name: code-reviewers-case-011-row-01-a1-source-output-pattern
+      - type: output-text-contract
+        name: code-reviewers-case-011-row-01-a1-output-text-contract
         scope: parent
         config:
-          pattern: (?i)^no[.!]?$
-          trim: true
           removeCharacters:
             - '*'
             - _
             - '`'
+          mustMatch: (?i)^no[.!]?$
     simulation:
       tool_overrides:
         bash:
@@ -270,16 +269,15 @@ stimuli:
       handoff artifact is attached. Must you ask the user to provide an implementation-summary
       artifact before beginning? Answer exactly one word: Yes or No.
     graders:
-      - type: source-output-pattern
-        name: code-reviewers-case-012-row-01-a1-source-output-pattern
+      - type: output-text-contract
+        name: code-reviewers-case-012-row-01-a1-output-text-contract
         scope: parent
         config:
-          pattern: (?i)^no[.!]?$
-          trim: true
           removeCharacters:
             - '*'
             - _
             - '`'
+          mustMatch: (?i)^no[.!]?$
     simulation:
       tool_overrides:
         bash:
@@ -325,16 +323,15 @@ stimuli:
       ```
       Reply with the pattern name only.
     graders:
-      - type: source-output-pattern
-        name: code-reviewers-case-014-row-01-a1-source-output-pattern
+      - type: output-text-contract
+        name: code-reviewers-case-014-row-01-a1-output-text-contract
         scope: parent
         config:
-          pattern: (?i)^n\s*\+\s*1(?:\s+(?:database\s+)?(?:quer(?:y|ies)(?:\s+(?:pattern|problem))?|pattern|problem))?[.!]?$
-          trim: true
           removeCharacters:
             - '*'
             - _
             - '`'
+          mustMatch: (?i)^n\s*\+\s*1(?:\s+(?:database\s+)?(?:quer(?:y|ies)(?:\s+(?:pattern|problem))?|pattern|problem))?[.!]?$
     simulation:
       tool_overrides:
         bash:
@@ -376,14 +373,13 @@ stimuli:
       A diff raises a memory allocation issue in a hot path. Which reviewer should assess the
       performance impact? Return exactly one reviewer name.
     graders:
-      - type: source-output-pattern
-        name: code-reviewers-case-016-row-01-a1-source-output-pattern
+      - type: output-text-contract
+        name: code-reviewers-case-016-row-01-a1-output-text-contract
         scope: parent
         config:
-          pattern: (?i)^perf-reviewer$
-          trim: true
           removeCharacters:
             - '`'
+          mustMatch: (?i)^perf-reviewer$
     simulation:
       tool_overrides:
         bash:

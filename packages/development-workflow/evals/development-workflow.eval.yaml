@@ -21,12 +21,11 @@ stimuli:
       available and permitted. The user asks to fix a parser error. No approved design or bug report
       exists. Which agent implements by default? Return only IMPLEMENTER or MAIN.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-001-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-001-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^IMPLEMENTER[.!]?$
-          trim: true
+          pattern: (?i)^\s*IMPLEMENTER[.!]?\s*$
     simulation:
       tool_overrides:
         bash:
@@ -47,12 +46,11 @@ stimuli:
       delegation is available. The user asks you to fix a clear, small parser error. May you
       delegate the assigned implementation to another agent? Answer exactly one word: Yes or No.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-002-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-002-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^no[.!]?$
-          trim: true
+          pattern: (?i)^\s*no[.!]?\s*$
     simulation:
       tool_overrides:
         bash:
@@ -73,12 +71,11 @@ stimuli:
       API-documentation rewrite in the same request. Should you ask the user to split the work, or
       implement both? Return exactly ASK_USER or IMPLEMENT_BOTH.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-003-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-003-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^ASK_USER$
-          trim: true
+          pattern: (?i)^\s*ASK_USER\s*$
     simulation:
       tool_overrides:
         bash:
@@ -99,12 +96,11 @@ stimuli:
       design. No coordinator assigned the task. Choose exactly one: PROCEED or WAIT_FOR_COORDINATOR.
       Reply with only the token.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-004-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-004-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^PROCEED$
-          trim: true
+          pattern: (?i)^\s*PROCEED\s*$
     simulation:
       tool_overrides:
         bash:
@@ -165,16 +161,15 @@ stimuli:
       Which PR title format takes precedence: the repository's required format or the generic
       Conventional Commits default? Answer one word: repository or default.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-006-row-01-a1-source-output-pattern
+      - type: output-text-contract
+        name: dev-workflow-case-006-row-01-a1-output-text-contract
         scope: parent
         config:
-          pattern: (?i)^repository[.!]?$
-          trim: true
           removeCharacters:
             - '*'
             - _
             - '`'
+          mustMatch: (?i)^repository[.!]?$
     simulation:
       tool_overrides:
         bash:
@@ -220,12 +215,11 @@ stimuli:
       Should the implementer accept this task or ask for an artifact? Output only the exact
       uppercase token PROCEED or ASK, with no other text.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-008-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-008-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^PROCEED[.!]?$
-          trim: true
+          pattern: (?i)^\s*PROCEED[.!]?\s*$
     simulation:
       tool_overrides:
         bash:
@@ -249,12 +243,11 @@ stimuli:
       research artifact exists, and the inline requirements are sufficient. Should you proceed or
       ask for research? Return exactly one token: PROCEED or ASK.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-009-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-009-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^PROCEED[.!]?$
-          trim: true
+          pattern: (?i)^\s*PROCEED[.!]?\s*$
     simulation:
       tool_overrides:
         bash:
@@ -274,12 +267,11 @@ stimuli:
       The user authorized publication. A branch exists, but implementation and local adversarial
       review are incomplete. Should you open an early draft PR? Answer one word: Yes or No.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-010-row-01-a1-source-output-pattern
+      - type: output-matches
+        name: dev-workflow-case-010-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^no[.!]?$
-          trim: true
+          pattern: (?i)^\s*no[.!]?\s*$
     simulation:
       tool_overrides:
         bash:
@@ -384,14 +376,13 @@ stimuli:
       requirements are supplied, but no output path is specified. What default path should the
       requested artifact use? Return only the path.
     graders:
-      - type: source-output-pattern
-        name: dev-workflow-case-014-row-01-a1-source-output-pattern
+      - type: output-text-contract
+        name: dev-workflow-case-014-row-01-a1-output-text-contract
         scope: parent
         config:
-          pattern: ^\$\{ARTIFACTS_DIR\}/01-design\.md$
-          trim: true
           removeCharacters:
             - '`'
+          mustMatch: ^\$\{ARTIFACTS_DIR\}/01-design\.md$
     simulation:
       tool_overrides:
         bash:

@@ -807,6 +807,11 @@ for rule in ("explicit_multi_review` JSON boolean",
              "This stricter lifecycle rule takes precedence"):
     assert rule in lifecycle_contract, \
         f"pr-lifecycle: missing caller/stop contract: {rule}"
+for rule in ("Use `human-interaction-safeguard` for authoritative retrieval, complete pagination, actor classification",
+             "`AUTOMATION_FLOW` routes to `pr-feedback-review`",
+             "Only after every relevant chain is fully retrieved and classifies as `AUTOMATION_FLOW`"):
+    assert rule in lifecycle_contract, \
+        f"pr-lifecycle: missing Phase 6 routing contract: {rule}"
 for rule in ("`BLOCKED`", "`DIRTY`", "`UNKNOWN`", "strict/up-to-date requirement"):
     assert rule in lifecycle_contract, f"pr-lifecycle: missing merge-state exit: {rule}"
 lifecycle_root_text = (skills / "pr-lifecycle/SKILL.md").read_text()

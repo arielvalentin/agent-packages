@@ -25,7 +25,6 @@ const DIAGNOSTICS = new Map([
   ["agent-defaults-case-169-row-01", "tech-research: hands off durable synthesis without re-querying"],
   ["agent-defaults-case-189-row-01", "pr-lifecycle: breaking changes use the optional ! marker"],
   ["agent-defaults-case-191-row-01", "pr-lifecycle: rejects a 73-character Conventional PR title"],
-  ["agent-defaults-case-211-row-01", "pr-lifecycle: full-loop fallback polls the selected SHA"],
   ["agent-defaults-case-283-row-01", "pr-lifecycle: keeps feedback routing read only"],
 ]);
 
@@ -260,6 +259,10 @@ function validateRun(root, packageName, suite, records) {
       continue;
     }
     const expectedGraders = stimulus.graders;
+    const binaryPromptGraders = new Set(expectedGraders
+      .filter((grader) => grader.type === "prompt"
+        && grader.config?.scoring === "binary" && grader.config?.threshold === 1)
+      .map((grader) => grader.name));
     const actualGraders = grade.details.filter((grader) =>
       grader && typeof grader === "object" && !Array.isArray(grader)
     );
@@ -299,6 +302,7 @@ function validateRun(root, packageName, suite, records) {
     let contradictoryNestedGrade = false;
     let executionError = grade.status !== undefined && grade.status !== "success";
     const allPassAggregates = [];
+    const binaryPromptAggregates = [];
     while (pending.length) {
       const { grader, parent, grandparent, nativeContext, allPassContext } = pending.pop();
       const rubricLeaf = grandparent === grade && parent.graderType === "prompt";
@@ -328,6 +332,13 @@ function validateRun(root, packageName, suite, records) {
           : typeof grader.graderType !== "string" || grader.configuredName !== undefined))) {
         malformedNestedGrade = true;
         break;
+      }
+      if (parent === grade && binaryPromptGraders.has(grader.configuredName)) {
+        if (!Array.isArray(grader.details) || grader.details.length === 0) {
+          malformedNestedGrade = true;
+          break;
+        }
+        binaryPromptAggregates.push(grader);
       }
       if (grader.status !== undefined && typeof grader.status !== "string") {
         malformedNestedGrade = true;
@@ -365,6 +376,12 @@ function validateRun(root, packageName, suite, records) {
     }
     if (executionError) {
       errors.push(`${record.stimulus} grader execution error.`);
+      continue;
+    }
+    if (binaryPromptAggregates.some((grader) =>
+      grader.passed !== grader.details.every((detail) => detail.passed)
+    )) {
+      errors.push(`${record.stimulus} binary prompt grader verdict contradicts its rubric results.`);
       continue;
     }
     if (allPassAggregates.some((grader) =>
