@@ -9,6 +9,9 @@ const root = path.resolve(__dirname, "..");
 const outputMatchesModule = import(
   "../node_modules/@microsoft/vally/dist/graders/static/output-matches-grader.js"
 );
+const outputContainsModule = import(
+  "../node_modules/@microsoft/vally/dist/graders/static/output-contains-grader.js"
+);
 const vallySimulationModule = import("../node_modules/@microsoft/vally/dist/executor/simulation.js");
 const vallySimulationControllerModule = import(
   "../node_modules/@microsoft/vally/dist/executor/simulation-controller.js"
@@ -596,7 +599,9 @@ test("cases 409 and 410 simulate only a scoped reply and fail closed for every o
   }
 });
 
-test("case 158 preserves feedback-routing meaning across an equivalent paraphrase", () => {
+test("case 158 uses an exact feedback-routing token and retains its review obligations", async () => {
+  const { OutputContainsGrader } = await outputContainsModule;
+  const { OutputMatchesGrader } = await outputMatchesModule;
   const spec = yaml.load(fs.readFileSync(
     path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
     "utf8"
@@ -607,18 +612,37 @@ test("case 158 preserves feedback-routing meaning across an equivalent paraphras
   const grader = stimulus.graders.find((item) =>
     item.name === "agent-defaults-case-158-row-01-assertion-1-feedback-routing"
   );
-  const matches = new RegExp(grader.config.pattern);
+  const expected = "ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_SKIP_INTAKE_KEEP_POST_FIX_REVIEW";
+  const alternative =
+    "ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_REPEAT_INTAKE_KEEP_POST_FIX_REVIEW";
+  const routingGrader = new OutputMatchesGrader();
+  const containsGrader = new OutputContainsGrader();
 
-  assert.equal(matches.test(
-    "With accepted_findings present, the loop does not run a new intake review."
-  ), true);
-  assert.equal(matches.test(
-    "The loop does not repeat the intake review."
-  ), true);
-  assert.equal(matches.test(
-    "The loop runs a new intake review before the post-fix review."
-  ), false);
-  assert.equal(matches.test(
-    "The mandatory post-fix review still runs."
-  ), false);
+  assert.match(stimulus.prompt, new RegExp(expected));
+  assert.match(stimulus.prompt, new RegExp(alternative));
+  assert.equal(grader.config.pattern, `^${expected}$`);
+  assert.equal(stimulus.graders.filter((item) => item.type === "output-contains").length, 3);
+
+  for (const output of [expected, alternative]) {
+    for (const configured of stimulus.graders.filter((item) => item.type === "output-contains")) {
+      const result = await containsGrader.grade({
+        trajectory: { output },
+        config: configured.config,
+      });
+      assert.equal(result.passed, true, `${configured.name}: ${output}`);
+    }
+  }
+
+  for (const [output, expectedPass] of [
+    [expected, true],
+    [alternative, false],
+    [`${expected} explanation`, false],
+    ["The loop does not repeat the intake review.", false],
+  ]) {
+    const result = await routingGrader.grade({
+      trajectory: { output },
+      config: grader.config,
+    });
+    assert.equal(result.passed, expectedPass, JSON.stringify(output));
+  }
 });

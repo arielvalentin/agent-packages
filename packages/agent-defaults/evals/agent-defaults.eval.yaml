@@ -3699,9 +3699,14 @@ stimuli:
         - src: fixtures/context-fd7d0c0b617b8058.md
           dest: .github/copilot-instructions.md
     prompt: >-
-      The complete current feedback chain is classified as authorized and actionable. What must
-      pr-lifecycle pass to review-fix-loop, and which reviews still happen? Include the field names
-      and explain the intake/post-fix review behavior.
+      The complete current feedback chain is classified as authorized and actionable. This handoff
+      has non-empty accepted_findings, must preserve explicit_multi_review unchanged, and must
+      retain the mandatory post-fix review. Using the owner policy supplied in context, select
+      exactly one routing token: ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_SKIP_INTAKE_KEEP_POST_FIX_REVIEW
+      means skip the intake review; ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_REPEAT_INTAKE_KEEP_POST_FIX_REVIEW
+      means run the intake review. Reply with exactly one token:
+      ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_SKIP_INTAKE_KEEP_POST_FIX_REVIEW or
+      ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_REPEAT_INTAKE_KEEP_POST_FIX_REVIEW.
     graders:
       - type: output-contains
         name: agent-defaults-case-158-row-01-assertion-1-accepted-findings
@@ -3716,16 +3721,12 @@ stimuli:
       - type: output-contains
         name: agent-defaults-case-158-row-01-assertion-1-post-fix-review
         config:
-          substring: post-fix review
+          substring: POST_FIX_REVIEW
           case_sensitive: false
       - type: output-matches
         name: agent-defaults-case-158-row-01-assertion-1-feedback-routing
         config:
-          pattern: >-
-            [sS][kK][iI][pP]|[nN][oO][tT] [rR][eE][pP][eE][aA][tT]|[nN][oO]
-            [dD][uU][pP][lL][iI][cC][aA][tT][eE]|[dD][oO][eE][sS] [nN][oO][tT]
-            [rR][uU][nN] [aA] [nN][eE][wW] [iI][nN][tT][aA][kK][eE]
-            [rR][eE][vV][iI][eE][wW]
+          pattern: ^ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_SKIP_INTAKE_KEEP_POST_FIX_REVIEW$
     simulation:
       tool_overrides:
         bash:
