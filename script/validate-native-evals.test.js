@@ -575,6 +575,61 @@ test("configured prompt graders count once regardless of their rubric leaves", (
   }
 });
 
+test("binary prompt graders with threshold one match their rubric verdicts", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  const stimulus = stimuli.at(-1);
+  stimulus.rubric = ["Only ask to draft."];
+  stimulus.graders.push({
+    name: "draft-only",
+    type: "prompt",
+    config: { scoring: "binary", threshold: 1 },
+  });
+  save();
+
+  function promptRun() {
+    const items = records();
+    const grade = items.at(-2).gradeResult;
+    const rubric = {
+      name: "prompt/Only ask to draft.", kind: "llm", passed: true,
+      score: 1, evidence: "Only a draft was requested.", label: "correct",
+    };
+    const prompt = {
+      name: "draft-only", configuredName: "draft-only", graderType: "prompt",
+      kind: "llm", passed: true, score: 1, details: [rubric],
+    };
+    grade.details.push(prompt);
+    return { items, grade, prompt, rubric };
+  }
+  const validate = (items) => validateRun(root, "agent-defaults", "full", items).errors;
+
+  assert.deepEqual(validate(promptRun().items), []);
+
+  const matchingFailure = promptRun();
+  matchingFailure.grade.passed = false;
+  matchingFailure.prompt.passed = false;
+  matchingFailure.rubric.passed = false;
+  matchingFailure.rubric.score = 0;
+  assert.match(validate(matchingFailure.items).join("\n"), /failed required graders/);
+
+  const failedAggregate = promptRun();
+  failedAggregate.prompt.passed = false;
+  assert.match(validate(failedAggregate.items).join("\n"), /binary prompt grader verdict contradicts/);
+
+  const passedAggregate = promptRun();
+  passedAggregate.rubric.passed = false;
+  passedAggregate.rubric.score = 0;
+  assert.match(validate(passedAggregate.items).join("\n"), /binary prompt grader verdict contradicts/);
+
+  for (const mutate of [
+    ({ prompt }) => { delete prompt.details; },
+    ({ prompt }) => { prompt.details = []; },
+  ]) {
+    const missingRubric = promptRun();
+    mutate(missingRubric);
+    assert.match(validate(missingRubric.items).join("\n"), /malformed nested grader result/);
+  }
+});
+
 test("result inventory requires expected identities, configured graders, one result each, and no skips", (t) => {
   const { root } = fixture(t);
   const cases = [
