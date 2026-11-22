@@ -689,6 +689,13 @@ lifecycle rule takes precedence over `pr-feedback-review`'s per-chain
 handling. Do not process clean chains or dispatch fixes in the same iteration.
 `AUTOMATION_FLOW` routes to `pr-feedback-review`.
 
+Any human, unknown, missing, or unverified actor taints the entire chain as
+`HUMAN_STOP` and stops lifecycle automation. A later, separate, explicit
+implementation instruction may authorize code/config/test work only; it does
+not authorize a reply or resolution. A reply still requires the canonical
+single-reply confirmation for one described reply, and that confirmation does
+not authorize implementation, resolution, or merge.
+
 Only after every relevant chain is fully retrieved and classifies as
 `AUTOMATION_FLOW`, and at least one supported finding exists, may findings
 enter `review-fix-loop`. Pass them as `accepted_findings` with the reviewer
