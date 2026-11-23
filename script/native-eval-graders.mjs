@@ -86,48 +86,6 @@ function validateTextContract(config) {
   };
 }
 
-function validateSourcePattern(config) {
-  if (!config || typeof config !== "object" || Array.isArray(config)
-    || typeof config.pattern !== "string"
-    || (config.trim !== undefined && typeof config.trim !== "boolean")
-    || (config.removeCharacters !== undefined
-      && (!Array.isArray(config.removeCharacters)
-        || config.removeCharacters.some((value) =>
-          typeof value !== "string" || value.length === 0)))
-    || Object.keys(config).some((key) =>
-      !["pattern", "trim", "removeCharacters"].includes(key))) {
-    throw new Error("source-output-pattern requires a pattern and optional normalization.");
-  }
-  return compilePattern(config.pattern);
-}
-
-function gradeSourcePattern(input) {
-  const name = "source-output-pattern";
-  const received = outputOf(input, name);
-  if (received.error) return received.error;
-
-  let pattern;
-  try {
-    pattern = validateSourcePattern(input.config);
-  } catch (error) {
-    return errorResult(name, error.message);
-  }
-
-  let output = received.output;
-  if (input.config.trim) output = output.trim();
-  for (const character of input.config.removeCharacters || []) {
-    output = output.split(character).join("");
-  }
-  const passed = pattern.test(output);
-  return result(
-    name,
-    passed,
-    passed
-      ? `Normalized output matches /${input.config.pattern}/`
-      : `Normalized output does not match /${input.config.pattern}/`
-  );
-}
-
 function gradeTextContract(input) {
   const name = "output-text-contract";
   const received = outputOf(input, name);
@@ -682,16 +640,8 @@ export function registerGraders(registry) {
   registry.register({
     metadata: {
       ...GRADER_METADATA,
-      name: "source-output-pattern",
-      description: "Checks a regular expression after explicit source-compatible text normalization.",
-    },
-    grade: gradeSourcePattern,
-  });
-  registry.register({
-    metadata: {
-      ...GRADER_METADATA,
       name: "output-text-contract",
-      description: "Checks exact trimmed-output length and regular-expression constraints.",
+      description: "Checks normalized output length and regular-expression constraints.",
     },
     grade: gradeTextContract,
   });

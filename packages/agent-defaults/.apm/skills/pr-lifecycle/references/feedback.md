@@ -1,49 +1,29 @@
 ## Phase 6 — Process review feedback
 
-Retrieve PR review comments, reviews, issue/PR comments, and GraphQL review
-threads using the exact `gh api` commands in `human-interaction-safeguard`.
-Do not classify actors from `gh pr view --json reviews,comments` or login text.
-Exhaust both `reviewThreads` pages and every thread's independent `comments`
-pages. Incomplete or failed pagination is `HUMAN_STOP` before automation.
-Classify each retrieved item using only its authoritative REST author type and
-App metadata or its GraphQL author type. Do not correlate REST and GraphQL
-comment IDs or compare author, item-author, or authenticated-account IDs.
-Every item must independently classify as `AUTOMATION_FLOW` for its chain to
-continue. Any human, unknown, missing, or unverified actor taints the entire
-chain as `HUMAN_STOP`; do not split out Bot/App comments for separate action.
+Use `human-interaction-safeguard` for authoritative retrieval, complete
+pagination, actor classification, and all `HUMAN_STOP` behavior. Incomplete
+retrieval remains `HUMAN_STOP`; do not classify by login or split a chain.
 
-Apply `human-interaction-safeguard` first. It is the sole source of truth for
-actor classification and behavior:
+A `HUMAN_STOP` must stop the entire current PR lifecycle and return control to
+the user, even if other chains are clean bot/app chains. This stricter
+lifecycle rule takes precedence over `pr-feedback-review`'s per-chain
+handling. Do not process clean chains or dispatch fixes in the same iteration.
+`AUTOMATION_FLOW` routes to `pr-feedback-review`.
 
-- `HUMAN_STOP` → by default, return control to the user; do not initiate a change
-  from the interaction, draft or post a reply, or resolve the thread. A later,
-  separate, explicit implementation instruction may authorize
-  code/config/test work. For a reply, warn that the chain includes a human
-  response and obtain one clear user confirmation for the described reply
-  target, topic, and scope. That confirmation authorizes composing and sending
-  the reply once without a separate draft approval. A draft-only request
-  authorizes drafting only, not posting. Reply approval does not grant
-  resolution, merge, implementation, or unrelated actions.
-  Defer the warning and confirmation exclusively to
-  `human-interaction-safeguard`.
-- `AUTOMATION_FLOW` → use `pr-feedback-review`.
+Any human, unknown, missing, or unverified actor taints the entire chain as
+`HUMAN_STOP` and stops lifecycle automation. A later, separate, explicit
+implementation instruction may authorize code/config/test work only; it does
+not authorize a reply or resolution. A reply still requires the canonical
+single-reply confirmation for one described reply, and that confirmation does
+not authorize implementation, resolution, or merge.
 
-`pr-lifecycle` owns the lifecycle-wide stop decision. If any feedback chain is
-`HUMAN_STOP`, stop the entire current PR lifecycle and return control to the
-user, even if other chains are clean bot/app chains. This stricter lifecycle
-rule takes precedence over `pr-feedback-review`'s per-chain handling when that
-skill is invoked by this lifecycle. Do not process the clean chains in the same
-iteration or dispatch fixes from them.
-
-Only after complete thread retrieval and all relevant chains classify as
-`AUTOMATION_FLOW` may supported Bot/App-authored findings enter
-`review-fix-loop`. Entry also requires at least one Bot/App-authored finding.
-Pass them as `accepted_findings` with the reviewer
+Only after every relevant chain is fully retrieved and classifies as
+`AUTOMATION_FLOW`, and at least one supported finding exists, may findings
+enter `review-fix-loop`. Pass them as `accepted_findings` with the reviewer
 (`adversarial-review`), exact diff scope, task/acceptance context, and the
-unchanged caller-derived `explicit_multi_review` boolean.
-The loop must not repeat its initial intake review for these already accepted
-findings, but it must perform the required post-fix review. A Phase 5 review
-alone never authorizes a change.
+unchanged caller-derived `explicit_multi_review` boolean. The loop must not
+repeat its initial intake review for these findings, but it must perform the
+required post-fix review. A Phase 5 review alone never authorizes a change.
 
 Before changing files, verify the PR is still open and recheck the active
 repository, worktree, branch, local changes, and PR head against the latest PR
@@ -69,8 +49,9 @@ Re-run Phase 4 after any push. For an existing draft routed from Phase 4, use
 this complete exit rule, which takes precedence over generic loop routing:
 stop and return control if clarification or another user response is pending;
 after a push, rerun Phase 4; after completed processing with no push or pending
-clarification, go directly to the existing-draft transition snapshots, which
-refresh checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
+clarification, read `references/readiness.md` if it has not already been read,
+then go directly to the existing-draft transition snapshots, which refresh
+checks and feedback. Do not repeat Phase 4 or Phase 6 in that no-push
 case or act on unchanged feedback again. Record handled findings and their
 feedback state so they are not replied to, resolved, or fixed twice. Count
 each draft feedback iteration toward Phase 7's 10-iteration limit; after 10,

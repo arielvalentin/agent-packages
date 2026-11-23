@@ -9,7 +9,7 @@ const yaml = require("js-yaml");
 const { validateNativeSuite, validateRun, resolveRepositoryFile } = require("./validate-native-evals.js");
 const { fixtureContent, fixtureSources, recipes } = require("./native-eval-fixtures.js");
 
-const diagnosticNames = [63, 121, 164, 169, 189, 191, 211, 283]
+const diagnosticNames = [63, 121, 164, 169, 189, 191, 283]
   .map((index) => `agent-defaults-case-${String(index).padStart(3, "0")}-row-01`);
 const names = [...diagnosticNames, "blocking-case"];
 const evalFile = "packages/agent-defaults/evals/agent-defaults.eval.yaml";
@@ -23,7 +23,7 @@ function fixture(t) {
   fs.writeFileSync(path.join(root, policyFile), "input");
   const stimuli = names.map((name, index) => ({
     name,
-    tags: { suite: index === 1 ? "full" : "smoke", ...(index < 8 ? { diagnostic: "assertion-only" } : {}) },
+    tags: { suite: index === 1 ? "full" : "smoke", ...(index < diagnosticNames.length ? { diagnostic: "assertion-only" } : {}) },
     prompt: "Return ok.",
     agent_environment: { files: [{ src: "../.apm/instructions/input.instructions.md", dest: ".github/copilot-instructions.md" }] },
     graders: [{ name: `${name}-assertion`, type: "output-matches", config: { pattern: "ok" } }],
@@ -101,7 +101,8 @@ test("preflight rejects duplicate names, missing diagnostics, unsafe paths and e
 
 test("patterned shell overrides require a failing default", (t) => {
   const validState = fixture(t);
-  validState.stimuli[8].simulation.tool_overrides.bash = {
+  validState.stimuli.find((item) => item.name === "blocking-case")
+    .simulation.tool_overrides.bash = {
     patterns: [{ match: "^safe$", output: "Synthetic success" }],
     default: { output: "Blocked", is_error: true },
   };
@@ -115,7 +116,8 @@ test("patterned shell overrides require a failing default", (t) => {
 
   for (const defaultOverride of invalidDefaults) {
     const state = fixture(t);
-    state.stimuli[8].simulation.tool_overrides.bash = {
+    state.stimuli.find((item) => item.name === "blocking-case")
+      .simulation.tool_overrides.bash = {
       is_error: true,
       patterns: [{ match: ".*", output: "Synthetic success" }],
       ...(defaultOverride ? { default: defaultOverride } : {}),
@@ -128,7 +130,8 @@ test("patterned shell overrides require a failing default", (t) => {
 
 test("preflight rejects unauthorized diagnostic tags and malformed or duplicate graders", (t) => {
   const state = fixture(t);
-  state.stimuli[8].tags.diagnostic = "assertion-only";
+  state.stimuli.find((item) => item.name === "blocking-case")
+    .tags.diagnostic = "assertion-only";
   state.stimuli[0].graders.push({ ...state.stimuli[0].graders[0] });
   state.save();
   const errors = validateNativeSuite(state.root, "agent-defaults", "full").errors.join("\n");
@@ -569,6 +572,61 @@ test("configured prompt graders count once regardless of their rubric leaves", (
     const run = promptRun();
     mutate(run);
     assert.match(validate(run.items).join("\n"), expected);
+  }
+});
+
+test("binary prompt graders with threshold one match their rubric verdicts", (t) => {
+  const { root, stimuli, save } = fixture(t);
+  const stimulus = stimuli.at(-1);
+  stimulus.rubric = ["Only ask to draft."];
+  stimulus.graders.push({
+    name: "draft-only",
+    type: "prompt",
+    config: { scoring: "binary", threshold: 1 },
+  });
+  save();
+
+  function promptRun() {
+    const items = records();
+    const grade = items.at(-2).gradeResult;
+    const rubric = {
+      name: "prompt/Only ask to draft.", kind: "llm", passed: true,
+      score: 1, evidence: "Only a draft was requested.", label: "correct",
+    };
+    const prompt = {
+      name: "draft-only", configuredName: "draft-only", graderType: "prompt",
+      kind: "llm", passed: true, score: 1, details: [rubric],
+    };
+    grade.details.push(prompt);
+    return { items, grade, prompt, rubric };
+  }
+  const validate = (items) => validateRun(root, "agent-defaults", "full", items).errors;
+
+  assert.deepEqual(validate(promptRun().items), []);
+
+  const matchingFailure = promptRun();
+  matchingFailure.grade.passed = false;
+  matchingFailure.prompt.passed = false;
+  matchingFailure.rubric.passed = false;
+  matchingFailure.rubric.score = 0;
+  assert.match(validate(matchingFailure.items).join("\n"), /failed required graders/);
+
+  const failedAggregate = promptRun();
+  failedAggregate.prompt.passed = false;
+  assert.match(validate(failedAggregate.items).join("\n"), /binary prompt grader verdict contradicts/);
+
+  const passedAggregate = promptRun();
+  passedAggregate.rubric.passed = false;
+  passedAggregate.rubric.score = 0;
+  assert.match(validate(passedAggregate.items).join("\n"), /binary prompt grader verdict contradicts/);
+
+  for (const mutate of [
+    ({ prompt }) => { delete prompt.details; },
+    ({ prompt }) => { prompt.details = []; },
+  ]) {
+    const missingRubric = promptRun();
+    mutate(missingRubric);
+    assert.match(validate(missingRubric.items).join("\n"), /malformed nested grader result/);
   }
 });
 

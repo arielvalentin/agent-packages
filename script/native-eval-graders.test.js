@@ -6,6 +6,12 @@ const path = require("node:path");
 const gradersModule = import("./native-eval-graders.mjs");
 const yaml = require("js-yaml");
 const root = path.resolve(__dirname, "..");
+const outputMatchesModule = import(
+  "../node_modules/@microsoft/vally/dist/graders/static/output-matches-grader.js"
+);
+const outputContainsModule = import(
+  "../node_modules/@microsoft/vally/dist/graders/static/output-contains-grader.js"
+);
 const vallySimulationModule = import("../node_modules/@microsoft/vally/dist/executor/simulation.js");
 const vallySimulationControllerModule = import(
   "../node_modules/@microsoft/vally/dist/executor/simulation-controller.js"
@@ -164,6 +170,18 @@ test("native normalization-sensitive cases use their configured graders", async 
     ["development-workflow", 17, [["**optional**", true]]],
     ["development-workflow", 18, [["**Yes**", true]]],
     ["development-workflow", 19, [["**ask**", true]]],
+    ["development-workflow", 6, [["_repository_", true], ["default", false]]],
+    ["development-workflow", 14, [
+      ["`${ARTIFACTS_DIR}/01-design.md`", true],
+      ["${ARTIFACTS_DIR}/02-design.md", false],
+    ]],
+    ["code-reviewers", 11, [["n*o", true], ["yes", false]]],
+    ["code-reviewers", 12, [["**n_o**", true], ["no, maybe yes", false]]],
+    ["code-reviewers", 14, [
+      ["`N+1 database queries`", true],
+      ["N+1 query issue", false],
+    ]],
+    ["code-reviewers", 16, [["`perf-reviewer`", true], ["perf-reviewer extra", false]]],
   ];
 
   for (const [packageName, caseIndex, outputs] of cases) {
@@ -191,34 +209,80 @@ test("native normalization-sensitive cases use their configured graders", async 
   }
 });
 
-test("source output patterns apply only the requested source normalizations", async () => {
-  const { registerGraders } = await gradersModule;
-  const registry = { graders: new Map(), register(grader) {
-    this.graders.set(grader.metadata.name, grader);
-  } };
-  registerGraders(registry);
-  const grader = registry.graders.get("source-output-pattern");
-  const grade = (output, config) => grader.grade({ trajectory: { output }, config });
+test("simple source tokens use the built-in output matcher", async () => {
+  const { OutputMatchesGrader } = await outputMatchesModule;
+  const grader = new OutputMatchesGrader();
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/development-workflow/evals/development-workflow.eval.yaml"),
+    "utf8"
+  ));
+  const cases = [
+    [1, " \timplementer\r\n"],
+    [2, " No. \n"],
+    [3, "\nask_user "],
+    [4, " proceed "],
+    [8, " PROCEED.\n"],
+    [9, " proceed \n"],
+    [10, " No "],
+  ];
+  for (const [sourceCase, output] of cases) {
+    const stimulus = spec.stimuli.find((item) =>
+      Number(item.tags?.source_case) === sourceCase
+    );
+    assert.ok(stimulus, `development-workflow case ${sourceCase}`);
+    const configured = stimulus.graders[0];
+    assert.equal(configured.type, "output-matches", stimulus.name);
+    const result = await grader.grade({
+      trajectory: { output },
+      config: configured.config,
+    });
+    assert.equal(result.passed, true, stimulus.name);
+  }
+  const noToken = spec.stimuli.find((item) =>
+    Number(item.tags?.source_case) === 2
+  ).graders[0];
+  assert.equal((await grader.grade({
+    trajectory: { output: "**No**" },
+    config: noToken.config,
+  })).passed, false);
+  assert.equal((await grader.grade({
+    trajectory: { output: "ASK_USER." },
+    config: spec.stimuli.find((item) =>
+      Number(item.tags?.source_case) === 3
+    ).graders[0].config,
+  })).passed, false);
+});
 
-  assert.equal((await grade(" **NO**\n", {
-    pattern: "(?i)^no[.!]?$",
-    trim: true,
-    removeCharacters: ["*", "_", "`"],
-  })).passed, true);
-  assert.equal((await grade("`N+1 database queries`", {
-    pattern: "(?i)^n\\s*\\+\\s*1(?:\\s+(?:database\\s+)?(?:quer(?:y|ies)(?:\\s+(?:pattern|problem))?|pattern|problem))?[.!]?$",
-    trim: true,
-    removeCharacters: ["*", "_", "`"],
-  })).passed, true);
-  assert.equal((await grade("N+1 query issue", {
-    pattern: "(?i)^n\\s*\\+\\s*1(?:\\s+(?:database\\s+)?(?:quer(?:y|ies)(?:\\s+(?:pattern|problem))?|pattern|problem))?[.!]?$",
-    trim: true,
-    removeCharacters: ["*", "_", "`"],
-  })).passed, false);
-  assert.equal((await grade("NO", {
-    pattern: "^no$",
-    removeCharacters: ["*"],
-  })).passed, false);
+test("case 211 requires the selected-SHA token", async () => {
+  const { OutputMatchesGrader } = await outputMatchesModule;
+  const grader = new OutputMatchesGrader();
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
+    "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) =>
+    item.name === "agent-defaults-case-211-row-01"
+  );
+  assert.match(stimulus.prompt, /full PR lifecycle/);
+  assert.match(stimulus.prompt, /do not perform GitHub polling/);
+  assert.equal(stimulus.rubric, undefined);
+  assert.deepEqual(stimulus.graders.map((item) => item.type), ["output-matches"]);
+  const configured = stimulus.graders[0];
+  assert.equal(configured.config.pattern, "^COMMIT_CHECKS$");
+
+  for (const [output, expected] of [
+    ["COMMIT_CHECKS", true],
+    ["PR_SUMMARY", false],
+    ["poll check-run and commit-status APIs for the selected SHA", false],
+    ["COMMIT_CHECKS PR_SUMMARY", false],
+    [" COMMIT_CHECKS ", false],
+  ]) {
+    const result = await grader.grade({
+      trajectory: { output },
+      config: configured.config,
+    });
+    assert.equal(result.passed, expected, JSON.stringify(output));
+  }
 });
 
 test("draft PR command grader requires explicit repository targeting", async () => {
@@ -535,7 +599,9 @@ test("cases 409 and 410 simulate only a scoped reply and fail closed for every o
   }
 });
 
-test("case 158 preserves feedback-routing meaning across an equivalent paraphrase", () => {
+test("case 158 uses an exact feedback-routing token and retains its review obligations", async () => {
+  const { OutputContainsGrader } = await outputContainsModule;
+  const { OutputMatchesGrader } = await outputMatchesModule;
   const spec = yaml.load(fs.readFileSync(
     path.join(root, "packages/agent-defaults/evals/agent-defaults.eval.yaml"),
     "utf8"
@@ -546,18 +612,37 @@ test("case 158 preserves feedback-routing meaning across an equivalent paraphras
   const grader = stimulus.graders.find((item) =>
     item.name === "agent-defaults-case-158-row-01-assertion-1-feedback-routing"
   );
-  const matches = new RegExp(grader.config.pattern);
+  const expected = "ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_SKIP_INTAKE_KEEP_POST_FIX_REVIEW";
+  const alternative =
+    "ACCEPTED_FINDINGS_EXPLICIT_MULTI_REVIEW_REPEAT_INTAKE_KEEP_POST_FIX_REVIEW";
+  const routingGrader = new OutputMatchesGrader();
+  const containsGrader = new OutputContainsGrader();
 
-  assert.equal(matches.test(
-    "With accepted_findings present, the loop does not run a new intake review."
-  ), true);
-  assert.equal(matches.test(
-    "The loop does not repeat the intake review."
-  ), true);
-  assert.equal(matches.test(
-    "The loop runs a new intake review before the post-fix review."
-  ), false);
-  assert.equal(matches.test(
-    "The mandatory post-fix review still runs."
-  ), false);
+  assert.match(stimulus.prompt, new RegExp(expected));
+  assert.match(stimulus.prompt, new RegExp(alternative));
+  assert.equal(grader.config.pattern, `^${expected}$`);
+  assert.equal(stimulus.graders.filter((item) => item.type === "output-contains").length, 3);
+
+  for (const output of [expected, alternative]) {
+    for (const configured of stimulus.graders.filter((item) => item.type === "output-contains")) {
+      const result = await containsGrader.grade({
+        trajectory: { output },
+        config: configured.config,
+      });
+      assert.equal(result.passed, true, `${configured.name}: ${output}`);
+    }
+  }
+
+  for (const [output, expectedPass] of [
+    [expected, true],
+    [alternative, false],
+    [`${expected} explanation`, false],
+    ["The loop does not repeat the intake review.", false],
+  ]) {
+    const result = await routingGrader.grade({
+      trajectory: { output },
+      config: grader.config,
+    });
+    assert.equal(result.passed, expectedPass, JSON.stringify(output));
+  }
 });
