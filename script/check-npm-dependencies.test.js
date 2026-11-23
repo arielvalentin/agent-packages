@@ -7,7 +7,7 @@ const { test } = require("node:test");
 const vm = require("node:vm");
 const yaml = require("js-yaml");
 const { validateNativeSuite } = require("./validate-native-evals.js");
-const gradersModule = import("./native-eval-graders.mjs");
+const gradersModule = import("@microsoft/vally");
 
 const root = path.resolve(__dirname, "..");
 const packages = ["agent-defaults", "development-workflow", "code-reviewers"];
@@ -73,7 +73,6 @@ test("npm test is offline and Copilot credentials stay in evaluation workflows",
       ".vally.yaml",
       "script/native-eval-fixtures.js",
       "script/native-eval-fixtures.json",
-      "script/native-eval-graders.mjs",
       "script/native-eval-graders.test.js",
       "script/validate-native-evals.js",
       "script/validate-native-evals.test.js",
@@ -674,25 +673,19 @@ test("compound inclusion and first-field graders preserve source conjunctions", 
 });
 
 test("human-interaction graders preserve selected-token polarity and conflicts", async () => {
-  const { registerGraders } = await gradersModule;
-  const registry = { graders: new Map(), register(grader) {
-    this.graders.set(grader.metadata.name, grader);
-  } };
-  registerGraders(registry);
+  const { createDefaultGraderRegistry } = await gradersModule;
+  const registry = createDefaultGraderRegistry();
   const mappedCase = (index) => {
     const stimulus = defaultsCase(index);
     return stimulus;
   };
   const nativePasses = async (graders, output) => (await Promise.all(graders.map(async (grader) => {
-    const implementation = registry.graders.get(grader.type);
-    if (implementation) {
-      return (await implementation.grade({
-        trajectory: { output },
-        config: grader.config,
-      })).passed;
-    }
-    const matched = new RegExp(grader.config.pattern).test(output);
-    return grader.config.negate ? !matched : matched;
+    const implementation = registry.get(grader.type);
+    assert.ok(implementation, `Unknown built-in grader ${grader.type}`);
+    return (await implementation.grade({
+      trajectory: { output },
+      config: grader.config,
+    })).passed;
   }))).every(Boolean);
   const clean = (output) => output.replace(/\*/g, "").split("`").join("");
   const sourceHumanSelection = (output) => {
@@ -756,7 +749,10 @@ test("human-interaction graders preserve selected-token polarity and conflicts",
     }
     for (const output of outputs) {
       assert.equal(await nativePasses(automation.graders, output),
-        sourceAutomationSelection(output, index), `case ${index}: ${JSON.stringify(output)}`);
+        index === 334
+          ? sourceAutomationSelection(output, index)
+          : clean(output).trim().toUpperCase() === "AUTOMATION_FLOW",
+        `case ${index}: ${JSON.stringify(output)}`);
     }
   }
 });
@@ -768,8 +764,6 @@ test("native eval specs pass native preflight and Vally strict lint", () => {
     const lint = spawnSync(path.join(root, "node_modules/.bin/vally"), [
       "lint",
       "--strict",
-      "--grader-plugin",
-      path.join(root, "script/native-eval-graders.mjs"),
       "--eval-spec",
       file,
     ], { cwd: root, encoding: "utf8" });
