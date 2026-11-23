@@ -109,7 +109,11 @@ test("native normalization-sensitive cases use their configured graders", async 
     ["code-reviewers", 12, [["**n_o**", true], ["no, maybe yes", false]]],
     ["code-reviewers", 14, [
       ["`N+1 database queries`", true],
+      ["N+1 **database queries**", true],
+      ["N+1 database **query** pattern", true],
+      ["N+1 **database** `queries` **problem**", true],
       ["N+1 query issue", false],
+      ["N+1 **database queries** and more", false],
     ]],
     ["code-reviewers", 16, [["`perf-reviewer`", true], ["perf-reviewer extra", false]]],
   ];

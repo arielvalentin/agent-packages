@@ -319,7 +319,7 @@ stimuli:
         name: code-reviewers-case-014-row-01-a1-output-matches
         scope: parent
         config:
-          pattern: (?i)^\s*[*_\x60]*n[*_\x60]*\s*\+[*_\x60]*\s*1[*_\x60]*(?:\s+(?:database\s+)?(?:quer(?:y|ies)(?:\s+(?:pattern|problem))?|pattern|problem))?[.!]?[*_\x60]*\s*$
+          pattern: (?i)^\s*[*_\x60]*n[*_\x60]*\s*\+[*_\x60]*\s*1[*_\x60]*(?:\s+[*_\x60]*(?:database[*_\x60]*\s+[*_\x60]*)?(?:quer(?:y|ies)[*_\x60]*(?:\s+[*_\x60]*(?:pattern|problem))?|pattern|problem))?[.!]?[*_\x60]*\s*$
     simulation:
       tool_overrides:
         bash:
