@@ -48,19 +48,31 @@ jobs:
     if: >-
       (
         github.event_name == 'pull_request' &&
-        github.event.pull_request.user.login == github.repository_owner &&
         github.event.pull_request.head.repo.full_name == github.repository &&
-        github.actor == github.repository_owner &&
-        github.triggering_actor == github.repository_owner
+        (
+          (github.event.pull_request.user.login == github.repository_owner &&
+           github.actor == github.repository_owner &&
+           github.triggering_actor == github.repository_owner) ||
+          (github.event.pull_request.user.login == 'dependabot[bot]' &&
+           github.actor == 'dependabot[bot]' &&
+           (github.triggering_actor == 'dependabot[bot]' || github.triggering_actor == github.repository_owner))
+        )
       ) ||
       (
         (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
         github.ref == 'refs/heads/main' &&
         github.actor == github.repository_owner &&
         github.triggering_actor == github.repository_owner
+      ) ||
+      (
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        github.actor == 'github-actions[bot]' &&
+        github.triggering_actor == 'github-actions[bot]' &&
+        inputs.suite == 'smoke'
       )
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'auto' }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor == 'github-actions[bot]' && 'bot-baseline' || (github.event_name == 'workflow_dispatch' && github.run_id || 'auto') }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -74,9 +86,9 @@ jobs:
           package-manager-cache: false
       - name: Install repository npm version
         shell: bash
-        run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")"
+        run: npm install --global "npm@$(node -p "require('./package.json').devEngines.packageManager.version")" ${{ github.actor == 'dependabot[bot]' && '--ignore-scripts' || '' }}
       - name: Install dependencies
-        run: npm ci
+        run: npm ci ${{ github.actor == 'dependabot[bot]' && '--ignore-scripts' || '' }}
       - name: Validate code-reviewers suite preflight
         env:
           EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.suite || 'smoke' }}
@@ -104,12 +116,19 @@ jobs:
         github.ref == 'refs/heads/main' &&
         github.actor == github.repository_owner &&
         github.triggering_actor == github.repository_owner
+      ) ||
+      (
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        github.actor == 'github-actions[bot]' &&
+        github.triggering_actor == 'github-actions[bot]' &&
+        inputs.suite == 'smoke'
       )
     permissions:
       contents: read
       copilot-requests: write
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'auto' }}
+      group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor == 'github-actions[bot]' && 'bot-baseline' || (github.event_name == 'workflow_dispatch' && github.run_id || 'auto') }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.suite == 'full' && 300 || 120 }}
@@ -141,7 +160,7 @@ jobs:
           runs: "1"
           workers: "1"
           max-retries: "0"
-          copilot-token: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
+          copilot-token: ${{ (github.actor != 'github-actions[bot]' && secrets.COPILOT_GITHUB_TOKEN) || github.token }}
           report-id: code-reviewers
       - id: validate
         name: Validate native result inventory

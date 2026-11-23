@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "test": "npm run test:dependencies",
-    "test:dependencies": "node --test script/check-npm-dependencies.test.js script/validate-native-evals.test.js script/vally-output.test.js script/native-eval-graders.test.js"
+    "test:dependencies": "node --test script/check-npm-dependencies.test.js script/dispatch-dependabot-baseline.test.js script/validate-native-evals.test.js script/vally-output.test.js script/native-eval-graders.test.js"
   },
   "devDependencies": {
     "@microsoft/vally-cli": "0.21.0",

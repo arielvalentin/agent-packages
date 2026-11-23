@@ -118,11 +118,26 @@ test("npm test is offline and Copilot credentials stay in evaluation workflows",
     };
     const evaluateCondition = (condition, github, needs = {}) => vm.runInNewContext(
       condition,
-      { github, needs, always: () => true }
+      { github, needs, inputs: github.inputs || {}, always: () => true }
     );
+    const dependabotPr = {
+      ...ownerPr,
+      actor: "dependabot[bot]",
+      triggering_actor: "dependabot[bot]",
+      event: {
+        pull_request: {
+          user: { login: "dependabot[bot]" },
+          head: { repo: { full_name: "owner/repo" } },
+        },
+      },
+    };
     for (const job of ["lint", "run"]) {
       const condition = workflow.jobs[job].if;
       assert.equal(evaluateCondition(condition, ownerPr), true, `${workflowName} ${job} owner PR`);
+      assert.equal(evaluateCondition(condition, dependabotPr), job === "lint", `${workflowName} ${job} Dependabot PR`);
+      assert.equal(evaluateCondition(condition, {
+        ...dependabotPr, triggering_actor: "owner",
+      }), job === "lint", `${workflowName} ${job} owner rerun of Dependabot PR`);
       for (const changes of [
         { actor: "other" },
         { triggering_actor: "other" },
@@ -133,6 +148,19 @@ test("npm test is offline and Copilot credentials stay in evaluation workflows",
           evaluateCondition(condition, { ...ownerPr, ...changes }),
           false,
           `${workflowName} ${job} rejected PR`
+        );
+      }
+      for (const changes of [
+        { actor: "other" },
+        { actor: "owner" },
+        { triggering_actor: "other" },
+        { event: { pull_request: { user: { login: "owner" }, head: { repo: { full_name: "owner/repo" } } } } },
+        { event: { pull_request: { user: { login: "dependabot[bot]" }, head: { repo: { full_name: "fork/repo" } } } } },
+      ]) {
+        assert.equal(
+          evaluateCondition(condition, { ...dependabotPr, ...changes }),
+          false,
+          `${workflowName} ${job} rejected Dependabot PR`
         );
       }
       assert.equal(evaluateCondition(condition, {
@@ -147,6 +175,18 @@ test("npm test is offline and Copilot credentials stay in evaluation workflows",
         ref: "refs/heads/main",
         event: {},
       }), true, `${workflowName} ${job} manual main run`);
+      const botDispatch = {
+        ...ownerPr, event_name: "workflow_dispatch", ref: "refs/heads/main", event: {},
+        actor: "github-actions[bot]", triggering_actor: "github-actions[bot]", inputs: { suite: "smoke" },
+      };
+      assert.equal(evaluateCondition(condition, botDispatch), true, `${workflowName} ${job} baseline`);
+      for (const changes of [
+        { inputs: { suite: "full" } }, { ref: "refs/heads/feature" },
+        { actor: "other" }, { triggering_actor: "other" }, { event_name: "push" },
+      ]) {
+        assert.equal(evaluateCondition(condition, { ...botDispatch, ...changes }), false,
+          `${workflowName} ${job} rejects unsafe baseline`);
+      }
       assert.equal(evaluateCondition(condition, {
         ...ownerPr,
         event_name: "push",
@@ -172,10 +212,36 @@ test("npm test is offline and Copilot credentials stay in evaluation workflows",
     assert.equal(actionSteps[1].with.workers, "1");
     assert.equal(actionSteps[1].with["max-retries"], "0");
     assert.equal(actionSteps[1]["continue-on-error"], true, workflowName);
-    assert.equal(
-      actionSteps[1].with["copilot-token"],
-      "${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}"
-    );
+    const tokenExpression = actionSteps[1].with["copilot-token"].replace(/^\$\{\{\s*|\s*\}\}$/g, "");
+    for (const [actor, secret, expected] of [
+      ["owner", "pat", "pat"],
+      ["owner", "", "job-token"],
+      ["github-actions[bot]", "pat", "job-token"],
+      ["github-actions[bot]", "", "job-token"],
+    ]) {
+      assert.equal(vm.runInNewContext(tokenExpression, {
+        github: { actor, token: "job-token" },
+        secrets: { COPILOT_GITHUB_TOKEN: secret },
+      }), expected, `${workflowName} ${actor} token`);
+    }
+    for (const stepName of ["Install repository npm version", "Install dependencies"]) {
+      const step = workflow.jobs.lint.steps.find(({ name }) => name === stepName);
+      const expression = step.run.match(/\$\{\{\s*(.*?)\s*\}\}/)?.[1];
+      assert.ok(expression, `${workflowName} ${stepName} disables Dependabot install scripts`);
+      assert.equal(vm.runInNewContext(expression, { github: dependabotPr }), "--ignore-scripts");
+      assert.equal(vm.runInNewContext(expression, { github: ownerPr }), "");
+    }
+    assert.equal(workflow.jobs.lint.runs_on, undefined);
+    assert.equal(workflow.jobs.lint["runs-on"], "ubuntu-latest");
+    assert.equal(workflow.jobs.run["runs-on"], "ubuntu-latest");
+    for (const job of ["lint", "run"]) {
+      const checkout = workflow.jobs[job].steps.find((step) => step.uses?.startsWith("actions/checkout@"));
+      const setup = workflow.jobs[job].steps.find((step) => step.uses?.startsWith("actions/setup-node@"));
+      assert.equal(checkout.with["persist-credentials"], false, `${workflowName} ${job} checkout`);
+      assert.equal(checkout.with.ref, undefined, `${workflowName} ${job} event revision`);
+      assert.equal(setup.with["package-manager-cache"], false, `${workflowName} ${job} cache`);
+      assert.match(workflow.jobs[job].concurrency.group, /bot-baseline/, `${workflowName} ${job} concurrency`);
+    }
     assert.equal(actionSteps[0].with["working-directory"], ".");
     assert.equal(actionSteps[1].with["working-directory"], ".");
     assert.equal(workflow.jobs.run.outputs["action-outcome"], "${{ steps.evals.outputs.outcome }}");
@@ -311,6 +377,10 @@ test("npm test is offline and Copilot credentials stay in evaluation workflows",
       outputs: { "inventory-valid": "", "action-outcome": "passed" },
     }), false, workflowName);
     assert.equal(checkReport({ result: "cancelled", outputs: {} }), false, workflowName);
+    assert.equal(evaluateCondition(workflow.jobs.report.if, dependabotPr, {
+      lint: { result: "success" },
+      run: { result: "success", outputs: { "inventory-valid": "true", "action-outcome": "passed" } },
+    }), false, `${workflowName} Dependabot report`);
   }
   const ci = yaml.load(fs.readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8"));
   assert.ok(ci.on.pull_request, "pull requests retain credential-free structural validation");
