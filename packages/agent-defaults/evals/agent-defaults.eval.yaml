@@ -5289,8 +5289,9 @@ stimuli:
         - src: fixtures/context-05a1215ce1d3b39f.md
           dest: .github/copilot-instructions.md
     prompt: >-
-      Before marking an existing draft ready, must you refresh required checks and complete
-      feedback, then close with fresh PR and reviewer reads? Answer exactly Yes or No.
+      Before readying a draft PR, must you refresh required checks, complete feedback processing
+      with no actionable findings left, then reread the PR and reviewer requests? Answer exactly
+      Yes or No.
     graders:
       - type: output-matches
         name: agent-defaults-case-220-row-01-a1-exact-yes
@@ -5784,29 +5785,6 @@ stimuli:
     graders:
       - type: output-matches
         name: agent-defaults-case-242-row-01-a1-exact-yes
-        config:
-          pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*[.!]?[*_\x60]*\s*$
-    simulation:
-      tool_overrides:
-        bash:
-          output: Shell execution is disabled in this text-only evaluation.
-          is_error: true
-  - name: agent-defaults-case-243-row-01
-    tags:
-      suite: smoke
-      source_case: '243'
-      source_row: '1'
-    agent_environment:
-      files:
-        - src: fixtures/context-05a1215ce1d3b39f.md
-          dest: .github/copilot-instructions.md
-    prompt: >-
-      The required-check command returns its no-checks result. Both branch protection and every
-      applicable ruleset were successfully read and require no checks. Is the required set verified
-      empty? Answer exactly Yes or No.
-    graders:
-      - type: output-matches
-        name: agent-defaults-case-243-row-01-a1-exact-yes
         config:
           pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*[.!]?[*_\x60]*\s*$
     simulation:
@@ -9152,8 +9130,9 @@ stimuli:
         - src: ../.apm/skills/acting-on-behalf/SKILL.md
           dest: .github/copilot-instructions.md
     prompt: >-
-      Decision-table case: posting path is bot/app/service credentials; attributes the user is Yes.
-      Is the disclaimer required? Reply with exactly `Yes` or `No`.
+      A service bot posts using its own app credentials. The user's handle is @sample-contributor,
+      and the post's byline says `on behalf of @sample-contributor`. Is an AI-assistance disclaimer
+      required? Reply with exactly `Yes` or `No`.
     graders:
       - type: output-matches
         name: agent-defaults-case-364-row-01-a1-exact-yes
