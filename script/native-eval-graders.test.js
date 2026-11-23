@@ -289,6 +289,7 @@ test("draft PR command grader requires explicit repository targeting", async () 
   const { isValidDraftCreateOutput } = await gradersModule;
   const passing = [
     "gh pr create --repo owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
+    "gh pr create --repo owner/repo --draft --title 'feat: add parser' --body '  Details  '",
     "gh pr create --repo github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo https://github.example/owner/repo --draft --title \"fix: handle null\" --body \"Details\"",
     "gh pr create --repo https://github.example/owner/repo.git --draft --title \"fix: handle null\" --body \"Details\"",
@@ -409,6 +410,7 @@ test("draft PR command grader requires explicit repository targeting", async () 
     "gh pr create --draft --title \"feat: add parser\"",
     "gh pr create --draft --body \"Details\"",
     "gh pr create --draft --title \"feat: add parser\" --body \"\"",
+    "gh pr create --repo owner/repo --draft --title 'feat: add parser' --body '   '",
     "gh pr create --drafted --title \"feat: add parser\" --body \"Details\"",
     "gh pr create --draft --title \"feat: add one\" --body \"Details\"; "
       + "gh pr create --draft --title \"bad title\" --body \"More details\"",
