@@ -1,0 +1,29 @@
+name: "Eval: Dependabot baseline dispatcher"
+
+on:
+  workflow_run:
+    workflows: ["Eval: agent-defaults", "Eval: code-reviewers", "Eval: development-workflow"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  dispatch:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: dependabot-baseline-dispatch-${{ github.event.workflow_run.id }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Validate source and dispatch trusted baseline
+        run: node script/dispatch-dependabot-baseline.js
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

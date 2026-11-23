@@ -68,17 +68,40 @@ does not need an install-time build for this toolchain. Use
 contract checks. It does not start model evaluations, require a Copilot token,
 or consume Copilot usage. Use the credentialed GitHub Actions workflows for
 behavioral evaluations. They run smoke suites on pushes to `main` and eligible
-same-repository pull requests. Manual dispatch on `main` supports smoke or full
-suites. Both the original actor and the actor triggering a rerun must be the
-repository owner. Fork pull requests never run credentialed evaluations.
+same-repository owner pull requests. Manual dispatch on `main` supports smoke
+or full suites. Both the original actor and the actor triggering a rerun must
+be the repository owner. Fork pull requests never run credentialed evaluations.
 
-The workflows use the built-in GitHub Actions token with
-`copilot-requests: write`, unless the optional `COPILOT_GITHUB_TOKEN` secret
-overrides it. The built-in token requires the repository owner's Copilot
+Same-repository Dependabot pull requests run lint only on a GitHub-hosted
+runner with npm installation scripts disabled and no Copilot permission or
+secret. The action job is **not credential-free**: it has a read-only GitHub
+Actions token. It does not run or report credentialed evals.
+
+After a successful eligible lint, a separate default-branch workflow checks
+the source run, lint job, and an open same-repository Dependabot PR at the
+same head SHA through the GitHub API. It dispatches only the corresponding
+smoke workflow on `main`, without forwarding PR code or artifacts. The
+credentialed baseline uses trusted `main` code and actions. **It does not
+test the updated action paired with the evals.** The baseline is not a PR
+report or a merge gate. Dispatches are limited to one run and worker, no
+retries, and a cancelling concurrency group per workflow.
+
+The credentialed workflows use the built-in GitHub Actions token with
+`copilot-requests: write`. For owner runs, the optional `COPILOT_GITHUB_TOKEN`
+secret overrides it. The Dependabot baseline always uses the built-in token.
+The built-in token requires the repository owner's Copilot
 entitlement, and evaluations may consume usage. Evaluations use
-`gpt-5.3-codex`. Only the PR report job has pull-request write permission.
-These guards rely on trusting repository writers, who can modify workflow
-definitions.
+`gpt-5.3-codex`. Only the owner PR report job has pull-request write permission.
+The dispatcher has Actions write and read access to contents and pull requests,
+but no Copilot permission. It does not trust the run's `pull_requests` array.
+Live dispatch actor identity, token entitlement, and PR association have not
+been verified. A missing or mismatched association fails closed.
+
+Workflow names and job names can be spoofed by someone able to alter workflow
+definitions. Any actor able to dispatch workflows as `github-actions[bot]` may
+also trigger trusted smoke runs, consuming usage; the dispatch guard does not
+prove which workflow sent the dispatch. These guards rely on trusting
+repository writers and the default branch.
 
 Result validation retains these repository-specific inventory checks:
 
