@@ -53,6 +53,14 @@ supports deterministic validation of the native eval definitions.
 `npm run test:dependencies` checks the pinned tool, strict Vally schema
 validation, and result-validator regressions.
 
+Eval definitions use Vally's built-in graders; no project grader plugin is
+required. Native output matchers cover token polarity, conflicting answers,
+and output-length limits. Converted one-token cases require the complete answer
+to be that token, with optional Markdown emphasis, rather than parsing prose
+selection labels or explanations. The draft-PR command case tests a fixed, explicit
+repository and command format, not arbitrary CLI option spellings or dynamic
+repository expressions. Regex checks do not establish semantic correctness.
+
 npm 11 blocks dependency install scripts unless `allowScripts` approves them.
 Only `esbuild@0.28.2` is approved: its postinstall locates, validates, and
 prepares the platform binary needed by tsx. If the optional binary is absent,

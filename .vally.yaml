@@ -31,7 +31,3 @@ suites:
     evals: packages/code-reviewers/evals/code-reviewers.eval.yaml
     filter:
       suite: [smoke, full]
-
-plugins:
-  grader:
-    - ./script/native-eval-graders.mjs

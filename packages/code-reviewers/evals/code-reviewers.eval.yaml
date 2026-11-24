@@ -240,15 +240,11 @@ stimuli:
       artifact is attached. Must you ask the user to provide an implementation-summary artifact
       before beginning? Answer exactly one word: Yes or No.
     graders:
-      - type: output-text-contract
-        name: code-reviewers-case-011-row-01-a1-output-text-contract
+      - type: output-matches
+        name: code-reviewers-case-011-row-01-a1-output-matches
         scope: parent
         config:
-          removeCharacters:
-            - '*'
-            - _
-            - '`'
-          mustMatch: (?i)^no[.!]?$
+          pattern: (?i)^\s*[*_\x60]*n[*_\x60]*o[*_\x60]*[.!]?[*_\x60]*\s*$
     simulation:
       tool_overrides:
         bash:
@@ -269,15 +265,11 @@ stimuli:
       handoff artifact is attached. Must you ask the user to provide an implementation-summary
       artifact before beginning? Answer exactly one word: Yes or No.
     graders:
-      - type: output-text-contract
-        name: code-reviewers-case-012-row-01-a1-output-text-contract
+      - type: output-matches
+        name: code-reviewers-case-012-row-01-a1-output-matches
         scope: parent
         config:
-          removeCharacters:
-            - '*'
-            - _
-            - '`'
-          mustMatch: (?i)^no[.!]?$
+          pattern: (?i)^\s*[*_\x60]*n[*_\x60]*o[*_\x60]*[.!]?[*_\x60]*\s*$
     simulation:
       tool_overrides:
         bash:
@@ -323,15 +315,11 @@ stimuli:
       ```
       Reply with the pattern name only.
     graders:
-      - type: output-text-contract
-        name: code-reviewers-case-014-row-01-a1-output-text-contract
+      - type: output-matches
+        name: code-reviewers-case-014-row-01-a1-output-matches
         scope: parent
         config:
-          removeCharacters:
-            - '*'
-            - _
-            - '`'
-          mustMatch: (?i)^n\s*\+\s*1(?:\s+(?:database\s+)?(?:quer(?:y|ies)(?:\s+(?:pattern|problem))?|pattern|problem))?[.!]?$
+          pattern: (?i)^\s*[*_\x60]*n[*_\x60]*\s*\+[*_\x60]*\s*1[*_\x60]*(?:\s+[*_\x60]*(?:database[*_\x60]*\s+[*_\x60]*)?(?:quer(?:y|ies)[*_\x60]*(?:\s+[*_\x60]*(?:pattern|problem))?|pattern|problem))?[.!]?[*_\x60]*\s*$
     simulation:
       tool_overrides:
         bash:
@@ -373,13 +361,11 @@ stimuli:
       A diff raises a memory allocation issue in a hot path. Which reviewer should assess the
       performance impact? Return exactly one reviewer name.
     graders:
-      - type: output-text-contract
-        name: code-reviewers-case-016-row-01-a1-output-text-contract
+      - type: output-matches
+        name: code-reviewers-case-016-row-01-a1-output-matches
         scope: parent
         config:
-          removeCharacters:
-            - '`'
-          mustMatch: (?i)^perf-reviewer$
+          pattern: (?i)^\s*\x60*p\x60*e\x60*r\x60*f\x60*-\x60*r\x60*e\x60*v\x60*i\x60*e\x60*w\x60*e\x60*r\x60*\s*$
     simulation:
       tool_overrides:
         bash:

@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createDefaultGraderRegistry } from "@microsoft/vally";
-import { registerGraders } from "./native-eval-graders.mjs";
 
 const registry = createDefaultGraderRegistry();
-registerGraders(registry);
 const checks = JSON.parse(fs.readFileSync(0, "utf8"));
 const failures = [];
 for (const [stimulus, output, expected] of checks) {
