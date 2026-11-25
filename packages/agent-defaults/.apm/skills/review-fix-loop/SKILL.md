@@ -39,14 +39,18 @@ non-empty `location`, `issue`, and `fix` strings, matching the
 calling agent owns this gate and user escalation; no coordinator agent is
 required.
 
+An explicitly designated single-model role with `explicit_multi_review: false`
+may bypass `consensus-panel`, even if that skill is unavailable. Otherwise,
+before every review dispatch, load `consensus-panel` for classification,
+review-mode selection, dispatch, JSON verdict schema, parsing, synthesis, and
+failure handling; if unavailable, stop the gate. This exemption does not waive
+any other safety gate or change scope disqualifiers.
+
 1. **Check skip condition** — if `skip_condition` is defined and matches the
    current context, skip the gate entirely. Record the skip reason.
 
 2. **Review intake** — when `accepted_findings` is absent or empty, run the
-   `reviewer` through `consensus-panel` unless that role is explicitly
-   designated single-model and `explicit_multi_review` is `false`.
-   `consensus-panel` classifies the scope first. A `true` value overrides any
-   single-model designation and always selects the panel. Send `scope`,
+   `reviewer` under the dispatch policy above. Send `scope`,
    `context`, `explicit_multi_review`, and `focus` when provided.
    When `accepted_findings` is non-empty, do not repeat the intake review. The
    caller must have completed the applicable authorization and evidence gates
@@ -65,7 +69,7 @@ required.
 
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
-   b. Re-run `reviewer` through the same panel policy against the updated
+   b. Re-run `reviewer` through the same dispatch policy against the updated
       `scope`, preserving `explicit_multi_review` unchanged in every handoff.
       This post-fix review is mandatory for caller-supplied `accepted_findings`
       too; do not skip it based on the source or severity of those findings.
@@ -76,14 +80,9 @@ required.
       Missing status or missing evidence leaves that finding unresolved, even
       if the reviewer omits it from the new findings list or lowers its
       severity.
-      Re-classify the scope at the start of every cycle, then determine review
-      mode from the unchanged caller field: `explicit_multi_review: true`
-      always selects the adaptive 2+1 panel, even when the scope is still
-      non-code or tiny. Only when the value is `false` does scope classification
-      select the single-reviewer fast path or the panel. Every panelled retry
-      starts a **fresh initial wave of 2** reviewers, escalating to a tiebreaker
-      only if that cycle's own responses fire an escalation trigger — a previous
-      cycle's escalation does not carry over.
+      On non-exempt paths, re-classify the scope at the start of every cycle
+      under `consensus-panel`; preserve the caller's review intent and use that
+      cycle's responses, not a previous cycle's escalation.
    c. An intake gate passes only when every original required finding is
       explicitly resolved or proven not applicable with evidence, and no new
       findings at or above threshold remain. For caller-supplied
@@ -128,12 +127,11 @@ A finding is "the same" if it matches on `(location, issue)` or
 `(category, description)` — the calling agent must not loop indefinitely on
 a finding the fixer cannot resolve.
 
-## Usage examples
+## Usage example
 
 Example values are illustrative; every handoff must preserve the caller's
 original `explicit_multi_review` value unchanged.
 
-### Adversarial review gate
 ```
 reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)
@@ -142,65 +140,6 @@ explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
-```
-
-### Security review gate
-```
-reviewer: security-review
-scope: cumulative diff (branch vs base)
-focus: exploitable vulnerabilities only, with severity and confidence
-explicit_multi_review: false
-max_retries: 2
-severity_threshold: blocker,major
-on_exhaust: escalate
-skip_condition: refactor flow unless touching auth, crypto, input validation, or access control
-```
-
-### Documentation-only review (single-reviewer fast path)
-```
-reviewer: code-review
-scope: docs-only diff (branch vs base)
-explicit_multi_review: false
-max_retries: 1
-severity_threshold: blocker,major
-on_exhaust: warn
-```
-`consensus-panel` classifies this scope as non-code and dispatches exactly one
-mid-tier reviewer — no panel.
-
-### Per-step code review
-```
-reviewer: code-review
-scope: step diff
-explicit_multi_review: false
-max_retries: 1
-severity_threshold: blocker
-on_exhaust: warn
-```
-
-### Authorized PR feedback fix
-```
-reviewer: adversarial-review
-scope: exact current PR diff and accepted feedback findings
-context: task intent, complete classified feedback, and verified acceptance criteria
-explicit_multi_review: <caller-derived JSON boolean>
-accepted_findings: <actionable findings accepted by pr-lifecycle>
-```
-The lifecycle caller completes actor classification and authorization first.
-The loop fixes only the supplied findings, then runs the required post-fix
-review under the same `explicit_multi_review` value. It does not repeat the
-feedback intake review.
-
-### Observability validation
-```
-reviewer: custom-observability-reviewer
-scope: cumulative diff (branch vs base)
-focus: metrics, logs, traces, alerting/SLO coverage
-explicit_multi_review: false
-max_retries: 2
-severity_threshold: blocker,major
-on_exhaust: escalate
-skip_condition: documentation-only, dependency bumps, or user-marked observability-exempt
 ```
 
 ## Fallback behavior

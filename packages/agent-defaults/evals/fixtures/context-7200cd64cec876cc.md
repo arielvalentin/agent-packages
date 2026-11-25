@@ -20,12 +20,6 @@ strategy on consumers.
 Permission, human-interaction, attribution, and mandatory safety/review gates
 still apply.
 
-When presenting a plain shell command, distinguish an outer wrapper around the
-whole command from quotes delimiting its arguments. A request for no outer
-quotes does not remove shell syntax needed to keep argument values intact.
-For example, `cmd --option "two words"` has a quoted argument but no outer
-wrapper; the unquoted form passes two separate words.
-
 For PR titles and bodies, load `writing-voice` and its
 `references/artifact-authoring.md` for authoring and the final pre-post reader
 check. Use `acting-on-behalf` for posting permission and conditional attribution.
@@ -39,36 +33,31 @@ paraphrase away the stage or SHA being discussed.
 When restating a named target or qualifier, keep its exact phrase contiguous.
 Put clarifying modifiers outside the named phrase, not between its terms.
 
-Resolve the exact repository first; resolve the PR once one exists. A bare PR
-number means the active repository only. Pass an explicit `--repo` target to
-every repository-scoped `gh` command, including `gh pr` and `gh run`, and use
-that exact repository in `gh api` paths. Do not rely on implicit repository
-selection or `GH_REPO` unless it has been verified against the exact target.
-For a command targeting the active checkout when its owner/repository is not
-already known, derive `--repo` from `git remote get-url origin`, preserve its
-host, and pass the host-qualified repository explicitly; never nest a `gh`
-command substitution inside another `gh` command. Use `origin` only when it is
-the user's exact target. Replace placeholders in command examples with the
-resolved owner, repository, and PR number. If the target cannot be identified
-unambiguously, ask before reading or acting.
+Resolve the exact repository, then the PR when one exists. A bare PR number
+means the active repository only. Pass explicit `--repo` to repository-scoped
+`gh` commands, including `gh pr` and `gh run`, and the same target in `gh api`
+paths. Do not trust implicit selection or `GH_REPO` without verifying the target.
+Replace command placeholders with resolved values; ask before reading or acting
+if ambiguous. Never nest a `gh` command substitution inside another `gh` command.
+
 Pass `--title` and `--body` as ordinary single- or double-quoted shell literals.
-For a brief, single-paragraph body, keep the value on one line; use a multiline
-ordinary quoted literal only when the requested body needs multiple paragraphs.
+Keep a brief single-paragraph body on one line; use multiline literals only for
+multiple paragraphs. A request for no outer quotes does not remove argument quoting.
 Do not use ANSI-C `$'...'` quoting or shell expansions in either value.
-When deriving `--repo` from `origin`, use one anchored `sed -nE` script
-that emits `HOST/OWNER/REPO[.git]`, preserving the host and optional `.git`
-suffix while omitting URL user information. Keep the literal `https://`
-outside the quoted command substitution:
+
+If the active checkout's owner/repository is unknown and `origin` is the user's
+exact target, derive the explicit host-qualified `--repo` with this anchored
+script. Preserve the host and optional `.git`, omit URL user information, and
+keep literal `https://` outside the command substitution:
 
 ```sh
 --repo "https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p')"
 ```
 
-The `p` flag emits no path when the origin does not match; the resulting
-`https://` target is rejected by `gh` with `no hostname detected` before any
-request, rather than falling back to `GH_REPO` or another repository context.
-Origins with explicit ports intentionally do not match this form. Resolve a
-`gh`-supported host-qualified target without stripping the port before acting.
+Unmatched origins produce `https://`, rejected by `gh` with `no hostname
+detected` before any request rather than falling back to another repository.
+Explicit ports intentionally do not match; resolve a `gh`-supported
+host-qualified target without stripping the port before acting.
 Do not add further substitutions or rewrite the target to a constant.
 
 ## Trigger phrases
@@ -203,14 +192,10 @@ does not authorize publication.
    `--title`; do not run `gh pr edit` or invent a PR number.
    Preserve the validated scope and `!` in the creation title when applicable.
    This phase only prepares a new PR; it does not retitle an existing PR.
-3. Prepare the body using `writing-voice`, including its validation-detail
-   rules. Follow the repository template when present; otherwise use only the
-   structure this change needs. Follow repository tracking requirements; do
-   not invent a required issue when none applies. Preserve relevant issue and
-   ADR references and apply conditional AI attribution via `acting-on-behalf`.
-   PR-body attribution is not part of feedback processing:
-   `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
-   sole source of truth for whether a PR body needs AI attribution.
+3. Prepare the body under the authoring and disclosure gates above. Follow
+   repository tracking requirements; do not invent a required issue when none
+   applies. Preserve relevant issue and ADR references. `acting-on-behalf`,
+   never `pr-feedback-review`, decides PR-body attribution.
 4. If no PR exists and publication is authorized under
    `git-publishing-safety`, follow the repository's required creation phase and
    readiness state, but never create before local acceptance. By default,
@@ -279,6 +264,9 @@ Commits defaults for titles created or updated in Phase 3:
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites
+
+Load applicable owners before their gated actions; if a required owner is
+unavailable, stop unless § Skill fallbacks supplies that exact fallback.
 
 - `human-interaction-safeguard` — source of truth for actor behavior.
 - `acting-on-behalf` — posting and attribution backstop.

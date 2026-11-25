@@ -100,11 +100,12 @@ in the diff.
 
 ## 8. Post one review
 
-Apply `human-interaction-safeguard` before drafting a public review; on
-`HUMAN_STOP`, give only a private findings summary, not a draft reply, unless
-the user confirms the described draft under that skill's single-action rules.
-Defer the warning and ordinary confirmation to that skill; draft authorization
-does not permit posting.
+Apply `human-interaction-safeguard` before drafting or posting a public review;
+if unavailable, fail closed as `HUMAN_STOP`. On `HUMAN_STOP`, give only a private
+findings summary unless its canonical single-reply confirmation permits more.
+Defer warning, eligibility, and confirmation to that skill. Draft-only permission
+does not permit posting; reply permission never permits implementation,
+resolution, or merging.
 Use `writing-voice` for the permitted review or private summary. Compile
 steps 3-7 with the following relevant content, not forced section headings:
 
@@ -115,7 +116,8 @@ steps 3-7 with the following relevant content, not forced section headings:
 5. Tooling limitations.
 6. Verdict: approve, request changes, or comment-only, with rationale.
 
-Invoke `acting-on-behalf` before posting. Use `gh pr review` with `--approve`,
+Invoke `acting-on-behalf` before posting; stop if unavailable or disclosure is
+unresolved. Use `gh pr review` with `--approve`,
 `--request-changes`, or `--comment`, always passing the PR number and
 `--repo <owner/repo>`, and include only the attribution that skill requires.
 

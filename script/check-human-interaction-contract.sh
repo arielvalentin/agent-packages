@@ -323,8 +323,10 @@ for downstream in "$acting" "$feedback" "$lifecycle_feedback"; do
 done
 require "$acting" "posting backstop defers only to canonical policy" \
   'Only `human-interaction-safeguard` can authorize composing and sending one described reply'
+require "$acting" "HUMAN_STOP explicitly blocks drafting, replies, and resolution" \
+  '`HUMAN_STOP` blocks drafting, replies, and resolution by default'
 require "$feedback" "human warning and scoped confirmation" \
-  'Warn that the chain includes a human response.{0,120}confirmation for one described reply'
+  'For `HUMAN_STOP`, stop interaction-derived work and follow `human-interaction-safeguard` for the private warning, eligibility, and single-reply confirmation'
 require "$lifecycle_feedback" "separate implementation instruction boundary" \
   'later, separate, explicit implementation instruction'
 require "$feedback" "feedback chain taint deferral" \
@@ -348,9 +350,13 @@ require "$acting" "known-service omission" \
 require "$acting" "unknown publisher pauses" \
   'Unknown credential/account provenance: \*\*Pause and ask before posting\*\*'
 require "$acting" "body-preserving final footer" \
-  'preserve the supplied substantive body, then append a blank line and the exact footer below as the final paragraph of the agent-composed body'
+  'Preserve the supplied substantive body subject to the disclosure boundary'
+require "$acting" "blank line and exact final footer placement" \
+  'When required, append a blank line and the exact footer below as the final paragraph of the agent-composed body'
 require "$acting" "fixing SHA before footer" \
-  'include the related commit SHA.{0,160}only when it is appropriate for the destination audience.{0,200}before the disclaimer'
+  'include the related commit SHA.{0,80}only when verified public for a public destination, or private with an audience authorized to access that repository'
+require "$acting" "footer follows the fixing SHA" \
+  'final paragraph of the agent-composed body, after any SHA or other content'
 require "$acting" "public/shared disclosure boundary" \
   'Before drafting any public/shared content'
 require "$acting" "public and unknown audiences redact private references" \
@@ -360,7 +366,7 @@ require "$acting" "authorized private repository citations" \
 require "$acting" "boundary overrides content retention" \
   'override instructions to preserve text, include tracking references, or cite source evidence'
 require "$acting" "slash command stays first" \
-  'keep the slash command as the exact first line'
+  'For issue-ops slash commands.{0,60}keep the command as the exact first line; prefix it with nothing'
 require "$acting" "no lookup solely for footer" \
   'Do not look up a username, model, or provider solely to render the disclaimer'
 

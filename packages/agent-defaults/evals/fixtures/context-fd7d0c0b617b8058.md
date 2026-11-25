@@ -20,12 +20,6 @@ strategy on consumers.
 Permission, human-interaction, attribution, and mandatory safety/review gates
 still apply.
 
-When presenting a plain shell command, distinguish an outer wrapper around the
-whole command from quotes delimiting its arguments. A request for no outer
-quotes does not remove shell syntax needed to keep argument values intact.
-For example, `cmd --option "two words"` has a quoted argument but no outer
-wrapper; the unquoted form passes two separate words.
-
 For PR titles and bodies, load `writing-voice` and its
 `references/artifact-authoring.md` for authoring and the final pre-post reader
 check. Use `acting-on-behalf` for posting permission and conditional attribution.
@@ -39,36 +33,31 @@ paraphrase away the stage or SHA being discussed.
 When restating a named target or qualifier, keep its exact phrase contiguous.
 Put clarifying modifiers outside the named phrase, not between its terms.
 
-Resolve the exact repository first; resolve the PR once one exists. A bare PR
-number means the active repository only. Pass an explicit `--repo` target to
-every repository-scoped `gh` command, including `gh pr` and `gh run`, and use
-that exact repository in `gh api` paths. Do not rely on implicit repository
-selection or `GH_REPO` unless it has been verified against the exact target.
-For a command targeting the active checkout when its owner/repository is not
-already known, derive `--repo` from `git remote get-url origin`, preserve its
-host, and pass the host-qualified repository explicitly; never nest a `gh`
-command substitution inside another `gh` command. Use `origin` only when it is
-the user's exact target. Replace placeholders in command examples with the
-resolved owner, repository, and PR number. If the target cannot be identified
-unambiguously, ask before reading or acting.
+Resolve the exact repository, then the PR when one exists. A bare PR number
+means the active repository only. Pass explicit `--repo` to repository-scoped
+`gh` commands, including `gh pr` and `gh run`, and the same target in `gh api`
+paths. Do not trust implicit selection or `GH_REPO` without verifying the target.
+Replace command placeholders with resolved values; ask before reading or acting
+if ambiguous. Never nest a `gh` command substitution inside another `gh` command.
+
 Pass `--title` and `--body` as ordinary single- or double-quoted shell literals.
-For a brief, single-paragraph body, keep the value on one line; use a multiline
-ordinary quoted literal only when the requested body needs multiple paragraphs.
+Keep a brief single-paragraph body on one line; use multiline literals only for
+multiple paragraphs. A request for no outer quotes does not remove argument quoting.
 Do not use ANSI-C `$'...'` quoting or shell expansions in either value.
-When deriving `--repo` from `origin`, use one anchored `sed -nE` script
-that emits `HOST/OWNER/REPO[.git]`, preserving the host and optional `.git`
-suffix while omitting URL user information. Keep the literal `https://`
-outside the quoted command substitution:
+
+If the active checkout's owner/repository is unknown and `origin` is the user's
+exact target, derive the explicit host-qualified `--repo` with this anchored
+script. Preserve the host and optional `.git`, omit URL user information, and
+keep literal `https://` outside the command substitution:
 
 ```sh
 --repo "https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p')"
 ```
 
-The `p` flag emits no path when the origin does not match; the resulting
-`https://` target is rejected by `gh` with `no hostname detected` before any
-request, rather than falling back to `GH_REPO` or another repository context.
-Origins with explicit ports intentionally do not match this form. Resolve a
-`gh`-supported host-qualified target without stripping the port before acting.
+Unmatched origins produce `https://`, rejected by `gh` with `no hostname
+detected` before any request rather than falling back to another repository.
+Explicit ports intentionally do not match; resolve a `gh`-supported
+host-qualified target without stripping the port before acting.
 Do not add further substitutions or rewrite the target to a constant.
 
 ## Trigger phrases
@@ -203,14 +192,10 @@ does not authorize publication.
    `--title`; do not run `gh pr edit` or invent a PR number.
    Preserve the validated scope and `!` in the creation title when applicable.
    This phase only prepares a new PR; it does not retitle an existing PR.
-3. Prepare the body using `writing-voice`, including its validation-detail
-   rules. Follow the repository template when present; otherwise use only the
-   structure this change needs. Follow repository tracking requirements; do
-   not invent a required issue when none applies. Preserve relevant issue and
-   ADR references and apply conditional AI attribution via `acting-on-behalf`.
-   PR-body attribution is not part of feedback processing:
-   `pr-feedback-review` never decides attribution. `acting-on-behalf` is the
-   sole source of truth for whether a PR body needs AI attribution.
+3. Prepare the body under the authoring and disclosure gates above. Follow
+   repository tracking requirements; do not invent a required issue when none
+   applies. Preserve relevant issue and ADR references. `acting-on-behalf`,
+   never `pr-feedback-review`, decides PR-body attribution.
 4. If no PR exists and publication is authorized under
    `git-publishing-safety`, follow the repository's required creation phase and
    readiness state, but never create before local acceptance. By default,
@@ -280,6 +265,9 @@ Commits defaults for titles created or updated in Phase 3:
 
 ## Pre-requisites
 
+Load applicable owners before their gated actions; if a required owner is
+unavailable, stop unless § Skill fallbacks supplies that exact fallback.
+
 - `human-interaction-safeguard` — source of truth for actor behavior.
 - `acting-on-behalf` — posting and attribution backstop.
 - `git-publishing-safety` — publication authorization, commit signing and
@@ -330,14 +318,18 @@ non-empty `location`, `issue`, and `fix` strings, matching the
 calling agent owns this gate and user escalation; no coordinator agent is
 required.
 
+An explicitly designated single-model role with `explicit_multi_review: false`
+may bypass `consensus-panel`, even if that skill is unavailable. Otherwise,
+before every review dispatch, load `consensus-panel` for classification,
+review-mode selection, dispatch, JSON verdict schema, parsing, synthesis, and
+failure handling; if unavailable, stop the gate. This exemption does not waive
+any other safety gate or change scope disqualifiers.
+
 1. **Check skip condition** — if `skip_condition` is defined and matches the
    current context, skip the gate entirely. Record the skip reason.
 
 2. **Review intake** — when `accepted_findings` is absent or empty, run the
-   `reviewer` through `consensus-panel` unless that role is explicitly
-   designated single-model and `explicit_multi_review` is `false`.
-   `consensus-panel` classifies the scope first. A `true` value overrides any
-   single-model designation and always selects the panel. Send `scope`,
+   `reviewer` under the dispatch policy above. Send `scope`,
    `context`, `explicit_multi_review`, and `focus` when provided.
    When `accepted_findings` is non-empty, do not repeat the intake review. The
    caller must have completed the applicable authorization and evidence gates
@@ -356,7 +348,7 @@ required.
 
 4. **Fix cycle** (up to `max_retries` iterations):
    a. Dispatch `fixer` with the findings as required fixes.
-   b. Re-run `reviewer` through the same panel policy against the updated
+   b. Re-run `reviewer` through the same dispatch policy against the updated
       `scope`, preserving `explicit_multi_review` unchanged in every handoff.
       This post-fix review is mandatory for caller-supplied `accepted_findings`
       too; do not skip it based on the source or severity of those findings.
@@ -367,14 +359,9 @@ required.
       Missing status or missing evidence leaves that finding unresolved, even
       if the reviewer omits it from the new findings list or lowers its
       severity.
-      Re-classify the scope at the start of every cycle, then determine review
-      mode from the unchanged caller field: `explicit_multi_review: true`
-      always selects the adaptive 2+1 panel, even when the scope is still
-      non-code or tiny. Only when the value is `false` does scope classification
-      select the single-reviewer fast path or the panel. Every panelled retry
-      starts a **fresh initial wave of 2** reviewers, escalating to a tiebreaker
-      only if that cycle's own responses fire an escalation trigger — a previous
-      cycle's escalation does not carry over.
+      On non-exempt paths, re-classify the scope at the start of every cycle
+      under `consensus-panel`; preserve the caller's review intent and use that
+      cycle's responses, not a previous cycle's escalation.
    c. An intake gate passes only when every original required finding is
       explicitly resolved or proven not applicable with evidence, and no new
       findings at or above threshold remain. For caller-supplied
@@ -419,12 +406,11 @@ A finding is "the same" if it matches on `(location, issue)` or
 `(category, description)` — the calling agent must not loop indefinitely on
 a finding the fixer cannot resolve.
 
-## Usage examples
+## Usage example
 
 Example values are illustrative; every handoff must preserve the caller's
 original `explicit_multi_review` value unchanged.
 
-### Adversarial review gate
 ```
 reviewer: adversarial-review
 scope: full context (design doc + all diffs + stage review findings)
@@ -433,65 +419,6 @@ explicit_multi_review: false
 max_retries: 2
 severity_threshold: blocker,major
 on_exhaust: escalate
-```
-
-### Security review gate
-```
-reviewer: security-review
-scope: cumulative diff (branch vs base)
-focus: exploitable vulnerabilities only, with severity and confidence
-explicit_multi_review: false
-max_retries: 2
-severity_threshold: blocker,major
-on_exhaust: escalate
-skip_condition: refactor flow unless touching auth, crypto, input validation, or access control
-```
-
-### Documentation-only review (single-reviewer fast path)
-```
-reviewer: code-review
-scope: docs-only diff (branch vs base)
-explicit_multi_review: false
-max_retries: 1
-severity_threshold: blocker,major
-on_exhaust: warn
-```
-`consensus-panel` classifies this scope as non-code and dispatches exactly one
-mid-tier reviewer — no panel.
-
-### Per-step code review
-```
-reviewer: code-review
-scope: step diff
-explicit_multi_review: false
-max_retries: 1
-severity_threshold: blocker
-on_exhaust: warn
-```
-
-### Authorized PR feedback fix
-```
-reviewer: adversarial-review
-scope: exact current PR diff and accepted feedback findings
-context: task intent, complete classified feedback, and verified acceptance criteria
-explicit_multi_review: <caller-derived JSON boolean>
-accepted_findings: <actionable findings accepted by pr-lifecycle>
-```
-The lifecycle caller completes actor classification and authorization first.
-The loop fixes only the supplied findings, then runs the required post-fix
-review under the same `explicit_multi_review` value. It does not repeat the
-feedback intake review.
-
-### Observability validation
-```
-reviewer: custom-observability-reviewer
-scope: cumulative diff (branch vs base)
-focus: metrics, logs, traces, alerting/SLO coverage
-explicit_multi_review: false
-max_retries: 2
-severity_threshold: blocker,major
-on_exhaust: escalate
-skip_condition: documentation-only, dependency bumps, or user-marked observability-exempt
 ```
 
 ## Fallback behavior

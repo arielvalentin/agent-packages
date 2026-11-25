@@ -53,6 +53,6 @@ can include later edits. No private examples or raw corpus belong here.
 Synthetic examples live with the relevant
 [proposal/discussion](proposal-discussion.md), [review](review.md),
 [defect](defect.md), and [artifact-authoring](artifact-authoring.md) guidance.
-They grant no permission to draft or post on `HUMAN_STOP`; defer any
-single-action exception exclusively to `human-interaction-safeguard`.
+They grant no permission to draft or post on `HUMAN_STOP`; defer
+single-reply confirmation exclusively to `human-interaction-safeguard`.
 They are not real measurements, user experience, or historical quotations.

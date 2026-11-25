@@ -7,12 +7,10 @@ description: >
 
 # PR Feedback Review
 
-A structured protocol for reviewing, researching, and responding to PR review
-comments. Load this skill when addressing PR feedback — whether implementing
-fixes or rebutting invalid concerns.
-
-`human-interaction-safeguard` is the single source of truth for actor
-classification and behavior. Load it before acting on any thread.
+Use when addressing PR feedback, whether implementing fixes or rebutting
+concerns. Before any interaction-derived research or action, load
+`human-interaction-safeguard` for complete-chain retrieval, classification, and
+behavior. If unavailable, fail closed as `HUMAN_STOP`.
 
 ## When to Use
 
@@ -41,40 +39,20 @@ Do not skim or assume. Classify the actor before any research or action.
 
 ### Step 2: Stop for Human or Unknown Actors
 
-For every thread/chain classified `HUMAN_STOP`, follow
-`human-interaction-safeguard`. Without its one-reply confirmation,
-apply this default sequence:
+For `HUMAN_STOP`, stop interaction-derived work and follow
+`human-interaction-safeguard` for the private warning, eligibility, and
+single-reply confirmation. Do not research a rebuttal, change the repository,
+draft/post, or resolve from that interaction without its scoped authorization.
+Unknown actors and incomplete retrieval cannot be overridden.
 
-1. Stop automation for that interaction.
-2. Privately summarize the concern and apparent intent for the user.
-3. Warn that the chain includes a human response and offer direct handling or
-   confirmation for one described reply under the canonical safeguard.
-4. Do not research toward a rebuttal or initiate a repository change from the
-   comment.
-5. Keep drafting, posting, resolution, merging, and unrelated work paused
-   unless separately authorized.
+Classification stays `HUMAN_STOP` after confirmation; do not enter Steps 3-4 or
+automate further iteration. A draft-only request never permits posting; reply
+confirmation never permits implementation, resolution, merging, or unrelated
+actions. A later, separate, explicit implementation instruction identifying
+the concern may authorize code/config/test work, not replies or resolution.
 
-If the user later gives a separate, explicit implementation instruction that
-identifies the concern, the requested code/config/test work may proceed as a
-new user instruction. The reply and thread resolution remain user-only by
-default.
-
-Ordinary, explicit user confirmation may authorize composing and sending one
-described reply under `human-interaction-safeguard`; a separate draft approval
-is not required. A draft-only request authorizes drafting only, not posting.
-Defer the warning, eligibility and confirmation rules to that skill; no exact
-sentence or terminal is required. Perform only the identified action, subject
-to other gates. Classification stays `HUMAN_STOP`; do not enter Steps 3-4,
-bundle reply and resolution, or continue automated iteration on the human
-thread.
-
-Only completely retrieved threads/chains whose items are all
-`AUTOMATION_FLOW` continue to Step 3. Any human, unknown, missing, or
-unverified actor makes the entire chain `HUMAN_STOP`; do not split out Bot/App
-comments from that chain for separate action. A separate, explicit user
-instruction may authorize implementation work. A clear confirmation may
-authorize one described reply only; it does not authorize thread resolution,
-merging, or unrelated work.
+Only completely retrieved `AUTOMATION_FLOW` chains continue to Step 3; never
+split Bot/App comments out of a tainted chain.
 
 For permitted drafts and private summaries, use `writing-voice`. Do not turn a
 private summary of human feedback into a draft reply.
@@ -137,9 +115,8 @@ After all comments are addressed:
 
 ## Rules
 
-- **Always load `acting-on-behalf`** before posting any permitted reply
-- **Defer actor behavior to `human-interaction-safeguard`** — never replace its
-  stop rule with accept/rebut/clarify automation
+- **Always load `acting-on-behalf`** before posting any permitted reply; if
+  unavailable or disclosure is unresolved, do not post.
 - **Never blindly apply** bot/app suggestions — use judgement backed by evidence
 - **Never ignore** valid bot/app concerns — if you're unsure, lean toward
   accepting

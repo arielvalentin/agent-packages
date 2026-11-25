@@ -6,18 +6,13 @@ description: Canonical skill entrypoints and mandatory interaction, posting, and
 
 Load applicable skills, not every workflow. These entrypoints do not replace
 their policies or grant permission.
-Missing mandatory safeguards block the gated action; report the missing
-dependency rather than invent a weaker path.
 
 ## Gate meaning and conflict handling
 
-A gate is a hard action precondition owned by a skill or repository rule.
-Repository requirements may replace companion-skill defaults only where the
-owning skill permits it. A user or repository may waive a mandatory gate only
-where its owner explicitly allows that waiver. If explicit requirements
-conflict and their owners do not resolve precedence, stop and report both;
-never infer a waiver or weaken either requirement. Use only a fallback the
-owner names for that gate. Otherwise, report the missing dependency and stop.
+A gate is a hard precondition. Replace defaults or waive gates only where their
+owner permits it. For unresolved requirement conflicts, stop and report both;
+never infer a waiver. Missing mandatory safeguards block the gated action:
+use only an owner-named fallback, otherwise report the missing dependency.
 
 ## Reusing review-gate acceptance
 
@@ -38,7 +33,8 @@ readiness evidence.
 - Existing public GitHub interactions: apply `human-interaction-safeguard`
   before research, implementation, drafting, posting, or resolution from the
   interaction. If unavailable, fail closed as `HUMAN_STOP`. It owns actor and
-  complete-chain classification; writing guidance never overrides it.
+  complete-chain classification and single-reply confirmation; writing never
+  overrides it.
 - Authorization questions in any workflow: load `human-interaction-safeguard`
   for its canonical **Unattended decision handling** when confirmation is
   unanswered or unavailable. This reporting rule grants no authorization.
@@ -47,9 +43,8 @@ readiness evidence.
   to every public or shared destination and overrides body-preservation,
   tracking, and citation instructions. If it is unavailable or disclosure is
   uncertain, fail closed.
-  PR creation/management uses `pr-lifecycle`; bot/app feedback permitted by the
-  interaction gate uses `pr-feedback-review`. Reviewing another author's PR
-  uses `pr-review-protocol`. Do not duplicate their detailed policies.
+- PR creation/management: `pr-lifecycle`. Permitted bot/app feedback:
+  `pr-feedback-review`. Reviewing another author's PR: `pr-review-protocol`.
 - Git publication actions: load `git-publishing-safety` before creating or
   rewriting commits, rebasing, pushing, force-pushing, or opening a PR.
 - Repository access: load `repository-access` when locating repositories,
@@ -61,10 +56,13 @@ readiness evidence.
   `adversarial-review` before completion, not a documentation-only exemption.
   Security-sensitive changes also
   require `security-review`; explicit vulnerability reviews invoke it first.
-- Before review handoffs, persist `explicit_multi_review` as a JSON boolean
-  (`true` for explicitly requested consensus/panels/multiple independent
-  reviewers, otherwise `false`); preserve it across retries. `consensus-panel` owns classification,
-  dispatch, synthesis, and failure rules; `review-fix-loop` owns bounded fixes.
+- Before loading review skills, derive and persist `explicit_multi_review` as a
+  JSON boolean: `true` only for explicit requests for consensus, panels, or
+  multiple independent reviewers; otherwise `false`. Preserve it across
+  handoffs and retries. Before review dispatch, load `consensus-panel` for
+  classification, dispatch, verdicts, synthesis, and failures unless the role
+  is explicitly designated single-model and `explicit_multi_review` is `false`.
+  `review-fix-loop` owns bounded fixes.
   Keep fixes in scope. Unresolved blocker/major findings or incomplete mandatory
   reviews stop completion; escalate repeated unresolved findings.
 - Substantial multi-source or freshness-sensitive research uses `tech-research`.

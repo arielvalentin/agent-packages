@@ -219,7 +219,7 @@ require "$panel" "deterministic confidence merge for the initial wave" \
 require "$panel" "single-reviewer fast path completing without a tiebreaker" \
   'single-reviewer fast path is complete after its one reviewer and has no tiebreaker'
 require "$panel" "explicit multi-review selecting the panel before scope exemption" \
-  '.true. always uses the adaptive 2\+1 panel; .false. uses one reviewer for'
+  '.true. requires the adaptive 2\+1 panel for every scope'
 require "$panel" "explicit multi-review overriding a single-model designation" \
   '.true. value overrides any single-model designation and always selects the adaptive 2\+1 panel'
 require "$panel" "explicit multi-review retaining panel escalation triggers" \
@@ -229,9 +229,13 @@ require "$panel" "major findings triggering a tiebreaker in any panel mode" \
 require "$loop" "fix cycles re-classifying scope for the fast path" \
   're-classify the scope at the start of every cycle'
 require "$loop" "explicit multi-review preserving the panel on every fix cycle" \
-  'explicit_multi_review: true. always selects the adaptive 2\+1 panel, even when the scope is still non-code or tiny'
-require "$loop" "explicit multi-review overriding a single-model designation" \
-  '.true. value overrides any single-model designation and always selects the panel'
+  'Re-run .reviewer. through the same dispatch policy against the updated .scope., preserving .explicit_multi_review. unchanged in every handoff'
+require "$loop" "false-valued designated single-model exemption survives a missing panel skill" \
+  'An explicitly designated single-model role with .explicit_multi_review: false. may bypass .consensus-panel., even if that skill is unavailable'
+require "$loop" "other review paths retain the mandatory consensus contract" \
+  'Otherwise, before every review dispatch, load .consensus-panel. for classification, review-mode selection, dispatch, JSON verdict schema, parsing, synthesis, and failure handling; if unavailable, stop the gate'
+require "$loop" "single-model exemption does not weaken safety disqualifiers" \
+  'This exemption does not waive any other safety gate or change scope disqualifiers'
 require "$loop" "caller-supplied findings require evidence-backed resolution statuses" \
   'resolved., .unresolved., or .not applicable. in its report notes, with evidence'
 require "$loop" "accepted findings use a validated consensus finding record" \
@@ -264,8 +268,8 @@ require "$tests" "regression for tiny behavior-defining Markdown changes" \
   'agent-defaults-case-396-row-01'
 require "$tests" "regression for warn exhaustion with intake blockers" \
   'agent-defaults-case-326-row-01'
-if [[ "$(grep -Ec '^[[:space:]]*explicit_multi_review: false$' "$loop" || true)" -lt 5 ]]; then
-  echo "ERROR: $loop: usage examples must include explicit_multi_review booleans"
+if [[ "$(grep -Ec '^[[:space:]]*explicit_multi_review: false$' "$loop" || true)" -ne 1 ]]; then
+  echo "ERROR: $loop: the usage example must include an explicit_multi_review boolean"
   errors=$((errors + 1))
 fi
 require "$panel" "behavior-defining edits override the tiny-change limit" \
@@ -382,7 +386,7 @@ require "$envelope" "additive panel_wave field" \
   'panel_wave'
 
 # --- Fix cycles restart at the initial wave ---
-require "$loop" "re-review starting a fresh initial wave of 2" \
+require "$panel" "re-review starting a fresh initial wave of 2" \
   'fresh initial wave of 2'
 require "$loop" "adaptive panel policy reference" \
   'adaptive 2\+1'
