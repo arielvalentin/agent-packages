@@ -13,16 +13,12 @@ verdict schema, not prose. Live-data investigation is out of scope.
 
 ## Inputs
 
-When delegated, read `handoff-envelope` from `agent-defaults` and validate
-the required caller-owned `explicit_multi_review` boolean. Focus on:
-
-- `inputs.artifact_paths` — impl summary + design (if any).
-- Changed files listed in the impl summary.
-
-When invoked directly, review the user's specified diff, files, or supplied
-code without requiring an implementation-summary artifact. Derive and persist
-`explicit_multi_review` from the user's request before loading review skills.
-No coordinator agent is required. Review directly; do not dispatch a panel.
+Delegated: load `handoff-envelope`, validate the caller's `explicit_multi_review`
+boolean, and read supplied implementation/design artifacts and changed files.
+Direct: use the specified diff/files/code; no implementation-summary artifact
+is required. Derive and persist `explicit_multi_review` from the user's request
+before loading review skills. Review directly; do not dispatch a panel or
+require a coordinator.
 
 ## What to look for
 

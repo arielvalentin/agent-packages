@@ -90,6 +90,14 @@ for rule in (
     "never create or hand off implementation tasks to another agent",
 ):
     assert rule in implementer, f"implementer: missing policy: {rule}"
+architect = " ".join(Path(
+    "packages/development-workflow/.apm/agents/system-architect.agent.md"
+).read_text().split())
+assert (
+    "In both delegated and direct mode, do not guess material constraints. "
+    "Ask a focused question and stop only when genuinely missing requirements "
+    "or constraints block a sound decision."
+) in architect, "system-architect: material-constraint gate must cover both invocation modes"
 gates = instruction_texts["skill-gates.instructions"]
 skill_gates_text = " ".join(
     (defaults / ".apm/instructions/skill-gates.instructions.md").read_text().split()
@@ -114,6 +122,15 @@ for rule in ("fail closed as `HUMAN_STOP`", "Missing mandatory safeguards block"
              "exact unchanged diff, review scope, context, and requirements",
              "Unresolved blocker/major findings"):
     assert rule in gates, f"skill-gates: missing gate: {rule}"
+assert (
+    "Before loading review skills, derive and persist `explicit_multi_review` "
+    "as a JSON boolean: `true` only for explicit requests for consensus, panels, "
+    "or multiple independent reviewers; otherwise `false`."
+) in gates, "skill-gates: intent derivation must be available before loading review skills"
+assert (
+    "unless the role is explicitly designated single-model and "
+    "`explicit_multi_review` is `false`"
+) in gates, "skill-gates: preserve the false-valued single-model loading exemption"
 public_boundary = " ".join(Path("AGENTS.md").read_text().split()).lower()
 for rule in ("personal host/toolchain facts", "local filesystem paths",
              "signing-key values", "private repository details, including repository names",
@@ -657,7 +674,7 @@ for rule in (
     "Expose failed/incomplete/unverified checks",
     "Preserve schemas/templates; without a template, no required Problem/Changes/Testing/References headings",
     "Before delivery and every permitted post",
-    "defer any single-action exception exclusively to `human-interaction-safeguard`",
+    "defer single-reply confirmation exclusively to `human-interaction-safeguard`",
     "Voice guidance grants no override or posting authority",
     "preserve severity/scope and requirements vs questions vs nonblocking suggestions",
     "Never invent causes, checks, experience, access, actions, agreement, or commitments",

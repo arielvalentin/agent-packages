@@ -35,6 +35,25 @@ Skills:
 - `tech-research`
 - `writing-voice`
 
+## Policy ownership
+
+Consumers keep before-action guards and missing-owner handling. Decision rules
+live with these owners, rather than being copied into each workflow:
+
+| Policy | Owner |
+| --- | --- |
+| Actors, complete chains, `HUMAN_STOP`, single-reply confirmation | `human-interaction-safeguard` |
+| Audience, disclosure, attribution | `acting-on-behalf` |
+| Signing and publication authorization | `git-publishing-safety` |
+| PR phases and readiness | `pr-lifecycle` |
+| Review classification, dispatch, verdicts | `consensus-panel` |
+| Fix retries and escalation | `review-fix-loop` |
+| Authoring and final reader check | `writing-voice` |
+
+The complete `pr-lifecycle`-unavailable fallback in `acting-on-behalf` is
+intentional. Lifecycle phase references remain conditional; review-fix-loop
+keeps its parameter contract and one example without repeating review-mode rules.
+
 ## Install and use
 
 ```yaml
@@ -207,9 +226,9 @@ denied/ambiguous/untrusted consent and action scope. The eight instruction-file
 cases are mapped by staging their source instructions as native custom
 instructions. Both smoke and full selections pass offline mapping and schema
 preflight; those checks do not prove model behavior. The latest full model run
-had assertion failures, including writing-voice case 121. Shell command
-execution is disabled in the native stimuli because the source evaluations
-used a text-only provider. Deterministic contracts preserve metadata,
+had assertion failures, including writing-voice case 121. Most native stimuli
+block shell execution; cases 409 and 410 simulate one scoped reply command and
+reject other shell calls. They do not execute a live reply. Deterministic contracts preserve metadata,
 chain-taint, pagination and posting invariants. Test scenarios never authorize
 a live public action.
 

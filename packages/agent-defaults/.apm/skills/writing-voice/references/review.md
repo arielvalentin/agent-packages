@@ -1,7 +1,7 @@
 # Review mode
 
 Shared core applies; no drafting/posting/resolution authority or history dependency.
-On `HUMAN_STOP`, default to a private summary; defer any single-action exception
+On `HUMAN_STOP`, default to a private summary; defer single-reply confirmation
 exclusively to `human-interaction-safeguard`. This mode grants no authorization.
 
 - Findings first: evidence/location and behavioral or maintenance consequence.

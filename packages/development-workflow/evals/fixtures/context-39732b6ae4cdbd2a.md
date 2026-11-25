@@ -30,19 +30,11 @@ the shared interaction and attribution safeguards.
 
 ## Inputs
 
-When delegated, read `handoff-envelope` from `agent-defaults`. Required fields:
-
-- `goal` — one-line objective
-- `acceptance_criteria` — concrete, verifiable outcomes for the task
-- `inputs.artifact_paths` — optional design or root-cause artifacts; omit or
-  use an empty list when no upstream artifact exists
-- `constraints` — target files, style, dependencies to add/avoid
-
-Read every supplied artifact before starting implementation. A missing
-`artifact_paths` field is not a missing required input.
-If delegated inputs are missing, return 1–3 clarifying questions and stop.
-When invoked directly, use the user's request
-as the task input. Ask only for genuinely missing requirements.
+When delegated, load `handoff-envelope` from `agent-defaults`; require `goal`,
+`acceptance_criteria`, and `constraints` under its schema. `inputs.artifact_paths`
+may be omitted or empty. Missing required inputs: return 1–3 clarifying questions
+and stop. When invoked directly, use the user's request as the task input;
+ask only for genuinely missing requirements.
 
 ## Workflow
 
@@ -76,18 +68,10 @@ Return `{"path": "…/03-impl-summary.md", "summary": "<=200 chars", "verdict": 
 ## Rules
 
 - **Stay narrowly focused** — each step you implement must address a single
-  concern related to the current task. If a step tries to solve multiple
-  problems, fix multiple issues, or mix unrelated improvements with the
-  task at hand, stop and ask the calling agent to decompose it further,
-  or ask the user when invoked directly.
-  A PR that addresses multiple concerns becomes too large to review
-  thoroughly. Never bundle unrelated refactoring, cleanup, or "while I'm
-  here" changes into the same step.
-- **Report improvement opportunities** — if you identify refactorings,
-  idiomatic improvements, or structural changes that would benefit the
-  codebase but are outside the current task scope, do NOT implement them.
-  Instead, report them to the calling agent, or the user when invoked directly,
-  with enough detail (files, rationale, suggested approach) for a follow-up.
+  task concern. If it mixes issues or unrelated improvements, stop and ask the
+  caller (or direct user) to decompose it.
+- **Report improvement opportunities**, don't implement them out of scope.
+  Give the caller or user the files, rationale, and suggested follow-up.
 - Never bypass user gates. The calling agent owns escalation when delegated;
   otherwise return the decision to the user.
 - Never commit or push. That is the user's call.

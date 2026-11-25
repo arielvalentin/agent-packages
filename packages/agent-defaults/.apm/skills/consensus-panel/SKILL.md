@@ -14,18 +14,10 @@ When explaining a named trigger, state its defined threshold and validity
 phrase as one contiguous unit before adding context. Do not insert modifiers
 between its count and validity terms or count a different subject.
 
-The caller-owned `explicit_multi_review` boolean selects review mode first.
-`true` always uses the adaptive 2+1 panel; `false` uses one reviewer for
-fast-path-exempt scopes and the adaptive panel for substantive changes.
-
 ## When to use
 
-Use before every specialist review dispatch unless the role is explicitly
-designated single-model and `explicit_multi_review` is `false`, or the scope
-qualifies for the single-reviewer fast path and `explicit_multi_review` is
-`false`. A `true` value overrides any single-model designation and always
-selects the adaptive 2+1 panel.
-
+Apply before specialist review dispatch, subject to Step 1's single-model
+exception.
 Do not use this skill for research fact-finding. Research uses one agent per
 source; identical queries must never be duplicated across models to manufacture
 consensus.
@@ -33,13 +25,19 @@ consensus.
 ## Step 1 — Classify the scope (always first)
 
 The calling agent owns orchestration; no coordinator agent is required.
+Before loading review skills, the caller records `true` only for an explicit
+request for consensus, panels, or multiple independent reviewers; otherwise
+`false`.
 For review handoffs, require the caller-owned `explicit_multi_review` JSON
 boolean and preserve it unchanged. Missing or invalid values stop as
-`STOP_INVALID_HANDOFF` before dispatch. This field records user intent and
-affects the review mode: `true` requires the adaptive 2+1 panel even when a
-scope would otherwise qualify for the single-reviewer fast path or the role is
-designated single-model. `false` permits the ordinary scope classification
-below. It never weakens review safety rules.
+`STOP_INVALID_HANDOFF` before dispatch. It records user intent, never a review
+safety waiver:
+
+- `true` requires the adaptive 2+1 panel for every scope. A `true` value
+  overrides any single-model designation and always selects the adaptive 2+1 panel.
+- `false` permits the ordinary scope classification below: one reviewer for
+  fast-path-exempt scopes, the adaptive panel for substantive changes.
+  Explicitly designated single-model roles are exempt from panel dispatch.
 
 Classify the review scope **before** selecting any model. Re-classify at the
 start of every review cycle; a fix that grows the scope also changes its class.
@@ -96,11 +94,6 @@ threshold is fast-path exempt.
 Everything else is a **substantive code change** and takes the adaptive 2+1
 panel.
 
-After classifying the scope and validating the handoff, dispatch the single-
-reviewer fast path only when the scope is fast-path exempt and
-`explicit_multi_review` is `false`. A `true` value selects the adaptive 2+1
-panel for any scope, including non-behavioral editorial and tiny changes.
-
 ## Step 2a — Single-reviewer fast path (fast-path exempt scopes)
 
 Dispatch **exactly one** reviewer. Do not run a panel, do not select a second
@@ -122,11 +115,7 @@ model, and do not synthesize across models.
 When `explicit_multi_review` is `false`, this exemption **takes precedence**
 over any general "every specialist review runs a panel" rule in caller
 instructions or `review-fix-loop`. A `blocker`/`major` finding does not promote
-that fast-path scope to a panel; only re-classification under Step 1 does. A
-`true` value selects the panel before this exemption is applied. The safety
-argument for the false-valued fast path is the size and disqualifier bounds,
-not the finding: a scope this small that touches none of the disqualified
-categories has a blast radius one reviewer can hold.
+that fast-path scope to a panel; only re-classification under Step 1 does.
 
 ## Step 2b — Panel selection for adaptive 2+1 reviews
 
@@ -148,6 +137,9 @@ Select panelists from models available in the current runtime/session:
    overrides (runtime auto-selection) and record that fallback in the report.
 
 ## Dispatch (adaptive 2+1 panel mode)
+
+Every review/fix cycle starts a fresh initial wave of 2; escalate only from
+that cycle's responses. A previous cycle's escalation does not carry over.
 
 ### Wave 1 — always exactly 2, in parallel
 
@@ -177,10 +169,9 @@ independently. Never dispatch a fourth reviewer for a single panel.
 
 Escalation triggers apply to every scope dispatched through the adaptive 2+1
 panel, including a fast-path-exempt scope selected for a panel by
-`explicit_multi_review: true`. A scope dispatched through the single-reviewer
-fast path is complete after its one reviewer and has no tiebreaker.
-In particular, a `blocker` or `major` finding always triggers one tiebreaker in
-panel mode, regardless of file type or size.
+`explicit_multi_review: true`. The single-reviewer fast path is complete after
+its one reviewer and has no tiebreaker. A `blocker` or `major` finding always
+triggers one tiebreaker in panel mode, regardless of file type or size.
 
 Dispatch the tiebreaker when **any** of these hold:
 
