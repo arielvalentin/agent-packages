@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.6.0...code-reviewers-v0.6.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* replace custom eval graders with built-ins ([#128](https://github.com/arielvalentin/agent-packages/issues/128)) ([001c25f](https://github.com/arielvalentin/agent-packages/commit/001c25f5eba7bb5b619d06e484a6d89526336e0c))
+
 ## [0.6.0](https://github.com/arielvalentin/agent-packages/compare/code-reviewers-v0.5.0...code-reviewers-v0.6.0) (2026-11-19)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.11.0...development-workflow-v0.11.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* replace custom eval graders with built-ins ([#128](https://github.com/arielvalentin/agent-packages/issues/128)) ([001c25f](https://github.com/arielvalentin/agent-packages/commit/001c25f5eba7bb5b619d06e484a6d89526336e0c))
+
 ## [0.11.0](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.10.0...development-workflow-v0.11.0) (2026-11-19)
 
 
