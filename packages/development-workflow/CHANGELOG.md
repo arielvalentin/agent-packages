@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.11.1...development-workflow-v0.11.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* honor repository PR title length rules ([46a2b1a](https://github.com/arielvalentin/agent-packages/commit/46a2b1a077ada982fa7e7048fc8f9e08dd2413c5))
+
 ## [0.11.1](https://github.com/arielvalentin/agent-packages/compare/development-workflow-v0.11.0...development-workflow-v0.11.1) (2026-11-25)
 
 
