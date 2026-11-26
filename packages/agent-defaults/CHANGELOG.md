@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.8.1...agent-defaults-v0.8.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* honor repository PR title length rules ([46a2b1a](https://github.com/arielvalentin/agent-packages/commit/46a2b1a077ada982fa7e7048fc8f9e08dd2413c5))
+
 ## [0.8.1](https://github.com/arielvalentin/agent-packages/compare/agent-defaults-v0.8.0...agent-defaults-v0.8.1) (2026-11-25)
 
 
