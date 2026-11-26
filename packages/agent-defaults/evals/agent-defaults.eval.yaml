@@ -4649,13 +4649,36 @@ stimuli:
         - src: fixtures/context-7200cd64cec876cc.md
           dest: .github/copilot-instructions.md
     prompt: >-
-      A 73-character Conventional PR title matches the format regex. Repository guidance has no
-      other title format. Is it valid? Answer one word: Yes or No.
+      A 73-character Conventional PR title matches the format regex. The repository gives no PR
+      title length rule. Is it valid? Answer one word: Yes or No.
     graders:
       - type: output-matches
         name: agent-defaults-case-191-row-01-a1-exact-no
         config:
           pattern: ^\s*[*_\x60]*[nN][*_\x60]*[oO][*_\x60]*[.!]?[*_\x60]*\s*$
+    simulation:
+      tool_overrides:
+        bash:
+          output: Shell execution is disabled in this text-only evaluation.
+          is_error: true
+  - name: agent-defaults-case-412-row-01
+    tags:
+      suite: full
+      source_case: '412'
+      source_row: '1'
+    agent_environment:
+      files:
+        - src: fixtures/context-7200cd64cec876cc.md
+          dest: .github/copilot-instructions.md
+    prompt: >-
+      Repository guidance requires Conventional Commits for PR titles and explicitly exempts them
+      from the shared title length limit. A 73-character PR title matches the required format.
+      Is it valid? Answer one word: Yes or No.
+    graders:
+      - type: output-matches
+        name: agent-defaults-case-412-row-01-a1-exact-yes
+        config:
+          pattern: ^\s*[*_\x60]*[yY][*_\x60]*[eE][*_\x60]*[sS][*_\x60]*[.!]?[*_\x60]*\s*$
     simulation:
       tool_overrides:
         bash:

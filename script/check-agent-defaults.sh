@@ -138,6 +138,7 @@ for rule in ("personal host/toolchain facts", "local filesystem paths",
              "unless the user explicitly opts out",
              "be at most 72 characters",
              "no more than 72 characters before committing",
+             "the shared pr title length limit does not apply here",
              "never disable signing",
              "verify the cryptographic signature on each"):
     assert rule in public_boundary, f"AGENTS.md: missing public/commit boundary: {rule}"
@@ -156,10 +157,14 @@ for rule in ("before drafting any public/shared content",
     assert rule in acting_policy, f"acting-on-behalf: missing disclosure safeguard: {rule}"
 git_policy = " ".join((skills / "git-publishing-safety/SKILL.md").read_text().split()).lower()
 for rule in ("validate both the subject format and length before committing",
-             "count the complete title separately",
-             "every resulting commit subject before publishing",
-             "72-character maximum"):
-    assert rule in git_policy, f"git-publishing-safety: missing length validation: {rule}"
+             "every resulting commit subject before publishing"):
+    assert rule in git_policy, f"git-publishing-safety: missing subject validation: {rule}"
+pr_title_length = git_policy.split("## pr title length ", 1)[1].split(" ## ", 1)[0]
+for rule in ("follow explicit repository pr title length rules first, including an explicit exemption",
+             "only when the repository gives no length rule, use a 72-character maximum for conventional pr titles",
+             "do not apply this default to a different repository-required title format",
+             "count the complete title separately from format validation"):
+    assert rule in pr_title_length, f"git-publishing-safety: missing PR title length rule: {rule}"
 for rule in ("use the draft default", "require a tracking issue only when"):
     assert rule not in git_policy, \
         f"git-publishing-safety: duplicates PR lifecycle policy: {rule}"
@@ -176,6 +181,11 @@ pr_lifecycle_text = pr_lifecycle_root.read_text() + "\n" + "\n".join(
 )
 pr_lifecycle_flat = " ".join(pr_lifecycle_text.split())
 pr_lifecycle_policy = pr_lifecycle_flat.lower()
+for name, policy in (("pr-lifecycle", pr_lifecycle_policy), ("acting-on-behalf", acting_policy)):
+    assert "`git-publishing-safety`'s **pr title length** section" in policy, \
+        f"{name}: PR title length validation must defer to git-publishing-safety"
+    assert not re.search(r"\b72\b.{0,20}\bcharacters?\b", policy), \
+        f"{name}: do not duplicate the shared PR title length default"
 for rule in (
     'set -e -o pipefail gh api "repos/<owner>/<repo>/pulls/<number>/requested_reviewers"',
     "lc_all=c sort -u",
@@ -522,11 +532,10 @@ for malformed_reviews in (
 for rule in ("if no pr exists and publication is authorized under `git-publishing-safety`",
              "repository's required creation phase and readiness state",
              "create it here without `--draft`",
-"conventional titles over 72 characters are invalid",
              "before pr creation or any required branch push, follow `git-publishing-safety` for publication authorization",
              "follow repository tracking requirements; do not invent a required issue when none applies"):
     assert rule in pr_lifecycle_policy, \
-        f"pr-lifecycle: missing creation/length rule: {rule}"
+        f"pr-lifecycle: missing creation rule: {rule}"
 
 # Creation must follow local acceptance, including fallback and continuation.
 local_preparation = pr_lifecycle_text.split("## Phase 1 — Local preparation", 1)[1] \
@@ -1085,6 +1094,12 @@ rewrite_subject = defaults_case(79)
 checks.extend([
     (rewrite_subject, "No.", True),
     (rewrite_subject, "Yes.", False),
+])
+checks.extend([
+    (defaults_case(191), "No", True),
+    (defaults_case(191), "Yes", False),
+    (defaults_case(412), "Yes", True),
+    (defaults_case(412), "No", False),
 ])
 release_disclosure = defaults_case(106)
 feedback_disclosure = defaults_case(108)
