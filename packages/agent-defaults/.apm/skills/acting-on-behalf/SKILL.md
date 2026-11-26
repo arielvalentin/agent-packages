@@ -175,7 +175,9 @@ gated action:
    is already published or that the request or repository guidance also
    authorizes the required push. If repository guidance specifies a title
    format, follow and validate that format. Only when it is silent, use the
-   Conventional title format below.
+   Conventional title format below. Before creating, updating, or readying a
+   PR using built-in tools or `gh`, apply `git-publishing-safety`'s **PR title
+   length** section independently of the format check.
 
    When the draft default applies, create the PR non-interactively with one
    `gh pr create --draft` command, a valid title substituted in, and a
@@ -196,13 +198,8 @@ gated action:
    one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `perf`,
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
-   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-   and ensure it is no more than 72 characters before creating, updating, or
-   readying a Conventional PR title — whether through the
-   built-in `create_pull_request`/`update_pull_request` tools or
-   a Conventional title via `gh pr create`, `gh pr edit --title`, or
-   `gh pr ready`; follow repository rules for other title formats. Also use
-   `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
+   `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`.
+   Also use `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
    `gh run view|watch`.
 3. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.

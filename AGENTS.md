@@ -14,8 +14,8 @@ Keep that material in a private repository.
 
 For this repository, all commit subjects and PR titles must follow
 [Conventional Commits](https://www.conventionalcommits.org/). Commit subjects
-must be at most 72 characters; PR titles have no repository-specific length
-limit. The default, expected form is:
+must be at most 72 characters. The shared PR title length limit does not apply
+here; PR titles are validated for format only. The default, expected form is:
 
 ```
 <type>: <short summary>

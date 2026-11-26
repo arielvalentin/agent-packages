@@ -8,6 +8,14 @@ test("accepts valid Conventional Commits titles", () => {
     "fix(ci): pin the APM version",
     "refactor!: remove a legacy interface",
     "docs(agent-defaults)!: clarify package compatibility",
+  ]) {
+    assert.deepEqual(validateTitle(title), [], title);
+  }
+});
+
+test("accepts Conventional titles over the shared 72-character default", () => {
+  for (const title of [
+    `fix: ${"a".repeat(68)}`,
     "chore(deps-dev): Bump @hono/node-server from 2.1.5 to 2.1.8 in the npm_and_yarn group across 1 directory",
     `feat: ${"😀".repeat(67)}`,
   ]) {

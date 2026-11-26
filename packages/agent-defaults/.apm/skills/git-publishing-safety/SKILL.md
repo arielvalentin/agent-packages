@@ -28,22 +28,24 @@ and report it; do not publish the commit. Do not require separate signer
 ownertrust or identity trust unless repository guidance requires it; successful
 cryptographic verification is sufficient.
 
-## Commit subjects and PR titles
+## Commit subjects
 
 When the repository does not require another format, use Conventional Commits
-for commit subjects and PR titles, with a maximum of 72 characters. Use a scope
-only when it materially clarifies the change. Add a body when the reason or
-tradeoff is not obvious; omit it when the reason and tradeoff are clear.
-Validate both the subject format and length before committing. For conventional
-PR titles, validate the format and count the complete title separately; the
-format regex alone does not enforce the 72-character maximum.
+for commit subjects, with a maximum of 72 characters. Use a scope only when
+it materially clarifies the change. Add a body when the reason or tradeoff is
+not obvious; omit it when the reason and tradeoff are clear.
+Validate both the subject format and length before committing.
 After a commit, amend, rebase, or other history rewrite, validate the format
 and length of every resulting commit subject before publishing. Apply any
 repository-required subject format instead of the Conventional default.
-Conventional PR titles also follow the 72-character maximum here. Count the
-complete title; 73 or more characters is invalid even when its format regex
-matches.
-`pr-lifecycle` owns PR title format and repository-format precedence.
+
+## PR title length
+
+Follow explicit repository PR title length rules first, including an explicit
+exemption from a length limit. Only when the repository gives no length rule,
+use a 72-character maximum for Conventional PR titles. Do not apply this
+default to a different repository-required title format. If a limit applies,
+count the complete title separately from format validation.
 
 ## Co-author trailer
 

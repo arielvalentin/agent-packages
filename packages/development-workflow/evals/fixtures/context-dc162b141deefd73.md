@@ -308,6 +308,11 @@ First use the repository's required title format in every phase. If it differs
 from Conventional Commits, validate that format instead of the regex below.
 For example, a repository requiring a ticket prefix keeps that prefix.
 
+Before creating, updating, or readying a PR, validate the title's format and
+apply `git-publishing-safety`'s **PR title length** section independently of
+the format check. This applies to `create_pull_request`, `update_pull_request`,
+`gh pr create`, `gh pr edit --title`, and `gh pr ready`.
+
 Only when the repository supplies no title format, use these Conventional
 Commits defaults for titles created or updated in Phase 3:
 
@@ -328,15 +333,8 @@ Commits defaults for titles created or updated in Phase 3:
   scoped: `<type>!: <description>` or `<type>(<scope>)!: <description>`.
   Use `!` only for intentionally breaking changes, following the consuming
   repository's release and approval rules.
-- Validate before creating, updating, or readying a PR title — whether
-  through the built-in `create_pull_request`/`update_pull_request` tools
-  or the `gh pr create`, `gh pr edit --title`, `gh pr ready` commands:
-  `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`
-  Conventional titles over 72 characters are invalid; follow
-  `git-publishing-safety` for the shared length check. Use repository-required
-  formats instead when they differ.
-  This regex validates only the default Conventional format, not a different
-  repository-required format.
+- Validate the default Conventional format against
+  `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`.
 
 ## Skill fallbacks
 
