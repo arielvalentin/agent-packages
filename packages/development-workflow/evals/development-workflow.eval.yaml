@@ -117,31 +117,25 @@ stimuli:
         - src: fixtures/context-dc162b141deefd73.md
           dest: .github/copilot-instructions.md
     prompt: >-
+      Tool discovery confirms there is no MCP tool for creating this draft PR. The published head
+      fix-login matches the reviewed head SHA, and the intended base main was verified on
+      github.com/octo/example. The published diff matches local acceptance. No platform-required
+      native creation route applies.
       Repository instructions require the exact PR title 'PROJ-123 Fix login crash', not a
       Conventional Commits prefix. I authorize creating this draft PR; all required safety and
-      review gates have passed and no PR exists. Return only a gh pr create command with --draft,
-      --title, and --body.
+      review gates have passed and no PR exists. Return only one gh pr create command. Use this
+      argument order: --repo github.com/octo/example --head fix-login --base main --draft
+      --title "PROJ-123 Fix login crash" --body "BODY". Replace BODY with a meaningful description
+      using only ASCII letters, digits, spaces, slash, comma, period, semicolon, colon, or hyphen.
+      Do not execute it or add Markdown, other flags, or commands.
     graders:
       - type: output-matches
-        name: development-workflow-case-005-row-01-a1-output-matches
+        name: development-workflow-case-005-row-01-a1-command-contract
         scope: parent
         config:
-          pattern: (?i)gh pr create
-      - type: output-matches
-        name: development-workflow-case-005-row-01-a2-output-matches
-        scope: parent
-        config:
-          pattern: (?i)--draft
-      - type: output-matches
-        name: development-workflow-case-005-row-01-a3-output-matches
-        scope: parent
-        config:
-          pattern: (?i)--body
-      - type: output-matches
-        name: development-workflow-case-005-row-01-a4-output-matches
-        scope: parent
-        config:
-          pattern: (?:^|\s)--title(?:=|\s+)([\u0022\u0027])PROJ-123 Fix login crash\1(?:\s|$)
+          pattern: >-
+            ^gh pr create --repo github\.com/octo/example --head fix-login --base main --draft
+            --title "PROJ-123 Fix login crash" --body "(?=[^"\r\n]*[A-Za-z0-9])[A-Za-z0-9 /,.;:-]+"\s*$
     simulation:
       tool_overrides:
         bash:
@@ -284,11 +278,15 @@ stimuli:
         - src: fixtures/context-dc162b141deefd73.md
           dest: .github/copilot-instructions.md
     prompt: >-
+      Tool discovery confirms there is no MCP tool for creating this draft PR. The published head
+      fix-login matches the reviewed head SHA, and the intended base main was verified on
+      github.com/octo/example. The published diff matches local acceptance. No platform-required
+      native creation route applies.
       I authorize creating this draft PR in octo/example and all required safety and review gates
       have passed. The repository has no title override. I am fixing a null-pointer crash in the
       login handler, and no draft PR exists yet. This is a command-format exercise, not a request
       to execute a command. Return exactly one command in this argument order:
-      gh pr create --repo octo/example --draft --title "TITLE" --body "BODY".
+      gh pr create --repo github.com/octo/example --head fix-login --base main --draft --title "TITLE" --body "BODY".
       Replace TITLE with a concrete Conventional title and BODY with a meaningful description.
       Use only ASCII letters, digits, spaces, slash, comma, period, semicolon, colon, or hyphen
       inside the quoted fields; an optional lowercase scope in parentheses is allowed in TITLE.
@@ -315,7 +313,7 @@ stimuli:
         scope: parent
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --draft --title
+            ^gh pr create --repo github\.com/octo/example --head fix-login --base main --draft --title
             "(?=[^"\r\n]{1,72}" --body )(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([a-z0-9-]+\))?: [A-Za-z0-9][A-Za-z0-9
             /,.;:-]*" --body "[A-Za-z0-9][A-Za-z0-9 /,.;:-]*"\s*$
     simulation:

@@ -40,22 +40,15 @@ git config user.name
 This is often the GitHub username or close to it. Cross-reference with the
 remote URL owner if needed.
 
-### 3. GitHub CLI auth cache (no network)
+### 3. Authenticated account (last resort)
 
-```bash
-gh auth status 2>&1 | sed -nE 's/.*Logged in to github\.com account ([^[:space:]]+).*/\1/p'
-```
-
-This reads the local credential store — no API call required.
-
-### 4. GitHub API (last resort)
-
-```bash
-gh api user --jq '.login'
-```
-
-Only use this if all above sources fail. It requires network access and
-counts against rate limits.
+Follow `acting-on-behalf`'s GitHub tool routing for the authenticated-user
+lookup on the bound host. If the session exposes no MCP tool for this lookup,
+`gh api --hostname <host> user` can read the authenticated account.
+Accept the login only when `type` is `User` and the account is verified as
+the requesting user's personal account, not a machine or service principal.
+If the lookup fails or the account cannot be verified, ask the user for
+their handle instead of inferring it from remote evidence.
 
 ## Output
 

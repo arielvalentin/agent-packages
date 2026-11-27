@@ -43,7 +43,7 @@ live with these owners, rather than being copied into each workflow:
 | Policy | Owner |
 | --- | --- |
 | Actors, complete chains, `HUMAN_STOP`, single-reply confirmation | `human-interaction-safeguard` |
-| Audience, disclosure, attribution | `acting-on-behalf` |
+| Audience, disclosure, attribution, and GitHub tool routing | `acting-on-behalf` |
 | Signing and publication authorization | `git-publishing-safety` |
 | PR phases and readiness | `pr-lifecycle` |
 | Review classification, dispatch, verdicts | `consensus-panel` |

@@ -50,32 +50,12 @@ paraphrase away the stage or SHA being discussed.
 When restating a named target or qualifier, keep its exact phrase contiguous.
 Put clarifying modifiers outside the named phrase, not between its terms.
 
-Resolve the exact repository, then the PR when one exists. A bare PR number
-means the active repository only. Pass explicit `--repo` to repository-scoped
-`gh` commands, including `gh pr` and `gh run`, and the same target in `gh api`
-paths. Do not trust implicit selection or `GH_REPO` without verifying the target.
-Replace command placeholders with resolved values; ask before reading or acting
-if ambiguous. Never nest a `gh` command substitution inside another `gh` command.
-
-Pass `--title` and `--body` as ordinary single- or double-quoted shell literals.
-Keep a brief single-paragraph body on one line; use multiline literals only for
-multiple paragraphs. A request for no outer quotes does not remove argument quoting.
-Do not use ANSI-C `$'...'` quoting or shell expansions in either value.
-
-If the active checkout's owner/repository is unknown and `origin` is the user's
-exact target, derive the explicit host-qualified `--repo` with this anchored
-script. Preserve the host and optional `.git`, omit URL user information, and
-keep literal `https://` outside the command substitution:
-
-```sh
---repo "https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p')"
-```
-
-Unmatched origins produce `https://`, rejected by `gh` with `no hostname
-detected` before any request rather than falling back to another repository.
-Explicit ports intentionally do not match; resolve a `gh`-supported
-host-qualified target without stripping the port before acting.
-Do not add further substitutions or rewrite the target to a constant.
+Resolve the exact host and repository, then the PR when one exists. A bare PR
+number means the active repository only. If `origin` is the user's exact
+target, resolve it with local `git`, preserving the host and any explicit port
+without copying URL credentials. Stop if the target is unresolved or
+ambiguous; never substitute a default host or repository. Follow
+`acting-on-behalf`'s **GitHub tool routing** for every remote operation.
 
 ## Trigger phrases
 
@@ -145,10 +125,10 @@ the user asks for one status check or bounded waiting. They do not start the
 full PR loop or authorize changes.
 Use the bounded read-only `watch-ci` helper for CI-only waits and
 `wait-for-copilot-code-review` for Copilot-only waits when available for the
-resolved target. Otherwise, make one read-only status check: use
-`gh pr checks <number> --repo <owner>/<repo>` for CI,
-or inspect Phase 5 review requests/reviews once for Copilot. Do not use
-`--watch`, poll, dispatch fixes, or start the full loop in this fallback.
+resolved target. Otherwise, make one read-only status check under GitHub tool
+routing: read the PR check status for CI, or inspect Phase 5 review
+requests/reviews once for Copilot. Do not poll, dispatch fixes, or start the
+full loop in this path.
 
 ---
 
@@ -205,8 +185,8 @@ does not authorize publication.
    (`feature` → `feat`, `bugfix` → `fix`, `refactor` → `refactor`) is a default,
    not absolute: use `docs`, `test`, `chore`, `ci`, `perf`, `build`, or `revert`
    when the actual change calls for it. Validate against § Title format.
-   When no PR exists, prepare title text only and pass it to step 4's
-   `--title`; do not run `gh pr edit` or invent a PR number.
+   When no PR exists, prepare title text only and pass it to the creation
+   request in step 4; do not edit a PR or invent a PR number.
    Preserve the validated scope and `!` in the creation title when applicable.
    This phase only prepares a new PR; it does not retitle an existing PR.
 3. Prepare the body under the authoring and disclosure gates above. Follow
@@ -217,24 +197,21 @@ does not authorize publication.
    `git-publishing-safety`, follow the repository's required creation phase and
    readiness state, but never create before local acceptance. By default,
    create a **draft PR** with the validated title and complete body, never a
-   placeholder like `WIP: <goal>`:
-   ```bash
-   gh pr create --repo <owner>/<repo> --draft --title "<validated-title>" --body "<problem/value summary + required tracking>"
-   ```
-   When guidance requires the PR to be opened ready only
-   after gates pass, create it here without `--draft`:
-   ```bash
-   gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<problem/value summary + required tracking>"
-   ```
-   If repository guidance prescribes another command or state, follow it
-   after local acceptance. If a PR already exists, do not create a duplicate;
+   placeholder like `WIP: <goal>`. Follow the shared GitHub routing and
+   target-binding rules, including verification of any session-bound inputs.
+   Supply the validated title, body, and state. Only use
+   `gh pr create` if MCP lacks that operation and no platform-required native
+   route applies. In that case bind the host-qualified repository, `--head`,
+   and `--base` explicitly. When repository guidance
+   requires the PR to be opened ready only after gates pass, create it ready
+   then. If a PR already exists, do not create a duplicate;
    use the Existing PR entrypoint. Record its number/URL in continuation state
    only after creation succeeds; failed creation is not a published PR.
 5. Continue to Phase 4. A newly created draft uses the Existing PR entrypoint's
    draft checks, feedback handling, authorization, and transition snapshots
-   before `gh pr ready`. Local review acceptance is not remote readiness.
+   before marking it ready. Local review acceptance is not remote readiness.
    Do not wait for Copilot review or enter Phase 7 while it remains a draft.
-   Do not run `gh pr ready` for a PR that is already ready.
+   Do not repeat the transition on a PR that is already ready.
 
 ## Title format
 
@@ -244,8 +221,7 @@ For example, a repository requiring a ticket prefix keeps that prefix.
 
 Before creating, updating, or readying a PR, validate the title's format and
 apply `git-publishing-safety`'s **PR title length** section independently of
-the format check. This applies to `create_pull_request`, `update_pull_request`,
-`gh pr create`, `gh pr edit --title`, and `gh pr ready`.
+the format check. This applies to every route.
 
 Only when the repository supplies no title format, use these Conventional
 Commits defaults for titles created or updated in Phase 3:
@@ -274,8 +250,8 @@ Commits defaults for titles created or updated in Phase 3:
 
 | Missing tool | Fallback |
 |-------------|----------|
-| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
-| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. In full Phase 4, follow the bounded SHA-specific polling procedure in `references/readiness.md`; never use `gh pr checks` as the required-check gate |
+| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, follow Phase 3 and GitHub tool routing |
+| `watch-ci` | For standalone CI status, make one read-only check as described above. In Phase 4, use the bounded SHA-specific polling procedure in `references/readiness.md`; a PR-wide summary is not the required-check gate |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites

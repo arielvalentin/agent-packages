@@ -41,9 +41,8 @@ guidance, after applying `human-interaction-safeguard` and
 authorized lifecycle by rerunning Phase 4. Stop only when another gate requires
 user input or an action lacks authorization.
 
-```bash
-gh pr edit <number> --repo <owner>/<repo> --add-reviewer <reviewer>
-```
+For a permitted reviewer request, bind the exact PR and reviewer and follow
+GitHub tool routing.
 
 Re-run Phase 4 after any push. For an existing draft routed from Phase 4, use
 this complete exit rule, which takes precedence over generic loop routing:

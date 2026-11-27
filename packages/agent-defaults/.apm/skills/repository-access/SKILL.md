@@ -50,10 +50,8 @@ SHA-or-URL preference above.
 ## GitHub operations
 
 For local repository state, use local `git`. For GitHub operations, follow
-`acting-on-behalf`, which owns the `gh` CLI policy and posting safeguards.
-Translate examples that name GitHub MCP into equivalent local `git` or `gh`
-operations when applicable; do not invoke GitHub MCP just because an example
-uses that name.
+`acting-on-behalf`, which owns GitHub tool routing and posting safeguards.
+Use exposed GitHub MCP tools for the operations they support.
 
 ## APM-managed skills and plugins
 

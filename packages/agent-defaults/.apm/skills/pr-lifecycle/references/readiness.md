@@ -1,14 +1,13 @@
 ## Existing-draft transition snapshots
 
+Follow `acting-on-behalf`'s **GitHub tool routing** for every read and write.
+
 Immediately before a permitted transition, take two consecutive complete
 snapshots. In each, record opening PR state, title, head/base SHAs, base name,
 merge state, and the complete reviewer-request set using the endpoint and
-validation defined in Phase 5. Retrieve complete PR state with this command
-for each opening, closing, and final read:
-
-```bash
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus
-```
+validation defined in Phase 5. Include `state`, `isDraft`, `title`,
+`headRefOid`, `baseRefOid`, `baseRefName`, and `mergeStateStatus` in each
+opening, closing, and final PR-state read.
 
 Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat
 both retrievals. Finish with fresh PR and reviewer-request reads after the last
@@ -23,11 +22,9 @@ tuple to match Phase 4, all required checks to pass, the reviewer-request sets
 to remain unchanged, and the feedback sets to match the fully processed set
 with no new actionable finding, unresolved clarification, or required
 permitted reply. If these conditions hold and the current title passes § Title
-format, run:
-
-```bash
-gh pr ready <number> --repo <owner>/<repo>
-```
+format, mark that PR ready. Use `gh pr ready` with the exact PR number and
+host-qualified repository only if the exposed MCP tools lack the
+draft-to-ready operation.
 
 These are the draft-transition snapshots, not Phase 7's readiness snapshots.
 
@@ -40,34 +37,29 @@ changed head invalidates prior results and requires one owner for the new head.
 
 After every push, refresh the PR head and required-check policy. Inspect the
 base branch's protection settings and all active rules that apply to it, even
-when `gh pr checks --required` reports checks. Read classic branch-protection
-checks and effective rules for the base branch:
+when the PR already reports required checks. Read classic branch-protection
+checks and effective rules for the base branch. Use `gh api` to read either of
+these policy endpoints only if no exposed MCP tool provides that policy read:
 
-```bash
-gh api "repos/<owner>/<repo>/branches/<url-encoded-base>/protection/required_status_checks"
-gh api --paginate "repos/<owner>/<repo>/rules/branches/<url-encoded-base>?per_page=100"
-```
+- `GET /repos/{owner}/{repo}/branches/{base}/protection/required_status_checks`
+- `GET /repos/{owner}/{repo}/rules/branches/{base}` (all pages)
 
 The effective rules endpoint includes applicable repository and organization
 rulesets and excludes disabled or evaluate-only rules. Capture `baseRefName`
 from the PR and percent-encode it as one path segment (for example,
 `release/1.x` becomes `release%2F1.x`). Retrieve every effective-rules page.
-Verify the base branch is readable, then read classic protection:
-
-```bash
-gh api "repos/<owner>/<repo>/branches/<url-encoded-base>"
-gh api "repos/<owner>/<repo>/branches/<url-encoded-base>/protection"
-gh auth status
-```
+Verify the base branch is readable at `GET /repos/{owner}/{repo}/branches/{base}`,
+then read full classic protection at
+`GET /repos/{owner}/{repo}/branches/{base}/protection`.
 
 The required-status-checks subresource's 404 alone is ambiguous. A successful
 full-protection response with an absent or null `required_status_checks` means
 no classic required checks. A 404 from the full-protection endpoint means no
 classic protection only when the base branch is readable and the active
 credential is independently verified to have access to this repository and
-the endpoint's required settings-read permission. Check the credential type
-and its scopes or permissions with `gh auth status` or the provider's
-authoritative permission details. For a fine-grained or GitHub App token,
+the endpoint's required settings-read permission. Verify the credential type
+and its scopes or permissions from authoritative permission details.
+For a fine-grained or GitHub App token,
 verify `Administration: read` and that the credential covers this repository;
 for other credential types, verify the documented equivalent. Do not require
 a human admin identity for an installation token. If repository access or the
@@ -86,18 +78,13 @@ verification as unsupported rather than reporting readiness.
 
 Capture the PR head and base, resolve the generated test-merge commit, verify
 its parents, and retrieve check runs and commit statuses for both candidate
-SHAs:
+SHAs. The required data comes from these resources on the bound repository:
 
-```bash
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName,mergeStateStatus
-gh api "repos/<owner>/<repo>/git/ref/pull/<number>/merge"
-gh api "repos/<owner>/<repo>/commits/<merge-sha>"
-gh api --paginate "repos/<owner>/<repo>/commits/<head-sha>/check-runs?filter=all&per_page=100"
-gh api --paginate "repos/<owner>/<repo>/commits/<head-sha>/status?per_page=100"
-gh api --paginate "repos/<owner>/<repo>/commits/<merge-sha>/check-runs?filter=all&per_page=100"
-gh api --paginate "repos/<owner>/<repo>/commits/<merge-sha>/status?per_page=100"
-gh api --paginate "repos/<owner>/<repo>/actions/runs?head_sha=<selected-sha>&per_page=100"
-```
+- `git/ref/pull/{number}/merge` and `commits/{merge-sha}` for the merge ref and parents.
+- `commits/{sha}/check-runs?filter=all` and `commits/{sha}/status` for each candidate SHA.
+- `actions/runs?head_sha={selected-sha}` for the selected SHA's workflow runs.
+
+Retrieve every page of checks, statuses, and workflow runs.
 
 The merge commit must have exactly two parents. Parent 1 must equal the
 captured base SHA; parent 2 must equal the captured head SHA. Select one
@@ -143,9 +130,9 @@ and report the required contexts with producer identity; otherwise, poll the
 check-run, commit-status, and applicable workflow-run APIs for the selected SHA
 every 30 seconds. Refresh the candidate results and reselect the governing SHA
 during each poll. Do not
-use `gh pr checks` or the PR rollup as the required-check gate because those
-results may describe only the head. A timeout leaves CI pending: report it and
-stop without claiming readiness. Do not use an unbounded `--watch`. If both
+use a PR-wide check summary as the required-check gate because its results may
+describe only the head. A timeout leaves CI pending: report it and stop without
+claiming readiness. Do not watch without a time bound. If both
 policy sources are verified and the set is empty, skip required-check waiting
 and inspect all current results once. A recognized no-checks response does not
 by itself mean either an empty policy or an API failure; authentication,
@@ -162,11 +149,7 @@ implementation/fix path; pending checks stay in the bounded wait.
 
 **On required-check failure only:**
 Optional check failures are reported separately and do not enter this fix path.
-For a failed Actions job, inspect its associated run:
-
-```bash
-gh run view <run-id> --repo <owner>/<repo> --log-failed
-```
+For a failed Actions job, inspect the failed job logs from its associated run.
 
 For an external App check or legacy commit status, inspect its output/details
 or target URL through the producing service. If the result cannot be inspected,
@@ -208,8 +191,8 @@ merge-state evidence.
 
 Take a fresh state snapshot before fixing feedback and after every push. These
 are separate refresh points; a push invalidates earlier CI and review evidence.
-Record the PR state (open, closed, or merged), current head SHA, review-thread
-state, CI rollup, and merge state.
+Record the PR state (open, closed, or merged), draft state, head and base
+SHAs, base name, review-thread state, CI rollup, and merge state.
 Use the selected SHA for required checks; it is the revision that governs them.
 Use the head SHA for review coverage. Do not report a clean state from stale
 checks or review data.
@@ -218,11 +201,6 @@ relevant checks for the new head. The older review cannot count as new-head
 coverage. Complete the Phase 5 wait for that head once; do not restart it just
 because earlier reviews remain. Revalidate any earlier findings against the
 current diff. For a CI-only wait, use `watch-ci` when available.
-
-```bash
-set -e -o pipefail
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName,mergeStateStatus,statusCheckRollup
-```
 
 `statusCheckRollup` is supplemental only. The feedback-routing substep is
 read-only and is not readiness evidence; it does not restrict the separate
@@ -247,12 +225,13 @@ source or check results cannot be verified, do not report the PR ready.
 ## Phase 5 — Wait for Copilot code review
 
 After required checks pass, retrieve and canonicalize the complete set of
-requested reviewers from GitHub's all-reviewers endpoint:
+requested reviewers from GitHub's all-reviewers endpoint,
+`GET /repos/{owner}/{repo}/pulls/{number}/requested_reviewers`. Validate and
+canonicalize the complete response with this filter:
 
 ```bash
 set -e -o pipefail
-gh api "repos/<owner>/<repo>/pulls/<number>/requested_reviewers" \
-  --jq 'def no_control:
+jq -r 'def no_control:
     (test("[[:cntrl:]]") | not);
     def valid_node_id:
       (.node_id | type) == "string" and (.node_id | length) > 0
@@ -284,11 +263,6 @@ Immediately before starting the review timer, reread and compare PR state,
 draft status, head/base SHAs, and base name with the Phase 4 values for which
 checks passed:
 
-```bash
-set -e -o pipefail
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName
-```
-
 The PR must be open and non-draft. If it is closed or merged, follow the
 existing closed/merged handling; if it is a draft, follow the Existing PR
 entrypoint's transition path or report the authorization blocker and stop. If
@@ -297,12 +271,12 @@ feedback before starting the review wait.
 
 The 10-minute wait starts immediately before the first completed-review poll.
 Those entry checks do not count toward the wait. If polling directly, poll every
-30 seconds and stop after 10 minutes:
+30 seconds and stop after 10 minutes. Read all pages from
+`GET /repos/{owner}/{repo}/pulls/{number}/reviews`; apply this filter to every
+page before accepting any result:
 
-```bash
-set -e -o pipefail
-gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \
-  --jq 'def no_control: (test("[[:cntrl:]]") | not);
+```jq
+def no_control: (test("[[:cntrl:]]") | not);
     def valid_review:
       type == "object"
       and (.id | type) == "number" and (.id | floor) == .id and .id > 0
@@ -336,7 +310,7 @@ gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \
         | {id, commit_id, state, user, performed_via_github_app}
       else error("invalid review record")
       end]
-    end'
+    end
 ```
 
 If a completed-review poll fails or pagination is incomplete, stop; do not

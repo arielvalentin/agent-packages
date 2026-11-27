@@ -131,11 +131,11 @@ pagination_gate() {
 
 # --- Canonical policy and authoritative metadata ---
 require "$policy" "REST PR review-comment retrieval" \
-  'gh api --paginate "repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/comments"'
+  'GET /repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/comments'
 require "$policy" "REST PR review retrieval" \
-  'gh api --paginate "repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/reviews"'
+  'GET /repos/\{owner\}/\{repo\}/pulls/\{pull_number\}/reviews'
 require "$policy" "REST issue/PR comment retrieval" \
-  'gh api --paginate "repos/\{owner\}/\{repo\}/issues/\{issue_number\}/comments"'
+  'GET /repos/\{owner\}/\{repo\}/issues/\{issue_number\}/comments'
 require "$policy" "GraphQL review-thread retrieval" \
   'reviewThreads\(first: 100, after: \$threadCursor\)'
 require "$policy" "per-thread GraphQL comment retrieval" \
@@ -148,8 +148,8 @@ require "$policy" "incomplete pagination fails closed" \
   'pagination level is incomplete.{0,200}HUMAN_STOP'
 require "$policy" "REST Bot/App classification" \
   'performed_via_github_app.{0,120}AUTOMATION_FLOW'
-require_count "$policy" "REST App metadata projections" \
-  'if has\("performed_via_github_app"\)' 2
+require "$policy" "REST App metadata presence and value" \
+  'original presence and value of `performed_via_github_app`'
 require "$policy" "ordered login-blind REST algorithm" \
   'ordered classification algorithm.{0,100}Discard `\.user\.login` completely.{0,140}performed_via_github_app.{0,140}\.user\.type == "Bot".{0,100}Else select `HUMAN_STOP`'
 require "$policy" "bot-like login cannot alter actor type" \

@@ -15,16 +15,26 @@ scan.
 When a question explicitly requests a Yes/No answer, begin with the plain,
 unformatted answer token; add a brief explanation only when requested.
 
-Resolve the canonical `owner/repo` and PR number or URL once. Pass both through
-every command and handoff; never rely on the current working directory to select
-the repository.
+Resolve the canonical host, `owner/repo`, and PR number or URL once. Pass them
+through every command and handoff; never rely on the current working directory
+to select the repository. Route every remote read and write under
+`acting-on-behalf` § GitHub tool routing.
+Record the head SHA, base ref, and base SHA before collecting CI or diff
+evidence. Derive the complete PR diff from the merge base of those immutable
+commits to the recorded head (or verify the complete retrieved diff against
+that comparison). A PR-number lookup alone does not bind the evidence.
+Recheck the tuple after collecting evidence. If it changed or the diff cannot
+be verified, stop; do not review or submit from that snapshot.
 
 ## 1. CI gate
 
 Before any review work:
 
-1. Run `gh pr checks <pr-number> --repo <owner/repo> --required` or inspect
-   `statusCheckRollup` with `gh pr view --repo <owner/repo>`.
+1. Use `pr-lifecycle/references/readiness.md` to identify required checks and
+   select their governing SHA for the recorded head/base pair. Use the verified
+   test-merge commit when it governs; never combine results across revisions.
+   Stop if the policy, governing SHA, or complete results for it cannot be
+   verified. A green PR-number rollup alone does not pass.
 2. If any required check is pending or failing, stop and tell the user which
    checks failed or are still running, and that review begins once CI is green.
 3. Proceed only after all required checks pass.
@@ -117,9 +127,13 @@ steps 3-7 with the following relevant content, not forced section headings:
 6. Verdict: approve, request changes, or comment-only, with rationale.
 
 Invoke `acting-on-behalf` before posting; stop if unavailable or disclosure is
-unresolved. Use `gh pr review` with `--approve`,
-`--request-changes`, or `--comment`, always passing the PR number and
-`--repo <owner/repo>`, and include only the attribution that skill requires.
+unresolved. Submit one approve, request-changes, or comment-only review to
+the bound PR under GitHub tool routing. Immediately before posting, recheck
+the recorded tuple. If it changed, stop and review the new revision first.
+Use a review submission operation that binds the review to the reviewed SHA
+(GitHub's create-review API calls this `commit_id`). Stop if the available
+route can only submit to the latest head. Include only the attribution that
+skill requires.
 
 ## Boundaries
 

@@ -6,8 +6,10 @@ user authorization.
 
 ## Target and retrieved interaction
 
-- The destination is the public GitHub repository `owner/repo`, pull request
+- The destination is the public GitHub repository `github.com/owner/repo`, pull request
   `42`.
+- The PR's live head SHA, base ref, and base SHA were checked and match the
+  tuple for the authorized reply.
 - The target is review comment `7`; its thread is open and unresolved, with no
   earlier replies.
 - The complete relevant chain was retrieved from the pull request body,

@@ -33,32 +33,12 @@ paraphrase away the stage or SHA being discussed.
 When restating a named target or qualifier, keep its exact phrase contiguous.
 Put clarifying modifiers outside the named phrase, not between its terms.
 
-Resolve the exact repository, then the PR when one exists. A bare PR number
-means the active repository only. Pass explicit `--repo` to repository-scoped
-`gh` commands, including `gh pr` and `gh run`, and the same target in `gh api`
-paths. Do not trust implicit selection or `GH_REPO` without verifying the target.
-Replace command placeholders with resolved values; ask before reading or acting
-if ambiguous. Never nest a `gh` command substitution inside another `gh` command.
-
-Pass `--title` and `--body` as ordinary single- or double-quoted shell literals.
-Keep a brief single-paragraph body on one line; use multiline literals only for
-multiple paragraphs. A request for no outer quotes does not remove argument quoting.
-Do not use ANSI-C `$'...'` quoting or shell expansions in either value.
-
-If the active checkout's owner/repository is unknown and `origin` is the user's
-exact target, derive the explicit host-qualified `--repo` with this anchored
-script. Preserve the host and optional `.git`, omit URL user information, and
-keep literal `https://` outside the command substitution:
-
-```sh
---repo "https://$(git remote get-url origin | sed -nE 's#^(https?://|ssh://)([^/@]+@)?([A-Za-z0-9.-]+)/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\3/\4#p;s#^([^/@:]+@)([A-Za-z0-9.-]+):([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$#\2/\3#p')"
-```
-
-Unmatched origins produce `https://`, rejected by `gh` with `no hostname
-detected` before any request rather than falling back to another repository.
-Explicit ports intentionally do not match; resolve a `gh`-supported
-host-qualified target without stripping the port before acting.
-Do not add further substitutions or rewrite the target to a constant.
+Resolve the exact host and repository, then the PR when one exists. A bare PR
+number means the active repository only. If `origin` is the user's exact
+target, resolve it with local `git`, preserving the host and any explicit port
+without copying URL credentials. Stop if the target is unresolved or
+ambiguous; never substitute a default host or repository. Follow
+`acting-on-behalf`'s **GitHub tool routing** for every remote operation.
 
 ## Trigger phrases
 
@@ -128,10 +108,10 @@ the user asks for one status check or bounded waiting. They do not start the
 full PR loop or authorize changes.
 Use the bounded read-only `watch-ci` helper for CI-only waits and
 `wait-for-copilot-code-review` for Copilot-only waits when available for the
-resolved target. Otherwise, make one read-only status check: use
-`gh pr checks <number> --repo <owner>/<repo>` for CI,
-or inspect Phase 5 review requests/reviews once for Copilot. Do not use
-`--watch`, poll, dispatch fixes, or start the full loop in this fallback.
+resolved target. Otherwise, make one read-only status check under GitHub tool
+routing: read the PR check status for CI, or inspect Phase 5 review
+requests/reviews once for Copilot. Do not poll, dispatch fixes, or start the
+full loop in this path.
 
 ---
 
@@ -188,8 +168,8 @@ does not authorize publication.
    (`feature` → `feat`, `bugfix` → `fix`, `refactor` → `refactor`) is a default,
    not absolute: use `docs`, `test`, `chore`, `ci`, `perf`, `build`, or `revert`
    when the actual change calls for it. Validate against § Title format.
-   When no PR exists, prepare title text only and pass it to step 4's
-   `--title`; do not run `gh pr edit` or invent a PR number.
+   When no PR exists, prepare title text only and pass it to the creation
+   request in step 4; do not edit a PR or invent a PR number.
    Preserve the validated scope and `!` in the creation title when applicable.
    This phase only prepares a new PR; it does not retitle an existing PR.
 3. Prepare the body under the authoring and disclosure gates above. Follow
@@ -200,24 +180,21 @@ does not authorize publication.
    `git-publishing-safety`, follow the repository's required creation phase and
    readiness state, but never create before local acceptance. By default,
    create a **draft PR** with the validated title and complete body, never a
-   placeholder like `WIP: <goal>`:
-   ```bash
-   gh pr create --repo <owner>/<repo> --draft --title "<validated-title>" --body "<problem/value summary + required tracking>"
-   ```
-   When guidance requires the PR to be opened ready only
-   after gates pass, create it here without `--draft`:
-   ```bash
-   gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<problem/value summary + required tracking>"
-   ```
-   If repository guidance prescribes another command or state, follow it
-   after local acceptance. If a PR already exists, do not create a duplicate;
+   placeholder like `WIP: <goal>`. Follow the shared GitHub routing and
+   target-binding rules, including verification of any session-bound inputs.
+   Supply the validated title, body, and state. Only use
+   `gh pr create` if MCP lacks that operation and no platform-required native
+   route applies. In that case bind the host-qualified repository, `--head`,
+   and `--base` explicitly. When repository guidance
+   requires the PR to be opened ready only after gates pass, create it ready
+   then. If a PR already exists, do not create a duplicate;
    use the Existing PR entrypoint. Record its number/URL in continuation state
    only after creation succeeds; failed creation is not a published PR.
 5. Continue to Phase 4. A newly created draft uses the Existing PR entrypoint's
    draft checks, feedback handling, authorization, and transition snapshots
-   before `gh pr ready`. Local review acceptance is not remote readiness.
+   before marking it ready. Local review acceptance is not remote readiness.
    Do not wait for Copilot review or enter Phase 7 while it remains a draft.
-   Do not run `gh pr ready` for a PR that is already ready.
+   Do not repeat the transition on a PR that is already ready.
 
 ## Title format
 
@@ -227,8 +204,7 @@ For example, a repository requiring a ticket prefix keeps that prefix.
 
 Before creating, updating, or readying a PR, validate the title's format and
 apply `git-publishing-safety`'s **PR title length** section independently of
-the format check. This applies to `create_pull_request`, `update_pull_request`,
-`gh pr create`, `gh pr edit --title`, and `gh pr ready`.
+the format check. This applies to every route.
 
 Only when the repository supplies no title format, use these Conventional
 Commits defaults for titles created or updated in Phase 3:
@@ -257,8 +233,8 @@ Commits defaults for titles created or updated in Phase 3:
 
 | Missing tool | Fallback |
 |-------------|----------|
-| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
-| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. In full Phase 4, follow the bounded SHA-specific polling procedure in `references/readiness.md`; never use `gh pr checks` as the required-check gate |
+| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, follow Phase 3 and GitHub tool routing |
+| `watch-ci` | For standalone CI status, make one read-only check as described above. In Phase 4, use the bounded SHA-specific polling procedure in `references/readiness.md`; a PR-wide summary is not the required-check gate |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites
@@ -346,8 +322,8 @@ Ask before pushing or opening a PR unless the user's request or repository
 guidance already authorizes that action. A branch existing or a completed
 change is not authorization by itself. Opening a PR and pushing an unpublished
 branch are separate actions; authorization to open a PR does not authorize the
-push. Before using `gh pr create`, confirm the branch is already published or
-that the request or repository guidance also authorizes the required push.
+push. Before creating a PR, confirm the branch is already published or that the
+request or repository guidance also authorizes the required push.
 
 Repository guidance may authorize publication only when the policy is present
 in the verified target branch's trusted baseline, is known to be
@@ -374,15 +350,14 @@ commit, push, history rewrite, and PR gates without broadening authorization.
 
 ## Existing-draft transition snapshots
 
+Follow `acting-on-behalf`'s **GitHub tool routing** for every read and write.
+
 Immediately before a permitted transition, take two consecutive complete
 snapshots. In each, record opening PR state, title, head/base SHAs, base name,
 merge state, and the complete reviewer-request set using the endpoint and
-validation defined in Phase 5. Retrieve complete PR state with this command
-for each opening, closing, and final read:
-
-```bash
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus
-```
+validation defined in Phase 5. Include `state`, `isDraft`, `title`,
+`headRefOid`, `baseRefOid`, `baseRefName`, and `mergeStateStatus` in each
+opening, closing, and final PR-state read.
 
 Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat
 both retrievals. Finish with fresh PR and reviewer-request reads after the last
@@ -397,11 +372,9 @@ tuple to match Phase 4, all required checks to pass, the reviewer-request sets
 to remain unchanged, and the feedback sets to match the fully processed set
 with no new actionable finding, unresolved clarification, or required
 permitted reply. If these conditions hold and the current title passes § Title
-format, run:
-
-```bash
-gh pr ready <number> --repo <owner>/<repo>
-```
+format, mark that PR ready. Use `gh pr ready` with the exact PR number and
+host-qualified repository only if the exposed MCP tools lack the
+draft-to-ready operation.
 
 These are the draft-transition snapshots, not Phase 7's readiness snapshots.
 
@@ -414,34 +387,29 @@ changed head invalidates prior results and requires one owner for the new head.
 
 After every push, refresh the PR head and required-check policy. Inspect the
 base branch's protection settings and all active rules that apply to it, even
-when `gh pr checks --required` reports checks. Read classic branch-protection
-checks and effective rules for the base branch:
+when the PR already reports required checks. Read classic branch-protection
+checks and effective rules for the base branch. Use `gh api` to read either of
+these policy endpoints only if no exposed MCP tool provides that policy read:
 
-```bash
-gh api "repos/<owner>/<repo>/branches/<url-encoded-base>/protection/required_status_checks"
-gh api --paginate "repos/<owner>/<repo>/rules/branches/<url-encoded-base>?per_page=100"
-```
+- `GET /repos/{owner}/{repo}/branches/{base}/protection/required_status_checks`
+- `GET /repos/{owner}/{repo}/rules/branches/{base}` (all pages)
 
 The effective rules endpoint includes applicable repository and organization
 rulesets and excludes disabled or evaluate-only rules. Capture `baseRefName`
 from the PR and percent-encode it as one path segment (for example,
 `release/1.x` becomes `release%2F1.x`). Retrieve every effective-rules page.
-Verify the base branch is readable, then read classic protection:
-
-```bash
-gh api "repos/<owner>/<repo>/branches/<url-encoded-base>"
-gh api "repos/<owner>/<repo>/branches/<url-encoded-base>/protection"
-gh auth status
-```
+Verify the base branch is readable at `GET /repos/{owner}/{repo}/branches/{base}`,
+then read full classic protection at
+`GET /repos/{owner}/{repo}/branches/{base}/protection`.
 
 The required-status-checks subresource's 404 alone is ambiguous. A successful
 full-protection response with an absent or null `required_status_checks` means
 no classic required checks. A 404 from the full-protection endpoint means no
 classic protection only when the base branch is readable and the active
 credential is independently verified to have access to this repository and
-the endpoint's required settings-read permission. Check the credential type
-and its scopes or permissions with `gh auth status` or the provider's
-authoritative permission details. For a fine-grained or GitHub App token,
+the endpoint's required settings-read permission. Verify the credential type
+and its scopes or permissions from authoritative permission details.
+For a fine-grained or GitHub App token,
 verify `Administration: read` and that the credential covers this repository;
 for other credential types, verify the documented equivalent. Do not require
 a human admin identity for an installation token. If repository access or the
@@ -460,18 +428,13 @@ verification as unsupported rather than reporting readiness.
 
 Capture the PR head and base, resolve the generated test-merge commit, verify
 its parents, and retrieve check runs and commit statuses for both candidate
-SHAs:
+SHAs. The required data comes from these resources on the bound repository:
 
-```bash
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName,mergeStateStatus
-gh api "repos/<owner>/<repo>/git/ref/pull/<number>/merge"
-gh api "repos/<owner>/<repo>/commits/<merge-sha>"
-gh api --paginate "repos/<owner>/<repo>/commits/<head-sha>/check-runs?filter=all&per_page=100"
-gh api --paginate "repos/<owner>/<repo>/commits/<head-sha>/status?per_page=100"
-gh api --paginate "repos/<owner>/<repo>/commits/<merge-sha>/check-runs?filter=all&per_page=100"
-gh api --paginate "repos/<owner>/<repo>/commits/<merge-sha>/status?per_page=100"
-gh api --paginate "repos/<owner>/<repo>/actions/runs?head_sha=<selected-sha>&per_page=100"
-```
+- `git/ref/pull/{number}/merge` and `commits/{merge-sha}` for the merge ref and parents.
+- `commits/{sha}/check-runs?filter=all` and `commits/{sha}/status` for each candidate SHA.
+- `actions/runs?head_sha={selected-sha}` for the selected SHA's workflow runs.
+
+Retrieve every page of checks, statuses, and workflow runs.
 
 The merge commit must have exactly two parents. Parent 1 must equal the
 captured base SHA; parent 2 must equal the captured head SHA. Select one
@@ -517,9 +480,9 @@ and report the required contexts with producer identity; otherwise, poll the
 check-run, commit-status, and applicable workflow-run APIs for the selected SHA
 every 30 seconds. Refresh the candidate results and reselect the governing SHA
 during each poll. Do not
-use `gh pr checks` or the PR rollup as the required-check gate because those
-results may describe only the head. A timeout leaves CI pending: report it and
-stop without claiming readiness. Do not use an unbounded `--watch`. If both
+use a PR-wide check summary as the required-check gate because its results may
+describe only the head. A timeout leaves CI pending: report it and stop without
+claiming readiness. Do not watch without a time bound. If both
 policy sources are verified and the set is empty, skip required-check waiting
 and inspect all current results once. A recognized no-checks response does not
 by itself mean either an empty policy or an API failure; authentication,
@@ -536,11 +499,7 @@ implementation/fix path; pending checks stay in the bounded wait.
 
 **On required-check failure only:**
 Optional check failures are reported separately and do not enter this fix path.
-For a failed Actions job, inspect its associated run:
-
-```bash
-gh run view <run-id> --repo <owner>/<repo> --log-failed
-```
+For a failed Actions job, inspect the failed job logs from its associated run.
 
 For an external App check or legacy commit status, inspect its output/details
 or target URL through the producing service. If the result cannot be inspected,
@@ -582,8 +541,8 @@ merge-state evidence.
 
 Take a fresh state snapshot before fixing feedback and after every push. These
 are separate refresh points; a push invalidates earlier CI and review evidence.
-Record the PR state (open, closed, or merged), current head SHA, review-thread
-state, CI rollup, and merge state.
+Record the PR state (open, closed, or merged), draft state, head and base
+SHAs, base name, review-thread state, CI rollup, and merge state.
 Use the selected SHA for required checks; it is the revision that governs them.
 Use the head SHA for review coverage. Do not report a clean state from stale
 checks or review data.
@@ -592,11 +551,6 @@ relevant checks for the new head. The older review cannot count as new-head
 coverage. Complete the Phase 5 wait for that head once; do not restart it just
 because earlier reviews remain. Revalidate any earlier findings against the
 current diff. For a CI-only wait, use `watch-ci` when available.
-
-```bash
-set -e -o pipefail
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName,mergeStateStatus,statusCheckRollup
-```
 
 `statusCheckRollup` is supplemental only. The feedback-routing substep is
 read-only and is not readiness evidence; it does not restrict the separate
@@ -621,12 +575,13 @@ source or check results cannot be verified, do not report the PR ready.
 ## Phase 5 — Wait for Copilot code review
 
 After required checks pass, retrieve and canonicalize the complete set of
-requested reviewers from GitHub's all-reviewers endpoint:
+requested reviewers from GitHub's all-reviewers endpoint,
+`GET /repos/{owner}/{repo}/pulls/{number}/requested_reviewers`. Validate and
+canonicalize the complete response with this filter:
 
 ```bash
 set -e -o pipefail
-gh api "repos/<owner>/<repo>/pulls/<number>/requested_reviewers" \
-  --jq 'def no_control:
+jq -r 'def no_control:
     (test("[[:cntrl:]]") | not);
     def valid_node_id:
       (.node_id | type) == "string" and (.node_id | length) > 0
@@ -658,11 +613,6 @@ Immediately before starting the review timer, reread and compare PR state,
 draft status, head/base SHAs, and base name with the Phase 4 values for which
 checks passed:
 
-```bash
-set -e -o pipefail
-gh pr view <number> --repo <owner>/<repo> --json state,isDraft,headRefOid,baseRefOid,baseRefName
-```
-
 The PR must be open and non-draft. If it is closed or merged, follow the
 existing closed/merged handling; if it is a draft, follow the Existing PR
 entrypoint's transition path or report the authorization blocker and stop. If
@@ -671,12 +621,12 @@ feedback before starting the review wait.
 
 The 10-minute wait starts immediately before the first completed-review poll.
 Those entry checks do not count toward the wait. If polling directly, poll every
-30 seconds and stop after 10 minutes:
+30 seconds and stop after 10 minutes. Read all pages from
+`GET /repos/{owner}/{repo}/pulls/{number}/reviews`; apply this filter to every
+page before accepting any result:
 
-```bash
-set -e -o pipefail
-gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \
-  --jq 'def no_control: (test("[[:cntrl:]]") | not);
+```jq
+def no_control: (test("[[:cntrl:]]") | not);
     def valid_review:
       type == "object"
       and (.id | type) == "number" and (.id | floor) == .id and .id > 0
@@ -710,7 +660,7 @@ gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \
         | {id, commit_id, state, user, performed_via_github_app}
       else error("invalid review record")
       end]
-    end'
+    end
 ```
 
 If a completed-review poll fails or pagination is incomplete, stop; do not
@@ -802,9 +752,8 @@ guidance, after applying `human-interaction-safeguard` and
 authorized lifecycle by rerunning Phase 4. Stop only when another gate requires
 user input or an action lacks authorization.
 
-```bash
-gh pr edit <number> --repo <owner>/<repo> --add-reviewer <reviewer>
-```
+For a permitted reviewer request, bind the exact PR and reviewer and follow
+GitHub tool routing.
 
 Re-run Phase 4 after any push. For an existing draft routed from Phase 4, use
 this complete exit rule, which takes precedence over generic loop routing:
