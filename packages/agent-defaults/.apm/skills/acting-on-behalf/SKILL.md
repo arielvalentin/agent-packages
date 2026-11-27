@@ -73,8 +73,11 @@ effective default `gh` host is verified to be the target host. This applies to
 github.com targets too. PR creation on
 either route must also bind the authorized head repository and branch and the
 intended base branch. If MCP cannot express that pair, treat it as
-unsupported; with `gh`, pass `--head` and `--base` unless the current branch
-and default base are already that pair.
+unsupported; with `gh`, always pass the verified `--head` and `--base`.
+Never rely on the repository default or `branch.<name>.gh-merge-base`.
+Verify the head is published before creation; any needed push requires its
+own authorization. For an existing PR, verify its base matches the bound
+base before any write; a mismatch is a stop, not permission to retarget it.
 
 Do not mix routes within one consistency snapshot; if a fallback is needed,
 redo that snapshot with `gh`. Before any write on either route, confirm that
@@ -84,8 +87,12 @@ unknown, rerun those decisions before writing. If a write fails with an
 unknown outcome, verify current state before retrying through `gh`. For a
 write that is not safely repeatable, retry only after confirming the first
 attempt did not apply and cannot still apply; if that stays ambiguous, stop and
-report it. Never post twice. The route never changes posting permission, attribution, disclosure, or
-review gates.
+report it. Never post twice. A `HUMAN_STOP` single-reply confirmation is
+consumed by the first attempted reply, even if it fails without posting.
+Any retry requires fresh single-reply confirmation under
+`human-interaction-safeguard`; confirmed non-delivery does not restore approval.
+The route never changes posting permission, attribution, disclosure, or review
+gates.
 
 ## Human-interaction posting backstop
 

@@ -293,13 +293,13 @@ does not authorize publication.
    fallback-eligible operational error, use
    the `gh` fallback:
    ```bash
-   gh pr create --repo <owner>/<repo> --draft --title "<validated-title>" --body "<problem/value summary + required tracking>"
+   gh pr create --repo <owner>/<repo> --head "<verified-head>" --base "<bound-base>" --draft --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
    When guidance requires the PR to be opened ready only
    after gates pass, use the same MCP-first routing in ready state. With the
    `gh` fallback, create it here without `--draft`:
    ```bash
-   gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<problem/value summary + required tracking>"
+   gh pr create --repo <owner>/<repo> --head "<verified-head>" --base "<bound-base>" --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
    If repository guidance prescribes another command or state, follow it
    after local acceptance. If a PR already exists, do not create a duplicate;
