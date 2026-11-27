@@ -43,10 +43,11 @@ remote URL owner if needed.
 ### 3. GitHub CLI auth cache (no network)
 
 ```bash
-gh auth status 2>&1 | sed -nE 's/.*Logged in to github\.com account ([^[:space:]]+).*/\1/p'
+gh config get -h github.com user
 ```
 
-This reads the local credential store — no API call required. It is local
+This reads the local `gh` host configuration — no API call required. Do not
+substitute `gh auth status`; it contacts GitHub to validate the token. It is local
 state, like `git config`, so the GitHub tool routing in `acting-on-behalf`
 does not apply. That routing governs the API lookup in step 4.
 

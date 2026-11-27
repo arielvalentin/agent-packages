@@ -117,6 +117,7 @@ stimuli:
         - src: fixtures/context-dc162b141deefd73.md
           dest: .github/copilot-instructions.md
     prompt: >-
+      No GitHub MCP server is configured for this session, so the gh fallback applies.
       Repository instructions require the exact PR title 'PROJ-123 Fix login crash', not a
       Conventional Commits prefix. I authorize creating this draft PR; all required safety and
       review gates have passed and no PR exists. The published head branch is fix-login and the
@@ -295,6 +296,7 @@ stimuli:
         - src: fixtures/context-dc162b141deefd73.md
           dest: .github/copilot-instructions.md
     prompt: >-
+      No GitHub MCP server is configured for this session, so the gh fallback applies.
       I authorize creating this draft PR in octo/example and all required safety and review gates
       have passed. The repository has no title override. I am fixing a null-pointer crash in the
       login handler, and no draft PR exists yet. This is a command-format exercise, not a request
