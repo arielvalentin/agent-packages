@@ -28,20 +28,12 @@ Look for:
 ### 2. GitHub Codespace (preferred)
 
 If the repo supports Codespaces, use GitHub tool routing from `acting-on-behalf`.
-Use the following CLI commands only for the corresponding Codespaces operations
-the exposed MCP tools do not support:
+Verify the host and repository support Codespaces. Create one Codespace for
+the bound repository and PR branch with a `basicLinux32gb` machine. Pass
+the repository and ref as data, not as interpolated shell source.
 
-```bash
-gh codespace create --repo <host>/<owner>/<repo> --branch <pr-branch> --machine basicLinux32gb
-```
-
-Wait for creation, then:
-
-```bash
-gh codespace ports --codespace <name>
-```
-
-Report the forwarded port URLs to the user.
+Wait for creation, then read the forwarded ports for that exact Codespace
+and report their URLs to the user.
 
 ### 3. Local preview (fallback)
 
@@ -69,9 +61,4 @@ Provide:
 
 ## Cleanup
 
-Remind the user to delete the Codespace when validation is complete. If no
-exposed MCP tool can delete that Codespace, the manual command is:
-
-```bash
-gh codespace delete --codespace <name>
-```
+Remind the user how to delete that Codespace when validation is complete.

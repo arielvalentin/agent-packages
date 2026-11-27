@@ -67,10 +67,13 @@ another route to complete a failed or partial read.
 
 Before creating a PR, verify that the intended base ref exists on the bound
 host and repository and that the authorized head repo and ref are published.
-Bind both refs explicitly on creation; never infer the base from a default or
-local branch configuration. A needed push requires its own authorization.
-Verify both refs on the new PR and verify the bound target before any write to
-an existing PR. A mismatch is a stop, not permission to retarget it.
+Confirm immediately before creation that the remote head SHA is the reviewed
+head SHA and the published diff matches local acceptance. Bind both refs
+explicitly; never infer the base from a default or local branch configuration.
+A needed push requires its own authorization. Verify the new PR's head SHA
+and both refs before proceeding. Before any write to an existing PR, verify
+its live base matches the bound base as well as verifying the PR target.
+A mismatch is a stop, not permission to retarget it.
 
 Before any write, confirm the authenticated account and apply the identity,
 authorization, and disclaimer rules to it. When a write has an unknown
