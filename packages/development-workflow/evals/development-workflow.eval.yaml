@@ -119,7 +119,8 @@ stimuli:
     prompt: >-
       Repository instructions require the exact PR title 'PROJ-123 Fix login crash', not a
       Conventional Commits prefix. I authorize creating this draft PR; all required safety and
-      review gates have passed and no PR exists. Return only a gh pr create command with --draft,
+      review gates have passed and no PR exists. The published head branch is fix-login and the
+      bound base branch is main. Return only a gh pr create command with --head, --base, --draft,
       --title, and --body.
     graders:
       - type: output-matches
@@ -142,6 +143,16 @@ stimuli:
         scope: parent
         config:
           pattern: (?:^|\s)--title(?:=|\s+)([\u0022\u0027])PROJ-123 Fix login crash\1(?:\s|$)
+      - type: output-matches
+        name: development-workflow-case-005-row-01-a5-output-matches
+        scope: parent
+        config:
+          pattern: (?:^|\s)--head(?:=|\s+)([\u0022\u0027]?)fix-login\1(?:\s|$)
+      - type: output-matches
+        name: development-workflow-case-005-row-01-a6-output-matches
+        scope: parent
+        config:
+          pattern: (?:^|\s)--base(?:=|\s+)([\u0022\u0027]?)main\1(?:\s|$)
     simulation:
       tool_overrides:
         bash:
@@ -288,7 +299,7 @@ stimuli:
       have passed. The repository has no title override. I am fixing a null-pointer crash in the
       login handler, and no draft PR exists yet. This is a command-format exercise, not a request
       to execute a command. Return exactly one command in this argument order:
-      gh pr create --repo octo/example --draft --title "TITLE" --body "BODY".
+      gh pr create --repo octo/example --head fix-login --base main --draft --title "TITLE" --body "BODY".
       Replace TITLE with a concrete Conventional title and BODY with a meaningful description.
       Use only ASCII letters, digits, spaces, slash, comma, period, semicolon, colon, or hyphen
       inside the quoted fields; an optional lowercase scope in parentheses is allowed in TITLE.
@@ -315,7 +326,7 @@ stimuli:
         scope: parent
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --draft --title
+            ^gh pr create --repo octo/example --head fix-login --base main --draft --title
             "(?=[^"\r\n]{1,72}" --body )(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([a-z0-9-]+\))?: [A-Za-z0-9][A-Za-z0-9
             /,.;:-]*" --body "[A-Za-z0-9][A-Za-z0-9 /,.;:-]*"\s*$
     simulation:

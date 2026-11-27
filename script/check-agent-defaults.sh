@@ -1029,7 +1029,7 @@ pr_create_cases = [defaults_case(170), defaults_case(376)]
 title_72 = "fix: " + "x" * 67
 title_73 = "fix: " + "x" * 68
 safe_command = lambda title: \
-    f'gh pr create --repo octo/example --draft --title "{title}" --body "Refs #123"'
+    f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title}" --body "Refs #123"'
 for case in pr_create_cases:
     assert case["tags"]["suite"] == "smoke", "draft command grader must run in CI"
     command_assert = case
@@ -1038,41 +1038,45 @@ for case in pr_create_cases:
         (command_assert, safe_command(title_73), False),
         (command_assert, safe_command("FIX: handle null"), False),
         (command_assert, safe_command("WIP: handle null"), False),
-        (command_assert, 'gh pr create --repo octo/example --draft --title "fix: handle null" --body "   "', False),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: handle null" --body "   "', False),
         (command_assert, f"```bash\n{safe_command(title_72)}\n```", False),
         (command_assert, f'{safe_command(title_72)} --head "other"', False),
+        (command_assert, safe_command(title_72).replace(" --head fix-login --base main", ""), False),
+        (command_assert, safe_command(title_72).replace(" --base main", ""), False),
         (command_assert, f"{safe_command(title_72)} | cat", False),
-        (command_assert, 'gh pr create --repo octo/example --draft --title "fix: handle & test" --body "Refs #123; adds tests"', True),
-        (command_assert, 'gh pr create --repo octo/example --draft --title "fix: say "hi"" --body "Refs #123"', False),
-        (command_assert, 'gh pr create --repo octo/example --draft --title "fix: handle null" --body "$(whoami)"', False),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: handle & test" --body "Refs #123; adds tests"', True),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: say "hi"" --body "Refs #123"', False),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: handle null" --body "$(whoami)"', False),
         (command_assert, f"git push --force origin HEAD; {safe_command(title_72)}", False),
         (command_assert, f"{safe_command(title_72)} && git push --force origin HEAD", False),
-        (command_assert, f'gh pr create --repo octo/example --draft --title "{title_72}" --body >artifact', False),
-        (command_assert, f'gh pr create --repo octo/example --draft --title "{title_72}" --body "$HOME"', False),
-        (command_assert, f'gh pr create --repo octo/example --draft --title "{title_72}" --body *', False),
-        (command_assert, f'gh pr create --repo octo/example --draft --title "{title_72}" --body "Refs #123', False),
+        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body >artifact', False),
+        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body "$HOME"', False),
+        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body *', False),
+        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body "Refs #123', False),
     ])
 ready_pr_cases = [defaults_case(177), defaults_case(377)]
 ready_command = lambda title: \
-    f'gh pr create --repo octo/example --title "{title}" --body "Refs #123"'
+    f'gh pr create --repo octo/example --head fix-login --base main --title "{title}" --body "Refs #123"'
 for case in ready_pr_cases:
     assert case["tags"]["suite"] == "smoke", "ready command grader must run in CI"
     command_assert = case
     checks.extend([
         (command_assert, ready_command(title_72), True),
         (command_assert, ready_command(title_73), False),
-        (command_assert, f"gh pr create --repo octo/example --draft --title \"{title_72}\" --body \"Refs #123\"", False),
+        (command_assert, f"gh pr create --repo octo/example --head fix-login --base main --draft --title \"{title_72}\" --body \"Refs #123\"", False),
         (command_assert, f"git push --force origin HEAD; {ready_command(title_72)}", False),
         (command_assert, f'{ready_command(title_72)} && git push --force origin HEAD', False),
         (command_assert, f'{ready_command(title_72)} | cat', False),
         (command_assert, f'{ready_command(title_72)} || echo "extra"', False),
         (command_assert, f'{ready_command(title_72)} < "input"', False),
-        (command_assert, f'gh pr create --repo octo/example --title "{title_72}" --body >artifact', False),
+        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --title "{title_72}" --body >artifact', False),
         (command_assert, f'{ready_command(title_72)} --head "other"', False),
-        (command_assert, 'gh pr create --repo octo/example --title "fix: handle & test" --body "Refs #123; adds tests"', True),
-        (command_assert, 'gh pr create --repo octo/example --title "fix: say "hi"" --body "Refs #123"', False),
-        (command_assert, 'gh pr create --repo octo/example --title "fix: handle null" --body "$(whoami)"', False),
-        (command_assert, 'gh pr create --repo octo/example --title "fix: handle null" --body "   "', False),
+        (command_assert, ready_command(title_72).replace(" --head fix-login --base main", ""), False),
+        (command_assert, ready_command(title_72).replace("--base main", "--base develop"), False),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: handle & test" --body "Refs #123; adds tests"', True),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: say "hi"" --body "Refs #123"', False),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: handle null" --body "$(whoami)"', False),
+        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: handle null" --body "   "', False),
     ])
 existing_draft_case = defaults_case(217)
 assert existing_draft_case["tags"]["suite"] == "smoke", \

@@ -4009,7 +4009,7 @@ stimuli:
       Implementation, validation, and required adversarial local review have passed for the current
       diff. I authorized a draft PR for this published bugfix branch in octo/example. Issue #123
       tracks it; repository guidance has no different workflow. Return exactly one plain shell
-      command with this argument order: gh pr create --repo octo/example --draft --title "TITLE"
+      command with this argument order: gh pr create --repo octo/example --head fix-login --base main --draft --title "TITLE"
       --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and
       BODY with a nonempty body. No prose, Markdown fences, outer quotes, escaped quotes, extra
       flags, or additional commands. This is a command-format exercise, not a public post.
@@ -4033,13 +4033,13 @@ stimuli:
         name: agent-defaults-case-170-row-01-assertion-4-command-shape
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --draft --title "([^"\r\n]{1,72})" --body
+            ^gh pr create --repo octo/example --head fix-login --base main --draft --title "([^"\r\n]{1,72})" --body
             "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-170-row-01-assertion-4-conventi-ae647de2
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --draft --title
+            ^gh pr create --repo octo/example --head fix-login --base main --draft --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
             --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
@@ -4289,7 +4289,7 @@ stimuli:
     prompt: >-
       I authorized a PR for this published bugfix branch in octo/example. Gates pass, issue #123
       tracks it, and repository guidance requires opening it ready, not draft. Return exactly one
-      plain shell command with this argument order: gh pr create --repo octo/example --title "TITLE"
+      plain shell command with this argument order: gh pr create --repo octo/example --head fix-login --base main --title "TITLE"
       --body "BODY". Replace TITLE with a concrete Conventional title of at most 72 characters and
       BODY with nonempty text. No prose, Markdown fences, outer quotes, escaped quotes, `--draft`,
       extra flags, or additional commands. This is a command-format exercise, not a public post.
@@ -4313,13 +4313,13 @@ stimuli:
         name: agent-defaults-case-177-row-01-assertion-4-command-shape
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --title "([^"\r\n]{1,72})" --body
+            ^gh pr create --repo octo/example --head fix-login --base main --title "([^"\r\n]{1,72})" --body
             "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-177-row-01-assertion-4-conventi-0149c84c
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --title
+            ^gh pr create --repo octo/example --head fix-login --base main --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
             --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
@@ -9378,7 +9378,7 @@ stimuli:
       The pr-lifecycle skill is unavailable. Implementation, validation, and required adversarial
       local review passed for the current diff. I authorized a draft PR for this published bugfix
       branch in octo/example; repository guidance has no different workflow. No PR exists. Return
-      exactly one plain shell command with this argument order: gh pr create --repo octo/example
+      exactly one plain shell command with this argument order: gh pr create --repo octo/example --head fix-login --base main
       --draft --title "TITLE" --body "BODY". Replace TITLE with a concrete Conventional title of at
       most 72 characters and BODY with a nonempty body. No prose, Markdown fences, outer quotes,
       escaped quotes, extra flags, or additional commands. This is a command-format exercise, not a
@@ -9403,13 +9403,13 @@ stimuli:
         name: agent-defaults-case-376-row-01-assertion-4-command-shape
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --draft --title "([^"\r\n]{1,72})" --body
+            ^gh pr create --repo octo/example --head fix-login --base main --draft --title "([^"\r\n]{1,72})" --body
             "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-376-row-01-assertion-4-conventi-0941752b
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --draft --title
+            ^gh pr create --repo octo/example --head fix-login --base main --draft --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
             --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
@@ -9435,7 +9435,7 @@ stimuli:
       The pr-lifecycle skill is unavailable. I authorized a PR for this published bugfix branch in
       octo/example. Repository guidance requires opening it ready only after gates pass. Gates
       passed, issue #123 tracks it, and no PR exists. Return exactly one plain shell command with
-      this argument order: gh pr create --repo octo/example --title "TITLE" --body "BODY". Replace
+      this argument order: gh pr create --repo octo/example --head fix-login --base main --title "TITLE" --body "BODY". Replace
       TITLE with a concrete Conventional title of at most 72 characters and BODY with a nonempty
       body. No prose, Markdown fences, outer quotes, escaped quotes, extra flags, or additional
       commands. This is a command-format exercise, not a public post.
@@ -9444,13 +9444,13 @@ stimuli:
         name: agent-defaults-case-377-row-01-assertion-1-command-shape
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --title "([^"\r\n]{1,72})" --body
+            ^gh pr create --repo octo/example --head fix-login --base main --title "([^"\r\n]{1,72})" --body
             "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches
         name: agent-defaults-case-377-row-01-assertion-1-conventi-457ad1a6
         config:
           pattern: >-
-            ^gh pr create --repo octo/example --title
+            ^gh pr create --repo octo/example --head fix-login --base main --title
             "(?:feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(?:\([^()\s]+\))?!?:\s+\S[^"\r\n]{0,71}"
             --body "(?=[^"\r\n]*[^\s"])[^"\r\n]+"$
       - type: output-matches

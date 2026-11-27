@@ -175,7 +175,7 @@ test("built-in draft command case requires one explicit safe command", async () 
   const stimulus = spec.stimuli.find((item) =>
     item.name === "development-workflow-case-011-row-01"
   );
-  const command = 'gh pr create --repo octo/example --draft --title "fix: prevent null login crash" --body "Reject missing login data."';
+  const command = 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: prevent null login crash" --body "Reject missing login data."';
   for (const [output, expected] of [
     [command, true],
     [`${command}\n`, true],
@@ -186,6 +186,8 @@ test("built-in draft command case requires one explicit safe command", async () 
     [command.replace("fix: prevent null login crash", `fix(login): ${"x".repeat(61)}`), false],
     [command.replace("octo/example", "other/repo"), false],
     [command.replace("--draft ", ""), false],
+    [command.replace("--head fix-login --base main ", ""), false],
+    [command.replace("--base main", "--base develop"), false],
     [command.replace("fix:", "WIP:"), false],
     [command.replace("Reject missing login data.", " "), false],
     [command.replace("Reject missing login data.", "$(id)"), false],

@@ -174,7 +174,7 @@ For every permitted post:
 1. If repository guidance requires an issue, search for likely existing issues
    first when Issues are available. Use GitHub MCP issue search, or the `gh`
    fallback:
-   - `gh issue list --search "<keywords>"`
+   - `gh issue list --repo <owner>/<repo> --search "<keywords>"`
 2. Confirm the candidate with the user before assuming.
 3. If nothing matches, ask whether to open a new issue; never create one without
    authorization. Required tracking blocks publication until resolved.
@@ -230,17 +230,21 @@ gated action:
    When the draft default applies, create the PR non-interactively in draft
    state with a valid title and a non-empty body. Follow **GitHub tool
    routing**: use a GitHub MCP PR-creation tool first. If it is unavailable or
-   returns a fallback-eligible operational error, use one `gh pr create --repo <owner>/<repo> --draft` command, which
-   must include `--repo`, `--draft`, `--title`, and `--body`.
+   returns a fallback-eligible operational error, use one
+   `gh pr create --repo <owner>/<repo> --head <head> --base <base> --draft`
+   command, which must include `--repo`, `--head`, `--base`, `--draft`,
+   `--title`, and `--body`. `<head>` is the verified published head branch and
+   `<base>` is the bound base branch; never omit either.
    If repository guidance requires another workflow, use its required PR
    creation phase, state, and command; never impose `--draft`. If that workflow
    requires a ready PR after gates pass, create it then through the same
    routing, without draft state. The `gh` fallback is
-   `gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<required body>"`
-   with no `--draft`.
+   `gh pr create --repo <owner>/<repo> --head <head> --base <base> --title "<validated-title>" --body "<required body>"`
+   with no `--draft`. After creation on either route, verify the PR's head and
+   base match the bound pair before any further write.
 
    ```sh
-   gh pr create --repo octo/example --draft --title "fix: correct null handling in login handler" --body "Refs #123"
+   gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: correct null handling in login handler" --body "Refs #123"
    ```
 
    Never a bare `--draft` with no `--body`, and never a `WIP:` title. When the
