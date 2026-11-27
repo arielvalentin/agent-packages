@@ -54,26 +54,31 @@ the exposed GitHub MCP tool that supports the exact operation. Check the
 session's tool inventory and declared capabilities before using `gh` for a
 specific operation that no exposed MCP tool can perform. This includes reads:
 check support for the target host, required fields, and complete pagination.
-Honor any platform-required native tool that can bind the exact target and
-operation.
+Honor platform-required native routes before choosing MCP or CLI. Where the
+tool binds host, repository or head through the session instead of arguments,
+verify those session bindings against the authorized target before the write.
+Pass the intended base explicitly or verify the session's bound base too.
+If a required route cannot be verified, stop; do not substitute another route.
 A failed call, incomplete result from a tool that supports the read, timeout,
 rate limit, authentication error, or denied approval is not a tool gap.
 Handle the failure under the applicable gate; do not switch to `gh`.
 
 Bind the exact host, repository, and applicable item number or SHA on every
 operation. Where a verified tool gap calls for `gh`, pass an explicit
-host-qualified target. When a snapshot requires distinct operations, check
+host-qualified target. Pass all values as separate literal arguments, never
+as interpolated shell source. When a snapshot requires distinct operations, check
 capabilities for each, keep the target and identity consistent, and verify
 the complete snapshot as required by its gate. Never splice in data from
 another route to complete a failed or partial read.
 
-Before creating a PR, verify that the intended base ref exists on the bound
-host and repository and that the authorized head repo and ref are published.
+Before creating a PR, record the intended base ref and its SHA on the bound
+host and repository. Verify that the authorized head repo and ref are published.
 Confirm immediately before creation that the remote head SHA is the reviewed
 head SHA and the published diff matches local acceptance. Bind both refs
-explicitly; never infer the base from a default or local branch configuration.
-A needed push requires its own authorization. Verify the new PR's head SHA
-and both refs before proceeding. Before any write to an existing PR, verify
+by verified session context or explicit arguments; never infer the base from
+a default or local branch configuration. A needed push requires its own
+authorization. Verify both refs and both SHAs on the new PR before proceeding.
+On drift, stop and reapply the affected gates. Before any write to an existing PR, verify
 its live base matches the bound base. Compare the live head SHA and base SHA
 with the snapshots used for the relevant authorization, review, and write
 gates. On any mismatch, stop and reapply the affected gates before acting.

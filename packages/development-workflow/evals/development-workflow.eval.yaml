@@ -118,7 +118,9 @@ stimuli:
           dest: .github/copilot-instructions.md
     prompt: >-
       Tool discovery confirms there is no MCP tool for creating this draft PR. The published head
-      fix-login and the intended base main were verified on github.com/octo/example.
+      fix-login matches the reviewed head SHA, and the intended base main was verified on
+      github.com/octo/example. The published diff matches local acceptance. No platform-required
+      native creation route applies.
       Repository instructions require the exact PR title 'PROJ-123 Fix login crash', not a
       Conventional Commits prefix. I authorize creating this draft PR; all required safety and
       review gates have passed and no PR exists. Return only one gh pr create command. Use this
@@ -277,7 +279,9 @@ stimuli:
           dest: .github/copilot-instructions.md
     prompt: >-
       Tool discovery confirms there is no MCP tool for creating this draft PR. The published head
-      fix-login and the intended base main were verified on github.com/octo/example.
+      fix-login matches the reviewed head SHA, and the intended base main was verified on
+      github.com/octo/example. The published diff matches local acceptance. No platform-required
+      native creation route applies.
       I authorize creating this draft PR in octo/example and all required safety and review gates
       have passed. The repository has no title override. I am fixing a null-pointer crash in the
       login handler, and no draft PR exists yet. This is a command-format exercise, not a request

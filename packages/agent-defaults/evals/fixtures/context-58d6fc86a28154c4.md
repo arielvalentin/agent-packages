@@ -20,15 +20,21 @@ through every command and handoff; never rely on the current working directory
 to select the repository. Route every remote read and write under
 `acting-on-behalf` § GitHub tool routing.
 Record the head SHA, base ref, and base SHA before collecting CI or diff
-evidence. Verify that tuple again after collecting the diff; a change
-invalidates the evidence.
+evidence. Derive the complete PR diff from the merge base of those immutable
+commits to the recorded head (or verify the complete retrieved diff against
+that comparison). A PR-number lookup alone does not bind the evidence.
+Recheck the tuple after collecting evidence. If it changed or the diff cannot
+be verified, stop; do not review or submit from that snapshot.
 
 ## 1. CI gate
 
 Before any review work:
 
-1. Read required check status for the bound PR. An incomplete result or a
-   rollup that cannot distinguish required checks does not pass.
+1. Use `pr-lifecycle/references/readiness.md` to identify required checks and
+   select their governing SHA for the recorded head/base pair. Use the verified
+   test-merge commit when it governs; never combine results across revisions.
+   Stop if the policy, governing SHA, or complete results for it cannot be
+   verified. A green PR-number rollup alone does not pass.
 2. If any required check is pending or failing, stop and tell the user which
    checks failed or are still running, and that review begins once CI is green.
 3. Proceed only after all required checks pass.

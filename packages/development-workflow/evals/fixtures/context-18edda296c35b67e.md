@@ -197,12 +197,12 @@ does not authorize publication.
    `git-publishing-safety`, follow the repository's required creation phase and
    readiness state, but never create before local acceptance. By default,
    create a **draft PR** with the validated title and complete body, never a
-   placeholder like `WIP: <goal>`. Use GitHub tool routing and pass the
-   verified host, repository, head, base, title, body, and state. Only use
+   placeholder like `WIP: <goal>`. Follow the shared GitHub routing and
+   target-binding rules, including verification of any session-bound inputs.
+   Supply the validated title, body, and state. Only use
    `gh pr create` if MCP lacks that operation and no platform-required native
    route applies. In that case bind the host-qualified repository, `--head`,
-   and `--base` explicitly. Pass all values as separate literal arguments;
-   never interpolate them as shell source. When repository guidance
+   and `--base` explicitly. When repository guidance
    requires the PR to be opened ready only after gates pass, create it ready
    then. If a PR already exists, do not create a duplicate;
    use the Existing PR entrypoint. Record its number/URL in continuation state
