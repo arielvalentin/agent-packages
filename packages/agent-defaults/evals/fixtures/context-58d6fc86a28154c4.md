@@ -15,16 +15,18 @@ scan.
 When a question explicitly requests a Yes/No answer, begin with the plain,
 unformatted answer token; add a brief explanation only when requested.
 
-Resolve the canonical `owner/repo` and PR number or URL once. Pass both through
-every command and handoff; never rely on the current working directory to select
-the repository.
+Resolve the canonical host, `owner/repo`, and PR number or URL once. Pass them
+through every command and handoff; never rely on the current working directory
+to select the repository. Route every remote read and write under
+`acting-on-behalf` § GitHub tool routing.
 
 ## 1. CI gate
 
 Before any review work:
 
-1. Run `gh pr checks <pr-number> --repo <owner/repo> --required` or inspect
-   `statusCheckRollup` with `gh pr view --repo <owner/repo>`.
+1. Read required check status with a GitHub MCP tool, or fall back to
+   `gh pr checks <pr-number> --repo <owner/repo> --required` or
+   `statusCheckRollup` from `gh pr view --repo <owner/repo>`.
 2. If any required check is pending or failing, stop and tell the user which
    checks failed or are still running, and that review begins once CI is green.
 3. Proceed only after all required checks pass.
@@ -117,7 +119,8 @@ steps 3-7 with the following relevant content, not forced section headings:
 6. Verdict: approve, request changes, or comment-only, with rationale.
 
 Invoke `acting-on-behalf` before posting; stop if unavailable or disclosure is
-unresolved. Use `gh pr review` with `--approve`,
+unresolved. Submit the review with a GitHub MCP review tool, or fall back to
+`gh pr review` with `--approve`,
 `--request-changes`, or `--comment`, always passing the PR number and
 `--repo <owner/repo>`, and include only the attribution that skill requires.
 

@@ -46,13 +46,27 @@ remote URL owner if needed.
 gh auth status 2>&1 | sed -nE 's/.*Logged in to github\.com account ([^[:space:]]+).*/\1/p'
 ```
 
-This reads the local credential store — no API call required.
+This reads the local credential store — no API call required. It is local
+state, like `git config`, so the GitHub tool routing in `acting-on-behalf`
+does not apply. That routing governs the API lookup in step 4.
 
 ### 4. GitHub API (last resort)
 
+Use the GitHub MCP authenticated-user tool first. Accept its login only when it
+is the requesting user's personal account, not an app, bot, or service
+principal. If the tool is unavailable, returns a fallback-eligible operational
+error under `acting-on-behalf` § GitHub tool routing, or returns another or
+unverified principal, fall back to:
+
 ```bash
-gh api user --jq '.login'
+gh api user --jq '"\(.login) \(.type)"'
 ```
+
+Apply the same personal-account check to the fallback result. Accept it only
+when `type` is `User` and nothing indicates a machine or service account.
+Return only the login. If neither route
+returns a verified personal account for the requesting user, ask the user
+instead of caching a login.
 
 Only use this if all above sources fail. It requires network access and
 counts against rate limits.

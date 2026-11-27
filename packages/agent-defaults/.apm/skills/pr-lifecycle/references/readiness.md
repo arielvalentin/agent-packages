@@ -1,5 +1,10 @@
 ## Existing-draft transition snapshots
 
+The `gh` commands in this reference are fallbacks under `acting-on-behalf`'s
+**GitHub tool routing**. Use GitHub MCP tools first only when they return the
+same fields for the same target, SHA, and complete pagination. Otherwise use
+these commands. Each snapshot and gate check keeps its rules on either route.
+
 Immediately before a permitted transition, take two consecutive complete
 snapshots. In each, record opening PR state, title, head/base SHAs, base name,
 merge state, and the complete reviewer-request set using the endpoint and

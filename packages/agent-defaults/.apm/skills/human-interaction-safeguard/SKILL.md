@@ -23,9 +23,18 @@ Do not classify from a login, display name, suffix, comment text, or
 `gh pr view --json reviews,comments`. Retrieve author type and app metadata
 from GitHub.
 
+Route these reads under `acting-on-behalf` § GitHub tool routing, including
+its host binding and snapshot rules. Use GitHub MCP tools first only when they
+also return the same authoritative
+fields as the `gh` command for that surface, with complete pagination: for REST
+items, author `type` and `performed_via_github_app` presence and value; for
+review threads, author `__typename`, resolution state, and complete nested
+comment pagination. Otherwise use the `gh` commands below. A route that omits
+these fields is not a classification source.
+
 ### REST surfaces
 
-Use these commands for every relevant surface:
+Use these commands for every relevant surface when falling back to `gh`:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/comments" \

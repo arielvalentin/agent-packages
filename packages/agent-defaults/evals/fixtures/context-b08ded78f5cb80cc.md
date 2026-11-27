@@ -69,7 +69,8 @@ Ask before pushing or opening a PR unless the user's request or repository
 guidance already authorizes that action. A branch existing or a completed
 change is not authorization by itself. Opening a PR and pushing an unpublished
 branch are separate actions; authorization to open a PR does not authorize the
-push. Before using `gh pr create`, confirm the branch is already published or
+push. Before creating a PR through GitHub MCP or `gh pr create`, confirm the
+branch is already published or
 that the request or repository guidance also authorizes the required push.
 
 Repository guidance may authorize publication only when the policy is present
@@ -118,9 +119,18 @@ Do not classify from a login, display name, suffix, comment text, or
 `gh pr view --json reviews,comments`. Retrieve author type and app metadata
 from GitHub.
 
+Route these reads under `acting-on-behalf` § GitHub tool routing, including
+its host binding and snapshot rules. Use GitHub MCP tools first only when they
+also return the same authoritative
+fields as the `gh` command for that surface, with complete pagination: for REST
+items, author `type` and `performed_via_github_app` presence and value; for
+review threads, author `__typename`, resolution state, and complete nested
+comment pagination. Otherwise use the `gh` commands below. A route that omits
+these fields is not a classification source.
+
 ### REST surfaces
 
-Use these commands for every relevant surface:
+Use these commands for every relevant surface when falling back to `gh`:
 
 ```bash
 gh api --paginate "repos/{owner}/{repo}/pulls/{pull_number}/comments" \

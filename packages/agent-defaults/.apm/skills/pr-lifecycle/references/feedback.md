@@ -41,6 +41,8 @@ guidance, after applying `human-interaction-safeguard` and
 authorized lifecycle by rerunning Phase 4. Stop only when another gate requires
 user input or an action lacks authorization.
 
+Use a GitHub MCP reviewer-request tool, or this `gh` fallback:
+
 ```bash
 gh pr edit <number> --repo <owner>/<repo> --add-reviewer <reviewer>
 ```

@@ -69,7 +69,8 @@ Ask before pushing or opening a PR unless the user's request or repository
 guidance already authorizes that action. A branch existing or a completed
 change is not authorization by itself. Opening a PR and pushing an unpublished
 branch are separate actions; authorization to open a PR does not authorize the
-push. Before using `gh pr create`, confirm the branch is already published or
+push. Before creating a PR through GitHub MCP or `gh pr create`, confirm the
+branch is already published or
 that the request or repository guidance also authorizes the required push.
 
 Repository guidance may authorize publication only when the policy is present

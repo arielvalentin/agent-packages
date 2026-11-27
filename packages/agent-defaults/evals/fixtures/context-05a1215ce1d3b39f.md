@@ -34,7 +34,10 @@ When restating a named target or qualifier, keep its exact phrase contiguous.
 Put clarifying modifiers outside the named phrase, not between its terms.
 
 Resolve the exact repository, then the PR when one exists. A bare PR number
-means the active repository only. Pass explicit `--repo` to repository-scoped
+means the active repository only. Follow `acting-on-behalf`'s **GitHub tool
+routing**: use GitHub MCP tools first with the resolved owner, repository, and
+number, and use the `gh` commands in this skill as fallbacks. When using `gh`,
+pass explicit `--repo` to repository-scoped
 `gh` commands, including `gh pr` and `gh run`, and the same target in `gh api`
 paths. Do not trust implicit selection or `GH_REPO` without verifying the target.
 Replace command placeholders with resolved values; ask before reading or acting
@@ -128,8 +131,9 @@ the user asks for one status check or bounded waiting. They do not start the
 full PR loop or authorize changes.
 Use the bounded read-only `watch-ci` helper for CI-only waits and
 `wait-for-copilot-code-review` for Copilot-only waits when available for the
-resolved target. Otherwise, make one read-only status check: use
-`gh pr checks <number> --repo <owner>/<repo>` for CI,
+resolved target. Otherwise, make one read-only status check: use a GitHub MCP
+check-status tool, or the `gh pr checks <number> --repo <owner>/<repo>`
+fallback, for CI,
 or inspect Phase 5 review requests/reviews once for Copilot. Do not use
 `--watch`, poll, dispatch fixes, or start the full loop in this fallback.
 
@@ -200,12 +204,17 @@ does not authorize publication.
    `git-publishing-safety`, follow the repository's required creation phase and
    readiness state, but never create before local acceptance. By default,
    create a **draft PR** with the validated title and complete body, never a
-   placeholder like `WIP: <goal>`:
+   placeholder like `WIP: <goal>`. Use a GitHub MCP PR-creation tool first with
+   the same host, repository, head, base, title, body, and state. Under
+   `acting-on-behalf` § GitHub tool routing, if MCP lacks it or returns a
+   fallback-eligible operational error, use
+   the `gh` fallback:
    ```bash
    gh pr create --repo <owner>/<repo> --draft --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
    When guidance requires the PR to be opened ready only
-   after gates pass, create it here without `--draft`:
+   after gates pass, use the same MCP-first routing in ready state. With the
+   `gh` fallback, create it here without `--draft`:
    ```bash
    gh pr create --repo <owner>/<repo> --title "<validated-title>" --body "<problem/value summary + required tracking>"
    ```
@@ -227,8 +236,9 @@ For example, a repository requiring a ticket prefix keeps that prefix.
 
 Before creating, updating, or readying a PR, validate the title's format and
 apply `git-publishing-safety`'s **PR title length** section independently of
-the format check. This applies to `create_pull_request`, `update_pull_request`,
-`gh pr create`, `gh pr edit --title`, and `gh pr ready`.
+the format check. This applies to every route, including `create_pull_request`,
+`update_pull_request`, GitHub MCP PR create/update/ready tools, `gh pr create`,
+`gh pr edit --title`, and `gh pr ready`.
 
 Only when the repository supplies no title format, use these Conventional
 Commits defaults for titles created or updated in Phase 3:
@@ -257,8 +267,8 @@ Commits defaults for titles created or updated in Phase 3:
 
 | Missing tool | Fallback |
 |-------------|----------|
-| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
-| `watch-ci` | For standalone CI status, use one read-only `gh pr checks <number> --repo <owner>/<repo>` query if unavailable. In full Phase 4, follow the bounded SHA-specific polling procedure in `references/readiness.md`; never use `gh pr checks` as the required-check gate |
+| `create_pull_request` (built-in) | Only after Phase 2 local acceptance and publication authorization, and if repository guidance has no different workflow: use a GitHub MCP PR-creation tool with the same repository, title, body, and draft state; if MCP lacks it or returns a fallback-eligible operational error (`acting-on-behalf` § GitHub tool routing), `gh pr create --repo <owner>/<repo> --draft --title "<type>: <description>" --body "<problem/value summary + relevant issue ref>"` (non-interactive — never a bare `gh pr create --draft` with no `--body`, and never a `WIP:` placeholder); validate the title against § Title format first |
+| `watch-ci` | For standalone CI status, use one read-only GitHub MCP check-status query, or the `gh pr checks <number> --repo <owner>/<repo>` fallback. In full Phase 4, follow the bounded SHA-specific polling procedure in `references/readiness.md`; never use `gh pr checks` or an equivalent MCP PR-wide summary as the required-check gate |
 | `stage-pr` | Report staging unavailable |
 
 ## Pre-requisites
@@ -277,6 +287,11 @@ unavailable, stop unless § Skill fallbacks supplies that exact fallback.
 
 
 ## Existing-draft transition snapshots
+
+The `gh` commands in this reference are fallbacks under `acting-on-behalf`'s
+**GitHub tool routing**. Use GitHub MCP tools first only when they return the
+same fields for the same target, SHA, and complete pagination. Otherwise use
+these commands. Each snapshot and gate check keeps its rules on either route.
 
 Immediately before a permitted transition, take two consecutive complete
 snapshots. In each, record opening PR state, title, head/base SHAs, base name,
@@ -705,6 +720,8 @@ guidance, after applying `human-interaction-safeguard` and
 `acting-on-behalf`. If notification is not authorized, skip it and continue the
 authorized lifecycle by rerunning Phase 4. Stop only when another gate requires
 user input or an action lacks authorization.
+
+Use a GitHub MCP reviewer-request tool, or this `gh` fallback:
 
 ```bash
 gh pr edit <number> --repo <owner>/<repo> --add-reviewer <reviewer>
