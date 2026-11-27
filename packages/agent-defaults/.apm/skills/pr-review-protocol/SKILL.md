@@ -24,9 +24,8 @@ to select the repository. Route every remote read and write under
 
 Before any review work:
 
-1. Read required check status with a GitHub MCP tool, or fall back to
-   `gh pr checks <pr-number> --repo <owner/repo> --required` or
-   `statusCheckRollup` from `gh pr view --repo <owner/repo>`.
+1. Read required check status for the bound PR. An incomplete result or a
+   rollup that cannot distinguish required checks does not pass.
 2. If any required check is pending or failing, stop and tell the user which
    checks failed or are still running, and that review begins once CI is green.
 3. Proceed only after all required checks pass.
@@ -119,10 +118,9 @@ steps 3-7 with the following relevant content, not forced section headings:
 6. Verdict: approve, request changes, or comment-only, with rationale.
 
 Invoke `acting-on-behalf` before posting; stop if unavailable or disclosure is
-unresolved. Submit the review with a GitHub MCP review tool, or fall back to
-`gh pr review` with `--approve`,
-`--request-changes`, or `--comment`, always passing the PR number and
-`--repo <owner/repo>`, and include only the attribution that skill requires.
+unresolved. Submit one approve, request-changes, or comment-only review to
+the bound PR under GitHub tool routing. Include only the attribution that
+skill requires.
 
 ## Boundaries
 

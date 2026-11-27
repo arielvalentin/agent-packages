@@ -40,37 +40,15 @@ git config user.name
 This is often the GitHub username or close to it. Cross-reference with the
 remote URL owner if needed.
 
-### 3. GitHub CLI auth cache (no network)
+### 3. Authenticated account (last resort)
 
-```bash
-gh config get -h github.com user
-```
-
-This reads the local `gh` host configuration — no API call required. Do not
-substitute `gh auth status`; it contacts GitHub to validate the token. It is local
-state, like `git config`, so the GitHub tool routing in `acting-on-behalf`
-does not apply. That routing governs the API lookup in step 4.
-
-### 4. GitHub API (last resort)
-
-Use the GitHub MCP authenticated-user tool first. Accept its login only when it
-is the requesting user's personal account, not an app, bot, or service
-principal. If the tool is unavailable, returns a fallback-eligible operational
-error under `acting-on-behalf` § GitHub tool routing, or returns another or
-unverified principal, fall back to:
-
-```bash
-gh api user --jq '"\(.login) \(.type)"'
-```
-
-Apply the same personal-account check to the fallback result. Accept it only
-when `type` is `User` and nothing indicates a machine or service account.
-Return only the login. If neither route
-returns a verified personal account for the requesting user, ask the user
-instead of caching a login.
-
-Only use this if all above sources fail. It requires network access and
-counts against rate limits.
+Follow `acting-on-behalf`'s GitHub tool routing for the authenticated-user
+lookup on the bound host. If the session exposes no MCP tool for this lookup,
+`gh api --hostname <host> user` can read the authenticated account.
+Accept the login only when `type` is `User` and the account is verified as
+the requesting user's personal account, not a machine or service principal.
+If the lookup fails or the account cannot be verified, ask the user for
+their handle instead of inferring it from remote evidence.
 
 ## Output
 

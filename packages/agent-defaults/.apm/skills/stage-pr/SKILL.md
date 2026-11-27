@@ -27,10 +27,12 @@ Look for:
 
 ### 2. GitHub Codespace (preferred)
 
-If the repo supports Codespaces:
+If the repo supports Codespaces, use GitHub tool routing from `acting-on-behalf`.
+Use the following CLI commands only for the corresponding Codespaces operations
+the exposed MCP tools do not support:
 
 ```bash
-gh codespace create --repo <owner/repo> --branch <pr-branch> --machine basicLinux32gb
+gh codespace create --repo <host>/<owner>/<repo> --branch <pr-branch> --machine basicLinux32gb
 ```
 
 Wait for creation, then:
@@ -67,7 +69,8 @@ Provide:
 
 ## Cleanup
 
-Remind the user to delete the Codespace when validation is complete:
+Remind the user to delete the Codespace when validation is complete. If no
+exposed MCP tool can delete that Codespace, the manual command is:
 
 ```bash
 gh codespace delete --codespace <name>

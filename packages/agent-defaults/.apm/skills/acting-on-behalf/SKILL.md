@@ -49,45 +49,34 @@ posting identity and disclosure blockers. This does not waive any posting gate.
 
 ## GitHub tool routing
 
-This skill owns GitHub tool routing for the shared skills. Use local `git` for
-local repository state. For GitHub operations, use GitHub MCP server tools
-first. Fall back to `gh` or `gh api` only when the MCP server is unavailable,
-does not expose the needed tool or fields, or returns an operational error for
-that operation, such as a transport, server, timeout, or rate-limit failure.
-The `gh` commands in shared skills are fallback examples.
+Use local `git` for local repository state. For remote GitHub operations, use
+the exposed GitHub MCP tool that supports the exact operation. Check the
+session's tool inventory and declared capabilities before using `gh` for a
+specific operation that no exposed MCP tool can perform. This includes reads:
+check support for the target host, required fields, and complete pagination.
+A failed call, incomplete result from a tool that supports the read, timeout,
+rate limit, authentication error, or denied approval is not a tool gap.
+Handle the failure under the applicable gate; do not switch to `gh`.
 
-Do not fall back when GitHub or the tool rejects the request on its merits:
-validation, authorization, stale state or concurrency, closed or locked
-targets, or a host or repository binding mismatch. A denied, cancelled, or
-policy-blocked approval for a write is a stop, never a fallback trigger.
-Resolve the underlying condition first.
+Bind the exact host, repository, and applicable item number or SHA on every
+operation. Where a verified tool gap calls for `gh`, pass an explicit
+host-qualified target. When a snapshot requires distinct operations, check
+capabilities for each, keep the target and identity consistent, and verify
+the complete snapshot as required by its gate. Never splice in data from
+another route to complete a failed or partial read.
 
-Bind the exact host before every remote operation, and the exact repository
-before every repository-scoped one. Treat MCP as unavailable for a target
-unless its arguments or verified configuration bind it to that host; a
-successful response from another host is not a result. Both routes must use
-the same host and, where the operation uses them, the same repository, number,
-SHA, fields, and complete pagination. With `gh`, pass the host as
-`--repo <host>/<owner>/<repo>` or `gh api --hostname <host>` unless the
-effective default `gh` host is verified to be the target host. This applies to
-github.com targets too. PR creation on
-either route must also bind the authorized head repository and branch and the
-intended base branch. If MCP cannot express that pair, treat it as
-unsupported; with `gh`, always pass the verified `--head` and `--base`.
-Never rely on the repository default or `branch.<name>.gh-merge-base`.
-Verify the head is published before creation; any needed push requires its
-own authorization. For an existing PR, verify its base matches the bound
-base before any write; a mismatch is a stop, not permission to retarget it.
+Before creating a PR, verify that the intended base ref exists on the bound
+host and repository and that the authorized head repo and ref are published.
+Bind both refs explicitly on creation; never infer the base from a default or
+local branch configuration. A needed push requires its own authorization.
+Verify both refs on the new PR and verify the bound target before any write to
+an existing PR. A mismatch is a stop, not permission to retarget it.
 
-Do not mix routes within one consistency snapshot; if a fallback is needed,
-redo that snapshot with `gh`. Before any write on either route, confirm that
-route's authenticated account and run the identity, authorization, and
-disclaimer decisions for it. If a fallback route's account differs or is
-unknown, rerun those decisions before writing. If a write fails with an
-unknown outcome, verify current state before retrying through `gh`. For a
-write that is not safely repeatable, retry only after confirming the first
-attempt did not apply and cannot still apply; if that stays ambiguous, stop and
-report it. Never post twice. A `HUMAN_STOP` single-reply confirmation is
+Before any write, confirm the authenticated account and apply the identity,
+authorization, and disclaimer rules to it. When a write has an unknown
+outcome, verify its state. Retry a non-repeatable write only after confirming
+it did not apply and cannot still apply; otherwise stop and report it.
+Never post twice. A `HUMAN_STOP` single-reply confirmation is
 consumed by the first attempted reply, even if it fails without posting.
 Any retry requires fresh single-reply confirmation under
 `human-interaction-safeguard`; confirmed non-delivery does not restore approval.
@@ -142,8 +131,7 @@ provider solely to render the disclaimer.
 After the interaction gate permits drafting, load `writing-voice` for voice,
 evidence, rationale, structure, and validation detail. Apply its final reader
 check immediately before every permitted post, including new PR/issue bodies.
-Writing guidance grants no posting permission. Choose the GitHub tool route
-with **GitHub tool routing** below.
+Writing guidance grants no posting permission. Follow **GitHub tool routing**.
 
 For PR descriptions, also load its artifact-authoring reference. Preserve
 relevant direct issue references (`Closes`/`Fixes owner/repo#N`), required
@@ -172,9 +160,7 @@ For every permitted post:
 ## If no issue is provided
 
 1. If repository guidance requires an issue, search for likely existing issues
-   first when Issues are available. Use GitHub MCP issue search, or the `gh`
-   fallback:
-   - `gh issue list --repo <owner>/<repo> --search "<keywords>"`
+   first when Issues are available, following **GitHub tool routing**.
 2. Confirm the candidate with the user before assuming.
 3. If nothing matches, ask whether to open a new issue; never create one without
    authorization. Required tracking blocks publication until resolved.
@@ -224,38 +210,20 @@ gated action:
    authorizes the required push. If repository guidance specifies a title
    format, follow and validate that format. Only when it is silent, use the
    Conventional title format below. Before creating, updating, or readying a
-   PR through any route (GitHub MCP, built-in tools, or `gh`), apply `git-publishing-safety`'s **PR title
-   length** section independently of the format check.
+   PR, apply `git-publishing-safety`'s **PR title length** section independently
+   of the format check.
 
    When the draft default applies, create the PR non-interactively in draft
-   state with a valid title and a non-empty body. Follow **GitHub tool
-   routing**: use a GitHub MCP PR-creation tool first. If it is unavailable or
-   returns a fallback-eligible operational error, use one
-   `gh pr create --repo <owner>/<repo> --head <head> --base <base> --draft`
-   command, which must include `--repo`, `--head`, `--base`, `--draft`,
-   `--title`, and `--body`. `<head>` is the verified published head branch and
-   `<base>` is the bound base branch; never omit either.
-   If repository guidance requires another workflow, use its required PR
-   creation phase, state, and command; never impose `--draft`. If that workflow
-   requires a ready PR after gates pass, create it then through the same
-   routing, without draft state. The `gh` fallback is
-   `gh pr create --repo <owner>/<repo> --head <head> --base <base> --title "<validated-title>" --body "<required body>"`
-   with no `--draft`. After creation on either route, verify the PR's head and
-   base match the bound pair before any further write.
-
-   ```sh
-   gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: correct null handling in login handler" --body "Refs #123"
-   ```
-
-   Never a bare `--draft` with no `--body`, and never a `WIP:` title. When the
+   state with a valid title and a non-empty body. If repository guidance
+   requires another workflow, use its required creation phase and state. If
+   it requires opening a ready PR after gates pass, create it ready then.
+   Follow **GitHub tool routing** for the creation and any later PR operations.
+   Never use a `WIP:` placeholder title. When the
    repository does not specify another format, the title must be
    `<type>[(<scope>)][!]: <description>`, where `<type>` is
    one of `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `perf`,
    `build`, `revert`; `(<scope>)` is optional and `!` marks a breaking
    change. Validate the title against
    `^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)(\([^()\s]+\))?!?:\s+\S.*`.
-   Follow **GitHub tool routing** for later PR reads and updates; the `gh`
-   fallbacks are `gh pr checks --watch`, `gh pr view|edit|comment|checks`, and
-   `gh run view|watch`.
 3. `stage-pr` missing -> report staging as unavailable and proceed without
    staging automation.

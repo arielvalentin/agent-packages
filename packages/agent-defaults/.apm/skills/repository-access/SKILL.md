@@ -50,11 +50,8 @@ SHA-or-URL preference above.
 ## GitHub operations
 
 For local repository state, use local `git`. For GitHub operations, follow
-`acting-on-behalf`, which owns GitHub tool routing and posting safeguards:
-GitHub MCP server tools first, with `gh` or `gh api` as the fallback when MCP
-is unavailable, lacks the needed tool, or returns a fallback-eligible
-operational error. Merit and approval rejections are stops. Read `gh` examples
-as fallbacks, not as a reason to skip an available MCP tool.
+`acting-on-behalf`, which owns GitHub tool routing and posting safeguards.
+Use exposed GitHub MCP tools for the operations they support.
 
 ## APM-managed skills and plugins
 

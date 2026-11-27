@@ -34,13 +34,13 @@ Create a compact plan before making queries:
 
 Define a backend by its underlying host/API, credentials, and rate-limit bucket,
 not by the client used to access it. For example, GitHub queries made through
-`gh`, REST, GraphQL, GitHub MCP, or GitHub web URLs share the GitHub backend
-and must not be
-parallelized as separate sources.
+MCP, API clients, or the GitHub website share the GitHub backend and must not
+be parallelized as separate sources. Follow `acting-on-behalf`'s GitHub tool
+routing for remote GitHub reads.
 
 | Source/backend | Question | Agent/tool | Order |
 |----------------|----------|------------|-------|
-| GitHub/repository | related code, issues, commits, or prior art | `research`, GitHub MCP (`gh` fallback), local search | sequential within GitHub |
+| GitHub/repository | related code, issues, commits, or prior art | `research`, GitHub MCP, local search | sequential within GitHub |
 | Official product docs | supported behavior and current guidance | product documentation tool | sequential within each docs backend |
 | Public web | external standards, upstream projects, or comparisons | `research` or web fetch | sequential within the web backend |
 | Internal data source | production evidence or operational history | source-specific skill/tool | sequential within that backend |

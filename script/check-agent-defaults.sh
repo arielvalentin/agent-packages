@@ -187,7 +187,7 @@ for name, policy in (("pr-lifecycle", pr_lifecycle_policy), ("acting-on-behalf",
     assert not re.search(r"\b72\b.{0,20}\bcharacters?\b", policy), \
         f"{name}: do not duplicate the shared PR title length default"
 for rule in (
-    'set -e -o pipefail gh api "repos/<owner>/<repo>/pulls/<number>/requested_reviewers"',
+    'get /repos/{owner}/{repo}/pulls/{number}/requested_reviewers',
     "lc_all=c sort -u",
     "(.users | type) != \"array\" or (.teams | type) != \"array\"",
     "def valid_node_id:",
@@ -340,7 +340,7 @@ for unverifiable_runs in (
     ), f"pr-lifecycle: unverifiable Actions run accepted: {unverifiable_runs}"
 
 reviewer_query = re.search(
-    r'gh api .*requested_reviewers".*?--jq \'(.*?)\'\s*\\\s*\|\s*LC_ALL=C sort -u',
+    r"jq -r '(def no_control:.*?)'\s*\\\s*\|\s*LC_ALL=C sort -u",
     pr_lifecycle_text,
     re.DOTALL,
 )
@@ -419,13 +419,13 @@ for malformed_response in (
     assert malformed_result.returncode != 0, \
         f"pr-lifecycle: malformed reviewer response accepted: {malformed_response}"
 review_poll_query = re.search(
-    r'gh api --paginate "repos/<owner>/<repo>/pulls/<number>/reviews" \\\s+--jq \'(.*?)\'',
+    r"```jq\n(def no_control:.*?)\n```",
     pr_lifecycle_text,
     re.DOTALL,
 )
 assert review_poll_query, "pr-lifecycle: missing completed-review validation filter"
 for rule in (
-    "set -e -o pipefail",
+    "get /repos/{owner}/{repo}/pulls/{number}/reviews",
     "invalid reviews response",
     "invalid review record",
     "(.user.login | type) == \"string\"",
@@ -531,7 +531,7 @@ for malformed_reviews in (
         f"pr-lifecycle: malformed completed-review response accepted: {malformed_reviews}"
 for rule in ("if no pr exists and publication is authorized under `git-publishing-safety`",
              "repository's required creation phase and readiness state",
-             "create it here without `--draft`",
+             "requires the pr to be opened ready only after gates pass, create it ready then",
              "before pr creation or any required branch push, follow `git-publishing-safety` for publication authorization",
              "follow repository tracking requirements; do not invent a required issue when none applies"):
     assert rule in pr_lifecycle_policy, \
@@ -556,7 +556,7 @@ for rule in ("never create before local acceptance",
              "create a **draft PR**",
              "Local acceptance does not authorize publication",
              "When no PR exists, prepare title text only",
-             "do not run `gh pr edit` or invent a PR number",
+             "do not edit a PR or invent a PR number",
              "Record its number/URL in continuation state only after creation succeeds",
              "draft checks, feedback handling, authorization, and transition snapshots"):
     assert rule in " ".join(creation.split()), rule
@@ -866,7 +866,7 @@ assert draft_entrypoint_positions == sorted(draft_entrypoint_positions), \
 draft_transition_steps = [
     "take two consecutive complete snapshots",
     "and the complete reviewer-request set using the endpoint and validation defined in Phase 5",
-    "--json state,isDraft,title,headRefOid,baseRefOid,baseRefName,mergeStateStatus",
+    "`state`, `isDraft`, `title`, `headRefOid`, `baseRefOid`, `baseRefName`, and `mergeStateStatus`",
     "Retrieve policy/check evidence and all Phase 6 feedback surfaces, then repeat both retrievals",
     "Finish with fresh PR and reviewer-request reads after the last feedback page",
     "Retrieve and classify all feedback surfaces again after those closing reads",
@@ -878,7 +878,7 @@ draft_transition_steps = [
     "all required checks to pass",
     "the feedback sets to match the fully processed set",
     "conditions hold and the current title passes § Title format",
-    "gh pr ready <number> --repo <owner>/<repo>",
+    "mark that PR ready",
 ]
 draft_transition_positions = [
     draft_transition_reference.index(step) for step in draft_transition_steps
@@ -1028,8 +1028,10 @@ checks.extend([
 pr_create_cases = [defaults_case(170), defaults_case(376)]
 title_72 = "fix: " + "x" * 67
 title_73 = "fix: " + "x" * 68
+create_prefix = "gh pr create --repo github.com/octo/example --head fix-login --base main"
+draft_prefix = f"{create_prefix} --draft"
 safe_command = lambda title: \
-    f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title}" --body "Refs #123"'
+    f'{draft_prefix} --title "{title}" --body "Refs #123"'
 for case in pr_create_cases:
     assert case["tags"]["suite"] == "smoke", "draft command grader must run in CI"
     command_assert = case
@@ -1038,58 +1040,62 @@ for case in pr_create_cases:
         (command_assert, safe_command(title_73), False),
         (command_assert, safe_command("FIX: handle null"), False),
         (command_assert, safe_command("WIP: handle null"), False),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: handle null" --body "   "', False),
+        (command_assert, f'{draft_prefix} --title "fix: handle null" --body "   "', False),
         (command_assert, f"```bash\n{safe_command(title_72)}\n```", False),
         (command_assert, f'{safe_command(title_72)} --head "other"', False),
         (command_assert, safe_command(title_72).replace(" --head fix-login --base main", ""), False),
         (command_assert, safe_command(title_72).replace(" --base main", ""), False),
         (command_assert, f"{safe_command(title_72)} | cat", False),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: handle & test" --body "Refs #123; adds tests"', True),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: say "hi"" --body "Refs #123"', False),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: handle null" --body "$(whoami)"', False),
+        (command_assert, safe_command(title_72).replace("github.com/", ""), False),
+        (command_assert, f'{draft_prefix} --title "fix: handle & test" --body "Refs #123; adds tests"', True),
+        (command_assert, f'{draft_prefix} --title "fix: say "hi"" --body "Refs #123"', False),
+        (command_assert, f'{draft_prefix} --title "fix: handle null" --body "$(whoami)"', False),
         (command_assert, f"git push --force origin HEAD; {safe_command(title_72)}", False),
         (command_assert, f"{safe_command(title_72)} && git push --force origin HEAD", False),
-        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body >artifact', False),
-        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body "$HOME"', False),
-        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body *', False),
-        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --draft --title "{title_72}" --body "Refs #123', False),
+        (command_assert, f'{draft_prefix} --title "{title_72}" --body >artifact', False),
+        (command_assert, f'{draft_prefix} --title "{title_72}" --body "$HOME"', False),
+        (command_assert, f'{draft_prefix} --title "{title_72}" --body *', False),
+        (command_assert, f'{draft_prefix} --title "{title_72}" --body "Refs #123', False),
     ])
 ready_pr_cases = [defaults_case(177), defaults_case(377)]
 ready_command = lambda title: \
-    f'gh pr create --repo octo/example --head fix-login --base main --title "{title}" --body "Refs #123"'
+    f'{create_prefix} --title "{title}" --body "Refs #123"'
 for case in ready_pr_cases:
     assert case["tags"]["suite"] == "smoke", "ready command grader must run in CI"
     command_assert = case
     checks.extend([
         (command_assert, ready_command(title_72), True),
         (command_assert, ready_command(title_73), False),
-        (command_assert, f"gh pr create --repo octo/example --head fix-login --base main --draft --title \"{title_72}\" --body \"Refs #123\"", False),
+        (command_assert, safe_command(title_72), False),
         (command_assert, f"git push --force origin HEAD; {ready_command(title_72)}", False),
         (command_assert, f'{ready_command(title_72)} && git push --force origin HEAD', False),
         (command_assert, f'{ready_command(title_72)} | cat', False),
         (command_assert, f'{ready_command(title_72)} || echo "extra"', False),
         (command_assert, f'{ready_command(title_72)} < "input"', False),
-        (command_assert, f'gh pr create --repo octo/example --head fix-login --base main --title "{title_72}" --body >artifact', False),
+        (command_assert, f'{create_prefix} --title "{title_72}" --body >artifact', False),
         (command_assert, f'{ready_command(title_72)} --head "other"', False),
         (command_assert, ready_command(title_72).replace(" --head fix-login --base main", ""), False),
         (command_assert, ready_command(title_72).replace("--base main", "--base develop"), False),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: handle & test" --body "Refs #123; adds tests"', True),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: say "hi"" --body "Refs #123"', False),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: handle null" --body "$(whoami)"', False),
-        (command_assert, 'gh pr create --repo octo/example --head fix-login --base main --title "fix: handle null" --body "   "', False),
+        (command_assert, ready_command(title_72).replace("github.com/", ""), False),
+        (command_assert, f'{create_prefix} --title "fix: handle & test" --body "Refs #123; adds tests"', True),
+        (command_assert, f'{create_prefix} --title "fix: say "hi"" --body "Refs #123"', False),
+        (command_assert, f'{create_prefix} --title "fix: handle null" --body "$(whoami)"', False),
+        (command_assert, f'{create_prefix} --title "fix: handle null" --body "   "', False),
     ])
 existing_draft_case = defaults_case(217)
 assert existing_draft_case["tags"]["suite"] == "smoke", \
     "existing draft transition grader must run in CI"
 existing_draft_command_assert = existing_draft_case
-existing_draft_command = "gh pr ready <number> --repo <owner>/<repo>"
+existing_draft_command = "gh pr ready 42 --repo github.com/octo/example"
 existing_draft_fenced_command = f"```bash\n{existing_draft_command}\n```"
 checks.extend([
     (existing_draft_command_assert, existing_draft_command, True),
     (existing_draft_command_assert, existing_draft_fenced_command, False),
-    (existing_draft_command_assert, "gh pr ready <number>", False),
-    (existing_draft_command_assert, "gh pr ready <number> --repo <owner>/<other>", False),
-    (existing_draft_command_assert, f"gbashh pr ready <number> --repo <owner>/<repo>", False),
+    (existing_draft_command_assert, "gh pr ready 42", False),
+    (existing_draft_command_assert, existing_draft_command.replace("github.com/", ""), False),
+    (existing_draft_command_assert, existing_draft_command.replace("example", "other"), False),
+    (existing_draft_command_assert, existing_draft_command.replace("42", "43"), False),
+    (existing_draft_command_assert, existing_draft_command.replace("gh", "gbashh", 1), False),
     (existing_draft_command_assert, f"{existing_draft_command} --title \"feat: new title\"", False),
     (existing_draft_command_assert, f"{existing_draft_command} && git push --force origin HEAD", False),
     (existing_draft_command_assert, f"gh pr edit <number> --title \"feat: new title\" && {existing_draft_command}", False),

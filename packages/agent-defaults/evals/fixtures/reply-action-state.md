@@ -6,7 +6,7 @@ user authorization.
 
 ## Target and retrieved interaction
 
-- The destination is the public GitHub repository `owner/repo`, pull request
+- The destination is the public GitHub repository `github.com/owner/repo`, pull request
   `42`.
 - The target is review comment `7`; its thread is open and unresolved, with no
   earlier replies.

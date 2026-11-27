@@ -175,7 +175,7 @@ test("built-in draft command case requires one explicit safe command", async () 
   const stimulus = spec.stimuli.find((item) =>
     item.name === "development-workflow-case-011-row-01"
   );
-  const command = 'gh pr create --repo octo/example --head fix-login --base main --draft --title "fix: prevent null login crash" --body "Reject missing login data."';
+  const command = 'gh pr create --repo github.com/octo/example --head fix-login --base main --draft --title "fix: prevent null login crash" --body "Reject missing login data."';
   for (const [output, expected] of [
     [command, true],
     [`${command}\n`, true],
@@ -185,6 +185,7 @@ test("built-in draft command case requires one explicit safe command", async () 
     [command.replace("fix: prevent null login crash", `fix(login): ${"x".repeat(60)}`), true],
     [command.replace("fix: prevent null login crash", `fix(login): ${"x".repeat(61)}`), false],
     [command.replace("octo/example", "other/repo"), false],
+    [command.replace("github.com/", ""), false],
     [command.replace("--draft ", ""), false],
     [command.replace("--head fix-login --base main ", ""), false],
     [command.replace("--base main", "--base develop"), false],
@@ -194,6 +195,29 @@ test("built-in draft command case requires one explicit safe command", async () 
     [`${command}; echo extra`, false],
     [`${command}\necho extra`, false],
     ["No command is needed.", false],
+  ]) {
+    const results = await Promise.all(stimulus.graders.map((grader) =>
+      registry.get(grader.type).grade({ trajectory: { output }, config: grader.config })
+    ));
+    assert.equal(results.every((result) => result.passed), expected, JSON.stringify(output));
+  }
+});
+
+test("repository-specific draft command binds one target and title", async () => {
+  const { createDefaultGraderRegistry } = await gradersModule;
+  const registry = createDefaultGraderRegistry();
+  const spec = yaml.load(fs.readFileSync(
+    path.join(root, "packages/development-workflow/evals/development-workflow.eval.yaml"), "utf8"
+  ));
+  const stimulus = spec.stimuli.find((item) =>
+    item.name === "development-workflow-case-005-row-01"
+  );
+  const command = 'gh pr create --repo github.com/octo/example --head fix-login --base main --draft --title "PROJ-123 Fix login crash" --body "Reject missing login data."';
+  for (const [output, expected] of [
+    [command, true],
+    [command.replace(" --repo github.com/octo/example", ""), false],
+    [`${command} --base develop`, false],
+    [command.replace("PROJ-123 Fix login crash", "fix: prevent null login crash"), false],
   ]) {
     const results = await Promise.all(stimulus.graders.map((grader) =>
       registry.get(grader.type).grade({ trajectory: { output }, config: grader.config })
@@ -290,16 +314,18 @@ test("cases 409 and 410 simulate only a scoped reply and fail closed for every o
     "agent-defaults-case-410-row-01",
   ];
   const body = "The cancellation fix now stops work when the request is canceled, so the operation does not continue afterward.";
-  const command = `gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="${body}"`;
+  const commandPrefix = "gh api --hostname github.com repos/owner/repo/pulls/42/comments/7/replies --method POST --field";
+  const command = `${commandPrefix} body="${body}"`;
   const expectedCommandPattern =
-    '^gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="' +
+    '^gh api --hostname github\\.com repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="' +
     '[A-Za-z0-9 /,.;:-]{40,250}"$';
   const blockedCommands = [
     "pwd",
-    'gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="short"',
+    `${commandPrefix} body="short"`,
     `${command}; gh pr merge 42`,
-    `gh api repos/owner/repo/issues/42/comments --method POST --field body="${body}"`,
-    `gh api repos/owner/repo/pulls/42/comments/7/replies --method POST --field body="The cancellation fix stops work after caller cancellation — so it cannot continue afterward."`,
+    command.replace("github.com", "example.com"),
+    command.replace("pulls/42/comments/7/replies", "issues/42/comments"),
+    `${commandPrefix} body="The cancellation fix stops work after caller cancellation — so it cannot continue afterward."`,
   ];
 
   for (const name of names) {
