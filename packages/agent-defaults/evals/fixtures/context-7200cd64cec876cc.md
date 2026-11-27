@@ -181,11 +181,11 @@ does not authorize publication.
    readiness state, but never create before local acceptance. By default,
    create a **draft PR** with the validated title and complete body, never a
    placeholder like `WIP: <goal>`. Use GitHub tool routing and pass the
-   verified host, repository, head, base, title, body, and state. If tool
-   discovery confirms that MCP does not expose a creation tool for the bound
-   target and state, use `gh pr create` with an explicit host-qualified
-   repository, `--head`, and `--base`. Pass the title and body as quoted
-   literals, without shell expansions. When repository guidance
+   verified host, repository, head, base, title, body, and state. Only use
+   `gh pr create` if MCP lacks that operation and no platform-required native
+   route applies. In that case bind the host-qualified repository, `--head`,
+   and `--base` explicitly. Pass all values as separate literal arguments;
+   never interpolate them as shell source. When repository guidance
    requires the PR to be opened ready only after gates pass, create it ready
    then. If a PR already exists, do not create a duplicate;
    use the Existing PR entrypoint. Record its number/URL in continuation state

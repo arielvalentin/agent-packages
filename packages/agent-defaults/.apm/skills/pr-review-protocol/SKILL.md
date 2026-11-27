@@ -19,6 +19,9 @@ Resolve the canonical host, `owner/repo`, and PR number or URL once. Pass them
 through every command and handoff; never rely on the current working directory
 to select the repository. Route every remote read and write under
 `acting-on-behalf` § GitHub tool routing.
+Record the head SHA, base ref, and base SHA before collecting CI or diff
+evidence. Verify that tuple again after collecting the diff; a change
+invalidates the evidence.
 
 ## 1. CI gate
 
@@ -119,7 +122,11 @@ steps 3-7 with the following relevant content, not forced section headings:
 
 Invoke `acting-on-behalf` before posting; stop if unavailable or disclosure is
 unresolved. Submit one approve, request-changes, or comment-only review to
-the bound PR under GitHub tool routing. Include only the attribution that
+the bound PR under GitHub tool routing. Immediately before posting, recheck
+the recorded tuple. If it changed, stop and review the new revision first.
+Use a review submission operation that binds the review to the reviewed SHA
+(GitHub's create-review API calls this `commit_id`). Stop if the available
+route can only submit to the latest head. Include only the attribution that
 skill requires.
 
 ## Boundaries

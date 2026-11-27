@@ -54,6 +54,8 @@ the exposed GitHub MCP tool that supports the exact operation. Check the
 session's tool inventory and declared capabilities before using `gh` for a
 specific operation that no exposed MCP tool can perform. This includes reads:
 check support for the target host, required fields, and complete pagination.
+Honor any platform-required native tool that can bind the exact target and
+operation.
 A failed call, incomplete result from a tool that supports the read, timeout,
 rate limit, authentication error, or denied approval is not a tool gap.
 Handle the failure under the applicable gate; do not switch to `gh`.
@@ -72,8 +74,10 @@ head SHA and the published diff matches local acceptance. Bind both refs
 explicitly; never infer the base from a default or local branch configuration.
 A needed push requires its own authorization. Verify the new PR's head SHA
 and both refs before proceeding. Before any write to an existing PR, verify
-its live base matches the bound base as well as verifying the PR target.
-A mismatch is a stop, not permission to retarget it.
+its live base matches the bound base. Compare the live head SHA and base SHA
+with the snapshots used for the relevant authorization, review, and write
+gates. On any mismatch, stop and reapply the affected gates before acting.
+A mismatch is not permission to retarget the PR.
 
 Before any write, confirm the authenticated account and apply the identity,
 authorization, and disclaimer rules to it. When a write has an unknown
